@@ -11,8 +11,7 @@ name = "splice"
 path = "src/lib.rs"
 
 [dependencies]
-# Local dependency - verified at /home/feanor/Projects/sqlitegraph
-sqlitegraph = { path = "../sqlitegraph/sqlitegraph", version = "0.2.4", features = ["sqlite-backend"] }
+sqlitegraph = { version = "0.2.10", features = ["sqlite-backend"] }
 
 # AST parsing for Rust source
 tree-sitter = "0.22"
