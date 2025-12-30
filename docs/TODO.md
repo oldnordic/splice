@@ -125,8 +125,58 @@
 
 ## Current State
 
-**Date**: 2025-12-23
-**Status**: Task 8 Complete - Self-Hosting (Dogfooding) + Release Binary
+**Date**: 2025-12-30
+**Status**: Phase 4 Complete - Reference Finding with Edge Cases
+
+### Completed: Delete Command with Reference Finding (2025-12-30)
+
+**Phase 1-4**: ✅ Complete
+- Same-file reference finding (100% accuracy)
+- Cross-file reference finding (95-98% accuracy)
+- Delete integration with validation gates
+- Shadowing detection (local variables shadow imports)
+- Re-export chain following
+- Trait method reference patterns
+
+See [Plan File](../../../.claude/plans/iridescent-questing-sundae.md) for details.
+
+---
+
+### Phase 4: Edge Cases - COMPLETE ✅
+
+**4.1 Shadowing Detection** ✅
+- [x] Build scope hierarchy during AST traversal
+- [x] Track local symbols in each scope (function_item, let_declaration, match_arm, block)
+- [x] Filter references that are shadowed at their byte offset
+- [x] Add shadowing tests (3 tests passing)
+
+**4.2 Re-export Chain Following** ✅
+- [x] Extract re-export information from `pub use` statements
+- [x] Build re-export graph: (symbol, module) → [(module, original_module)]
+- [x] Follow re-export chains when matching imports
+- [x] Add `is_reexport` field to ImportFact struct
+
+**4.3 Trait Method References** ✅
+- [x] Handle method call syntax: `value.method()`
+- [x] Handle trait method syntax: `Trait::method(value)`
+- [x] Handle qualified syntax: `Type::method()`
+
+---
+
+## Historical State (2025-12-28)
+
+**Status**: Multi-Language Support Complete (Rust, Python, C/C++, JavaScript, Java)
+
+**Multi-Language Implementation Summary**:
+- **Phase 1D**: Cross-file symbol resolution (12 tests)
+- **Phase 2**: Python support (25 tests: 16 import + 9 symbol)
+- **Phase 4**: JavaScript/TypeScript support (13 tests: 7 import + 6 symbol)
+- **Phase 5**: C/C++ support (34 tests: 15 import + 19 symbol)
+- **Phase 9**: Java support (30 tests: 6 import + 9 symbol + doctests)
+
+**Total Test Count**: 189 tests passing (all languages)
+
+See `docs/TODO_MULTI_LANG_V2.md` for detailed multi-language roadmap.
 
 ### Completed
 - [x] Task 0: Project skeleton, cargo check passes
