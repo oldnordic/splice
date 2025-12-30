@@ -5,10 +5,9 @@
 
 use splice::graph::CodeGraph;
 use splice::ingest::rust::{extract_rust_symbols, RustSymbolKind};
-use splice::resolve::{resolve_symbol, ResolvedSpan};
+use splice::resolve::resolve_symbol;
 use std::io::Write;
 use tempfile::NamedTempFile;
-use std::path::Path;
 
 #[cfg(test)]
 mod tests {
@@ -43,18 +42,17 @@ fn foo() {
         let path2 = temp_file2.path();
 
         // Create temporary graph database
-        let mut graph_db = NamedTempFile::new().expect("Failed to create temp db");
+        let graph_db = NamedTempFile::new().expect("Failed to create temp db");
         let graph_path = graph_db.path();
 
         // Open graph
-        let mut code_graph = CodeGraph::open(graph_path)
-            .expect("Failed to open graph database");
+        let mut code_graph = CodeGraph::open(graph_path).expect("Failed to open graph database");
 
         // Ingest symbols from both files
-        let symbols1 = extract_rust_symbols(path1, source1.as_bytes())
-            .expect("Failed to parse file 1");
-        let symbols2 = extract_rust_symbols(path2, source2.as_bytes())
-            .expect("Failed to parse file 2");
+        let symbols1 =
+            extract_rust_symbols(path1, source1.as_bytes()).expect("Failed to parse file 1");
+        let symbols2 =
+            extract_rust_symbols(path2, source2.as_bytes()).expect("Failed to parse file 2");
 
         // Store symbols with file associations
         for symbol in &symbols1 {
@@ -112,16 +110,15 @@ fn foo() {
         let path = temp_file.path();
 
         // Create temporary graph database
-        let mut graph_db = NamedTempFile::new().expect("Failed to create temp db");
+        let graph_db = NamedTempFile::new().expect("Failed to create temp db");
         let graph_path = graph_db.path();
 
         // Open graph
-        let mut code_graph = CodeGraph::open(graph_path)
-            .expect("Failed to open graph database");
+        let mut code_graph = CodeGraph::open(graph_path).expect("Failed to open graph database");
 
         // Ingest symbols from source
-        let symbols = extract_rust_symbols(path, source.as_bytes())
-            .expect("Failed to parse Rust file");
+        let symbols =
+            extract_rust_symbols(path, source.as_bytes()).expect("Failed to parse Rust file");
 
         // Store symbol with file association
         let symbol = &symbols[0];
@@ -176,16 +173,15 @@ fn world() {
         let path = temp_file.path();
 
         // Create temporary graph database
-        let mut graph_db = NamedTempFile::new().expect("Failed to create temp db");
+        let graph_db = NamedTempFile::new().expect("Failed to create temp db");
         let graph_path = graph_db.path();
 
         // Open graph
-        let mut code_graph = CodeGraph::open(graph_path)
-            .expect("Failed to open graph database");
+        let mut code_graph = CodeGraph::open(graph_path).expect("Failed to open graph database");
 
         // Ingest symbols from source
-        let symbols = extract_rust_symbols(path, source.as_bytes())
-            .expect("Failed to parse Rust file");
+        let symbols =
+            extract_rust_symbols(path, source.as_bytes()).expect("Failed to parse Rust file");
 
         // Store all symbols with file association
         for symbol in &symbols {

@@ -23,6 +23,25 @@ pub struct Cli {
 /// Available Splice commands.
 #[derive(clap::Subcommand, Debug)]
 pub enum Commands {
+    /// Delete a symbol by removing its definition.
+    Delete {
+        /// Path to the source file containing the symbol.
+        #[arg(short, long)]
+        file: std::path::PathBuf,
+
+        /// Symbol name to delete.
+        #[arg(short, long)]
+        symbol: String,
+
+        /// Optional symbol kind filter (function, struct, enum, trait, impl).
+        #[arg(short, long)]
+        kind: Option<SymbolKind>,
+
+        /// Optional rust-analyzer validation mode (off, os, path).
+        #[arg(long, value_name = "MODE")]
+        analyzer: Option<AnalyzerMode>,
+    },
+
     /// Apply a patch to a symbol's span.
     Patch {
         /// Path to the source file containing the symbol.
@@ -57,10 +76,15 @@ pub enum Commands {
 /// Symbol kind for filtering.
 #[derive(clap::ValueEnum, Debug, Clone, Copy)]
 pub enum SymbolKind {
+    /// Function symbol.
     Function,
+    /// Struct symbol.
     Struct,
+    /// Enum symbol.
     Enum,
+    /// Trait symbol.
     Trait,
+    /// Impl block.
     Impl,
 }
 

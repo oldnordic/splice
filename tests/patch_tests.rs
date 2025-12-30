@@ -5,11 +5,10 @@
 
 use splice::graph::CodeGraph;
 use splice::ingest::rust::{extract_rust_symbols, RustSymbolKind};
-use splice::resolve::resolve_symbol;
 use splice::patch::apply_patch_with_validation;
+use splice::resolve::resolve_symbol;
 use splice::validate::AnalyzerMode;
 use std::io::Write;
-use std::path::Path;
 use tempfile::{NamedTempFile, TempDir};
 
 #[cfg(test)]
@@ -43,9 +42,9 @@ edition = "2021"
 name = "temp_test"
 path = "src/lib.rs"
 "#
-        ).expect("Failed to write Cargo.toml");
-        std::fs::rename(cargo_toml.path(), &cargo_toml_path)
-            .expect("Failed to move Cargo.toml");
+        )
+        .expect("Failed to write Cargo.toml");
+        std::fs::rename(cargo_toml.path(), &cargo_toml_path).expect("Failed to move Cargo.toml");
 
         // Create src directory
         let src_dir = workspace_path.join("src");
@@ -67,12 +66,12 @@ pub fn farewell(name: &str) -> String {
 
         // Create temporary graph database
         let graph_db_path = workspace_path.join("graph.db");
-        let mut code_graph = CodeGraph::open(&graph_db_path)
-            .expect("Failed to open graph database");
+        let mut code_graph =
+            CodeGraph::open(&graph_db_path).expect("Failed to open graph database");
 
         // Ingest symbols from lib.rs
-        let symbols = extract_rust_symbols(&lib_rs_path, source.as_bytes())
-            .expect("Failed to parse lib.rs");
+        let symbols =
+            extract_rust_symbols(&lib_rs_path, source.as_bytes()).expect("Failed to parse lib.rs");
 
         assert_eq!(symbols.len(), 2, "Expected 2 functions");
 
@@ -95,7 +94,8 @@ pub fn farewell(name: &str) -> String {
             Some(&lib_rs_path),
             Some(RustSymbolKind::Function),
             "greet",
-        ).expect("Failed to resolve greet function");
+        )
+        .expect("Failed to resolve greet function");
 
         // Verify we got the right span
         let greet_symbol = &symbols[0];
@@ -115,7 +115,7 @@ pub fn greet(name: &str) -> String {
             resolved.byte_start,
             resolved.byte_end,
             new_body.trim(),
-            workspace_path, // For cargo check
+            workspace_path,    // For cargo check
             AnalyzerMode::Off, // rust-analyzer OFF for this test
         );
 
@@ -123,14 +123,23 @@ pub fn greet(name: &str) -> String {
         assert!(result.is_ok(), "Patch should succeed: {:?}", result);
 
         // Verify file content changed exactly in the span
-        let new_content = std::fs::read_to_string(&lib_rs_path)
-            .expect("Failed to read patched file");
+        let new_content =
+            std::fs::read_to_string(&lib_rs_path).expect("Failed to read patched file");
 
-        assert!(new_content.contains("Greetings, "), "Patched content should be present");
-        assert!(!new_content.contains("Hello, "), "Old content should be gone");
+        assert!(
+            new_content.contains("Greetings, "),
+            "Patched content should be present"
+        );
+        assert!(
+            !new_content.contains("Hello, "),
+            "Old content should be gone"
+        );
 
         // Verify the other function is unchanged
-        assert!(new_content.contains("Goodbye,"), "Other function should be unchanged");
+        assert!(
+            new_content.contains("Goodbye,"),
+            "Other function should be unchanged"
+        );
     }
 
     /// Test B: Patch rejected on syntax gate.
@@ -158,9 +167,9 @@ edition = "2021"
 name = "temp_test"
 path = "src/lib.rs"
 "#
-        ).expect("Failed to write Cargo.toml");
-        std::fs::rename(cargo_toml.path(), &cargo_toml_path)
-            .expect("Failed to move Cargo.toml");
+        )
+        .expect("Failed to write Cargo.toml");
+        std::fs::rename(cargo_toml.path(), &cargo_toml_path).expect("Failed to move Cargo.toml");
 
         // Create src directory
         let src_dir = workspace_path.join("src");
@@ -178,12 +187,12 @@ pub fn valid_function() -> i32 {
 
         // Create temporary graph database
         let graph_db_path = workspace_path.join("graph.db");
-        let mut code_graph = CodeGraph::open(&graph_db_path)
-            .expect("Failed to open graph database");
+        let mut code_graph =
+            CodeGraph::open(&graph_db_path).expect("Failed to open graph database");
 
         // Ingest and store symbols
-        let symbols = extract_rust_symbols(&lib_rs_path, source.as_bytes())
-            .expect("Failed to parse lib.rs");
+        let symbols =
+            extract_rust_symbols(&lib_rs_path, source.as_bytes()).expect("Failed to parse lib.rs");
 
         let symbol = &symbols[0];
         code_graph
@@ -202,11 +211,12 @@ pub fn valid_function() -> i32 {
             Some(&lib_rs_path),
             Some(RustSymbolKind::Function),
             "valid_function",
-        ).expect("Failed to resolve function");
+        )
+        .expect("Failed to resolve function");
 
         // Read original content for comparison
-        let original_content = std::fs::read_to_string(&lib_rs_path)
-            .expect("Failed to read original file");
+        let original_content =
+            std::fs::read_to_string(&lib_rs_path).expect("Failed to read original file");
 
         // Apply patch with syntax error (unclosed brace)
         let invalid_patch = r#"
@@ -239,12 +249,11 @@ pub fn valid_function() -> i32 {
         }
 
         // Verify original file is unchanged (atomic rollback)
-        let current_content = std::fs::read_to_string(&lib_rs_path)
-            .expect("Failed to read current file");
+        let current_content =
+            std::fs::read_to_string(&lib_rs_path).expect("Failed to read current file");
 
         assert_eq!(
-            original_content,
-            current_content,
+            original_content, current_content,
             "File should be unchanged after failed patch (atomic rollback)"
         );
     }
@@ -274,9 +283,9 @@ edition = "2021"
 name = "temp_test"
 path = "src/lib.rs"
 "#
-        ).expect("Failed to write Cargo.toml");
-        std::fs::rename(cargo_toml.path(), &cargo_toml_path)
-            .expect("Failed to move Cargo.toml");
+        )
+        .expect("Failed to write Cargo.toml");
+        std::fs::rename(cargo_toml.path(), &cargo_toml_path).expect("Failed to move Cargo.toml");
 
         // Create src directory
         let src_dir = workspace_path.join("src");
@@ -294,12 +303,12 @@ pub fn get_number() -> i32 {
 
         // Create temporary graph database
         let graph_db_path = workspace_path.join("graph.db");
-        let mut code_graph = CodeGraph::open(&graph_db_path)
-            .expect("Failed to open graph database");
+        let mut code_graph =
+            CodeGraph::open(&graph_db_path).expect("Failed to open graph database");
 
         // Ingest and store symbols
-        let symbols = extract_rust_symbols(&lib_rs_path, source.as_bytes())
-            .expect("Failed to parse lib.rs");
+        let symbols =
+            extract_rust_symbols(&lib_rs_path, source.as_bytes()).expect("Failed to parse lib.rs");
 
         let symbol = &symbols[0];
         code_graph
@@ -318,11 +327,12 @@ pub fn get_number() -> i32 {
             Some(&lib_rs_path),
             Some(RustSymbolKind::Function),
             "get_number",
-        ).expect("Failed to resolve function");
+        )
+        .expect("Failed to resolve function");
 
         // Read original content for comparison
-        let original_content = std::fs::read_to_string(&lib_rs_path)
-            .expect("Failed to read original file");
+        let original_content =
+            std::fs::read_to_string(&lib_rs_path).expect("Failed to read original file");
 
         // Apply patch that breaks the type signature (returns String instead of i32)
         let type_error_patch = r#"
@@ -356,12 +366,11 @@ pub fn get_number() -> i32 {
         }
 
         // Verify original file is unchanged (atomic rollback)
-        let current_content = std::fs::read_to_string(&lib_rs_path)
-            .expect("Failed to read current file");
+        let current_content =
+            std::fs::read_to_string(&lib_rs_path).expect("Failed to read current file");
 
         assert_eq!(
-            original_content,
-            current_content,
+            original_content, current_content,
             "File should be unchanged after failed patch (atomic rollback)"
         );
     }

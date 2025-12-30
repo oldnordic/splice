@@ -11,7 +11,9 @@ pub enum SpliceError {
     /// I/O error during file operations.
     #[error("I/O error for path {path}: {source}")]
     Io {
+        /// The file path that caused the I/O error.
         path: PathBuf,
+        /// The underlying I/O error.
         #[source]
         source: std::io::Error,
     },
@@ -23,7 +25,9 @@ pub enum SpliceError {
     /// Tree-sitter parsing error.
     #[error("Parse error in {file}: {message}")]
     Parse {
+        /// The file that failed to parse.
         file: PathBuf,
+        /// The parse error message.
         message: String,
     },
 
@@ -34,15 +38,46 @@ pub enum SpliceError {
     /// Symbol name is ambiguous without file context.
     #[error("Ambiguous symbol '{name}': found in multiple files: {files:?}")]
     AmbiguousSymbol {
+        /// The ambiguous symbol name.
         name: String,
+        /// List of files where this symbol was found.
         files: Vec<String>,
+    },
+
+    /// Reference finding failed.
+    #[error("Failed to find references for symbol '{name}': {reason}")]
+    ReferenceFailed {
+        /// The symbol name.
+        name: String,
+        /// Reason for failure.
+        reason: String,
+    },
+
+    /// Ambiguous reference detected.
+    #[error(
+        "Ambiguous reference to '{name}' at {file}:{line}:{col} - could refer to {candidates:?}"
+    )]
+    AmbiguousReference {
+        /// The symbol name.
+        name: String,
+        /// File containing the ambiguous reference.
+        file: String,
+        /// Line number.
+        line: usize,
+        /// Column number.
+        col: usize,
+        /// Candidate definitions.
+        candidates: Vec<String>,
     },
 
     /// Invalid byte span.
     #[error("Invalid span ({start}, {end}) in {file}")]
     InvalidSpan {
+        /// The file containing the invalid span.
         file: PathBuf,
+        /// Start byte offset.
         start: usize,
+        /// End byte offset.
         end: usize,
     },
 
@@ -53,39 +88,48 @@ pub enum SpliceError {
     /// Tree-sitter parse validation failed after patch.
     #[error("Parse validation failed: file '{file}' - {message}")]
     ParseValidationFailed {
+        /// The file that failed validation.
         file: std::path::PathBuf,
+        /// The validation error message.
         message: String,
     },
 
     /// Cargo check failed after patch.
     #[error("Cargo check failed in workspace '{workspace}': {output}")]
     CargoCheckFailed {
+        /// The workspace directory.
         workspace: std::path::PathBuf,
+        /// The cargo check output.
         output: String,
     },
 
     /// rust-analyzer not available.
     #[error("rust-analyzer not found: {mode}")]
     AnalyzerNotAvailable {
+        /// The analyzer mode that was requested.
         mode: String,
     },
 
     /// rust-analyzer validation failed.
     #[error("rust-analyzer reported diagnostics: {output}")]
     AnalyzerFailed {
+        /// The analyzer output.
         output: String,
     },
 
     /// Invalid plan schema.
     #[error("Invalid plan schema: {message}")]
     InvalidPlanSchema {
+        /// The schema validation error message.
         message: String,
     },
 
     /// Plan execution failed at step.
     #[error("Plan execution failed at step {step}: {error}")]
     PlanExecutionFailed {
+        /// The step number that failed.
         step: usize,
+        /// The error that occurred.
         error: String,
     },
 

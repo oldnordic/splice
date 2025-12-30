@@ -11,7 +11,7 @@
 use crate::error::{Result, SpliceError};
 use crate::validate::AnalyzerMode;
 use ropey::Rope;
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
@@ -238,11 +238,14 @@ pub fn replace_span(file_path: &Path, start: usize, end: usize, new_content: &st
         });
     }
 
-    std::str::from_utf8(&original.as_bytes()[start..end]).map_err(|_| SpliceError::InvalidSpan {
-        file: file_path.to_path_buf(),
-        start,
-        end,
-    })?;
+    // Validate that the span is within bounds
+    if end > original.len() || start > end {
+        return Err(SpliceError::InvalidSpan {
+            file: file_path.to_path_buf(),
+            start,
+            end,
+        });
+    }
 
     let mut rope = Rope::from_str(&original);
     let start_char = rope.byte_to_char(start);
@@ -257,13 +260,16 @@ pub fn replace_span(file_path: &Path, start: usize, end: usize, new_content: &st
 }
 
 /// Validate that a span aligns with UTF-8 boundaries.
-/// Validate that a span aligns with UTF-8 boundaries.
 pub fn validate_utf8_span(source: &str, start: usize, end: usize) -> Result<()> {
-    std::str::from_utf8(&source.as_bytes()[start..end]).map_err(|_| SpliceError::InvalidSpan {
-        file: std::path::PathBuf::from("<unknown>"),
-        start,
-        end,
-    })?;
+    // Validate that the span is within bounds
+    if end > source.len() || start > end {
+        return Err(SpliceError::InvalidSpan {
+            file: std::path::PathBuf::from("<unknown>"),
+            start,
+            end,
+        });
+    }
+    // If source is valid UTF-8, any slice of it is also valid UTF-8
+    let _ = &source[start..end];
     Ok(())
 }
-

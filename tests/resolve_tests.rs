@@ -4,7 +4,6 @@ use splice::graph::CodeGraph;
 use splice::ingest::rust::{extract_rust_symbols, RustSymbolKind};
 use std::io::Write;
 use tempfile::NamedTempFile;
-use sqlitegraph::NodeId;
 
 #[cfg(test)]
 mod tests {
@@ -30,16 +29,15 @@ fn goodbye() {
         let temp_path = temp_file.path();
 
         // Create temporary graph database
-        let mut graph_db = NamedTempFile::new().expect("Failed to create temp db");
+        let graph_db = NamedTempFile::new().expect("Failed to create temp db");
         let graph_path = graph_db.path();
 
         // Open graph
-        let mut code_graph = CodeGraph::open(graph_path)
-            .expect("Failed to open graph database");
+        let mut code_graph = CodeGraph::open(graph_path).expect("Failed to open graph database");
 
         // Ingest symbols from source
-        let symbols = extract_rust_symbols(temp_path, source.as_bytes())
-            .expect("Failed to parse Rust file");
+        let symbols =
+            extract_rust_symbols(temp_path, source.as_bytes()).expect("Failed to parse Rust file");
 
         // Assert we found 2 functions
         assert_eq!(symbols.len(), 2, "Expected 2 functions");
@@ -84,12 +82,11 @@ fn goodbye() {
     #[test]
     fn test_resolve_nonexistent_symbol() {
         // Create temporary graph database
-        let mut graph_db = NamedTempFile::new().expect("Failed to create temp db");
+        let graph_db = NamedTempFile::new().expect("Failed to create temp db");
         let graph_path = graph_db.path();
 
         // Open graph
-        let code_graph = CodeGraph::open(graph_path)
-            .expect("Failed to open graph database");
+        let code_graph = CodeGraph::open(graph_path).expect("Failed to open graph database");
 
         // Try to resolve a symbol that doesn't exist
         let result = code_graph.resolve_symbol("nonexistent_function");

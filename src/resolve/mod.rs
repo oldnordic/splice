@@ -3,6 +3,10 @@
 //! This module provides file-aware, deterministic symbol resolution.
 //! Name-only resolution is forbidden unless uniquely provable.
 
+pub mod cross_file;
+pub mod module_resolver;
+pub mod references;
+
 use crate::error::{Result, SpliceError};
 use crate::graph::CodeGraph;
 use crate::ingest::rust::RustSymbolKind;
@@ -66,10 +70,10 @@ pub fn resolve_symbol(
     name: &str,
 ) -> Result<ResolvedSpan> {
     // Build cache key for lookup
-    let cache_key = if let Some(file_path) = file {
-        let file_str = file_path.to_str().ok_or_else(|| SpliceError::Other(
-            format!("Invalid UTF-8 in path: {:?}", file_path),
-        ))?;
+    let _cache_key = if let Some(file_path) = file {
+        let file_str = file_path
+            .to_str()
+            .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
         format!("{}::{}", file_str, name)
     } else {
         name.to_string()
@@ -102,9 +106,8 @@ pub fn resolve_symbol(
 
     // Exactly one match → safe to return
     let (node_id, file_path) = all_matches.into_iter().next().unwrap();
-    let file_path_str = file_path.ok_or_else(|| SpliceError::Other(
-        "Symbol node missing file_path".to_string(),
-    ))?;
+    let file_path_str =
+        file_path.ok_or_else(|| SpliceError::Other("Symbol node missing file_path".to_string()))?;
 
     // Get node data from graph
     let node = graph.inner().get_node(node_id.as_i64())?;
@@ -156,9 +159,9 @@ fn resolve_symbol_in_file(
     kind: Option<RustSymbolKind>,
     name: &str,
 ) -> Result<ResolvedSpan> {
-    let file_str = file_path.to_str().ok_or_else(|| SpliceError::Other(
-        format!("Invalid UTF-8 in path: {:?}", file_path),
-    ))?;
+    let file_str = file_path
+        .to_str()
+        .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
 
     // Use the cache-based lookup from CodeGraph
     let node_id = graph

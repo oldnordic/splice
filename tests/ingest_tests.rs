@@ -1,6 +1,6 @@
 //! Ingest pipeline tests.
 
-use splice::ingest::rust::{extract_rust_symbols, RustSymbol, RustSymbolKind};
+use splice::ingest::rust::{extract_rust_symbols, RustSymbolKind};
 use std::io::Write;
 use tempfile::NamedTempFile;
 
@@ -33,13 +33,17 @@ mod tests {
         let result = extract_rust_symbols(temp_path, source.as_bytes());
 
         // Assert the function succeeds
-        assert!(result.is_ok(), "extract_rust_symbols failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "extract_rust_symbols failed: {:?}",
+            result.err()
+        );
 
         let symbols = result.unwrap();
 
         // Assert we found at least the top-level function
         assert!(
-            symbols.len() >= 1,
+            !symbols.is_empty(),
             "Expected at least 1 symbol, got {}",
             symbols.len()
         );
@@ -124,4 +128,3 @@ mod tests {
         );
     }
 }
-

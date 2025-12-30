@@ -3,7 +3,7 @@
 //! This module defines the labels and properties used to store
 //! Rust code constructs in the code graph.
 
-use sqlitegraph::{Label, PropertyKey, PropertyValue};
+use sqlitegraph::{Label, PropertyKey};
 
 /// Label for Rust function symbols.
 pub fn label_function() -> Label {

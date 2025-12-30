@@ -3,6 +3,8 @@
 //! This module runs cargo check and rust-analyzer to validate
 //! that patches produce valid Rust code.
 
+pub mod gates;
+
 use crate::error::{Result, SpliceError};
 use std::path::Path;
 use std::process::Command;
@@ -27,7 +29,10 @@ pub enum ValidationResult {
     Pass,
 
     /// Validation failed with compiler errors.
-    Fail { errors: Vec<CompilerError> },
+    Fail {
+        /// List of compiler errors found.
+        errors: Vec<CompilerError>,
+    },
 }
 
 /// Represents a compiler error or warning.
@@ -52,9 +57,13 @@ pub struct CompilerError {
 /// Error level from compiler.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ErrorLevel {
+    /// Error-level diagnostic.
     Error,
+    /// Warning-level diagnostic.
     Warning,
+    /// Note-level diagnostic.
     Note,
+    /// Help-level diagnostic.
     Help,
 }
 
@@ -104,9 +113,7 @@ pub fn gate_rust_analyzer(workspace_dir: &Path, mode: AnalyzerMode) -> Result<()
 
             // If there's ANY output, treat it as a failure
             if !combined.trim().is_empty() {
-                return Err(SpliceError::AnalyzerFailed {
-                    output: combined,
-                });
+                return Err(SpliceError::AnalyzerFailed { output: combined });
             }
 
             Ok(())
@@ -149,24 +156,81 @@ pub fn validate_with_cargo(project_dir: &Path) -> Result<ValidationResult> {
 }
 
 /// Parse cargo check output into CompilerError structs.
-fn parse_cargo_output(output: &str) -> Vec<CompilerError> {
+///
+/// This function is public for testing purposes.
+pub fn parse_cargo_output(output: &str) -> Vec<CompilerError> {
     let mut errors = Vec::new();
+    let mut pending_error: Option<(ErrorLevel, String)> = None;
 
     for line in output.lines() {
-        // Try to parse standard cargo error format:
-        // error[E123]: message
-        //    --> file.rs:line:column
-        if let Some(error) = parse_cargo_line(line) {
-            errors.push(error);
+        // Check for error/warning header: "error[E0277]: message" or "warning: message"
+        if let Some((level, message)) = parse_error_header(line) {
+            pending_error = Some((level, message));
+        }
+        // Check for location line: "   --> file.rs:line:column"
+        else if let Some((file, line_num, column)) = parse_location_line(line) {
+            if let Some((level, message)) = pending_error.take() {
+                errors.push(CompilerError {
+                    level,
+                    file,
+                    line: line_num,
+                    column,
+                    message,
+                });
+            }
         }
     }
 
     errors
 }
 
-/// Parse a single line of cargo output.
-fn parse_cargo_line(line: &str) -> Option<CompilerError> {
-    // TODO: Implement proper cargo output parsing in Task 1
-    // For now, return None as placeholder
+/// Parse an error/warning header line.
+/// Returns (level, message) if successful.
+fn parse_error_header(line: &str) -> Option<(ErrorLevel, String)> {
+    let line = line.trim();
+
+    // Match "error[E0277]: message" or "error: message"
+    if let Some(rest) = line.strip_prefix("error[") {
+        // Find closing bracket and colon
+        if let Some(idx) = rest.find("]:") {
+            let message = rest[idx + 2..].trim().to_string();
+            return Some((ErrorLevel::Error, message));
+        }
+    } else if let Some(rest) = line.strip_prefix("error:") {
+        let message = rest.trim().to_string();
+        return Some((ErrorLevel::Error, message));
+    }
+    // Match "warning: message"
+    else if let Some(rest) = line.strip_prefix("warning:") {
+        let message = rest.trim().to_string();
+        return Some((ErrorLevel::Warning, message));
+    }
+
+    None
+}
+
+/// Parse a location line like "   --> file.rs:line:column"
+/// Returns (file, line, column) if successful.
+fn parse_location_line(line: &str) -> Option<(String, usize, usize)> {
+    let line = line.trim();
+
+    // Match "   --> file:line:column" or "  --> file:line:column"
+    if let Some(rest) = line.strip_prefix("-->") {
+        let rest = rest.trim();
+        // Parse "file:line:column"
+        if let Some(colon_idx) = rest.rfind(':') {
+            let column_str = &rest[colon_idx + 1..];
+            let column = column_str.parse::<usize>().ok()?;
+
+            let before_column = &rest[..colon_idx];
+            if let Some(line_colon_idx) = before_column.rfind(':') {
+                let line_str = &before_column[line_colon_idx + 1..];
+                let line_num = line_str.parse::<usize>().ok()?;
+                let file = before_column[..line_colon_idx].to_string();
+                return Some((file, line_num, column));
+            }
+        }
+    }
+
     None
 }

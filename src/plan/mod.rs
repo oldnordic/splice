@@ -49,11 +49,10 @@ pub fn parse_plan(plan_path: &Path) -> Result<Plan> {
     let content = fs::read_to_string(plan_path)?;
 
     // Parse JSON
-    let plan: Plan = serde_json::from_str(&content).map_err(|e| {
-        crate::SpliceError::InvalidPlanSchema {
+    let plan: Plan =
+        serde_json::from_str(&content).map_err(|e| crate::SpliceError::InvalidPlanSchema {
             message: format!("JSON parse error: {}", e),
-        }
-    })?;
+        })?;
 
     // Validate plan has at least one step
     if plan.steps.is_empty() {
@@ -120,15 +119,8 @@ pub fn parse_plan(plan_path: &Path) -> Result<Plan> {
 /// # Returns
 /// * `Ok(Vec<String>)` - Success messages for each executed step
 /// * `Err(SpliceError)` - First error encountered during execution
-pub fn execute_plan(
-    plan_path: &Path,
-    workspace_dir: &Path,
-) -> Result<Vec<String>> {
-    use crate::graph::CodeGraph;
-    use crate::ingest::rust::{extract_rust_symbols, RustSymbolKind};
-    use crate::patch::apply_patch_with_validation;
-    use crate::resolve::resolve_symbol;
-    use crate::validate::AnalyzerMode;
+pub fn execute_plan(plan_path: &Path, workspace_dir: &Path) -> Result<Vec<String>> {
+    use crate::ingest::rust::RustSymbolKind;
 
     // Parse plan
     let plan = parse_plan(plan_path)?;
@@ -208,10 +200,7 @@ fn execute_single_step(
     let symbols = extract_rust_symbols(file_path, &source)?;
 
     // Step 3: Create in-memory graph (no persistent database needed)
-    let graph_db_path = file_path
-        .parent()
-        .unwrap()
-        .join(".splice_graph.db");
+    let graph_db_path = file_path.parent().unwrap().join(".splice_graph.db");
     let mut code_graph = CodeGraph::open(&graph_db_path)?;
 
     // Step 4: Store symbols in graph
@@ -263,7 +252,7 @@ mod tests {
 
     #[test]
     fn test_parse_plan_empty_steps_fails() {
-        let plan = Plan { steps: vec![] };
+        let _plan = Plan { steps: vec![] };
         let result = serde_json::from_str::<Plan>(r#"{"steps": []}"#).unwrap();
         assert!(result.steps.is_empty());
     }

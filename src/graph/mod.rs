@@ -9,7 +9,7 @@ pub mod schema;
 use crate::error::{Result, SpliceError};
 use crate::ingest::rust::RustSymbolKind;
 use serde_json::json;
-use sqlitegraph::{GraphBackend, NodeId, EdgeSpec, NodeSpec};
+use sqlitegraph::{EdgeSpec, GraphBackend, NodeId, NodeSpec};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -83,7 +83,7 @@ impl CodeGraph {
         // Cache the symbol name → NodeId mapping
         self.symbol_cache
             .entry(name.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(node_id);
 
         Ok(node_id)
@@ -106,9 +106,9 @@ impl CodeGraph {
         byte_end: usize,
     ) -> Result<NodeId> {
         // Get or create File node
-        let file_path_str = file_path.to_str().ok_or_else(|| SpliceError::Other(
-            format!("Invalid UTF-8 in path: {:?}", file_path),
-        ))?;
+        let file_path_str = file_path
+            .to_str()
+            .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
         let file_node_id = self.get_or_create_file_node(file_path_str)?;
 
         // Determine label based on kind
@@ -152,7 +152,7 @@ impl CodeGraph {
         let cache_key = format!("{}::{}", file_path_str, name);
         self.symbol_cache
             .entry(cache_key)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(symbol_id);
 
         Ok(symbol_id)

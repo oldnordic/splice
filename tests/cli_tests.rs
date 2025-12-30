@@ -49,9 +49,9 @@ edition = "2021"
 name = "temp_test"
 path = "src/lib.rs"
 "#
-        ).expect("Failed to write Cargo.toml");
-        std::fs::rename(cargo_toml.path(), &cargo_toml_path)
-            .expect("Failed to move Cargo.toml");
+        )
+        .expect("Failed to write Cargo.toml");
+        std::fs::rename(cargo_toml.path(), &cargo_toml_path).expect("Failed to move Cargo.toml");
 
         // Create src directory
         let src_dir = workspace_path.join("src");
@@ -78,7 +78,7 @@ pub fn greet(name: &str) -> String {
         std::fs::write(&patch_path, patch_content).expect("Failed to write patch file");
 
         // Create graph database path
-        let graph_db_path = workspace_path.join("splice_graph.db");
+        let _graph_db_path = workspace_path.join("splice_graph.db");
 
         // First, we need to ingest symbols into the graph
         // TODO: This will require implementing the ingest command
@@ -89,9 +89,12 @@ pub fn greet(name: &str) -> String {
 
         let output = Command::new(&splice_binary)
             .arg("patch")
-            .arg("--file").arg(&lib_rs_path)
-            .arg("--symbol").arg("greet")
-            .arg("--with").arg(&patch_path)
+            .arg("--file")
+            .arg(&lib_rs_path)
+            .arg("--symbol")
+            .arg("greet")
+            .arg("--with")
+            .arg(&patch_path)
             .current_dir(workspace_path)
             .output();
 
@@ -181,9 +184,9 @@ edition = "2021"
 name = "temp_test"
 path = "src/lib.rs"
 "#
-        ).expect("Failed to write Cargo.toml");
-        std::fs::rename(cargo_toml.path(), &cargo_toml_path)
-            .expect("Failed to move Cargo.toml");
+        )
+        .expect("Failed to write Cargo.toml");
+        std::fs::rename(cargo_toml.path(), &cargo_toml_path).expect("Failed to move Cargo.toml");
 
         // Create src directory
         let src_dir = workspace_path.join("src");
@@ -214,16 +217,23 @@ pub fn greet(name: &str) -> String {
 
         let output = Command::new(&splice_binary)
             .arg("patch")
-            .arg("--file").arg(&lib_rs_path)
-            .arg("--symbol").arg("greet")
-            .arg("--with").arg(&patch_path)
+            .arg("--file")
+            .arg(&lib_rs_path)
+            .arg("--symbol")
+            .arg("greet")
+            .arg("--with")
+            .arg(&patch_path)
             .current_dir(workspace_path)
             .output();
 
         match output {
             Ok(result) => {
                 // Should succeed with exit code 0
-                assert_eq!(result.status.code(), Some(0), "CLI should succeed with analyzer off by default");
+                assert_eq!(
+                    result.status.code(),
+                    Some(0),
+                    "CLI should succeed with analyzer off by default"
+                );
                 assert!(result.status.success(), "CLI should exit with success");
             }
             Err(e) => {
@@ -290,9 +300,9 @@ edition = "2021"
 name = "temp_test"
 path = "src/lib.rs"
 "#
-        ).expect("Failed to write Cargo.toml");
-        std::fs::rename(cargo_toml.path(), &cargo_toml_path)
-            .expect("Failed to move Cargo.toml");
+        )
+        .expect("Failed to write Cargo.toml");
+        std::fs::rename(cargo_toml.path(), &cargo_toml_path).expect("Failed to move Cargo.toml");
 
         // Create src directory
         let src_dir = workspace_path.join("src");

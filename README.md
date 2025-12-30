@@ -1,94 +1,76 @@
 # Splice
 
-Span-safe refactoring kernel for Rust using SQLiteGraph.
+Span-safe refactoring kernel for Rust using tree-sitter and SQLiteGraph.
 
-**Status**: MVP / Proof of Concept
-**Version**: 0.1.0
+**Version**: 0.2.0
 **License**: GPL-3.0-or-later
 
 ## What This Is
 
-Splice is a command-line tool that performs byte-accurate, AST-validated replacements of Rust code. Think of it as `sed` that:
-- Understands Rust syntax via tree-sitter
-- Validates replacements with tree-sitter reparse
-- Validates replacements with cargo check
-- Performs atomic rollback on validation failures
+Splice is a command-line tool that performs byte-accurate, AST-validated refactoring operations on Rust code. It can replace function bodies and delete symbols along with all their references (across files).
 
 ## What This Is NOT
 
-❌ An IDE - Use Rust Analyzer or IntelliJ Rust
-❌ A semantic refactoring tool - It doesn't track cross-file references
-❌ A complete solution - It's a focused tool for one specific job
-❌ Production-hardened - It's an MVP with known limitations
+- An IDE - Use Rust Analyzer or IntelliJ Rust
+- A general-purpose refactoring tool - Focused on specific operations
+- A complete solution - It's a focused tool for specific jobs
+- Production-hardened - Use with version control
 
-## What It Does Well
+## What It Does
 
-✅ Replaces function bodies, struct definitions, enum variants
-✅ Validates syntax after every patch
-✅ Validates compilation after every patch
-✅ Rolls back atomically on any failure
-✅ Orchestrates multi-step refactors via JSON plans
-
-## Known Limitations
-
-- No cross-file reference tracking (won't find all call sites)
-- No persistent database (creates graph on-the-fly for each patch)
-- No resume mode for failed plans (partial state must be manually cleaned up)
-- No dry-run mode (can't preview without applying)
-- No auto-discovery of symbols (you must know exact names)
-- Single-file symbol resolution only
+- **patch**: Replace function bodies, struct definitions, enum variants with validation
+- **delete**: Remove symbol definitions and all references (cross-file)
+- Validates syntax with tree-sitter after every operation
+- Validates compilation with cargo check after every operation
+- Rolls back atomically on any failure
+- Orchestrates multi-step refactors via JSON plans
 
 ## Installation
 
-### From Source
-
 ```bash
-# Clone repository
-git clone https://github.com/oldnordic/splice.git
-cd splice
-
-# Build release binary
-cargo build --release
-
-# Install to user bin
-mkdir -p ~/.local/bin
-cp target/release/splice ~/.local/bin/splice
-
-# Add to PATH (add to ~/.bashrc)
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
+cargo install splice
 ```
 
-### System-Wide Install (Optional)
-
+Or from source:
 ```bash
-sudo cp target/release/splice /usr/local/bin/splice
+git clone https://github.com/oldnordic/splice.git
+cd splice
+cargo build --release
+cp target/release/splice ~/.local/bin/
 ```
 
 ## Quick Start
 
-### Single Patch
+### Delete a Symbol
+
+Delete a function and all its references:
 
 ```bash
-# Create replacement file
+splice delete --file src/lib.rs --symbol helper --kind function
+```
+
+Output:
+```
+Deleted 'helper' (3 references + definition) across 2 file(s).
+```
+
+### Patch a Symbol
+
+Replace a function body:
+
+```bash
 cat > new_greet.rs << 'EOF'
 pub fn greet(name: &str) -> String {
     format!("Hi, {}!", name)
 }
 EOF
 
-# Apply patch
-splice patch \
-  --file src/lib.rs \
-  --symbol greet \
-  --kind function \
-  --with new_greet.rs
+splice patch --file src/lib.rs --symbol greet --kind function --with new_greet.rs
 ```
 
 ### Multi-Step Plan
 
 ```bash
-# Create plan.json
 cat > plan.json << 'EOF'
 {
   "steps": [
@@ -108,113 +90,80 @@ cat > plan.json << 'EOF'
 }
 EOF
 
-# Execute plan
 splice plan --file plan.json
+```
+
+## Commands
+
+### splice delete
+
+Remove a symbol definition and all its references.
+
+```bash
+splice delete --file <PATH> --symbol <NAME> [--kind <KIND>]
+```
+
+Finds references across the entire workspace:
+- Same-file references (function calls, type mentions)
+- Cross-file references (via imports)
+- Handles shadowing (local variables don't count)
+- Follows re-export chains
+
+### splice patch
+
+Apply a patch to a symbol's span.
+
+```bash
+splice patch --file <PATH> --symbol <NAME> --with <FILE> [--kind <KIND>]
+```
+
+### splice plan
+
+Execute a multi-step refactoring plan.
+
+```bash
+splice plan --file <PLAN.json>
 ```
 
 ## Documentation
 
-- **manual.md** - Complete user manual with examples and troubleshooting
-- **QUICKSTART.md** - Quick reference card
+- **manual.md** - Complete user manual
+- **CHANGELOG.md** - Version history
 
 ## Requirements
 
 - Rust 1.70+ (for building)
 - Cargo workspace (for validation)
-- tree-sitter-rust (bundled)
-- SQLiteGraph 0.2.4 (local dependency at `../sqlitegraph/sqlitegraph`)
 
 ## Architecture
 
-### Modules
-
-- **src/cli/** - CLI argument parsing (clap)
-- **src/ingest/** - Rust file parsing (tree-sitter-rust)
-- **src/graph/** - SQLiteGraph integration (symbol storage, resolution)
-- **src/resolve/** - Symbol → byte span resolution
-- **src/patch/** - Span-safe replacement + validation gates
+- **src/cli/** - CLI argument parsing
+- **src/ingest/** - Multi-language file parsing (Rust, C/C++, Java, JS, Python, TS)
+- **src/graph/** - SQLiteGraph integration
+- **src/resolve/** - Symbol resolution and reference finding
+- **src/patch/** - Span-safe replacement + validation
 - **src/validate/** - Tree-sitter + cargo check validation
 - **src/plan/** - JSON plan orchestration
-- **src/error.rs** - Typed error hierarchy
 
-### Validation Gates
+## Validation Gates
 
-Every patch passes:
+Every operation passes:
 1. UTF-8 boundary validation
 2. Tree-sitter reparse (syntax check)
 3. Cargo check (compilation check)
-4. [Optional] rust-analyzer (lint check)
-
-## Development Status
-
-**Complete Features**:
-- ✅ Span-safe byte replacement
-- ✅ Tree-sitter validation
-- ✅ Cargo check validation
-- ✅ Atomic rollback
-- ✅ Multi-step plan execution
-- ✅ CLI interface
-
-**Not Implemented**:
-- ⛔ Cross-file reference tracking
-- ⛔ Persistent symbol database
-- ⛔ Resume mode for failed plans
-- ⛔ Dry-run mode
-- ⛔ Auto-discovery of symbols
-- ⛔ Incremental validation
 
 ## Testing
 
 ```bash
-# Run all tests
 cargo test
-
-# Run specific test suite
-cargo test --test cli_tests
-cargo test --test patch_tests
 ```
 
-**Test Coverage**: 22/22 tests passing
-- Plan unit tests: 2/2
-- CLI integration tests: 9/9
-- Ingest tests: 3/3
-- Integration refactor tests: 3/3
-- Patch tests: 3/3
-- Resolve tests: 2/2
-
-## Examples
-
-See the test files for examples:
-- `tests/cli_tests.rs` - CLI integration examples
-- `tests/patch_tests.rs` - Patch validation examples
-- `tests/integration_refactor.rs` - Symbol resolution examples
-
-## Contributing
-
-This is an MVP / proof-of-concept. The codebase is feature-complete as of v0.1.0.
-
-Bug reports and PRs are welcome, but please note:
-- No new features are planned
-- Scope is intentionally limited
-- This is not a production refactoring tool
+Test Coverage: 298/298 tests passing
 
 ## License
 
-GPL-3.0-or-later - See LICENSE file for details
-
-## Acknowledgments
-
-Built with:
-- [tree-sitter](https://tree-sitter.github.io/) - AST parsing
-- [tree-sitter-rust](https://github.com/tree-sitter/tree-sitter-rust) - Rust grammar
-- [SQLiteGraph](https://github.com/oldnordic/sqlitegraph) - Code graph storage
-- [ropey](https://github.com/ceedubs/ropey) - Safe text editing
-- [clap](https://github.com/clap-rs/clap) - CLI argument parsing
-
-## Author
-
-oldnordic
+GPL-3.0-or-later
 
 ## Disclaimer
 
-This is experimental software. Use at your own risk. Always commit your changes before running Splice.
+This software modifies source code. Always commit your changes before running Splice.

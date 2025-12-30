@@ -18,3 +18,17 @@ Thumbs.db
 # Splice specific
 .splice_graph.db
 *.db
+codemcp/
+.codemcp/
+
+# Documentation drafts
+docs/CLEANUP_ANALYSIS.md
+docs/CROSS_FILE_RESOLUTION.md
+docs/EXECUTIVE_SUMMARY.md
+docs/LANGUAGE_DETECTION_PLAN.md
+docs/MULTI_LANGUAGE_ROADMAP.md
+docs/MULTI_LANGUAGE_V2.md
+docs/TODO_MULTI_LANG.md
+docs/TODO_MULTI_LANG_V2.md
+docs/TYPESCRIPT_IMPLEMENTATION_PLAN.md
+docs/VALIDATION_IMPLEMENTATION_PLAN.md
