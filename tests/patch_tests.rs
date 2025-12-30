@@ -4,9 +4,10 @@
 //! resolve → patch-by-span → tree-sitter reparse gate → cargo check gate → optional rust-analyzer
 
 use splice::graph::CodeGraph;
-use splice::ingest::rust::{extract_rust_symbols, RustSymbolKind};
+use splice::ingest::rust::extract_rust_symbols;
 use splice::patch::apply_patch_with_validation;
 use splice::resolve::resolve_symbol;
+use splice::symbol::Language;
 use splice::validate::AnalyzerMode;
 use std::io::Write;
 use tempfile::{NamedTempFile, TempDir};
@@ -75,13 +76,14 @@ pub fn farewell(name: &str) -> String {
 
         assert_eq!(symbols.len(), 2, "Expected 2 functions");
 
-        // Store symbols with file association
+        // Store symbols with file association and language
         for symbol in &symbols {
             code_graph
-                .store_symbol_with_file(
+                .store_symbol_with_file_and_language(
                     &lib_rs_path,
                     &symbol.name,
-                    symbol.kind,
+                    symbol.kind.as_str(),
+                    Language::Rust,
                     symbol.byte_start,
                     symbol.byte_end,
                 )
@@ -92,7 +94,7 @@ pub fn farewell(name: &str) -> String {
         let resolved = resolve_symbol(
             &code_graph,
             Some(&lib_rs_path),
-            Some(RustSymbolKind::Function),
+            Some("function"),
             "greet",
         )
         .expect("Failed to resolve greet function");
@@ -115,7 +117,8 @@ pub fn greet(name: &str) -> String {
             resolved.byte_start,
             resolved.byte_end,
             new_body.trim(),
-            workspace_path,    // For cargo check
+            workspace_path,    // For compiler check
+            Language::Rust,    // Rust file
             AnalyzerMode::Off, // rust-analyzer OFF for this test
         );
 
@@ -196,10 +199,11 @@ pub fn valid_function() -> i32 {
 
         let symbol = &symbols[0];
         code_graph
-            .store_symbol_with_file(
+            .store_symbol_with_file_and_language(
                 &lib_rs_path,
                 &symbol.name,
-                symbol.kind,
+                symbol.kind.as_str(),
+                Language::Rust,
                 symbol.byte_start,
                 symbol.byte_end,
             )
@@ -209,7 +213,7 @@ pub fn valid_function() -> i32 {
         let resolved = resolve_symbol(
             &code_graph,
             Some(&lib_rs_path),
-            Some(RustSymbolKind::Function),
+            Some("function"),
             "valid_function",
         )
         .expect("Failed to resolve function");
@@ -230,6 +234,7 @@ pub fn valid_function() -> i32 {
             resolved.byte_end,
             invalid_patch.trim(),
             workspace_path,
+            Language::Rust,    // Rust file
             AnalyzerMode::Off, // rust-analyzer OFF for this test
         );
 
@@ -312,10 +317,11 @@ pub fn get_number() -> i32 {
 
         let symbol = &symbols[0];
         code_graph
-            .store_symbol_with_file(
+            .store_symbol_with_file_and_language(
                 &lib_rs_path,
                 &symbol.name,
-                symbol.kind,
+                symbol.kind.as_str(),
+                Language::Rust,
                 symbol.byte_start,
                 symbol.byte_end,
             )
@@ -325,7 +331,7 @@ pub fn get_number() -> i32 {
         let resolved = resolve_symbol(
             &code_graph,
             Some(&lib_rs_path),
-            Some(RustSymbolKind::Function),
+            Some("function"),
             "get_number",
         )
         .expect("Failed to resolve function");
@@ -347,15 +353,16 @@ pub fn get_number() -> i32 {
             resolved.byte_end,
             type_error_patch.trim(),
             workspace_path,
+            Language::Rust,    // Rust file
             AnalyzerMode::Off, // rust-analyzer OFF for this test
         );
 
-        // Should fail with cargo check error
+        // Should fail with compiler validation error
         assert!(result.is_err(), "Patch should fail on type error");
 
         match result {
             Err(splice::SpliceError::CargoCheckFailed { .. }) => {
-                // Expected error type
+                // Expected error type (Rust-specific cargo check)
             }
             Err(other) => {
                 panic!("Expected CargoCheckFailed, got: {:?}", other);

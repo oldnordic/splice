@@ -77,16 +77,7 @@ pub fn validate_file(path: &Path) -> Result<ValidationOutcome> {
         Language::Cpp => validate_cpp(path),
         Language::Java => validate_java(path),
         Language::JavaScript => validate_javascript(path),
-        Language::TypeScript => {
-            // TypeScript validation requires tsc and tsconfig
-            // Mark as tool_unavailable for now
-            Ok(ValidationOutcome {
-                is_valid: false,
-                errors: vec![],
-                warnings: vec![],
-                tool_available: false,
-            })
-        }
+        Language::TypeScript => validate_typescript(path),
     }
 }
 
@@ -308,6 +299,54 @@ fn validate_javascript(path: &Path) -> Result<ValidationOutcome> {
     }
 }
 
+/// Validate a TypeScript file using `tsc --noEmit`.
+fn validate_typescript(path: &Path) -> Result<ValidationOutcome> {
+    // tsc --noEmit validates TypeScript without generating output files
+    // We need to run it in the directory containing tsconfig.json (if it exists)
+    let parent_dir = path.parent().unwrap_or_else(|| Path::new("."));
+
+    let output = Command::new("tsc")
+        .args(["--noEmit", path.to_str().unwrap()])
+        .current_dir(parent_dir)
+        .output();
+
+    match output {
+        Ok(result) => {
+            if result.status.success() {
+                return Ok(ValidationOutcome {
+                    is_valid: true,
+                    errors: vec![],
+                    warnings: vec![],
+                    tool_available: true,
+                });
+            }
+
+            // Parse tsc error output
+            let stderr = String::from_utf8_lossy(&result.stderr);
+            let stdout = String::from_utf8_lossy(&result.stdout);
+            let errors = parse_tsc_errors(&stderr, &stdout, path);
+
+            Ok(ValidationOutcome {
+                is_valid: errors.is_empty(),
+                errors,
+                warnings: vec![],
+                tool_available: true,
+            })
+        }
+        Err(e) => {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                return Ok(ValidationOutcome {
+                    is_valid: false,
+                    errors: vec![],
+                    warnings: vec![],
+                    tool_available: false,
+                });
+            }
+            Err(SpliceError::Other(format!("Failed to run tsc: {}", e)))
+        }
+    }
+}
+
 /// Parse Python error output from py_compile.
 ///
 /// Format (multi-line):
@@ -522,6 +561,74 @@ fn parse_node_errors(output: &str, file: &Path) -> Vec<ValidationError> {
     errors
 }
 
+/// Parse tsc (TypeScript Compiler) error output.
+///
+/// Format: `<file>(<line>,<col>): error TS<code>: <msg>`
+/// Or: `<file>(<line>,<col>): <msg>`
+fn parse_tsc_errors(stderr: &str, stdout: &str, file: &Path) -> Vec<ValidationError> {
+    let mut errors = Vec::new();
+
+    // Combine stderr and stdout (tsc outputs to both)
+    let combined = format!("{}\n{}", stderr, stdout);
+
+    for line in combined.lines() {
+        // Parse: "file.ts(line,col): error TS<code>: message"
+        // or "file.ts(line,col): message"
+        if line.contains(file.to_str().unwrap_or("")) && (line.contains(": error ") || line.contains("TS")) {
+            // Try to extract line and column
+            if let Some(open_paren) = line.find('(') {
+                let after_paren = &line[open_paren + 1..];
+                if let Some(comma) = after_paren.find(',') {
+                    let line_str = &after_paren[..comma];
+                    if let Ok(line_num) = line_str.trim().parse::<usize>() {
+                        let after_comma = &after_paren[comma + 1..];
+                        if let Some(close_paren) = after_comma.find(')') {
+                            let col_str = &after_comma[..close_paren];
+                            if let Ok(column) = col_str.trim().parse::<usize>() {
+                                // Extract message after ") error " or ") TS<number>: "
+                                let after_close = &line[open_paren + close_paren + 2..];
+                                let message = if let Some(error_idx) = after_close.find("error ") {
+                                    after_close[error_idx + 6..].trim().to_string()
+                                } else if let Some(ts_idx) = after_close.find("TS") {
+                                    // TS<code>: format
+                                    if let Some(colon_after_ts) = after_close[ts_idx..].find(':') {
+                                        after_close[ts_idx + colon_after_ts + 1..].trim().to_string()
+                                    } else {
+                                        after_close.trim().to_string()
+                                    }
+                                } else {
+                                    after_close.trim().to_string()
+                                };
+
+                                if !message.is_empty() {
+                                    errors.push(ValidationError {
+                                        file: file.display().to_string(),
+                                        line: line_num,
+                                        column,
+                                        message,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if errors.is_empty() && !combined.trim().is_empty() {
+        // Fallback: include entire output as message
+        errors.push(ValidationError {
+            file: file.display().to_string(),
+            line: 0,
+            column: 0,
+            message: combined.trim().to_string(),
+        });
+    }
+
+    errors
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -587,5 +694,28 @@ mod tests {
             tool_available: false,
         };
         assert!(!outcome.tool_available);
+    }
+
+    #[test]
+    fn test_parse_tsc_error() {
+        let output = "test.ts(2,5): error TS1002: Unterminated string literal\n";
+        let path = Path::new("test.ts");
+        let errors = parse_tsc_errors(output, "", path);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].line, 2);
+        assert_eq!(errors[0].column, 5);
+        assert!(errors[0].message.contains("Unterminated string literal"));
+    }
+
+    #[test]
+    fn test_parse_tsc_error_with_stderr() {
+        let stderr = "";
+        let stdout = "test.ts(1,1): error TS2304: Cannot find name 'foo'\n";
+        let path = Path::new("test.ts");
+        let errors = parse_tsc_errors(stderr, stdout, path);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].line, 1);
+        assert_eq!(errors[0].column, 1);
+        assert!(errors[0].message.contains("Cannot find name"));
     }
 }

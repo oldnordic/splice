@@ -3,6 +3,47 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-12-30
+
+### Added
+
+- **Multi-language patch support**: Full patch command now works on all 7 supported languages
+- **Multi-language delete support**: Basic delete (definition-only) for non-Rust languages
+- **Language auto-detection**: Automatic language detection from file extensions
+- **--language flag**: Optional language override for CLI commands
+- **Python validation**: `python -m py_compile` gate for Python files
+- **C/C++ validation**: `gcc`/`g++ -fsyntax-only` gates for C/C++ files
+- **Java validation**: `javac` compilation gate for Java files
+- **JavaScript validation**: `node --check` gate for JavaScript files
+- **TypeScript validation**: `tsc --noEmit` gate for TypeScript files
+- **Extended symbol kinds**: Added method, class, interface, constructor, variable, type-alias kinds
+
+### Changed
+
+- **339 passing tests** (from 298)
+- Updated all documentation for multi-language support
+- Patch module now language-aware with language-specific compiler validation
+- Graph schema uses language-agnostic labels (e.g., `symbol_function` instead of `rust_function`)
+
+### Supported Languages
+
+| Language | Extensions | Delete | Patch | Validation |
+|----------|-----------|--------|-------|------------|
+| Rust | `.rs` | Full | Full | `cargo check` |
+| Python | `.py` | Basic | Full | `python -m py_compile` |
+| C | `.c`, `.h` | Basic | Full | `gcc -fsyntax-only` |
+| C++ | `.cpp`, `.hpp`, `.cc`, `.cxx` | Basic | Full | `g++ -fsyntax-only` |
+| Java | `.java` | Basic | Full | `javac` |
+| JavaScript | `.js`, `.mjs`, `.cjs` | Basic | Full | `node --check` |
+| TypeScript | `.ts`, `.tsx` | Basic | Full | `tsc --noEmit` |
+
+### Technical
+
+- Language-specific tree-sitter parsers for all 7 languages
+- Multi-language validation gates with compiler-specific error parsing
+- Language detection from file extensions with manual override
+- Symbol kind mapping across all languages
+
 ## [0.2.2] - 2025-12-30
 
 ### Changed
@@ -124,4 +165,4 @@ For **public Rust functions** (those intended to be imported across modules), `d
 
 ---
 
-**Note**: v0.1.x was an MVP/proof-of-concept release with intentionally limited features. v0.2.0 adds the delete command with cross-file reference finding.
+**Note**: v0.1.x was an MVP/proof-of-concept release with intentionally limited features. v0.2.0 adds the delete command with cross-file reference finding. v0.3.0 adds multi-language support for patch and delete operations.

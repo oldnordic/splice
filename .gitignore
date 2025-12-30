@@ -18,8 +18,11 @@ Thumbs.db
 # Splice specific
 .splice_graph.db
 *.db
+*.db-shm
+*.db-wal
 codemcp/
 .codemcp/
+.fastembed_cache/
 
 # Documentation drafts
 docs/CLEANUP_ANALYSIS.md

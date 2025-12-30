@@ -5,6 +5,7 @@
 
 pub mod cpp;
 pub mod detect;
+pub mod dispatch;
 pub mod imports;
 pub mod java;
 pub mod javascript;
@@ -19,6 +20,7 @@ use std::path::Path;
 /// Re-export common types for convenience.
 pub use cpp::{extract_cpp_symbols, CppSymbol, CppSymbolKind};
 pub use detect::{detect_language, Language};
+pub use dispatch::{extract_symbols, extract_symbols_with_language};
 pub use imports::{
     extract_cpp_imports, extract_java_imports, extract_javascript_imports, extract_python_imports,
     extract_rust_imports, ImportFact, ImportKind,

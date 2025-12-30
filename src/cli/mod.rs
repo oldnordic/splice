@@ -33,13 +33,17 @@ pub enum Commands {
         #[arg(short, long)]
         symbol: String,
 
-        /// Optional symbol kind filter (function, struct, enum, trait, impl).
+        /// Optional symbol kind filter.
         #[arg(short, long)]
         kind: Option<SymbolKind>,
 
-        /// Optional rust-analyzer validation mode (off, os, path).
+        /// Optional validation mode (off, os, path).
         #[arg(long, value_name = "MODE")]
         analyzer: Option<AnalyzerMode>,
+
+        /// Optional language (auto-detect from extension by default).
+        #[arg(long, value_name = "LANG")]
+        language: Option<Language>,
     },
 
     /// Apply a patch to a symbol's span.
@@ -52,17 +56,21 @@ pub enum Commands {
         #[arg(short, long)]
         symbol: String,
 
-        /// Optional symbol kind filter (function, struct, enum, trait, impl).
+        /// Optional symbol kind filter.
         #[arg(short, long)]
         kind: Option<SymbolKind>,
 
-        /// Optional rust-analyzer validation mode (off, os, path).
+        /// Optional validation mode (off, os, path).
         #[arg(long, value_name = "MODE")]
         analyzer: Option<AnalyzerMode>,
 
         /// Path to file containing replacement content.
         #[arg(short, long, value_name = "FILE")]
         with_: std::path::PathBuf,
+
+        /// Optional language (auto-detect from extension by default).
+        #[arg(long, value_name = "LANG")]
+        language: Option<Language>,
     },
 
     /// Execute a multi-step refactoring plan.
@@ -74,30 +82,95 @@ pub enum Commands {
 }
 
 /// Symbol kind for filtering.
+///
+/// These are common symbol types across languages. Not all types are
+/// available in all languages - the CLI will validate based on the
+/// detected or specified language.
 #[derive(clap::ValueEnum, Debug, Clone, Copy)]
 pub enum SymbolKind {
     /// Function symbol.
     Function,
-    /// Struct symbol.
+    /// Method symbol (function inside a class/struct).
+    Method,
+    /// Class/Struct symbol.
+    Class,
+    /// Struct symbol (Rust, C++).
     Struct,
+    /// Interface symbol (Java, TypeScript).
+    Interface,
     /// Enum symbol.
     Enum,
-    /// Trait symbol.
+    /// Trait symbol (Rust).
     Trait,
-    /// Impl block.
+    /// Impl block (Rust).
     Impl,
+    /// Module/Namespace symbol.
+    Module,
+    /// Variable/Field symbol.
+    Variable,
+    /// Constructor symbol (Java, C++).
+    Constructor,
+    /// Type alias (TypeScript, Rust, Python).
+    TypeAlias,
 }
 
-/// rust-analyzer validation mode.
+/// Programming language.
+#[derive(clap::ValueEnum, Debug, Clone, Copy)]
+pub enum Language {
+    /// Rust (.rs)
+    Rust,
+    /// Python (.py)
+    Python,
+    /// C (.c, .h)
+    C,
+    /// C++ (.cpp, .hpp, .cc, .cxx)
+    Cpp,
+    /// Java (.java)
+    Java,
+    /// JavaScript (.js, .mjs, .cjs)
+    JavaScript,
+    /// TypeScript (.ts, .tsx)
+    TypeScript,
+}
+
+impl Language {
+    /// Convert to string identifier.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Language::Rust => "rust",
+            Language::Python => "python",
+            Language::C => "c",
+            Language::Cpp => "cpp",
+            Language::Java => "java",
+            Language::JavaScript => "javascript",
+            Language::TypeScript => "typescript",
+        }
+    }
+
+    /// Convert to symbol module Language.
+    pub fn to_symbol_language(self) -> crate::symbol::Language {
+        match self {
+            Language::Rust => crate::symbol::Language::Rust,
+            Language::Python => crate::symbol::Language::Python,
+            Language::C => crate::symbol::Language::C,
+            Language::Cpp => crate::symbol::Language::Cpp,
+            Language::Java => crate::symbol::Language::Java,
+            Language::JavaScript => crate::symbol::Language::JavaScript,
+            Language::TypeScript => crate::symbol::Language::TypeScript,
+        }
+    }
+}
+
+/// Validation mode.
 #[derive(clap::ValueEnum, Debug, Clone, Copy)]
 pub enum AnalyzerMode {
-    /// Disable rust-analyzer validation (default).
+    /// Disable validation (default).
     Off,
 
-    /// Use rust-analyzer from PATH.
+    /// Use analyzer from PATH.
     Os,
 
-    /// Use rust-analyzer from explicit path.
+    /// Use analyzer from explicit path.
     Path,
 }
 

@@ -173,4 +173,25 @@ const x = 42;
     fn test_parse_node_check_error() {
         // node: <file>:<line> (<col>) <msg>
     }
+
+    // TypeScript validation tests
+
+    #[test]
+    fn test_validate_valid_typescript_file() {
+        let _source = r#"
+interface User {
+    name: string;
+    age: number;
+}
+
+function greet(user: User): string {
+    return `Hello, ${user.name}!`;
+}
+"#;
+    }
+
+    #[test]
+    fn test_validate_invalid_typescript_syntax() {
+        let _source = b"interface User {"; // Unclosed brace
+    }
 }

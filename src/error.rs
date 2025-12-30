@@ -103,6 +103,17 @@ pub enum SpliceError {
         output: String,
     },
 
+    /// Compiler validation failed (multi-language).
+    #[error("Compiler validation failed for {language} in file '{file}': {errors:?}")]
+    CompilerValidationFailed {
+        /// The file that failed validation.
+        file: std::path::PathBuf,
+        /// The programming language.
+        language: String,
+        /// List of compiler errors.
+        errors: Vec<String>,
+    },
+
     /// rust-analyzer not available.
     #[error("rust-analyzer not found: {mode}")]
     AnalyzerNotAvailable {

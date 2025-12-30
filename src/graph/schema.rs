@@ -1,38 +1,64 @@
 //! Graph schema definitions for code symbols and spans.
 //!
 //! This module defines the labels and properties used to store
-//! Rust code constructs in the code graph.
+//! code constructs in the code graph. Labels are language-agnostic
+//! to support multi-language code analysis.
 
 use sqlitegraph::{Label, PropertyKey};
 
-/// Label for Rust function symbols.
+/// Label for function symbols (all languages).
 pub fn label_function() -> Label {
-    Label("rust_function".into())
+    Label("symbol_function".into())
 }
 
-/// Label for Rust struct symbols.
-pub fn label_struct() -> Label {
-    Label("rust_struct".into())
+/// Label for class/struct symbols (all languages).
+pub fn label_class() -> Label {
+    Label("symbol_class".into())
 }
 
-/// Label for Rust enum symbols.
+/// Label for enum symbols (all languages).
 pub fn label_enum() -> Label {
-    Label("rust_enum".into())
+    Label("symbol_enum".into())
 }
 
-/// Label for Rust impl blocks.
+/// Label for interface symbols (Java, TypeScript).
+pub fn label_interface() -> Label {
+    Label("symbol_interface".into())
+}
+
+/// Label for impl/trait symbols.
 pub fn label_impl() -> Label {
-    Label("rust_impl".into())
+    Label("symbol_impl".into())
 }
 
-/// Label for Rust modules.
+/// Label for module/namespace symbols (all languages).
 pub fn label_module() -> Label {
-    Label("rust_module".into())
+    Label("symbol_module".into())
 }
 
-/// Label for Rust traits.
+/// Label for trait symbols (Rust).
 pub fn label_trait() -> Label {
-    Label("rust_trait".into())
+    Label("symbol_trait".into())
+}
+
+/// Label for variable/field symbols (all languages).
+pub fn label_variable() -> Label {
+    Label("symbol_variable".into())
+}
+
+/// Label for method symbols (class/struct methods).
+pub fn label_method() -> Label {
+    Label("symbol_method".into())
+}
+
+/// Label for constructor symbols.
+pub fn label_constructor() -> Label {
+    Label("symbol_constructor".into())
+}
+
+/// Label for type alias symbols.
+pub fn label_type_alias() -> Label {
+    Label("symbol_type_alias".into())
 }
 
 /// Label for File nodes.
@@ -65,6 +91,11 @@ pub fn prop_kind() -> PropertyKey {
     PropertyKey("kind".into())
 }
 
+/// Property key for programming language.
+pub fn prop_language() -> PropertyKey {
+    PropertyKey("language".into())
+}
+
 /// Edge type for containment relationships (module contains function).
 pub const EDGE_CONTAINS: &str = "contains";
 
@@ -76,3 +107,24 @@ pub const EDGE_CALLS: &str = "calls";
 
 /// Edge type for file defines symbol relationships.
 pub const EDGE_DEFINES: &str = "defines";
+
+/// Map symbol kind string to generic label.
+///
+/// This function maps language-agnostic symbol kinds to their
+/// corresponding graph labels.
+pub fn kind_to_label(kind: &str) -> Label {
+    match kind {
+        "function" => label_function(),
+        "method" => label_method(),
+        "class" | "struct" => label_class(),
+        "interface" => label_interface(),
+        "enum" => label_enum(),
+        "impl" => label_impl(),
+        "trait" => label_trait(),
+        "module" | "namespace" => label_module(),
+        "variable" | "field" | "const" | "static" => label_variable(),
+        "constructor" => label_constructor(),
+        "type_alias" => label_type_alias(),
+        _ => label_function(), // Default fallback
+    }
+}

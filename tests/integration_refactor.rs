@@ -4,8 +4,9 @@
 //! with special attention to ambiguous symbol detection.
 
 use splice::graph::CodeGraph;
-use splice::ingest::rust::{extract_rust_symbols, RustSymbolKind};
+use splice::ingest::rust::extract_rust_symbols;
 use splice::resolve::resolve_symbol;
+use splice::symbol::Language;
 use std::io::Write;
 use tempfile::NamedTempFile;
 
@@ -57,10 +58,11 @@ fn foo() {
         // Store symbols with file associations
         for symbol in &symbols1 {
             code_graph
-                .store_symbol_with_file(
+                .store_symbol_with_file_and_language(
                     path1,
                     &symbol.name,
-                    symbol.kind,
+                    symbol.kind.as_str(),
+                    Language::Rust,
                     symbol.byte_start,
                     symbol.byte_end,
                 )
@@ -69,10 +71,11 @@ fn foo() {
 
         for symbol in &symbols2 {
             code_graph
-                .store_symbol_with_file(
+                .store_symbol_with_file_and_language(
                     path2,
                     &symbol.name,
-                    symbol.kind,
+                    symbol.kind.as_str(),
+                    Language::Rust,
                     symbol.byte_start,
                     symbol.byte_end,
                 )
@@ -80,7 +83,7 @@ fn foo() {
         }
 
         // Attempt name-only resolution (without file path)
-        let result = resolve_symbol(&code_graph, None, Some(RustSymbolKind::Function), "foo");
+        let result = resolve_symbol(&code_graph, None, Some("function"), "foo");
 
         // Should fail with AmbiguousSymbol error
         assert!(result.is_err(), "Expected error for ambiguous symbol");
@@ -123,10 +126,11 @@ fn foo() {
         // Store symbol with file association
         let symbol = &symbols[0];
         let node_id = code_graph
-            .store_symbol_with_file(
+            .store_symbol_with_file_and_language(
                 path,
                 &symbol.name,
-                symbol.kind,
+                symbol.kind.as_str(),
+                Language::Rust,
                 symbol.byte_start,
                 symbol.byte_end,
             )
@@ -136,7 +140,7 @@ fn foo() {
         let resolved = resolve_symbol(
             &code_graph,
             Some(path),
-            Some(RustSymbolKind::Function),
+            Some("function"),
             "foo",
         )
         .expect("Failed to resolve symbol");
@@ -186,10 +190,11 @@ fn world() {
         // Store all symbols with file association
         for symbol in &symbols {
             code_graph
-                .store_symbol_with_file(
+                .store_symbol_with_file_and_language(
                     path,
                     &symbol.name,
-                    symbol.kind,
+                    symbol.kind.as_str(),
+                    Language::Rust,
                     symbol.byte_start,
                     symbol.byte_end,
                 )
@@ -202,7 +207,7 @@ fn world() {
             let resolved = resolve_symbol(
                 &code_graph,
                 Some(path),
-                Some(RustSymbolKind::Function),
+                Some("function"),
                 &symbol.name,
             )
             .expect("Failed to resolve symbol");

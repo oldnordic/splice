@@ -14,6 +14,7 @@ pub mod ingest;
 pub mod patch;
 pub mod plan;
 pub mod resolve;
+pub mod symbol;
 pub mod validate;
 
 /// Re-export common error types for convenience.

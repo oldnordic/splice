@@ -2,12 +2,12 @@
 //!
 //! This module provides a typed interface to the code graph stored
 //! in SQLiteGraph. It handles symbol storage, span queries, and
-//! relationship management.
+//! relationship management for multi-language code analysis.
 
 pub mod schema;
 
 use crate::error::{Result, SpliceError};
-use crate::ingest::rust::RustSymbolKind;
+use crate::symbol::Language;
 use serde_json::json;
 use sqlitegraph::{EdgeSpec, GraphBackend, NodeId, NodeSpec};
 use std::collections::HashMap;
@@ -42,27 +42,24 @@ impl CodeGraph {
     /// Store a symbol with its byte span and metadata (legacy method for backward compatibility).
     ///
     /// Creates a node in the graph with:
-    /// - Label: "rust_function", "rust_struct", etc.
+    /// - Label: "symbol_function", "symbol_class", etc. (language-agnostic)
     /// - Properties: name, kind, byte_start, byte_end
     ///
     /// Returns the NodeId of the created node.
+    ///
+    /// # Deprecated
+    /// This method is kept for backward compatibility. Use `store_symbol_with_file_and_language`
+    /// for new code.
+    #[deprecated(note = "Use store_symbol_with_file_and_language for multi-language support")]
     pub fn store_symbol(
         &mut self,
         name: &str,
-        kind: RustSymbolKind,
+        kind: &str,
         byte_start: usize,
         byte_end: usize,
     ) -> Result<NodeId> {
         // Determine label based on kind
-        let label = match kind {
-            RustSymbolKind::Function => schema::label_function(),
-            RustSymbolKind::Struct => schema::label_struct(),
-            RustSymbolKind::Enum => schema::label_enum(),
-            RustSymbolKind::Impl => schema::label_impl(),
-            RustSymbolKind::Module => schema::label_module(),
-            RustSymbolKind::Trait => schema::label_trait(),
-            _ => schema::label_function(), // Default to function
-        };
+        let label = schema::kind_to_label(kind);
 
         // Create node spec
         let node_spec = NodeSpec {
@@ -70,7 +67,7 @@ impl CodeGraph {
             name: name.to_string(),
             file_path: None,
             data: json!({
-                "kind": kind.as_str(),
+                "kind": kind,
                 "byte_start": byte_start,
                 "byte_end": byte_end,
             }),
@@ -89,19 +86,20 @@ impl CodeGraph {
         Ok(node_id)
     }
 
-    /// Store a symbol with file association and complete metadata.
+    /// Store a symbol with file association, language, and complete metadata.
     ///
     /// This method:
     /// 1. Creates a File node if it doesn't exist
-    /// 2. Creates a Symbol node with all metadata (byte spans + line/col)
+    /// 2. Creates a Symbol node with all metadata (byte spans + language)
     /// 3. Creates a DEFINES edge from File to Symbol
     ///
     /// Returns the NodeId of the created Symbol node.
-    pub fn store_symbol_with_file(
+    pub fn store_symbol_with_file_and_language(
         &mut self,
         file_path: &Path,
         name: &str,
-        kind: RustSymbolKind,
+        kind: &str,
+        language: Language,
         byte_start: usize,
         byte_end: usize,
     ) -> Result<NodeId> {
@@ -111,24 +109,17 @@ impl CodeGraph {
             .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
         let file_node_id = self.get_or_create_file_node(file_path_str)?;
 
-        // Determine label based on kind
-        let label = match kind {
-            RustSymbolKind::Function => schema::label_function(),
-            RustSymbolKind::Struct => schema::label_struct(),
-            RustSymbolKind::Enum => schema::label_enum(),
-            RustSymbolKind::Impl => schema::label_impl(),
-            RustSymbolKind::Module => schema::label_module(),
-            RustSymbolKind::Trait => schema::label_trait(),
-            _ => schema::label_function(), // Default to function
-        };
+        // Determine label based on kind (language-agnostic)
+        let label = schema::kind_to_label(kind);
 
-        // Create symbol node with file_path in spec
+        // Create symbol node with file_path and language in spec
         let node_spec = NodeSpec {
             kind: label.0,
             name: name.to_string(),
             file_path: Some(file_path_str.to_string()),
             data: json!({
-                "kind": kind.as_str(),
+                "kind": kind,
+                "language": language.as_str(),
                 "byte_start": byte_start,
                 "byte_end": byte_end,
                 "file_path": file_path_str,
@@ -156,6 +147,33 @@ impl CodeGraph {
             .push(symbol_id);
 
         Ok(symbol_id)
+    }
+
+    /// Store a symbol with file association using Rust symbol kind.
+    ///
+    /// This is a backward-compatible method that internally converts
+    /// RustSymbolKind to the string representation.
+    ///
+    /// # Deprecated
+    /// Use `store_symbol_with_file_and_language` for new code.
+    #[deprecated(note = "Use store_symbol_with_file_and_language for multi-language support")]
+    pub fn store_symbol_with_file(
+        &mut self,
+        file_path: &Path,
+        name: &str,
+        kind: &str,
+        byte_start: usize,
+        byte_end: usize,
+    ) -> Result<NodeId> {
+        // For backward compatibility, assume Rust language
+        self.store_symbol_with_file_and_language(
+            file_path,
+            name,
+            kind,
+            Language::Rust,
+            byte_start,
+            byte_end,
+        )
     }
 
     /// Get or create a File node for the given path.

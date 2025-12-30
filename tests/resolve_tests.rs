@@ -48,7 +48,7 @@ fn goodbye() {
             let node_id = code_graph
                 .store_symbol(
                     &symbol.name,
-                    symbol.kind,
+                    symbol.kind.as_str(),
                     symbol.byte_start,
                     symbol.byte_end,
                 )

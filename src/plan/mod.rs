@@ -191,6 +191,7 @@ fn execute_single_step(
     use crate::ingest::rust::extract_rust_symbols;
     use crate::patch::apply_patch_with_validation;
     use crate::resolve::resolve_symbol;
+    use crate::symbol::Language;
     use crate::validate::AnalyzerMode;
 
     // Step 1: Read source file
@@ -203,34 +204,39 @@ fn execute_single_step(
     let graph_db_path = file_path.parent().unwrap().join(".splice_graph.db");
     let mut code_graph = CodeGraph::open(&graph_db_path)?;
 
-    // Step 4: Store symbols in graph
+    // Step 4: Store symbols in graph with language metadata
     for symbol in &symbols {
-        code_graph.store_symbol_with_file(
+        code_graph.store_symbol_with_file_and_language(
             file_path,
             &symbol.name,
-            symbol.kind,
+            symbol.kind.as_str(),
+            Language::Rust,
             symbol.byte_start,
             symbol.byte_end,
         )?;
     }
 
-    // Step 5: Resolve symbol to span
-    let resolved = resolve_symbol(&code_graph, Some(file_path), kind, symbol_name)?;
+    // Step 5: Convert RustSymbolKind to string for resolution
+    let kind_str = kind.map(|k| k.as_str());
 
-    // Step 6: Read replacement content
+    // Step 6: Resolve symbol to span
+    let resolved = resolve_symbol(&code_graph, Some(file_path), kind_str, symbol_name)?;
+
+    // Step 7: Read replacement content
     let replacement_content = std::fs::read_to_string(replacement_file)?;
 
-    // Step 7: Apply patch with validation (analyzer OFF for plan execution)
+    // Step 8: Apply patch with validation (analyzer OFF for plan execution)
     let (before_hash, after_hash) = apply_patch_with_validation(
         file_path,
         resolved.byte_start,
         resolved.byte_end,
         &replacement_content,
         workspace_dir,
+        Language::Rust,
         AnalyzerMode::Off,
     )?;
 
-    // Step 8: Return success message
+    // Step 9: Return success message
     Ok(format!(
         "Patched '{}' at bytes {}..{} (hash: {} -> {})",
         symbol_name, resolved.byte_start, resolved.byte_end, before_hash, after_hash

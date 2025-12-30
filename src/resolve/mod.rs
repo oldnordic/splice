@@ -2,6 +2,7 @@
 //!
 //! This module provides file-aware, deterministic symbol resolution.
 //! Name-only resolution is forbidden unless uniquely provable.
+//! Supports multi-language code analysis.
 
 pub mod cross_file;
 pub mod module_resolver;
@@ -9,7 +10,6 @@ pub mod references;
 
 use crate::error::{Result, SpliceError};
 use crate::graph::CodeGraph;
-use crate::ingest::rust::RustSymbolKind;
 use sqlitegraph::NodeId;
 use std::path::Path;
 
@@ -22,8 +22,11 @@ pub struct ResolvedSpan {
     /// Symbol name.
     pub name: String,
 
-    /// Symbol kind (function, struct, etc.).
-    pub kind: RustSymbolKind,
+    /// Symbol kind (function, struct, etc.) as language-agnostic string.
+    pub kind: String,
+
+    /// Programming language (rust, python, etc.).
+    pub language: Option<String>,
 
     /// File containing this symbol.
     pub file_path: String,
@@ -52,7 +55,7 @@ pub struct ResolvedSpan {
 /// # Arguments
 /// * `graph` - The code graph database
 /// * `file` - Optional file path to disambiguate symbols with same name
-/// * `kind` - Optional symbol kind filter (Function, Struct, etc.)
+/// * `kind` - Optional symbol kind filter (function, struct, class, etc.)
 /// * `name` - Symbol name to resolve
 ///
 /// # Resolution Rules
@@ -66,7 +69,7 @@ pub struct ResolvedSpan {
 pub fn resolve_symbol(
     graph: &CodeGraph,
     file: Option<&Path>,
-    kind: Option<RustSymbolKind>,
+    kind: Option<&str>,
     name: &str,
 ) -> Result<ResolvedSpan> {
     // Build cache key for lookup
@@ -127,21 +130,28 @@ pub fn resolve_symbol(
         .ok_or_else(|| SpliceError::Other("Missing byte_end property".to_string()))?
         as usize;
 
-    // Parse kind from string
+    // Extract kind (language-agnostic string)
     let kind_str = node
         .data
         .get("kind")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| SpliceError::Other("Missing kind property".to_string()))?;
+        .ok_or_else(|| SpliceError::Other("Missing kind property".to_string()))?
+        .to_string();
 
-    let symbol_kind = parse_kind(kind_str)?;
+    // Extract language (optional)
+    let language = node
+        .data
+        .get("language")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
 
     // For now, we don't have line/col stored yet, use 0 as placeholders
     // TODO: Store line/col in graph during ingest
     Ok(ResolvedSpan {
         node_id,
         name: name.to_string(),
-        kind: symbol_kind,
+        kind: kind_str,
+        language,
         file_path: file_path_str,
         byte_start,
         byte_end,
@@ -156,7 +166,7 @@ pub fn resolve_symbol(
 fn resolve_symbol_in_file(
     graph: &CodeGraph,
     file_path: &Path,
-    kind: Option<RustSymbolKind>,
+    kind: Option<&str>,
     name: &str,
 ) -> Result<ResolvedSpan> {
     let file_str = file_path
@@ -186,20 +196,26 @@ fn resolve_symbol_in_file(
         .ok_or_else(|| SpliceError::Other("Missing byte_end property".to_string()))?
         as usize;
 
-    // Parse kind from string
+    // Extract kind (language-agnostic string)
     let kind_str = node
         .data
         .get("kind")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| SpliceError::Other("Missing kind property".to_string()))?;
+        .ok_or_else(|| SpliceError::Other("Missing kind property".to_string()))?
+        .to_string();
 
-    let symbol_kind = parse_kind(kind_str)?;
+    // Extract language (optional)
+    let language = node
+        .data
+        .get("language")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
 
     // Filter by kind if specified
     if let Some(k) = kind {
-        if symbol_kind != k {
+        if kind_str != k {
             return Err(SpliceError::SymbolNotFound(format!(
-                "{:?} {} in {}",
+                "{} {} in {}",
                 k, name, file_str
             )));
         }
@@ -217,7 +233,8 @@ fn resolve_symbol_in_file(
     Ok(ResolvedSpan {
         node_id,
         name: name.to_string(),
-        kind: symbol_kind,
+        kind: kind_str,
+        language,
         file_path: node_file_path,
         byte_start,
         byte_end,
@@ -228,18 +245,21 @@ fn resolve_symbol_in_file(
     })
 }
 
-/// Parse symbol kind from string.
-fn parse_kind(s: &str) -> Result<RustSymbolKind> {
-    match s {
-        "function" => Ok(RustSymbolKind::Function),
-        "struct" => Ok(RustSymbolKind::Struct),
-        "enum" => Ok(RustSymbolKind::Enum),
-        "impl" => Ok(RustSymbolKind::Impl),
-        "module" => Ok(RustSymbolKind::Module),
-        "trait" => Ok(RustSymbolKind::Trait),
-        "type_alias" => Ok(RustSymbolKind::TypeAlias),
-        "const" => Ok(RustSymbolKind::Const),
-        "static" => Ok(RustSymbolKind::Static),
-        _ => Err(SpliceError::Other(format!("Unknown symbol kind: {}", s))),
-    }
+/// Backward compatibility: Resolve with Rust-specific symbol kind.
+///
+/// This function is provided for backward compatibility with existing code
+/// that uses `RustSymbolKind`. New code should use `resolve_symbol` with
+/// string kinds.
+///
+/// # Deprecated
+/// Use `resolve_symbol` with `Option<&str>` for kind instead.
+#[deprecated(note = "Use resolve_symbol with Option<&str> kind")]
+pub fn resolve_symbol_with_rust_kind(
+    graph: &CodeGraph,
+    file: Option<&Path>,
+    kind: Option<crate::ingest::rust::RustSymbolKind>,
+    name: &str,
+) -> Result<ResolvedSpan> {
+    let kind_str = kind.map(|k| k.as_str().to_string());
+    resolve_symbol(graph, file, kind_str.as_deref(), name)
 }

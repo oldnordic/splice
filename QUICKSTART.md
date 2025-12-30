@@ -1,13 +1,26 @@
 # Splice Quick Reference
 
 **Binary**: `splice` (install from source)
-**Version**: 0.1.0
+**Version**: 0.3.0
+
+## Supported Languages
+
+Rust, Python, C, C++, Java, JavaScript, TypeScript
 
 ## Most Common Commands
 
 ```bash
-# Single patch
+# Rust: Patch a function
 splice patch --file src/lib.rs --symbol foo --kind function --with new_foo.rs
+
+# Python: Patch a function
+splice patch --file utils.py --symbol bar --language python --with new_bar.py
+
+# TypeScript: Patch a function
+splice patch --file src/math.ts --symbol calculate --language type-script --with new_calc.ts
+
+# Rust: Delete a function (with all references)
+splice delete --file src/lib.rs --symbol old_func --kind function
 
 # Multi-step plan
 splice plan --file plan.json
@@ -17,24 +30,115 @@ splice plan --file plan.json
 
 | Kind | Use For |
 |------|---------|
-| `function` | Functions |
-| `struct` | Structs |
-| `enum` | Enums |
-| `trait` | Traits |
-| `impl` | Impl blocks |
+| `function` | Functions (all languages) |
+| `method` | Methods (all languages) |
+| `class` | Classes (Python, JS, TS) |
+| `struct` | Structs (Rust, C++) |
+| `interface` | Interfaces (Java, TS) |
+| `enum` | Enums (all languages) |
+| `trait` | Traits (Rust) |
+| `impl` | Impl blocks (Rust) |
+| `module` | Modules/namespaces |
+| `variable` | Variables (JS, TS) |
+| `constructor` | Constructors (Java, C++) |
+| `type-alias` | Type aliases (Rust, TS, Python) |
 
-## Quick Example
+## Language Flags
+
+| Flag | Language |
+|------|----------|
+| `rust` | Rust (`.rs`) |
+| `python` | Python (`.py`) |
+| `c` | C (`.c`, `.h`) |
+| `cpp` | C++ (`.cpp`, `.hpp`) |
+| `java` | Java (`.java`) |
+| `java-script` | JavaScript (`.js`) |
+| `type-script` | TypeScript (`.ts`, `.tsx`) |
+
+## Quick Examples
+
+### Rust
 
 ```bash
-# 1. Create replacement file
+# Create replacement
 cat > new_greet.rs << 'EOF'
 pub fn greet(name: &str) -> String {
     format!("Hi, {}!", name)
 }
 EOF
 
-# 2. Apply patch
+# Apply patch
 splice patch --file src/lib.rs --symbol greet --kind function --with new_greet.rs
+```
+
+### Python
+
+```bash
+# Create replacement
+cat > new_calc.py << 'EOF'
+def calculate(x: int, y: int) -> int:
+    return x * y
+EOF
+
+# Apply patch
+splice patch --file utils.py --symbol calculate --language python --with new_calc.py
+```
+
+### JavaScript
+
+```bash
+# Create replacement
+cat > new_func.js << 'EOF'
+function processData(data) {
+    return data.map(x => x * 2);
+}
+EOF
+
+# Apply patch
+splice patch --file src/utils.js --symbol processData --with new_func.js
+```
+
+### TypeScript
+
+```bash
+# Create replacement
+cat > new_iface.ts << 'EOF'
+interface User {
+    name: string;
+    email: string;
+}
+EOF
+
+# Apply patch
+splice patch --file src/types.ts --symbol User --kind interface --with new_iface.ts
+```
+
+### Java
+
+```bash
+# Create replacement
+cat > new_method.java << 'EOF'
+    public int compute(int x, int y) {
+        return x * y;
+    }
+EOF
+
+# Apply patch
+splice patch --file Calculator.java --symbol compute --kind method --language java --with new_method.java
+```
+
+### C++
+
+```bash
+# Create replacement
+cat > new_func.cpp << 'EOF'
+int process(int value) {
+    return value * 2;
+}
+EOF
+
+# Apply patch
+splice patch --file utils.cpp --symbol process --language cpp --with new_func.cpp
 ```
 
 ## Plan Example
@@ -42,38 +146,78 @@ splice patch --file src/lib.rs --symbol greet --kind function --with new_greet.r
 ```json
 {
   "steps": [
-    {"file": "src/a.rs", "symbol": "foo", "kind": "function", "with": "patches/foo.rs"},
-    {"file": "src/b.rs", "symbol": "bar", "kind": "function", "with": "patches/bar.rs"}
+    {"file": "src/lib.rs", "symbol": "foo", "kind": "function", "with": "patches/foo.rs"},
+    {"file": "utils.py", "symbol": "bar", "language": "python", "with": "patches/bar.py"},
+    {"file": "src/math.ts", "symbol": "calc", "language": "type-script", "with": "patches/calc.ts"}
   ]
 }
 ```
 
 ## Common Gotchas
 
-❌ Forgot `--file` → Ambiguous symbol error
-✅ Add `--file path/to/file.rs`
+### Wrong language
+```bash
+# Wrong: Auto-detects .ts as TypeScript when you want JavaScript
+splice patch --file file.ts --symbol foo --with patch.js
 
-❌ Syntax error in patch → Parse validation failed
-✅ Run `cargo check` on patch file first
+# Right: Specify language explicitly
+splice patch --file file.ts --symbol foo --language java-script --with patch.js
+```
 
-❌ Type error → Cargo check failed
-✅ Fix types in patch file
+### Symbol not found
+```bash
+# Wrong: Multiple symbols with same name
+splice patch --file src/lib.rs --symbol foo --with patch.rs
+
+# Right: Specify kind or file
+splice patch --file src/lib.rs --symbol foo --kind function --with patch.rs
+```
+
+### Syntax error in patch
+```bash
+# Wrong: Patch has syntax error
+splice patch --file src/lib.rs --symbol foo --with broken.rs
+
+# Right: Validate patch first
+cargo check --bin broken.rs  # or python -m py_compile, etc.
+```
 
 ## What Gets Validated
 
 Every patch passes:
 1. UTF-8 boundary check
 2. Tree-sitter reparse (syntax)
-3. Cargo check (compilation)
+3. Language compiler check (cargo check, python -m py_compile, node --check, etc.)
 4. Atomic rollback if ANY fail
+
+## Language-Specific Validation
+
+| Language | Compiler |
+|----------|----------|
+| Rust | `cargo check` |
+| Python | `python -m py_compile` |
+| C | `gcc -fsyntax-only` |
+| C++ | `g++ -fsyntax-only` |
+| Java | `javac` |
+| JavaScript | `node --check` |
+| TypeScript | `tsc --noEmit` |
 
 ## Gotchas
 
-- Doesn't find all references (use `rg` or IDE)
-- Doesn't auto-discover symbols (you must know exact names)
-- Doesn't update call sites (manual step)
-- No resume mode (plan fails = partial state)
+- **Rust delete**: Finds all references (cross-file)
+- **Other languages**: Delete definition only (no reference finding yet)
+- **Auto-detection**: Works from file extension
+- **Override**: Use `--language` for ambiguous cases
 
 ## For Full Documentation
 
 See `manual.md` for complete guide with examples and troubleshooting.
+
+## Get Help
+
+```bash
+splice --help
+splice delete --help
+splice patch --help
+splice plan --help
+```
