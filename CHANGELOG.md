@@ -3,6 +3,13 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2025-12-30
+
+### Changed
+
+- Clarified documentation: CLI commands are Rust-only; parsers for other languages are library-use/future
+- Fixed README: correctly identify rust-analyzer as LSP, not IDE
+
 ## [0.2.1] - 2025-12-30
 
 ### Changed

@@ -2,7 +2,7 @@
 
 Span-safe refactoring kernel for Rust using tree-sitter and SQLiteGraph.
 
-**Version**: 0.2.1
+**Version**: 0.2.2
 **License**: GPL-3.0-or-later
 
 ## What This Is
