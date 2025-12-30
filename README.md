@@ -138,12 +138,14 @@ splice plan --file <PLAN.json>
 ## Architecture
 
 - **src/cli/** - CLI argument parsing
-- **src/ingest/** - File parsing (Rust; import extraction for other languages for future cross-lang support)
+- **src/ingest/** - Symbol parsing for 6 languages (Rust, C/C++, Java, JS, Python, TS)
 - **src/graph/** - SQLiteGraph integration
 - **src/resolve/** - Symbol resolution and reference finding
 - **src/patch/** - Span-safe replacement + validation
 - **src/validate/** - Tree-sitter + cargo check validation
 - **src/plan/** - JSON plan orchestration
+
+**Note**: The `delete` and `patch` commands currently work on Rust code only. The other language parsers are included for library use and future CLI support.
 
 ## Validation Gates
 
