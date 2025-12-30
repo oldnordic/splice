@@ -2,7 +2,7 @@
 
 Span-safe refactoring kernel for Rust using tree-sitter and SQLiteGraph.
 
-**Version**: 0.2.0
+**Version**: 0.2.1
 **License**: GPL-3.0-or-later
 
 ## What This Is
@@ -138,7 +138,7 @@ splice plan --file <PLAN.json>
 ## Architecture
 
 - **src/cli/** - CLI argument parsing
-- **src/ingest/** - Multi-language file parsing (Rust, C/C++, Java, JS, Python, TS)
+- **src/ingest/** - File parsing (Rust; import extraction for other languages for future cross-lang support)
 - **src/graph/** - SQLiteGraph integration
 - **src/resolve/** - Symbol resolution and reference finding
 - **src/patch/** - Span-safe replacement + validation
