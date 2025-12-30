@@ -11,7 +11,7 @@ Splice is a command-line tool that performs byte-accurate, AST-validated refacto
 
 ## What This Is NOT
 
-- An IDE - Use Rust Analyzer or IntelliJ Rust
+- An IDE or LSP server - Use Rust Analyzer, IntelliJ Rust, or your editor
 - A general-purpose refactoring tool - Focused on specific operations
 - A complete solution - It's a focused tool for specific jobs
 - Production-hardened - Use with version control
