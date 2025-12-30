@@ -10,15 +10,39 @@ Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **delete command**: Remove symbol definitions and all their references
 - **Cross-file reference finding**: Tracks and removes references across multiple files
 - **Shadowing detection**: Correctly handles local variables that shadow imported symbols
-- **Re-export chain following**: Finds references through `pub use` re-exports
+- **Re-export chain following**: Finds references through `pub use` re-exports (single-hop; chained not guaranteed)
 - **Trait method reference detection**: Handles `value.method()`, `Trait::method()`, and `Type::method()` patterns
 - **Multi-language support**: Import extraction for C/C++, Java, JavaScript, Python, TypeScript
+
+### Behavior Guarantee (delete command)
+
+For **public Rust functions** (those intended to be imported across modules), `delete` finds all references that reach the definition through:
+- Direct imports: `use crate::foo::bar`
+- Re-exports: `pub use crate::foo::bar as baz`
+- Same-file unqualified calls: `bar()`
+
+**Scope**: workspace = all `.rs` files under the current working directory
+
+**Exclusions** (by design, not limitation):
+- Private functions (no cross-file tracking)
+- Fully-qualified paths: `crate::foo::bar()` (not tracked)
+- Macro-generated references (not tracked)
+- Shadowed names: local `fn bar` shadows import (correctly ignored)
+
+**Deletion order**: References first (reverse byte order per file to preserve offsets), then definition
+
+### What Did NOT Change
+
+- No persistent database between runs
+- No resume mode for failed plans
+- No dry-run mode
+- Atomic rollback on validation failure (still guaranteed)
+- Byte spans remain source of truth (still guaranteed)
+- Tree-sitter reparse before compiler gate (still guaranteed)
 
 ### Changed
 
 - 298 passing tests (from 22)
-- Reference finding now searches entire workspace
-- Delete command removes references first (reverse byte order per file), then definition
 
 ### Technical
 

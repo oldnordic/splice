@@ -160,6 +160,10 @@ cargo test
 
 Test Coverage: 298/298 tests passing
 
+## Feedback
+
+If you use this tool and find a bug or miss a feature that would be useful, drop a line. It's appreciated.
+
 ## License
 
 GPL-3.0-or-later
