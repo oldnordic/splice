@@ -3,6 +3,18 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2025-12-31
+
+### Fixed
+- **Rust impl blocks now extract struct name** - `impl_item` nodes now properly extract the struct name
+  - Previously: Used `child_by_field_name("name")` which doesn't exist for `impl_item`, causing impl blocks to be skipped
+  - Now: Uses `child_by_field_name("type")` to extract the struct name being implemented
+  - Works for both `impl StructName { }` and `impl Trait for StructName { }`
+
+### Added
+- `extract_impl_name()` helper function to Rust parser
+- 3 new tests: `test_extract_impl_name_inherent`, `test_extract_impl_name_trait_impl`, `test_extract_impl_name_both`
+
 ## [0.3.0] - 2025-12-30
 
 ### Added

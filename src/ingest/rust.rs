@@ -110,6 +110,24 @@ fn extract_symbols(
     }
 }
 
+/// Extract the struct name from an impl_item node.
+///
+/// Handles:
+/// - `impl StructName { }` -> returns "StructName"
+/// - `impl Trait for StructName { }` -> returns "StructName"
+///
+/// In tree-sitter Rust grammar:
+/// - Inherent impl: `impl StructName` -> has `type:` field pointing to StructName
+/// - Trait impl: `impl Trait for StructName` -> has `trait:` field (Trait) and `type:` field (StructName)
+/// The `type:` field ALWAYS contains the struct name being implemented.
+fn extract_impl_name(node: &tree_sitter::Node, source: &[u8]) -> Option<String> {
+    // Access the 'type' field which always contains the struct name
+    let type_node = node.child_by_field_name("type")?;
+
+    let name_bytes = &source[type_node.start_byte() as usize..type_node.end_byte() as usize];
+    std::str::from_utf8(name_bytes).ok().map(|s| s.to_string())
+}
+
 /// Extract a single symbol from a tree-sitter node.
 fn extract_symbol(
     node: tree_sitter::Node,
@@ -119,8 +137,13 @@ fn extract_symbol(
     module_path: &str,
 ) -> Option<RustSymbol> {
     // Get symbol name from declaration
-    let name_node = node.child_by_field_name("name")?;
-    let name = name_node.utf8_text(source).ok()?.to_string();
+    // For impl_item, use the 'type' field which contains the struct name being implemented
+    let name = if kind == RustSymbolKind::Impl {
+        extract_impl_name(&node, source)?
+    } else {
+        let name_node = node.child_by_field_name("name")?;
+        name_node.utf8_text(source).ok()?.to_string()
+    };
 
     // Compute byte spans
     let byte_start = node.start_byte();

@@ -127,4 +127,123 @@ mod tests {
             result
         );
     }
+
+    #[test]
+    fn test_extract_impl_name_inherent() {
+        let source = r#"
+struct MyStruct;
+
+impl MyStruct {
+    fn new() -> Self { Self }
+}
+"#;
+
+        let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        temp_file
+            .write_all(source.as_bytes())
+            .expect("Failed to write to temp file");
+        let temp_path = temp_file.path();
+
+        let result = extract_rust_symbols(temp_path, source.as_bytes());
+        assert!(result.is_ok(), "extract_rust_symbols failed: {:?}", result.err());
+
+        let symbols = result.unwrap();
+
+        // Find the impl block
+        let impl_block = symbols
+            .iter()
+            .find(|s| s.kind == RustSymbolKind::Impl)
+            .expect("Should find impl block");
+
+        assert_eq!(
+            impl_block.name, "MyStruct",
+            "Impl block should have name 'MyStruct', got '{}'",
+            impl_block.name
+        );
+    }
+
+    #[test]
+    fn test_extract_impl_name_trait_impl() {
+        let source = r#"
+struct MyStruct;
+
+impl Default for MyStruct {
+    fn default() -> Self { Self }
+}
+"#;
+
+        let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        temp_file
+            .write_all(source.as_bytes())
+            .expect("Failed to write to temp file");
+        let temp_path = temp_file.path();
+
+        let result = extract_rust_symbols(temp_path, source.as_bytes());
+        assert!(result.is_ok(), "extract_rust_symbols failed: {:?}", result.err());
+
+        let symbols = result.unwrap();
+
+        // Find the impl block
+        let impl_block = symbols
+            .iter()
+            .find(|s| s.kind == RustSymbolKind::Impl)
+            .expect("Should find impl block");
+
+        assert_eq!(
+            impl_block.name, "MyStruct",
+            "Impl block should have name 'MyStruct' (not 'Default'), got '{}'",
+            impl_block.name
+        );
+    }
+
+    #[test]
+    fn test_extract_impl_name_both() {
+        let source = r#"
+pub struct MyStruct { pub value: i32 }
+
+impl MyStruct {
+    pub fn new() -> Self { Self { value: 42 } }
+}
+
+impl Default for MyStruct {
+    fn default() -> Self { Self { value: 0 } }
+}
+"#;
+
+        let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        temp_file
+            .write_all(source.as_bytes())
+            .expect("Failed to write to temp file");
+        let temp_path = temp_file.path();
+
+        let result = extract_rust_symbols(temp_path, source.as_bytes());
+        assert!(result.is_ok(), "extract_rust_symbols failed: {:?}", result.err());
+
+        let symbols = result.unwrap();
+
+        // Should find: struct, inherent impl, trait impl
+        let impl_blocks: Vec<_> = symbols
+            .iter()
+            .filter(|s| s.kind == RustSymbolKind::Impl)
+            .collect();
+
+        assert_eq!(
+            impl_blocks.len(),
+            2,
+            "Should find 2 impl blocks, found {}",
+            impl_blocks.len()
+        );
+
+        // Both impls should have MyStruct as their name
+        assert_eq!(
+            impl_blocks[0].name,
+            "MyStruct",
+            "First impl should have name 'MyStruct'"
+        );
+        assert_eq!(
+            impl_blocks[1].name,
+            "MyStruct",
+            "Second impl should have name 'MyStruct'"
+        );
+    }
 }
