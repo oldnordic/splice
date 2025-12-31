@@ -53,8 +53,8 @@ function farewell(name: string): number {
             CodeGraph::open(&graph_db_path).expect("Failed to open graph database");
 
         // Ingest symbols from test.ts
-        let symbols =
-            extract_typescript_symbols(&ts_path, source.as_bytes()).expect("Failed to parse test.ts");
+        let symbols = extract_typescript_symbols(&ts_path, source.as_bytes())
+            .expect("Failed to parse test.ts");
 
         assert_eq!(symbols.len(), 2, "Expected 2 functions");
 
@@ -73,13 +73,8 @@ function farewell(name: string): number {
         }
 
         // Resolve the "greet" function
-        let resolved = resolve_symbol(
-            &code_graph,
-            Some(&ts_path),
-            Some("function"),
-            "greet",
-        )
-        .expect("Failed to resolve greet function");
+        let resolved = resolve_symbol(&code_graph, Some(&ts_path), Some("function"), "greet")
+            .expect("Failed to resolve greet function");
 
         // Verify we got the right span
         let greet_symbol = &symbols[0];
@@ -158,8 +153,8 @@ function validFunction(): number {
             CodeGraph::open(&graph_db_path).expect("Failed to open graph database");
 
         // Ingest and store symbols
-        let symbols =
-            extract_typescript_symbols(&ts_path, source.as_bytes()).expect("Failed to parse test.ts");
+        let symbols = extract_typescript_symbols(&ts_path, source.as_bytes())
+            .expect("Failed to parse test.ts");
 
         let symbol = &symbols[0];
         code_graph
@@ -204,7 +199,11 @@ function validFunction(): number {
         );
 
         // Should fail on syntax error
-        assert!(result.is_err(), "Patch should fail on syntax error: {:?}", result);
+        assert!(
+            result.is_err(),
+            "Patch should fail on syntax error: {:?}",
+            result
+        );
 
         // Verify original file is unchanged (atomic rollback)
         let current_content =
@@ -270,13 +269,8 @@ interface User {
             .expect("Failed to store symbol");
 
         // Resolve interface
-        let resolved = resolve_symbol(
-            &code_graph,
-            Some(&ts_path),
-            Some("interface"),
-            "User",
-        )
-        .expect("Failed to resolve interface");
+        let resolved = resolve_symbol(&code_graph, Some(&ts_path), Some("interface"), "User")
+            .expect("Failed to resolve interface");
 
         // Apply valid patch
         let new_body = r#"
@@ -298,7 +292,8 @@ interface User {
 
         // Should succeed if tsc is available
         if result.is_ok() {
-            let new_content = std::fs::read_to_string(&ts_path).expect("Failed to read patched file");
+            let new_content =
+                std::fs::read_to_string(&ts_path).expect("Failed to read patched file");
             assert!(
                 new_content.contains("age: number;"),
                 "Patched content should be present"

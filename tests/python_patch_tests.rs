@@ -67,13 +67,8 @@ def farewell(name: str) -> str:
         }
 
         // Resolve the "greet" function
-        let resolved = resolve_symbol(
-            &code_graph,
-            Some(&py_path),
-            Some("function"),
-            "greet",
-        )
-        .expect("Failed to resolve greet function");
+        let resolved = resolve_symbol(&code_graph, Some(&py_path), Some("function"), "greet")
+            .expect("Failed to resolve greet function");
 
         // Verify we got the right span
         let greet_symbol = &symbols[0];
@@ -101,8 +96,7 @@ def greet(name: str) -> str:
         assert!(result.is_ok(), "Patch should succeed: {:?}", result);
 
         // Verify file content changed exactly in the span
-        let new_content =
-            std::fs::read_to_string(&py_path).expect("Failed to read patched file");
+        let new_content = std::fs::read_to_string(&py_path).expect("Failed to read patched file");
 
         assert!(
             new_content.contains("Greetings, "),
@@ -246,13 +240,8 @@ def get_number() -> int:
             .expect("Failed to store symbol");
 
         // Resolve function
-        let resolved = resolve_symbol(
-            &code_graph,
-            Some(&py_path),
-            Some("function"),
-            "get_number",
-        )
-        .expect("Failed to resolve function");
+        let resolved = resolve_symbol(&code_graph, Some(&py_path), Some("function"), "get_number")
+            .expect("Failed to resolve function");
 
         // Read original content for comparison
         let original_content =

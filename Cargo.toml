@@ -1,6 +1,6 @@
 [package]
 name = "splice"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 description = "Span-safe refactoring kernel for Rust using SQLiteGraph"
 license = "GPL-3.0-or-later"
@@ -45,5 +45,12 @@ log = "0.4"
 env_logger = "0.11"
 which = "6"
 tempfile = "3.10"
+
+# UUID generation and time handling
+uuid = { version = "1.10", features = ["v4"] }
+chrono = "0.4"
+
+# Glob pattern matching
+glob = "0.3"
 
 [dev-dependencies]

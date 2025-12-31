@@ -5,6 +5,10 @@
 
 #[cfg(test)]
 mod tests {
+    use serde_json::{json, Value};
+    use sha2::{Digest, Sha256};
+    use splice::ingest::rust::extract_rust_symbols;
+    use std::collections::HashMap;
     use std::io::Write;
     use std::path::PathBuf;
     use std::process::Command;
@@ -400,5 +404,1063 @@ pub fn farewell(name: &str) -> String {
     fn test_plan_invalid_schema() {
         // TODO: This test requires plan parsing implementation
         // Will implement in STEP 2 after plan parsing is complete
+    }
+
+    /// Test J: Symbol not found returns structured JSON payload.
+    #[test]
+    fn test_cli_symbol_not_found_returns_structured_json() {
+        let workspace_dir = TempDir::new().expect("Failed to create temp workspace");
+        let workspace_path = workspace_dir.path();
+
+        // Minimal Cargo.toml
+        let cargo_toml_path = workspace_path.join("Cargo.toml");
+        let mut cargo_toml = NamedTempFile::new().expect("Failed to create Cargo.toml");
+        write!(
+            cargo_toml,
+            r#"[package]
+name = "temp-test"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "temp_test"
+path = "src/lib.rs"
+"#
+        )
+        .expect("Failed to write Cargo.toml");
+        std::fs::rename(cargo_toml.path(), &cargo_toml_path).expect("Failed to move Cargo.toml");
+
+        // Source tree
+        let src_dir = workspace_path.join("src");
+        std::fs::create_dir(&src_dir).expect("Failed to create src directory");
+
+        let lib_rs_path = src_dir.join("lib.rs");
+        std::fs::write(
+            &lib_rs_path,
+            r#"
+pub fn greet(name: &str) -> String {
+    format!("Hello, {}!", name)
+}
+"#,
+        )
+        .expect("Failed to write lib.rs");
+
+        // Replacement file for CLI invocation
+        let patch_path = workspace_path.join("patch.rs");
+        std::fs::write(
+            &patch_path,
+            r#"
+pub fn greet(name: &str) -> String {
+    format!("Hi, {}!", name)
+}
+"#,
+        )
+        .expect("Failed to write patch.rs");
+
+        let splice_binary = get_splice_binary();
+        let output = Command::new(&splice_binary)
+            .arg("patch")
+            .arg("--file")
+            .arg(&lib_rs_path)
+            .arg("--symbol")
+            .arg("missing_symbol")
+            .arg("--with")
+            .arg(&patch_path)
+            .current_dir(workspace_path)
+            .output()
+            .expect("Failed to run splice CLI");
+
+        assert!(
+            !output.status.success(),
+            "CLI should fail when symbol cannot be resolved"
+        );
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let payload: Value =
+            serde_json::from_str(&stderr).expect("stderr should contain JSON payload");
+
+        assert_eq!(
+            payload.get("status").and_then(|v| v.as_str()),
+            Some("error"),
+            "status should be error"
+        );
+
+        let error = payload
+            .get("error")
+            .and_then(|v| v.as_object())
+            .expect("error object missing");
+
+        assert_eq!(
+            error.get("kind").and_then(|v| v.as_str()),
+            Some("SymbolNotFound"),
+            "kind should be SymbolNotFound"
+        );
+
+        assert_eq!(
+            error.get("symbol").and_then(|v| v.as_str()),
+            Some("missing_symbol"),
+            "symbol field should echo missing symbol"
+        );
+
+        assert_eq!(
+            error.get("file").and_then(|v| v.as_str()),
+            lib_rs_path.to_str(),
+            "file should reference requested source file"
+        );
+
+        assert!(
+            error.get("hint").and_then(|v| v.as_str()).is_some(),
+            "hint should be populated for guidance"
+        );
+    }
+
+    /// Test K: Syntax errors emit diagnostics in the JSON payload.
+    #[test]
+    fn test_cli_patch_syntax_error_emits_diagnostics() {
+        let workspace_dir = TempDir::new().expect("Failed to create temp workspace");
+        let workspace_path = workspace_dir.path();
+
+        // Cargo manifest
+        let cargo_toml_path = workspace_path.join("Cargo.toml");
+        let mut cargo_toml = NamedTempFile::new().expect("Failed to create Cargo.toml");
+        write!(
+            cargo_toml,
+            r#"[package]
+name = "temp-test"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "temp_test"
+path = "src/lib.rs"
+"#
+        )
+        .expect("Failed to write Cargo.toml");
+        std::fs::rename(cargo_toml.path(), &cargo_toml_path).expect("Failed to move Cargo.toml");
+
+        // Valid source file
+        let src_dir = workspace_path.join("src");
+        std::fs::create_dir(&src_dir).expect("Failed to create src directory");
+        let lib_rs_path = src_dir.join("lib.rs");
+        std::fs::write(
+            &lib_rs_path,
+            r#"
+pub fn greet(name: &str) -> String {
+    format!("Hello, {}!", name)
+}
+"#,
+        )
+        .expect("Failed to write lib.rs");
+
+        // Replacement patch missing closing brace to trigger syntax failure
+        let patch_path = workspace_path.join("patch.rs");
+        std::fs::write(
+            &patch_path,
+            r#"
+pub fn greet(name: &str) -> String {
+    format!("Hello, {}!", name)
+"#,
+        )
+        .expect("Failed to write patch.rs");
+
+        let splice_binary = get_splice_binary();
+        let output = Command::new(&splice_binary)
+            .arg("patch")
+            .arg("--file")
+            .arg(&lib_rs_path)
+            .arg("--symbol")
+            .arg("greet")
+            .arg("--with")
+            .arg(&patch_path)
+            .current_dir(workspace_path)
+            .output()
+            .expect("Failed to execute splice CLI");
+
+        assert!(
+            !output.status.success(),
+            "CLI should fail when patch introduces syntax errors"
+        );
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let payload: Value =
+            serde_json::from_str(&stderr).expect("stderr should contain JSON payload");
+
+        let error = payload
+            .get("error")
+            .and_then(|v| v.as_object())
+            .expect("error object missing");
+
+        let diagnostics = error
+            .get("diagnostics")
+            .and_then(|v| v.as_array())
+            .expect("diagnostics array missing from payload");
+
+        assert!(
+            !diagnostics.is_empty(),
+            "diagnostics array should contain at least one entry"
+        );
+
+        let first = diagnostics[0]
+            .as_object()
+            .expect("diagnostic entry should be an object");
+
+        assert_eq!(
+            first.get("tool").and_then(|v| v.as_str()),
+            Some("tree-sitter"),
+            "tree-sitter should report syntax errors"
+        );
+        assert!(
+            first
+                .get("message")
+                .and_then(|v| v.as_str())
+                .map(|m| m.contains("syntax"))
+                .unwrap_or(false),
+            "diagnostic message should mention syntax issues"
+        );
+    }
+
+    /// Test L: Cargo check failures emit file-specific diagnostics.
+    #[test]
+    fn test_cli_cargo_check_failure_emits_diagnostics() {
+        let workspace_dir = TempDir::new().expect("Failed to create temp workspace");
+        let workspace_path = workspace_dir.path();
+
+        // Cargo manifest
+        let cargo_toml_path = workspace_path.join("Cargo.toml");
+        let mut cargo_toml = NamedTempFile::new().expect("Failed to create Cargo.toml");
+        write!(
+            cargo_toml,
+            r#"[package]
+name = "temp-test"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "temp_test"
+path = "src/lib.rs"
+"#
+        )
+        .expect("Failed to write Cargo.toml");
+        std::fs::rename(cargo_toml.path(), &cargo_toml_path).expect("Failed to move Cargo.toml");
+
+        // Source file
+        let src_dir = workspace_path.join("src");
+        std::fs::create_dir(&src_dir).expect("Failed to create src directory");
+        let lib_rs_path = src_dir.join("lib.rs");
+        std::fs::write(
+            &lib_rs_path,
+            r#"
+pub fn greet(name: &str) -> String {
+    format!("Hello, {}!", name)
+}
+"#,
+        )
+        .expect("Failed to write lib.rs");
+
+        // Replacement patch referencing missing function (compile error, but syntax OK)
+        let patch_path = workspace_path.join("patch.rs");
+        std::fs::write(
+            &patch_path,
+            r#"
+pub fn greet(name: &str) -> String {
+    missing_helper(name)
+}
+"#,
+        )
+        .expect("Failed to write patch.rs");
+
+        let splice_binary = get_splice_binary();
+        let output = Command::new(&splice_binary)
+            .arg("patch")
+            .arg("--file")
+            .arg(&lib_rs_path)
+            .arg("--symbol")
+            .arg("greet")
+            .arg("--with")
+            .arg(&patch_path)
+            .current_dir(workspace_path)
+            .output()
+            .expect("Failed to execute splice CLI");
+
+        assert!(
+            !output.status.success(),
+            "CLI should fail when cargo check reports errors"
+        );
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let payload: Value =
+            serde_json::from_str(&stderr).expect("stderr should contain JSON payload");
+
+        let error = payload
+            .get("error")
+            .and_then(|v| v.as_object())
+            .expect("error object missing");
+
+        assert_eq!(
+            error.get("kind").and_then(|v| v.as_str()),
+            Some("CargoCheckFailed"),
+            "expected CargoCheckFailed error kind"
+        );
+
+        let diagnostics = error
+            .get("diagnostics")
+            .and_then(|v| v.as_array())
+            .expect("diagnostics array missing");
+        assert!(
+            !diagnostics.is_empty(),
+            "diagnostics should not be empty for cargo failures"
+        );
+
+        let first = diagnostics[0]
+            .as_object()
+            .expect("diagnostic entry should be an object");
+        assert_eq!(
+            first.get("tool").and_then(|v| v.as_str()),
+            Some("cargo-check"),
+            "cargo-check diagnostics expected"
+        );
+        let file_value = first
+            .get("file")
+            .and_then(|v| v.as_str())
+            .expect("diagnostic should include file path");
+        assert!(
+            file_value.ends_with("src/lib.rs"),
+            "diagnostic should point to the patched file"
+        );
+        assert!(
+            first.get("line").and_then(|v| v.as_u64()).is_some(),
+            "diagnostic should contain a line number"
+        );
+        assert_eq!(
+            first.get("code").and_then(|v| v.as_str()),
+            Some("E0425"),
+            "diagnostic should expose compiler error code"
+        );
+        let tool_version = first
+            .get("tool_version")
+            .and_then(|v| v.as_str())
+            .expect("tool_version should be present");
+        assert!(
+            tool_version.to_lowercase().contains("cargo"),
+            "tool_version should describe cargo"
+        );
+        assert!(
+            first
+                .get("tool_path")
+                .and_then(|v| v.as_str())
+                .map(|s| !s.is_empty())
+                .unwrap_or(false),
+            "tool_path should contain the detected binary path"
+        );
+        assert_eq!(
+            first.get("remediation").and_then(|v| v.as_str()),
+            Some("https://doc.rust-lang.org/error-index.html#E0425"),
+            "remediation link should point to the Rust error index"
+        );
+    }
+
+    /// Test M: Batch patch CLI rolls back when validation fails.
+    #[test]
+    fn test_cli_batch_patch_rolls_back_on_failure() {
+        let workspace_dir = TempDir::new().expect("Failed to create temp workspace");
+        let workspace_path = workspace_dir.path();
+
+        // Cargo manifest
+        let cargo_toml_path = workspace_path.join("Cargo.toml");
+        let mut cargo_toml = NamedTempFile::new().expect("Failed to create Cargo.toml");
+        write!(
+            cargo_toml,
+            r#"[package]
+name = "temp-test"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "temp_test"
+path = "src/lib.rs"
+"#
+        )
+        .expect("Failed to write Cargo.toml");
+        std::fs::rename(cargo_toml.path(), &cargo_toml_path).expect("Failed to move Cargo.toml");
+
+        let src_dir = workspace_path.join("src");
+        std::fs::create_dir(&src_dir).expect("Failed to create src directory");
+
+        let lib_rs_path = src_dir.join("lib.rs");
+        std::fs::write(
+            &lib_rs_path,
+            r#"
+pub fn helper(x: i32) -> i32 {
+    x + 1
+}
+
+pub mod a;
+pub mod b;
+"#,
+        )
+        .expect("Failed to write lib.rs");
+
+        let file_a = src_dir.join("a.rs");
+        std::fs::write(
+            &file_a,
+            r#"
+use crate::helper;
+
+pub fn value() -> i32 {
+    helper(10)
+}
+"#,
+        )
+        .expect("Failed to write a.rs");
+
+        let file_b = src_dir.join("b.rs");
+        std::fs::write(
+            &file_b,
+            r#"
+use crate::helper;
+
+pub fn broken() -> i32 {
+    helper(5)
+}
+"#,
+        )
+        .expect("Failed to write b.rs");
+
+        let symbols_a = extract_rust_symbols(
+            &file_a,
+            std::fs::read(&file_a).expect("read a.rs").as_slice(),
+        )
+        .expect("parse a.rs");
+        let span_a = symbols_a
+            .iter()
+            .find(|s| s.name == "value")
+            .expect("value span");
+
+        let symbols_b = extract_rust_symbols(
+            &file_b,
+            std::fs::read(&file_b).expect("read b.rs").as_slice(),
+        )
+        .expect("parse b.rs");
+        let span_b = symbols_b
+            .iter()
+            .find(|s| s.name == "broken")
+            .expect("broken span");
+
+        let relative_a = file_a
+            .strip_prefix(workspace_path)
+            .expect("a.rs relative path");
+        let relative_b = file_b
+            .strip_prefix(workspace_path)
+            .expect("b.rs relative path");
+
+        let batch_path = workspace_path.join("batch.json");
+        let batch_json = json!({
+            "batches": [
+                {
+                    "replacements": [
+                        {
+                            "file": relative_a,
+                            "start": span_a.byte_start,
+                            "end": span_a.byte_end,
+                            "content": r#"
+pub fn value() -> i32 {
+    helper(42)
+}
+"#
+                        },
+                        {
+                            "file": relative_b,
+                            "start": span_b.byte_start,
+                            "end": span_b.byte_end,
+                            "content": r#"
+pub fn broken() -> i32 {
+    helper("oops")
+}
+"#
+                        }
+                    ]
+                }
+            ]
+        });
+        std::fs::write(
+            &batch_path,
+            serde_json::to_string_pretty(&batch_json).unwrap(),
+        )
+        .expect("write batch.json");
+
+        let original_a = std::fs::read_to_string(&file_a).expect("read original a.rs");
+        let original_b = std::fs::read_to_string(&file_b).expect("read original b.rs");
+
+        let splice_binary = get_splice_binary();
+        let output = Command::new(&splice_binary)
+            .arg("patch")
+            .arg("--batch")
+            .arg(&batch_path)
+            .arg("--language")
+            .arg("rust")
+            .current_dir(workspace_path)
+            .output()
+            .expect("Failed to run splice CLI");
+
+        assert!(
+            !output.status.success(),
+            "CLI should fail because the second replacement introduces a type error"
+        );
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let payload: Value = serde_json::from_str(&stderr).expect("stderr should contain JSON");
+        assert_eq!(
+            payload.get("status").and_then(|v| v.as_str()),
+            Some("error")
+        );
+        assert_eq!(
+            payload
+                .get("error")
+                .and_then(|v| v.get("kind"))
+                .and_then(|v| v.as_str()),
+            Some("CargoCheckFailed"),
+            "batch failures should return CargoCheckFailed errors"
+        );
+
+        assert_eq!(
+            original_a,
+            std::fs::read_to_string(&file_a).expect("read patched a.rs"),
+            "a.rs should remain unchanged when batch fails"
+        );
+        assert_eq!(
+            original_b,
+            std::fs::read_to_string(&file_b).expect("read patched b.rs"),
+            "b.rs should remain unchanged when batch fails"
+        );
+    }
+
+    /// Test N: Batch patch success emits per-file metadata.
+    #[test]
+    fn test_cli_batch_patch_success_returns_metadata() {
+        let workspace_dir = TempDir::new().expect("Failed to create temp workspace");
+        let workspace_path = workspace_dir.path();
+
+        let cargo_toml_path = workspace_path.join("Cargo.toml");
+        let mut cargo_toml = NamedTempFile::new().expect("Failed to create Cargo.toml");
+        write!(
+            cargo_toml,
+            r#"[package]
+name = "temp-test"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "temp_test"
+path = "src/lib.rs"
+"#
+        )
+        .expect("Failed to write Cargo.toml");
+        std::fs::rename(cargo_toml.path(), &cargo_toml_path).expect("Failed to move Cargo.toml");
+
+        let src_dir = workspace_path.join("src");
+        std::fs::create_dir(&src_dir).expect("Failed to create src directory");
+
+        let lib_rs_path = src_dir.join("lib.rs");
+        std::fs::write(
+            &lib_rs_path,
+            r#"
+pub fn helper(x: i32) -> i32 {
+    x + 1
+}
+
+pub mod a;
+"#,
+        )
+        .expect("Failed to write lib.rs");
+
+        let file_a = src_dir.join("a.rs");
+        std::fs::write(
+            &file_a,
+            r#"
+use crate::helper;
+
+pub fn value() -> i32 {
+    helper(10)
+}
+"#,
+        )
+        .expect("Failed to write a.rs");
+
+        let file_b = src_dir.join("b.rs");
+        std::fs::write(
+            &file_b,
+            r#"
+use crate::helper;
+
+pub fn broken() -> i32 {
+    helper(5)
+}
+"#,
+        )
+        .expect("Failed to write b.rs");
+
+        let symbols_a = extract_rust_symbols(
+            &file_a,
+            std::fs::read(&file_a).expect("read a.rs").as_slice(),
+        )
+        .expect("parse a.rs");
+        let span_a = symbols_a
+            .iter()
+            .find(|s| s.name == "value")
+            .expect("value span");
+
+        let symbols_b = extract_rust_symbols(
+            &file_b,
+            std::fs::read(&file_b).expect("read b.rs").as_slice(),
+        )
+        .expect("parse b.rs");
+        let span_b = symbols_b
+            .iter()
+            .find(|s| s.name == "broken")
+            .expect("broken span");
+
+        let relative_a = file_a
+            .strip_prefix(workspace_path)
+            .expect("a.rs relative path");
+        let relative_b = file_b
+            .strip_prefix(workspace_path)
+            .expect("b.rs relative path");
+
+        let batch_path = workspace_path.join("batch-success.json");
+        let batch_json = json!({
+            "batches": [
+                {
+                    "replacements": [
+                        {
+                            "file": relative_a,
+                            "start": span_a.byte_start,
+                            "end": span_a.byte_end,
+                            "content": r#"
+pub fn value() -> i32 {
+    helper(42)
+}
+"#
+                        },
+                        {
+                            "file": relative_b,
+                            "start": span_b.byte_start,
+                            "end": span_b.byte_end,
+                            "content": r#"
+pub fn broken() -> i32 {
+    helper(7)
+}
+"#
+                        }
+                    ]
+                }
+            ]
+        });
+        std::fs::write(
+            &batch_path,
+            serde_json::to_string_pretty(&batch_json).unwrap(),
+        )
+        .expect("write batch-success.json");
+
+        let before_hash_a = hash_file(&file_a);
+        let before_hash_b = hash_file(&file_b);
+
+        let splice_binary = get_splice_binary();
+        let output = Command::new(&splice_binary)
+            .arg("patch")
+            .arg("--batch")
+            .arg(&batch_path)
+            .arg("--language")
+            .arg("rust")
+            .current_dir(workspace_path)
+            .output()
+            .expect("Failed to run splice CLI");
+
+        if !output.status.success() {
+            println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+            println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+        }
+        assert!(
+            output.status.success(),
+            "CLI should succeed when both replacements are valid"
+        );
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let payload: Value = serde_json::from_str(&stdout).expect("stdout should be JSON payload");
+        assert_eq!(
+            payload.get("status").and_then(|v| v.as_str()),
+            Some("ok"),
+            "success payload should set status=ok"
+        );
+
+        let data = payload
+            .get("data")
+            .and_then(|v| v.as_object())
+            .expect("success payload should include metadata");
+
+        assert_eq!(
+            data.get("batches_applied").and_then(|v| v.as_u64()),
+            Some(1),
+            "metadata should report number of batches"
+        );
+
+        let files = data
+            .get("files")
+            .and_then(|v| v.as_array())
+            .expect("metadata should include per-file entries");
+        assert_eq!(files.len(), 2, "two files should be reported");
+
+        let after_hash_a = hash_file(&file_a);
+        let after_hash_b = hash_file(&file_b);
+
+        let mut expected = HashMap::new();
+        expected.insert(
+            file_a.to_string_lossy().to_string(),
+            (before_hash_a.clone(), after_hash_a.clone()),
+        );
+        expected.insert(
+            file_b.to_string_lossy().to_string(),
+            (before_hash_b.clone(), after_hash_b.clone()),
+        );
+
+        for entry in files {
+            let obj = entry
+                .as_object()
+                .expect("file metadata entries should be JSON objects");
+            let file = obj
+                .get("file")
+                .and_then(|v| v.as_str())
+                .expect("file entry should be a string");
+            let before = obj
+                .get("before_hash")
+                .and_then(|v| v.as_str())
+                .expect("before_hash should be a string");
+            let after = obj
+                .get("after_hash")
+                .and_then(|v| v.as_str())
+                .expect("after_hash should be a string");
+
+            let (expected_before, expected_after) = expected
+                .get(file)
+                .unwrap_or_else(|| panic!("unexpected file in metadata: {}", file));
+            assert_eq!(
+                before, expected_before,
+                "before hash mismatch for file {}",
+                file
+            );
+            assert_eq!(
+                after, expected_after,
+                "after hash mismatch for file {}",
+                file
+            );
+        }
+
+        let final_a = std::fs::read_to_string(&file_a).expect("read final a.rs");
+        assert!(
+            final_a.contains("helper(42)"),
+            "file a.rs should reflect the batch replacement"
+        );
+        let final_b = std::fs::read_to_string(&file_b).expect("read final b.rs");
+        assert!(
+            final_b.contains("helper(7)"),
+            "file b.rs should reflect the batch replacement"
+        );
+    }
+
+    #[test]
+    fn test_cli_patch_preview() {
+        let workspace_dir = TempDir::new().expect("Failed to create temp workspace");
+        let workspace_path = workspace_dir.path();
+
+        let cargo_toml_path = workspace_path.join("Cargo.toml");
+        let mut cargo_toml = NamedTempFile::new().expect("Failed to create Cargo.toml");
+        write!(
+            cargo_toml,
+            r#"[package]
+name = "temp-test"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "temp_test"
+path = "src/lib.rs"
+"#
+        )
+        .expect("Failed to write Cargo.toml");
+        std::fs::rename(cargo_toml.path(), &cargo_toml_path).expect("Failed to move Cargo.toml");
+
+        let src_dir = workspace_path.join("src");
+        std::fs::create_dir(&src_dir).expect("Failed to create src directory");
+
+        let lib_rs_path = src_dir.join("lib.rs");
+        std::fs::write(
+            &lib_rs_path,
+            r#"
+pub fn helper(x: i32) -> i32 {
+    x + 1
+}
+
+pub mod a;
+"#,
+        )
+        .expect("Failed to write lib.rs");
+
+        let a_rs_path = src_dir.join("a.rs");
+        std::fs::write(
+            &a_rs_path,
+            r#"
+use crate::helper;
+
+pub fn value() -> i32 {
+    helper(10)
+}
+"#,
+        )
+        .expect("Failed to write a.rs");
+
+        let patch_path = workspace_path.join("patch.rs");
+        std::fs::write(
+            &patch_path,
+            r#"
+pub fn value() -> i32 {
+    helper(20)
+}
+"#,
+        )
+        .expect("Failed to write patch file");
+
+        let original_content =
+            std::fs::read_to_string(&a_rs_path).expect("Failed to read original file");
+
+        let splice_binary = get_splice_binary();
+        let output = Command::new(&splice_binary)
+            .arg("patch")
+            .arg("--file")
+            .arg(&a_rs_path)
+            .arg("--symbol")
+            .arg("value")
+            .arg("--with")
+            .arg(&patch_path)
+            .arg("--preview")
+            .current_dir(workspace_path)
+            .output()
+            .expect("Failed to run splice CLI");
+
+        assert!(
+            output.status.success(),
+            "CLI preview should exit successfully"
+        );
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let payload: Value = serde_json::from_str(&stdout).expect("stdout should be JSON payload");
+
+        let data = payload
+            .get("data")
+            .and_then(|v| v.as_object())
+            .expect("data missing");
+
+        let preview_report = data
+            .get("preview_report")
+            .and_then(|v| v.as_object())
+            .expect("preview_report missing");
+
+        assert_eq!(
+            preview_report
+                .get("file")
+                .and_then(|v| v.as_str())
+                .expect("file missing in preview_report"),
+            a_rs_path.to_string_lossy()
+        );
+
+        assert!(
+            preview_report
+                .get("lines_added")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0)
+                >= 1
+        );
+
+        assert!(
+            preview_report
+                .get("bytes_removed")
+                .and_then(|v| v.as_u64())
+                .is_some(),
+            "preview_report must include bytes_removed"
+        );
+
+        assert_eq!(
+            original_content,
+            std::fs::read_to_string(&a_rs_path).expect("file unchanged after preview")
+        );
+
+        let files = data
+            .get("files")
+            .and_then(|v| v.as_array())
+            .expect("files array missing");
+        assert_eq!(files.len(), 1);
+
+        assert_eq!(
+            files[0]
+                .get("file")
+                .and_then(|v| v.as_str())
+                .expect("file entry missing"),
+            a_rs_path.to_string_lossy()
+        );
+    }
+
+    /// Test O: Backup creation and undo restores files.
+    #[test]
+    fn test_cli_backup_and_undo() {
+        let workspace_dir = TempDir::new().expect("Failed to create temp workspace");
+        let workspace_path = workspace_dir.path();
+
+        let cargo_toml_path = workspace_path.join("Cargo.toml");
+        let mut cargo_toml = NamedTempFile::new().expect("Failed to create Cargo.toml");
+        write!(
+            cargo_toml,
+            r#"[package]
+name = "temp-test"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "temp_test"
+path = "src/lib.rs"
+"#
+        )
+        .expect("Failed to write Cargo.toml");
+        std::fs::rename(cargo_toml.path(), &cargo_toml_path).expect("Failed to move Cargo.toml");
+
+        let src_dir = workspace_path.join("src");
+        std::fs::create_dir(&src_dir).expect("Failed to create src directory");
+
+        let lib_rs_path = src_dir.join("lib.rs");
+        let original_content = r#"
+pub fn greet(name: &str) -> String {
+    format!("Hello, {}!", name)
+}
+"#;
+        std::fs::write(&lib_rs_path, original_content)
+            .expect("Failed to write lib.rs");
+
+        let patch_path = workspace_path.join("patch.rs");
+        std::fs::write(
+            &patch_path,
+            r#"
+pub fn greet(name: &str) -> String {
+    format!("Hi, {}!", name)
+}
+"#,
+        )
+        .expect("Failed to write patch.rs");
+
+        // Extract symbol span
+        let symbols = extract_rust_symbols(
+            &lib_rs_path,
+            std::fs::read(&lib_rs_path).expect("read lib.rs").as_slice(),
+        )
+        .expect("parse lib.rs");
+        let span = symbols
+            .iter()
+            .find(|s| s.name == "greet")
+            .expect("greet span");
+
+        // Create batch JSON with the replacement
+        let batch_path = workspace_path.join("batch.json");
+        let batch_json = json!({
+            "batches": [
+                {
+                    "replacements": [
+                        {
+                            "file": lib_rs_path.strip_prefix(workspace_path).unwrap(),
+                            "start": span.byte_start,
+                            "end": span.byte_end,
+                            "content": r#"
+pub fn greet(name: &str) -> String {
+    format!("Hi, {}!", name)
+}
+"#
+                        }
+                    ]
+                }
+            ]
+        });
+        std::fs::write(
+            &batch_path,
+            serde_json::to_string_pretty(&batch_json).unwrap(),
+        )
+        .expect("write batch.json");
+
+        let splice_binary = get_splice_binary();
+
+        // Run patch with --create-backup
+        let output = Command::new(&splice_binary)
+            .arg("patch")
+            .arg("--batch")
+            .arg(&batch_path)
+            .arg("--language")
+            .arg("rust")
+            .arg("--create-backup")
+            .current_dir(workspace_path)
+            .output()
+            .expect("Failed to run splice CLI");
+
+        assert!(
+            output.status.success(),
+            "CLI should succeed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+
+        // Verify file was modified
+        let modified_content =
+            std::fs::read_to_string(&lib_rs_path).expect("read modified lib.rs");
+        assert!(
+            modified_content.contains("Hi, "),
+            "File should be patched"
+        );
+        assert!(
+            !modified_content.contains("Hello, "),
+            "Old content should be gone"
+        );
+
+        // Get backup manifest path from response
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let payload: Value = serde_json::from_str(&stdout).expect("stdout should be JSON");
+        let backup_manifest = payload
+            .get("data")
+            .and_then(|v| v.get("backup_manifest"))
+            .and_then(|v| v.as_str())
+            .expect("backup_manifest should be in response");
+
+        let manifest_path = std::path::PathBuf::from(backup_manifest);
+
+        // Run undo command
+        let undo_output = Command::new(&splice_binary)
+            .arg("undo")
+            .arg("--manifest")
+            .arg(&manifest_path)
+            .current_dir(workspace_path)
+            .output()
+            .expect("Failed to run splice undo");
+
+        assert!(
+            undo_output.status.success(),
+            "Undo should succeed: {}",
+            String::from_utf8_lossy(&undo_output.stderr)
+        );
+
+        // Verify file was restored
+        let restored_content =
+            std::fs::read_to_string(&lib_rs_path).expect("read restored lib.rs");
+        assert_eq!(
+            restored_content, original_content,
+            "File should be restored to original content"
+        );
+    }
+
+    fn hash_file(path: &std::path::Path) -> String {
+        let bytes = std::fs::read(path).expect("Failed to read file for hashing");
+        let mut hasher = Sha256::new();
+        hasher.update(&bytes);
+        format!("{:x}", hasher.finalize())
     }
 }

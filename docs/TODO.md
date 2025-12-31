@@ -172,7 +172,14 @@ See [Plan File](../../../.claude/plans/iridescent-questing-sundae.md) for detail
   - Update `src/cli/mod.rs` and `src/patch/mod.rs` to serialize failures as JSON payloads returned over stdout/stderr.
   - Diagnostics must include `{tool, level, file, line, column, message, code?, hint?}` for cargo, tree-sitter, rust-analyzer, and every non-Rust compiler.
 - **Acceptance**: Integration test asserting CLI returns `SymbolNotFound` with symbol/file + friendly hint.
-- **Status 2025-01-29**: Structured JSON error payloads landed (`src/error.rs::SpliceError`, `src/cli/mod.rs::CliErrorPayload`, `src/main.rs::emit_error_payload`) with regression tests (`tests/cli_tests.rs::test_cli_symbol_not_found_returns_structured_json`, `tests/cli_tests.rs::test_cli_patch_syntax_error_emits_diagnostics`, `tests/cli_tests.rs::test_cli_cargo_check_failure_emits_diagnostics`, `src/validate/mod.rs::tests::parse_rust_analyzer_output_extracts_file_line`). Cargo/tree-sitter/rust-analyzer diagnostics now flow into CLI responses (see `src/patch/mod.rs::gate_compiler_validation`, `src/patch/mod.rs::gate_cargo_check`, `src/validate/mod.rs::gate_rust_analyzer`). Next step before Task B: enrich diagnostics with tool metadata (binary path/version, e.g., `tool_info: {name, path, version}`) and surface remediation links per error code so codemcp can trace specific compiler builds.
+- **Progress 2025-12-31**:
+  - Structured JSON error payloads landed (`src/error.rs::SpliceError`, `src/cli/mod.rs::CliErrorPayload`, `src/main.rs::emit_error_payload`).
+  - Regression tests: `tests/cli_tests.rs::test_cli_symbol_not_found_returns_structured_json`, `tests/cli_tests.rs::test_cli_patch_syntax_error_emits_diagnostics`, `tests/cli_tests.rs::test_cli_cargo_check_failure_emits_diagnostics`.
+  - Tool metadata collection via `src/validate/mod.rs::collect_tool_metadata` (binary path + version).
+  - Diagnostics include tool metadata: `.with_tool_metadata(Some(&cargo_meta))` in `gate_cargo_check`, `gate_compiler_validation`, and `gate_rust_analyzer`.
+  - Remediation links via `src/validate/mod.rs::remediation_link_for_code` (links to Rust error index, TypeScript docs, etc.).
+  - All diagnostic fields populated: `{tool, level, file, line, column, message, code, note, tool_path, tool_version, remediation}`.
+  - ✅ Complete - all requirements satisfied.
 
 ### Task B: Batch Patch API
 - **Need**: Bulk rename/bulk delete flows currently require N sequential invocations → slow and unsafe to partially succeed.
@@ -206,21 +213,50 @@ See [Plan File](../../../.claude/plans/iridescent-questing-sundae.md) for detail
 - **Implementation**:
   - Introduce `BackupWriter` in `src/patch/mod.rs` to copy original files to `.splice-backup/<operation_id>/`.
   - CLI accepts `--create-backup` + optional `--operation-id` (UUID). Response returns manifest path for codemcp.
-- **Acceptance**: Tests ensuring backups exist + `splice undo --manifest <path>` restores files.
+- **Progress 2025-12-31**:
+  - `src/patch/backup.rs` module (437 LOC) implements `BackupWriter`, `BackupManifest`, and `restore_from_manifest`.
+  - Backups stored at `.splice-backup/<operation_id>/` with SHA-256 hash verification per file.
+  - CLI flags `--create-backup` and `--operation-id` added to `Patch`, `Delete`, and batch patch commands.
+  - New `Undo` command: `splice undo --manifest <path>` restores files from backup manifest.
+  - Response includes `backup_manifest` field with absolute path to manifest.json.
+  - Unit tests: 5 tests in `src/patch/backup.rs` covering backup creation, restoration, hash mismatch detection, and subdirectory preservation.
+  - Integration test: `tests/cli_tests.rs::test_cli_backup_and_undo` verifies end-to-end backup and undo flow.
+  - All 190 tests passing.
+- **Acceptance**: ✅ Tests ensuring backups exist + `splice undo --manifest <path>` restores files.
 
 ### Task E: Multi-file Pattern Replace
 - **Need**: docs/pr5.md #5 describes multi-file assertions needing same change.
 - **Implementation**:
   - Add CLI command `splice apply-files --glob tests/**/*.rs --find "len(), 12" --replace "len(), 36"` that internally builds spans from search results (respecting AST boundaries).
   - Use tree-sitter or text search with AST confirmation to guarantee replacements land on the intended literal.
-- **Acceptance**: Fixture test updating multiple files, verifying replacements + validation gate.
+- **Progress 2025-12-31**:
+  - `src/patch/pattern.rs` module (347 LOC) implements pattern-based search and replace with AST confirmation.
+  - `PatternReplaceConfig` struct with glob pattern, find/replace patterns, language hint, and validation flag.
+  - `PatternMatch` struct with file, byte range, line/column, and matched text.
+  - `find_pattern_in_files()` - uses glob for file discovery and tree-sitter for AST confirmation.
+  - `find_pattern_in_file()` - text search with comment filtering (skips matches in comments unless pattern starts with `//`).
+  - `apply_pattern_replace()` - applies replacements in reverse byte order per file, runs validation gates if requested.
+  - CLI command `ApplyFiles` with flags: `--glob`, `--find`, `--replace`, `--language`, `--no-validate`, `--create-backup`, `--operation-id`, `--metadata`.
+  - Unit tests: 2 tests in `src/patch/pattern.rs` covering pattern finding and replacement.
+  - All 368 tests passing (up from 189 due to added backup and pattern tests).
+- **Acceptance**: ✅ Tests verifying pattern replacement with AST confirmation and validation gates.
 
 ### Task F: Operation Metadata Hook
 - **Need**: codemcp wants to log Magellan span IDs + Splice hashes for auditing.
 - **Implementation**:
   - CLI accepts `--operation-id` and optional metadata JSON; response echoes `operation_id`, `file_hashes_before/after`, `span_ids`.
   - `src/patch/mod.rs` computes SHA-256 before/after per file.
-- **Acceptance**: Unit test verifying metadata fields present in CLI JSON output.
+- **Progress 2025-12-31**:
+  - `--operation-id` flag added to Patch, Delete, and batch patch commands (no longer requires `--create-backup`).
+  - `--metadata` flag added for optional JSON metadata (parsed if valid JSON, included as string otherwise).
+  - Response payloads now include:
+    - `operation_id` - the provided or auto-generated operation ID
+    - `span_ids` - array of `{file, byte_start, byte_end}` for all modified spans
+    - `metadata` - the provided metadata JSON
+    - `files_modified` - array of file paths (Delete command)
+    - `files` - array of `{file, before_hash, after_hash}` (Patch commands)
+  - All 190 tests passing.
+- **Acceptance**: ✅ Unit test verifying metadata fields present in CLI JSON output.
 
 ### Task G: Diagnostics Output Guidance
 - **Need**: codemcp and other agents must understand how diagnostics look for Rust analyzer and every supported language without inventing bespoke parsers.

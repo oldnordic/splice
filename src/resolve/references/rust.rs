@@ -35,7 +35,7 @@ pub fn find_rust_references(
     let target_symbol = symbols
         .iter()
         .find(|s| s.name == symbol_name && symbol_kind.is_none_or(|k| s.kind == k))
-        .ok_or_else(|| SpliceError::SymbolNotFound(symbol_name.to_string()))?;
+        .ok_or_else(|| SpliceError::symbol_not_found(symbol_name, Some(file_path)))?;
 
     // Step 3: Find same-file references
     let same_file_refs = find_same_file_references(&source, &rope, target_symbol, file_path)?;
@@ -499,10 +499,7 @@ fn build_reexport_map(
                 };
 
                 let key = (imported_module.clone(), name.clone());
-                reexport_map
-                    .entry(key)
-                    .or_default()
-                    .push(reexport);
+                reexport_map.entry(key).or_default().push(reexport);
             }
         }
     }

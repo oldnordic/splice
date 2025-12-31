@@ -5,9 +5,10 @@
 
 pub mod gates;
 
-use crate::error::{Result, SpliceError};
-use std::path::Path;
+use crate::error::{Diagnostic, DiagnosticLevel, Result, SpliceError};
+use std::path::{Path, PathBuf};
 use std::process::Command;
+use which::which;
 
 /// rust-analyzer execution mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,6 +53,12 @@ pub struct CompilerError {
 
     /// Error message.
     pub message: String,
+
+    /// Optional compiler/analyzer error code.
+    pub code: Option<String>,
+
+    /// Optional help/note text associated with this diagnostic.
+    pub note: Option<String>,
 }
 
 /// Error level from compiler.
@@ -93,6 +100,7 @@ pub fn gate_rust_analyzer(workspace_dir: &Path, mode: AnalyzerMode) -> Result<()
         AnalyzerMode::Explicit(path) => path,
         AnalyzerMode::Off => unreachable!(),
     };
+    let analyzer_meta = collect_tool_metadata(analyzer_binary, &["--version"]);
 
     // Invoke rust-analyzer to check for diagnostics
     // We use "analyze" command which outputs diagnostics to stdout
@@ -113,7 +121,39 @@ pub fn gate_rust_analyzer(workspace_dir: &Path, mode: AnalyzerMode) -> Result<()
 
             // If there's ANY output, treat it as a failure
             if !combined.trim().is_empty() {
-                return Err(SpliceError::AnalyzerFailed { output: combined });
+                let compiler_errors = parse_rust_analyzer_output(&combined);
+
+                let diagnostics = if compiler_errors.is_empty() {
+                    vec![
+                        Diagnostic::new("rust-analyzer", DiagnosticLevel::Error, combined.clone())
+                            .with_file(workspace_dir.to_path_buf())
+                            .with_tool_metadata(Some(&analyzer_meta)),
+                    ]
+                } else {
+                    compiler_errors
+                        .into_iter()
+                        .map(|err| {
+                            let remediation =
+                                err.code.as_deref().and_then(remediation_link_for_code);
+                            Diagnostic::new(
+                                "rust-analyzer",
+                                DiagnosticLevel::from(err.level),
+                                err.message,
+                            )
+                            .with_file(Path::new(&err.file).to_path_buf())
+                            .with_position(nonzero(err.line), nonzero(err.column))
+                            .with_code(err.code.clone())
+                            .with_note(err.note.clone())
+                            .with_tool_metadata(Some(&analyzer_meta))
+                            .with_remediation(remediation)
+                        })
+                        .collect()
+                };
+
+                return Err(SpliceError::AnalyzerFailed {
+                    output: combined,
+                    diagnostics,
+                });
             }
 
             Ok(())
@@ -159,25 +199,68 @@ pub fn validate_with_cargo(project_dir: &Path) -> Result<ValidationResult> {
 ///
 /// This function is public for testing purposes.
 pub fn parse_cargo_output(output: &str) -> Vec<CompilerError> {
+    parse_rust_style_output(output)
+}
+
+/// Parse rust-analyzer CLI output into CompilerError structs.
+pub fn parse_rust_analyzer_output(output: &str) -> Vec<CompilerError> {
+    parse_rust_style_output(output)
+}
+
+fn parse_rust_style_output(output: &str) -> Vec<CompilerError> {
     let mut errors = Vec::new();
-    let mut pending_error: Option<(ErrorLevel, String)> = None;
+    let mut pending_error: Option<PendingDiagnostic> = None;
+    let mut last_index: Option<usize> = None;
 
     for line in output.lines() {
-        // Check for error/warning header: "error[E0277]: message" or "warning: message"
-        if let Some((level, message)) = parse_error_header(line) {
-            pending_error = Some((level, message));
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
         }
-        // Check for location line: "   --> file.rs:line:column"
-        else if let Some((file, line_num, column)) = parse_location_line(line) {
-            if let Some((level, message)) = pending_error.take() {
+
+        if let Some(diag) = parse_error_header(trimmed) {
+            pending_error = Some(diag);
+            continue;
+        }
+
+        if let Some((file, line_num, column)) = parse_location_line(trimmed) {
+            if let Some(pending) = pending_error.take() {
                 errors.push(CompilerError {
-                    level,
+                    level: pending.level,
                     file,
                     line: line_num,
                     column,
-                    message,
+                    message: pending.message,
+                    code: pending.code,
+                    note: None,
                 });
+                last_index = Some(errors.len() - 1);
             }
+            continue;
+        }
+
+        if let Some(note) = parse_note_line(trimmed) {
+            if let Some(idx) = last_index {
+                if let Some(entry) = errors.get_mut(idx) {
+                    entry.note = Some(match &entry.note {
+                        Some(existing) => format!("{}\n{}", existing, note),
+                        None => note,
+                    });
+                }
+            }
+            continue;
+        }
+
+        if let Some(help) = parse_help_line(trimmed) {
+            if let Some(idx) = last_index {
+                if let Some(entry) = errors.get_mut(idx) {
+                    entry.note = Some(match &entry.note {
+                        Some(existing) => format!("{}\n{}", existing, help),
+                        None => help,
+                    });
+                }
+            }
+            continue;
         }
     }
 
@@ -185,25 +268,68 @@ pub fn parse_cargo_output(output: &str) -> Vec<CompilerError> {
 }
 
 /// Parse an error/warning header line.
-/// Returns (level, message) if successful.
-fn parse_error_header(line: &str) -> Option<(ErrorLevel, String)> {
-    let line = line.trim();
-
-    // Match "error[E0277]: message" or "error: message"
+fn parse_error_header(line: &str) -> Option<PendingDiagnostic> {
     if let Some(rest) = line.strip_prefix("error[") {
-        // Find closing bracket and colon
         if let Some(idx) = rest.find("]:") {
+            let code = rest[..idx].to_string();
             let message = rest[idx + 2..].trim().to_string();
-            return Some((ErrorLevel::Error, message));
+            return Some(PendingDiagnostic {
+                level: ErrorLevel::Error,
+                message,
+                code: Some(code),
+            });
         }
     } else if let Some(rest) = line.strip_prefix("error:") {
-        let message = rest.trim().to_string();
-        return Some((ErrorLevel::Error, message));
+        return Some(PendingDiagnostic {
+            level: ErrorLevel::Error,
+            message: rest.trim().to_string(),
+            code: None,
+        });
+    } else if let Some(rest) = line.strip_prefix("warning[") {
+        if let Some(idx) = rest.find("]:") {
+            let code = rest[..idx].to_string();
+            let message = rest[idx + 2..].trim().to_string();
+            return Some(PendingDiagnostic {
+                level: ErrorLevel::Warning,
+                message,
+                code: Some(code),
+            });
+        }
+    } else if let Some(rest) = line.strip_prefix("warning:") {
+        return Some(PendingDiagnostic {
+            level: ErrorLevel::Warning,
+            message: rest.trim().to_string(),
+            code: None,
+        });
     }
-    // Match "warning: message"
-    else if let Some(rest) = line.strip_prefix("warning:") {
-        let message = rest.trim().to_string();
-        return Some((ErrorLevel::Warning, message));
+
+    None
+}
+
+#[derive(Debug, Clone)]
+struct PendingDiagnostic {
+    level: ErrorLevel,
+    message: String,
+    code: Option<String>,
+}
+
+fn parse_note_line(line: &str) -> Option<String> {
+    parse_labelled_line(line, "note")
+}
+
+fn parse_help_line(line: &str) -> Option<String> {
+    parse_labelled_line(line, "help")
+}
+
+fn parse_labelled_line(line: &str, label: &str) -> Option<String> {
+    let trimmed = line.trim_start_matches('|').trim();
+
+    if let Some(rest) = trimmed.strip_prefix(label) {
+        return Some(rest.trim_start_matches(':').trim().to_string());
+    }
+
+    if let Some(rest) = trimmed.strip_prefix(&format!("= {}", label)) {
+        return Some(rest.trim_start_matches(':').trim().to_string());
     }
 
     None
@@ -233,4 +359,98 @@ fn parse_location_line(line: &str) -> Option<(String, usize, usize)> {
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_rust_analyzer_output_extracts_file_line() {
+        let sample = r#"
+error[E0425]: cannot find function `missing_helper` in this scope
+ --> src/lib.rs:2:5
+  |
+2 |     missing_helper(name)
+  |     ^^^^^^^^^^^^^^ not found in this scope
+help: consider importing `missing_helper`
+"#;
+
+        let errors = parse_rust_analyzer_output(sample);
+        assert_eq!(errors.len(), 1, "expected one diagnostic");
+        let diag = &errors[0];
+        assert_eq!(diag.file, "src/lib.rs");
+        assert_eq!(diag.line, 2);
+        assert_eq!(diag.column, 5);
+        assert!(
+            diag.message.contains("missing_helper"),
+            "diagnostic message should mention missing helper"
+        );
+        assert_eq!(diag.code.as_deref(), Some("E0425"));
+        assert!(
+            diag.note
+                .as_deref()
+                .map(|n| n.contains("consider importing"))
+                .unwrap_or(false),
+            "diagnostic note should capture help text"
+        );
+    }
+}
+
+fn nonzero(value: usize) -> Option<usize> {
+    if value == 0 {
+        None
+    } else {
+        Some(value)
+    }
+}
+
+/// Metadata about an external validation tool.
+#[derive(Debug, Clone)]
+pub struct ToolMetadata {
+    /// Absolute path to the binary, if resolvable.
+    pub path: Option<PathBuf>,
+    /// Version string returned by the tool.
+    pub version: Option<String>,
+}
+
+/// Resolve tool metadata (path + version) for diagnostics.
+pub fn collect_tool_metadata(binary: &str, version_args: &[&str]) -> ToolMetadata {
+    let path = which(binary).ok();
+    let version = Command::new(binary)
+        .args(version_args)
+        .output()
+        .ok()
+        .and_then(|output| {
+            let selected = if output.stdout.is_empty() {
+                &output.stderr
+            } else {
+                &output.stdout
+            };
+            let text = String::from_utf8_lossy(selected).trim().to_string();
+            if text.is_empty() {
+                None
+            } else {
+                Some(text)
+            }
+        });
+
+    ToolMetadata { path, version }
+}
+
+/// Best-effort remediation link for a compiler/analyzer error code.
+pub fn remediation_link_for_code(code: &str) -> Option<String> {
+    if code.starts_with('E') && code.len() == 5 && code[1..].chars().all(|ch| ch.is_ascii_digit()) {
+        Some(format!(
+            "https://doc.rust-lang.org/error-index.html#{}",
+            code
+        ))
+    } else if code.starts_with("TS")
+        && code.len() > 2
+        && code[2..].chars().all(|ch| ch.is_ascii_digit())
+    {
+        Some(format!("https://www.typescriptlang.org/errors/{}", code))
+    } else {
+        None
+    }
 }

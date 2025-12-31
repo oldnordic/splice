@@ -54,10 +54,7 @@ impl<'a> CrossFileResolver<'a> {
     /// * `name` - Symbol name
     /// * `kind` - Symbol kind (function, struct, etc.)
     pub fn add_local_symbol(&mut self, file_path: &str, name: &str, kind: &str) {
-        let entry = self
-            .symbols
-            .entry(file_path.to_string())
-            .or_default();
+        let entry = self.symbols.entry(file_path.to_string()).or_default();
         entry.insert(name.to_string(), (name.to_string(), kind.to_string()));
     }
 
@@ -67,10 +64,7 @@ impl<'a> CrossFileResolver<'a> {
     /// * `import` - Import fact to register
     pub fn add_import(&mut self, import: ImportFact) {
         let file_path = import.file_path.to_str().unwrap_or("").to_string();
-        self.imports
-            .entry(file_path)
-            .or_default()
-            .push(import);
+        self.imports.entry(file_path).or_default().push(import);
     }
 
     /// Resolve a symbol from the perspective of a given file.

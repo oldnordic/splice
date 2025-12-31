@@ -499,7 +499,10 @@ mod tests {
     #[test]
     fn test_language_from_path() {
         use std::path::Path;
-        assert_eq!(Language::from_path(Path::new("main.rs")), Some(Language::Rust));
+        assert_eq!(
+            Language::from_path(Path::new("main.rs")),
+            Some(Language::Rust)
+        );
         assert_eq!(
             Language::from_path(Path::new("script.py")),
             Some(Language::Python)

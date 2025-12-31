@@ -145,7 +145,11 @@ impl MyStruct {
         let temp_path = temp_file.path();
 
         let result = extract_rust_symbols(temp_path, source.as_bytes());
-        assert!(result.is_ok(), "extract_rust_symbols failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "extract_rust_symbols failed: {:?}",
+            result.err()
+        );
 
         let symbols = result.unwrap();
 
@@ -179,7 +183,11 @@ impl Default for MyStruct {
         let temp_path = temp_file.path();
 
         let result = extract_rust_symbols(temp_path, source.as_bytes());
-        assert!(result.is_ok(), "extract_rust_symbols failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "extract_rust_symbols failed: {:?}",
+            result.err()
+        );
 
         let symbols = result.unwrap();
 
@@ -217,7 +225,11 @@ impl Default for MyStruct {
         let temp_path = temp_file.path();
 
         let result = extract_rust_symbols(temp_path, source.as_bytes());
-        assert!(result.is_ok(), "extract_rust_symbols failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "extract_rust_symbols failed: {:?}",
+            result.err()
+        );
 
         let symbols = result.unwrap();
 
@@ -236,13 +248,11 @@ impl Default for MyStruct {
 
         // Both impls should have MyStruct as their name
         assert_eq!(
-            impl_blocks[0].name,
-            "MyStruct",
+            impl_blocks[0].name, "MyStruct",
             "First impl should have name 'MyStruct'"
         );
         assert_eq!(
-            impl_blocks[1].name,
-            "MyStruct",
+            impl_blocks[1].name, "MyStruct",
             "Second impl should have name 'MyStruct'"
         );
     }

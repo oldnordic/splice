@@ -1,6 +1,6 @@
 # Splice Manual
 
-**Version**: 0.4.0
+**Version**: 0.4.1
 
 ---
 
@@ -19,6 +19,11 @@ Splice is a span-safe refactoring tool that performs byte-accurate, AST-validate
 
 - Replace function bodies, class definitions, interface definitions, enum variants, trait definitions, impl blocks
 - Delete symbol definitions and all references (cross-file for Rust, definition-only for other languages)
+- Apply batch patches across multiple files atomically
+- Perform multi-file pattern replacements with AST confirmation
+- Preview changes before applying (dry-run mode)
+- Create backups and undo operations
+- Track operation metadata for auditing
 - Validate syntax with tree-sitter after every operation
 - Validate semantics with language-specific compilers (cargo check, python -m py_compile, javac, etc.)
 - Rollback atomically if validation fails
@@ -92,6 +97,9 @@ splice delete --file <PATH> --symbol <NAME> [--kind <KIND>] [--language <LANG>]
 - `--kind <KIND>`: Symbol kind filter (function, method, class, struct, interface, enum, trait, impl, module, variable, constructor, type-alias)
 - `--language <LANG>`: Language override (rust, python, c, cpp, java, java-script, type-script)
 - `--analyzer <MODE>`: Validation mode (off, os, path)
+- `--create-backup`: Create backup before deleting
+- `--operation-id <ID>`: Custom operation ID for auditing (auto-generated UUID if not provided)
+- `--metadata <JSON>`: Optional metadata attachment
 - `-v, --verbose`: Enable verbose logging
 
 **Rust-specific features:**
@@ -137,9 +145,14 @@ splice patch --file <PATH> --symbol <NAME> --with <FILE> [--kind <KIND>] [--lang
 - `--with <FILE>`: Path to replacement file
 
 **Optional Arguments:**
-- `--kind <KIND>`: Symbol kind filter
+- `--kind <KIND>`: Symbol kind filter (function, method, class, struct, interface, enum, trait, impl, module, variable, constructor, type-alias)
 - `--language <LANG>`: Language override (auto-detected from file extension by default)
 - `--analyzer <MODE>`: Validation mode (off, os, path)
+- `--preview`: Run in preview mode without modifying files (dry-run)
+- `--batch <FILE>`: JSON file describing batch replacements
+- `--create-backup`: Create backup before patching
+- `--operation-id <ID>`: Custom operation ID for auditing (auto-generated UUID if not provided)
+- `--metadata <JSON>`: Optional metadata attachment
 - `-v, --verbose`: Enable verbose logging
 
 **Symbol Kinds:**
@@ -172,6 +185,73 @@ splice plan --file <PLAN.json>
 2. Stops on first failure
 3. Previous successful steps remain applied
 4. Each step has atomic rollback
+
+### splice apply-files
+
+Apply a pattern replacement to multiple files with AST confirmation.
+
+```bash
+splice apply-files --glob <GLOB> --find <PATTERN> --replace <REPLACEMENT>
+```
+
+**Required Arguments:**
+- `--glob <GLOB>`: Glob pattern for matching files (e.g., `tests/**/*.rs`, `src/**/*.py`, `*.java`)
+- `--find <PATTERN>`: Text pattern to find
+- `--replace <REPLACEMENT>`: Replacement text
+
+**Optional Arguments:**
+- `--language <LANG>`: Language override (auto-detected from file extension by default)
+- `--no-validate`: Skip validation gates
+- `--create-backup`: Create backup before applying
+- `--operation-id <ID>`: Custom operation ID for auditing (auto-generated UUID if not provided)
+- `--metadata <JSON>`: Optional metadata attachment
+- `-v, --verbose`: Enable verbose logging
+
+**Features:**
+- AST confirmation ensures replacements land in valid code locations
+- Comment filtering (skips matches in comments unless pattern starts with `//`)
+- Replacements applied in reverse byte order per file
+- Validation gates run per file (unless `--no-validate` is specified)
+
+**Example:**
+```bash
+# Replace "42" with "99" in all Python files
+splice apply-files --glob "*.py" --find "42" --replace "99"
+
+# Replace function name across Rust tests with backup
+splice apply-files --glob "tests/**/*.rs" --find "old_func" --replace "new_func" --create-backup
+```
+
+### splice undo
+
+Undo a previous operation by restoring from a backup manifest.
+
+```bash
+splice undo --manifest <PATH>
+```
+
+**Required Arguments:**
+- `--manifest <PATH>`: Path to backup manifest file (usually `.splice-backup/<operation-id>/manifest.json`)
+
+**Features:**
+- Restores all files to their backed-up state
+- SHA-256 hash verification ensures integrity
+- Atomically restores each file (temp + fsync + rename)
+
+**Example:**
+```bash
+# Restore from a backup created with --operation-id "my-change"
+splice undo --manifest .splice-backup/my-change/manifest.json
+```
+
+**Backup Structure:**
+```
+.splice-backup/<operation-id>/
+  ├── manifest.json      # Metadata and file list
+  └── files/             # Backed-up files
+      ├── src/lib.rs     # Original file contents
+      └── tests/test.rs
+```
 
 ---
 
@@ -312,6 +392,105 @@ Create `plan.json`:
 Execute:
 ```bash
 splice plan --file plan.json
+```
+
+### Batch Patch
+
+Apply multiple patches at once from a JSON file:
+
+```json
+{
+  "patches": [
+    {
+      "file": "src/lib.rs",
+      "symbol": "foo",
+      "kind": "function",
+      "with": "patches/foo.rs"
+    },
+    {
+      "file": "src/lib.rs",
+      "symbol": "bar",
+      "kind": "function",
+      "with": "patches/bar.rs"
+    },
+    {
+      "file": "src/helper.rs",
+      "symbol": "Helper",
+      "kind": "class",
+      "with": "patches/helper.rs"
+    }
+  ]
+}
+```
+
+Execute:
+```bash
+splice patch --batch batch.json --language rust
+```
+
+**Features:**
+- Atomic: all patches succeed or all fail
+- Per-file span sorting for correct byte offsets
+- Single validation pass for all files
+- Automatic rollback on any failure
+
+### Preview Mode
+
+Inspect changes before applying:
+
+```bash
+splice patch --file src/lib.rs --symbol foo --with new_foo.rs --preview
+```
+
+**Preview output includes:**
+- Files that would be modified
+- Line/byte statistics for each change
+- Validation results (syntax, compiler)
+- Workspace remains untouched
+
+### Pattern Replace
+
+Replace a text pattern across multiple files:
+
+```bash
+# Replace "42" with "99" in all Python files
+splice apply-files --glob "*.py" --find "42" --replace "99"
+
+# Replace function name across Rust tests
+splice apply-files --glob "tests/**/*.rs" --find "old_func" --replace "new_func"
+```
+
+**Features:**
+- Glob-based file discovery
+- AST confirmation (replacements in valid code only)
+- Comment filtering (skips matches in comments)
+- Validation gates per file
+
+### Backup and Undo
+
+Create a backup before making changes:
+
+```bash
+splice patch --file src/lib.rs --symbol foo --with new_foo.rs \
+  --create-backup --operation-id "refactor-foo"
+```
+
+Response includes backup manifest path:
+```json
+{
+  "status": "ok",
+  "message": "Patched 'foo' at bytes 123..456",
+  "data": {
+    "operation_id": "refactor-foo",
+    "backup_manifest": "/path/to/.splice-backup/refactor-foo/manifest.json"
+  }
+}
+```
+
+Restore from backup:
+
+```bash
+splice undo --manifest .splice-backup/refactor-foo/manifest.json
 ```
 
 ---
@@ -503,5 +682,7 @@ For quick help:
 splice --help
 splice delete --help
 splice patch --help
+splice apply-files --help
+splice undo --help
 splice plan --help
 ```

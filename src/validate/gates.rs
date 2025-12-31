@@ -38,6 +38,12 @@ pub struct ValidationError {
 
     /// Error message.
     pub message: String,
+
+    /// Optional compiler error code (if provided).
+    pub code: Option<String>,
+
+    /// Optional hint/help text from the compiler.
+    pub note: Option<String>,
 }
 
 /// Validate a file using its language's native compiler.
@@ -385,6 +391,8 @@ fn parse_python_errors(output: &str, file: &Path) -> Vec<ValidationError> {
                             line: line_num,
                             column: 0,
                             message,
+                            code: None,
+                            note: None,
                         });
                     }
                 }
@@ -400,6 +408,8 @@ fn parse_python_errors(output: &str, file: &Path) -> Vec<ValidationError> {
                     line: 0,
                     column: 0,
                     message,
+                    code: None,
+                    note: None,
                 });
             }
         }
@@ -414,6 +424,8 @@ fn parse_python_errors(output: &str, file: &Path) -> Vec<ValidationError> {
             line: 0,
             column: 0,
             message: output.trim().to_string(),
+            code: None,
+            note: None,
         });
     }
 
@@ -461,6 +473,8 @@ fn parse_gcc_line(line: &str) -> Option<ValidationError> {
             line: line_num,
             column,
             message,
+            code: None,
+            note: None,
         });
     }
     None
@@ -488,6 +502,8 @@ fn parse_javac_errors(output: &str, file: &Path) -> Vec<ValidationError> {
                                 line: line_num,
                                 column: 0,
                                 message,
+                                code: None,
+                                note: None,
                             });
                         }
                     }
@@ -502,6 +518,8 @@ fn parse_javac_errors(output: &str, file: &Path) -> Vec<ValidationError> {
             line: 0,
             column: 0,
             message: output.trim().to_string(),
+            code: None,
+            note: None,
         });
     }
 
@@ -542,6 +560,8 @@ fn parse_node_errors(output: &str, file: &Path) -> Vec<ValidationError> {
                             line: line_num,
                             column,
                             message: message.to_string(),
+                            code: None,
+                            note: None,
                         });
                     }
                 }
@@ -555,6 +575,8 @@ fn parse_node_errors(output: &str, file: &Path) -> Vec<ValidationError> {
             line: 0,
             column: 0,
             message: output.trim().to_string(),
+            code: None,
+            note: None,
         });
     }
 
@@ -574,7 +596,9 @@ fn parse_tsc_errors(stderr: &str, stdout: &str, file: &Path) -> Vec<ValidationEr
     for line in combined.lines() {
         // Parse: "file.ts(line,col): error TS<code>: message"
         // or "file.ts(line,col): message"
-        if line.contains(file.to_str().unwrap_or("")) && (line.contains(": error ") || line.contains("TS")) {
+        if line.contains(file.to_str().unwrap_or(""))
+            && (line.contains(": error ") || line.contains("TS"))
+        {
             // Try to extract line and column
             if let Some(open_paren) = line.find('(') {
                 let after_paren = &line[open_paren + 1..];
@@ -587,18 +611,7 @@ fn parse_tsc_errors(stderr: &str, stdout: &str, file: &Path) -> Vec<ValidationEr
                             if let Ok(column) = col_str.trim().parse::<usize>() {
                                 // Extract message after ") error " or ") TS<number>: "
                                 let after_close = &line[open_paren + close_paren + 2..];
-                                let message = if let Some(error_idx) = after_close.find("error ") {
-                                    after_close[error_idx + 6..].trim().to_string()
-                                } else if let Some(ts_idx) = after_close.find("TS") {
-                                    // TS<code>: format
-                                    if let Some(colon_after_ts) = after_close[ts_idx..].find(':') {
-                                        after_close[ts_idx + colon_after_ts + 1..].trim().to_string()
-                                    } else {
-                                        after_close.trim().to_string()
-                                    }
-                                } else {
-                                    after_close.trim().to_string()
-                                };
+                                let (code, message) = extract_ts_error(after_close);
 
                                 if !message.is_empty() {
                                     errors.push(ValidationError {
@@ -606,6 +619,8 @@ fn parse_tsc_errors(stderr: &str, stdout: &str, file: &Path) -> Vec<ValidationEr
                                         line: line_num,
                                         column,
                                         message,
+                                        code,
+                                        note: None,
                                     });
                                 }
                             }
@@ -623,10 +638,30 @@ fn parse_tsc_errors(stderr: &str, stdout: &str, file: &Path) -> Vec<ValidationEr
             line: 0,
             column: 0,
             message: combined.trim().to_string(),
+            code: None,
+            note: None,
         });
     }
 
     errors
+}
+
+fn extract_ts_error(segment: &str) -> (Option<String>, String) {
+    if let Some(ts_idx) = segment.find("TS") {
+        // Expect TSXXXX: message
+        if let Some(colon_idx) = segment[ts_idx..].find(':') {
+            let code = segment[ts_idx..ts_idx + colon_idx].trim().to_string();
+            let message = segment[ts_idx + colon_idx + 1..].trim().to_string();
+            return (Some(code), message);
+        }
+    }
+
+    if let Some(error_idx) = segment.find("error ") {
+        let message = segment[error_idx + 6..].trim().to_string();
+        return (None, message);
+    }
+
+    (None, segment.trim().to_string())
 }
 
 #[cfg(test)]

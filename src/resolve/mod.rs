@@ -91,7 +91,7 @@ pub fn resolve_symbol(
     let all_matches = graph.find_symbols_by_name(name);
 
     if all_matches.is_empty() {
-        return Err(SpliceError::SymbolNotFound(name.to_string()));
+        return Err(SpliceError::symbol_not_found(name, None));
     }
 
     if all_matches.len() > 1 {
@@ -176,7 +176,7 @@ fn resolve_symbol_in_file(
     // Use the cache-based lookup from CodeGraph
     let node_id = graph
         .find_symbol_in_file(file_str, name)
-        .ok_or_else(|| SpliceError::SymbolNotFound(format!("{} in {}", name, file_str)))?;
+        .ok_or_else(|| SpliceError::symbol_not_found(name, Some(file_path)))?;
 
     // Get node data from graph
     let node = graph.inner().get_node(node_id.as_i64())?;
@@ -214,10 +214,7 @@ fn resolve_symbol_in_file(
     // Filter by kind if specified
     if let Some(k) = kind {
         if kind_str != k {
-            return Err(SpliceError::SymbolNotFound(format!(
-                "{} {} in {}",
-                k, name, file_str
-            )));
+            return Err(SpliceError::symbol_not_found(name, Some(file_path)));
         }
     }
 

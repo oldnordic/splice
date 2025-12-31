@@ -6,6 +6,7 @@
 use splice::graph::CodeGraph;
 use splice::ingest::rust::extract_rust_symbols;
 use splice::patch::apply_patch_with_validation;
+use splice::patch::{apply_batch_with_validation, SpanBatch, SpanReplacement};
 use splice::resolve::resolve_symbol;
 use splice::symbol::Language;
 use splice::validate::AnalyzerMode;
@@ -91,13 +92,8 @@ pub fn farewell(name: &str) -> String {
         }
 
         // Resolve the "greet" function
-        let resolved = resolve_symbol(
-            &code_graph,
-            Some(&lib_rs_path),
-            Some("function"),
-            "greet",
-        )
-        .expect("Failed to resolve greet function");
+        let resolved = resolve_symbol(&code_graph, Some(&lib_rs_path), Some("function"), "greet")
+            .expect("Failed to resolve greet function");
 
         // Verify we got the right span
         let greet_symbol = &symbols[0];
@@ -379,6 +375,142 @@ pub fn get_number() -> i32 {
         assert_eq!(
             original_content, current_content,
             "File should be unchanged after failed patch (atomic rollback)"
+        );
+    }
+
+    /// Test D: Batch patch rolls back when a later replacement fails validation.
+    ///
+    /// This test sets up two files. The first replacement is valid, the second introduces
+    /// a type error. The entire batch must fail atomically with both files untouched.
+    #[test]
+    fn test_apply_batch_rolls_back_on_failure() {
+        let workspace_dir = TempDir::new().expect("Failed to create temp workspace");
+        let workspace_path = workspace_dir.path();
+
+        // Create Cargo manifest
+        let cargo_toml_path = workspace_path.join("Cargo.toml");
+        let mut cargo_toml = NamedTempFile::new().expect("Failed to create Cargo.toml");
+        write!(
+            cargo_toml,
+            r#"[package]
+name = "temp-test"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "temp_test"
+path = "src/lib.rs"
+"#
+        )
+        .expect("Failed to write Cargo.toml");
+        std::fs::rename(cargo_toml.path(), &cargo_toml_path).expect("Failed to move Cargo.toml");
+
+        let src_dir = workspace_path.join("src");
+        std::fs::create_dir(&src_dir).expect("Failed to create src directory");
+
+        // lib.rs contains a helper invoked by module a and b
+        let lib_rs_path = src_dir.join("lib.rs");
+        std::fs::write(
+            &lib_rs_path,
+            r#"
+pub fn helper(x: i32) -> i32 {
+    x + 1
+}
+
+pub mod a;
+pub mod b;
+"#,
+        )
+        .expect("Failed to write lib.rs");
+
+        let file_a = src_dir.join("a.rs");
+        std::fs::write(
+            &file_a,
+            r#"
+pub fn value() -> i32 {
+    helper(10)
+}
+"#,
+        )
+        .expect("Failed to write a.rs");
+
+        let file_b = src_dir.join("b.rs");
+        std::fs::write(
+            &file_b,
+            r#"
+pub fn broken() -> i32 {
+    helper(5)
+}
+"#,
+        )
+        .expect("Failed to write b.rs");
+
+        // Compute spans for helper usage
+        let mut replacements = Vec::new();
+
+        let symbols =
+            extract_rust_symbols(&file_a, std::fs::read(&file_a).unwrap().as_slice()).unwrap();
+        let target = symbols.iter().find(|s| s.name == "value").unwrap();
+        replacements.push(SpanReplacement {
+            file: file_a.clone(),
+            start: target.byte_start,
+            end: target.byte_end,
+            content: r#"
+pub fn value() -> i32 {
+    helper(42)
+}
+"#
+            .trim()
+            .to_string(),
+        });
+
+        let symbols_b =
+            extract_rust_symbols(&file_b, std::fs::read(&file_b).unwrap().as_slice()).unwrap();
+        let target_b = symbols_b.iter().find(|s| s.name == "broken").unwrap();
+        replacements.push(SpanReplacement {
+            file: file_b.clone(),
+            start: target_b.byte_start,
+            end: target_b.byte_end,
+            content: r#"
+pub fn broken() -> i32 {
+    helper("oops")
+}
+"#
+            .trim()
+            .to_string(),
+        });
+
+        let batches = vec![SpanBatch::new(replacements)];
+        let original_a = std::fs::read_to_string(&file_a).unwrap();
+        let original_b = std::fs::read_to_string(&file_b).unwrap();
+
+        let result = apply_batch_with_validation(
+            &batches,
+            workspace_path,
+            Language::Rust,
+            AnalyzerMode::Off,
+        );
+
+        assert!(
+            result.is_err(),
+            "Batch should fail due to invalid second patch"
+        );
+        let err = result.err().unwrap();
+        assert!(
+            matches!(err, splice::SpliceError::CargoCheckFailed { .. }),
+            "Expected CargoCheckFailed, got {:?}",
+            err
+        );
+
+        assert_eq!(
+            original_a,
+            std::fs::read_to_string(&file_a).unwrap(),
+            "File a.rs should remain unchanged after batch failure"
+        );
+        assert_eq!(
+            original_b,
+            std::fs::read_to_string(&file_b).unwrap(),
+            "File b.rs should remain unchanged after batch failure"
         );
     }
 }

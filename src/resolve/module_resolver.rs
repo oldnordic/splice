@@ -71,7 +71,9 @@ impl ModulePathIndex {
     /// - "crate::foo" → "crate"
     /// - "crate" → None (no parent)
     fn get_parent_module(module_path: &str) -> Option<String> {
-        module_path.rfind("::").map(|last_colon_pos| module_path[..last_colon_pos].to_string())
+        module_path
+            .rfind("::")
+            .map(|last_colon_pos| module_path[..last_colon_pos].to_string())
     }
 }
 

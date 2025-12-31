@@ -28,7 +28,7 @@ class MyClass:
     #[test]
     fn test_validate_invalid_python_syntax() {
         let _source = b"def foo(\n"; // Unclosed parenthesis
-                                    // Should detect syntax error
+                                     // Should detect syntax error
     }
 
     // C/C++ validation tests

@@ -3,6 +3,61 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2025-12-31
+
+### Added
+
+- **Batch patch API**: Apply multiple patches across multiple files in a single atomic operation
+  - `splice patch --batch <file.json>` for JSON-based batch operations
+  - Atomic rollback if any patch in the batch fails validation
+  - Per-file hash tracking for audit trails
+  - Batch specification documented in `docs/BATCH_PATCH_SPEC.md`
+
+- **Preview mode**: Dry-run functionality to inspect changes before applying
+  - `--preview` flag for `patch` command
+  - Clones workspace, applies changes, runs validation, reports stats
+  - Workspace remains untouched on preview
+  - Preview flow documented in `docs/PREVIEW_FLAG.md`
+
+- **Backup and undo support**: Create backups and restore from them
+  - `--create-backup` flag for `patch`, `delete`, and `apply-files` commands
+  - `--operation-id <ID>` for custom operation tracking (auto-generated UUID if not provided)
+  - `splice undo --manifest <path>` command to restore from backup
+  - Backups stored at `.splice-backup/<operation-id>/` with SHA-256 hash verification
+  - `BackupWriter`, `BackupManifest`, and `restore_from_manifest` in `src/patch/backup.rs`
+
+- **Operation metadata tracking**: Attach metadata to operations for auditing
+  - `--metadata <JSON>` flag for optional metadata attachment
+  - Response payloads include `operation_id`, `span_ids`, `metadata`, `files_modified`
+  - File hash tracking (`before_hash`, `after_hash`) for all patch operations
+
+- **Multi-file pattern replacement**: AST-confirmed find/replace across files
+  - `splice apply-files --glob <pattern> --find <text> --replace <text>` command
+  - Glob-based file discovery (e.g., `tests/**/*.rs`, `src/**/*.py`)
+  - AST confirmation ensures replacements land in valid code locations
+  - Comment filtering (skips matches in comments unless pattern starts with `//`)
+  - `src/patch/pattern.rs` with `find_pattern_in_files()` and `apply_pattern_replace()`
+
+- **Structured error responses**: Complete tool metadata in diagnostics
+  - Tool path and version tracking (`cargo --version`, compiler versions)
+  - Remediation links for common errors
+  - Full diagnostic payload: `{tool, level, file, line, column, message, code, note, tool_path, tool_version, remediation}`
+  - Documented in `docs/DIAGNOSTICS_OUTPUT.md`
+
+### Changed
+
+- **368 passing tests** (from 339)
+- Updated all documentation for new features
+- Patch module extended with batch, pattern, and backup capabilities
+- CLI responses now include operation metadata for all commands
+
+### Technical
+
+- New modules: `src/patch/backup.rs` (437 LOC), `src/patch/batch_loader.rs`, `src/patch/pattern.rs` (347 LOC)
+- New dependencies: `uuid = "1.10"`, `chrono = "0.4"`, `glob = "0.3"`
+- Removed unnecessary `unsafe` block from tree-sitter language getter
+- Response payloads standardized across all commands
+
 ## [0.4.0] - 2026-01-01
 
 ### Added

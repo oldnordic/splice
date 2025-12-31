@@ -62,13 +62,8 @@ int farewell(const char* name) {
         }
 
         // Resolve the "greet" function
-        let resolved = resolve_symbol(
-            &code_graph,
-            Some(&cpp_path),
-            Some("function"),
-            "greet",
-        )
-        .expect("Failed to resolve greet function");
+        let resolved = resolve_symbol(&code_graph, Some(&cpp_path), Some("function"), "greet")
+            .expect("Failed to resolve greet function");
 
         // Verify we got the right span
         let greet_symbol = &symbols[0];
@@ -232,13 +227,8 @@ int get_number(void) {
             .expect("Failed to store symbol");
 
         // Resolve function
-        let resolved = resolve_symbol(
-            &code_graph,
-            Some(&c_path),
-            Some("function"),
-            "get_number",
-        )
-        .expect("Failed to resolve function");
+        let resolved = resolve_symbol(&code_graph, Some(&c_path), Some("function"), "get_number")
+            .expect("Failed to resolve function");
 
         // Apply valid patch
         let new_body = r#"
@@ -259,7 +249,8 @@ int get_number(void) {
 
         // Should succeed if gcc is available
         if result.is_ok() {
-            let new_content = std::fs::read_to_string(&c_path).expect("Failed to read patched file");
+            let new_content =
+                std::fs::read_to_string(&c_path).expect("Failed to read patched file");
             assert!(
                 new_content.contains("return 20;"),
                 "Patched content should be present"

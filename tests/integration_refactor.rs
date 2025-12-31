@@ -137,13 +137,8 @@ fn foo() {
             .expect("Failed to store symbol");
 
         // Resolve with explicit file path
-        let resolved = resolve_symbol(
-            &code_graph,
-            Some(path),
-            Some("function"),
-            "foo",
-        )
-        .expect("Failed to resolve symbol");
+        let resolved = resolve_symbol(&code_graph, Some(path), Some("function"), "foo")
+            .expect("Failed to resolve symbol");
 
         // Verify resolution matches ingest output exactly
         assert_eq!(resolved.node_id, node_id);
@@ -204,13 +199,8 @@ fn world() {
         // Round-trip for each symbol
         for symbol in &symbols {
             // Resolve by name and file
-            let resolved = resolve_symbol(
-                &code_graph,
-                Some(path),
-                Some("function"),
-                &symbol.name,
-            )
-            .expect("Failed to resolve symbol");
+            let resolved = resolve_symbol(&code_graph, Some(path), Some("function"), &symbol.name)
+                .expect("Failed to resolve symbol");
 
             // Retrieve span from graph
             let retrieved_span = code_graph

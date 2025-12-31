@@ -2,12 +2,12 @@
 
 Span-safe refactoring kernel for 7 languages using tree-sitter and SQLiteGraph.
 
-**Version**: 0.4.0
+**Version**: 0.4.1
 **License**: GPL-3.0-or-later
 
 ## What This Is
 
-Splice is a command-line tool that performs byte-accurate, AST-validated refactoring operations on code in 7 languages: Rust, Python, C, C++, Java, JavaScript, and TypeScript. It can replace function bodies and delete symbols along with all their references.
+Splice is a command-line tool that performs byte-accurate, AST-validated refactoring operations on code in 7 languages: Rust, Python, C, C++, Java, JavaScript, and TypeScript. It can replace function bodies, delete symbols, apply batch changes, perform pattern replacements, and undo operations.
 
 ## What This Is NOT
 
@@ -18,12 +18,16 @@ Splice is a command-line tool that performs byte-accurate, AST-validated refacto
 
 ## What It Does
 
-- **patch**: Replace function bodies, class definitions, enum variants with validation
+- **patch**: Replace function bodies, class definitions, enum variants with validation (single or batch)
 - **delete**: Remove symbol definitions and all references (cross-file, Rust-only)
+- **apply-files**: Multi-file pattern replacement with AST confirmation
+- **undo**: Restore files from backup manifest
+- **plan**: Orchestrate multi-step refactors via JSON plans
+- **preview**: Inspect changes before applying (dry-run mode)
+- **backup**: Create backups with automatic restore capability
 - Validates syntax with tree-sitter after every operation
 - Validates compilation with language-specific compilers
 - Rolls back atomically on any failure
-- Orchestrates multi-step refactors via JSON plans
 
 ## Supported Languages
 
@@ -132,6 +136,67 @@ EOF
 splice plan --file plan.json
 ```
 
+### Batch Patch
+
+Apply multiple patches at once from a JSON file:
+
+```bash
+cat > batch.json << 'EOF'
+{
+  "patches": [
+    {
+      "file": "src/lib.rs",
+      "symbol": "foo",
+      "kind": "function",
+      "with": "patches/foo.rs"
+    },
+    {
+      "file": "src/lib.rs",
+      "symbol": "bar",
+      "kind": "function",
+      "with": "patches/bar.rs"
+    }
+  ]
+}
+EOF
+
+splice patch --batch batch.json --language rust
+```
+
+### Pattern Replace
+
+Replace a pattern across multiple files:
+
+```bash
+# Replace "42" with "99" in all Python files
+splice apply-files --glob "*.py" --find "42" --replace "99"
+
+# With validation and backup
+splice apply-files --glob "tests/**/*.rs" --find "old_func" --replace "new_func" --create-backup
+```
+
+### Preview Mode
+
+Inspect changes before applying:
+
+```bash
+splice patch --file src/lib.rs --symbol foo --with new_foo.rs --preview
+```
+
+### Backup and Undo
+
+Create a backup before changes:
+
+```bash
+splice patch --file src/lib.rs --symbol foo --with new_foo.rs --create-backup --operation-id "my-change"
+```
+
+Restore from backup:
+
+```bash
+splice undo --manifest .splice-backup/my-change/manifest.json
+```
+
 ## Commands
 
 ### splice delete
@@ -139,8 +204,16 @@ splice plan --file plan.json
 Remove a symbol definition and all its references.
 
 ```bash
-splice delete --file <PATH> --symbol <NAME> [--kind <KIND>]
+splice delete --file <PATH> --symbol <NAME> [--kind <KIND>] [--language <LANG>]
 ```
+
+**Optional Arguments:**
+- `--kind <KIND>`: Symbol kind filter
+- `--language <LANG>`: Language override
+- `--analyzer <MODE>`: Validation mode (off, os, path)
+- `--create-backup`: Create backup before deleting
+- `--operation-id <ID>`: Custom operation ID for auditing
+- `--metadata <JSON>`: Optional metadata attachment
 
 **Rust-specific features:**
 - Finds references across the entire workspace
@@ -164,6 +237,39 @@ splice patch --file <PATH> --symbol <NAME> --with <FILE> [--kind <KIND>] [--lang
 - `--kind <KIND>`: Symbol kind filter (function, method, class, struct, interface, enum, trait, impl, module, variable, constructor, type-alias)
 - `--language <LANG>`: Language override (rust, python, c, cpp, java, java-script, type-script)
 - `--analyzer <MODE>`: Validation mode (off, os, path)
+- `--preview`: Run in preview mode without modifying files
+- `--batch <FILE>`: JSON file describing batch replacements
+- `--create-backup`: Create backup before patching
+- `--operation-id <ID>`: Custom operation ID for auditing
+- `--metadata <JSON>`: Optional metadata attachment
+
+### splice apply-files
+
+Apply a pattern replacement to multiple files.
+
+```bash
+splice apply-files --glob <GLOB> --find <PATTERN> --replace <REPLACEMENT>
+```
+
+**Required Arguments:**
+- `--glob <GLOB>`: Glob pattern for matching files (e.g., `tests/**/*.rs`, `src/**/*.py`)
+- `--find <PATTERN>`: Text pattern to find
+- `--replace <REPLACEMENT>`: Replacement text
+
+**Optional Arguments:**
+- `--language <LANG>`: Language override (auto-detected from extension by default)
+- `--no-validate`: Skip validation gates
+- `--create-backup`: Create backup before applying
+- `--operation-id <ID>`: Custom operation ID for auditing
+- `--metadata <JSON>`: Optional metadata attachment
+
+### splice undo
+
+Undo a previous operation by restoring from a backup manifest.
+
+```bash
+splice undo --manifest <PATH>
+```
 
 ### splice plan
 
@@ -196,7 +302,7 @@ splice plan --file <PLAN.json>
 - **src/ingest/** - Symbol parsing for 7 languages
 - **src/graph/** - SQLiteGraph integration
 - **src/resolve/** - Symbol resolution and reference finding
-- **src/patch/** - Span-safe replacement + validation
+- **src/patch/** - Span-safe replacement + validation + batch operations + pattern replace + backup
 - **src/validate/** - Tree-sitter + compiler validation gates
 - **src/plan/** - JSON plan orchestration
 
@@ -213,7 +319,7 @@ Every operation passes:
 cargo test
 ```
 
-Test Coverage: 339/339 tests passing
+Test Coverage: 368/368 tests passing
 
 ## Feedback
 

@@ -42,8 +42,8 @@ function farewell(name) {
             CodeGraph::open(&graph_db_path).expect("Failed to open graph database");
 
         // Ingest symbols from test.js
-        let symbols =
-            extract_javascript_symbols(&js_path, source.as_bytes()).expect("Failed to parse test.js");
+        let symbols = extract_javascript_symbols(&js_path, source.as_bytes())
+            .expect("Failed to parse test.js");
 
         assert_eq!(symbols.len(), 2, "Expected 2 functions");
 
@@ -62,13 +62,8 @@ function farewell(name) {
         }
 
         // Resolve the "greet" function
-        let resolved = resolve_symbol(
-            &code_graph,
-            Some(&js_path),
-            Some("function"),
-            "greet",
-        )
-        .expect("Failed to resolve greet function");
+        let resolved = resolve_symbol(&code_graph, Some(&js_path), Some("function"), "greet")
+            .expect("Failed to resolve greet function");
 
         // Verify we got the right span
         let greet_symbol = &symbols[0];
@@ -136,8 +131,8 @@ function validFunction() {
             CodeGraph::open(&graph_db_path).expect("Failed to open graph database");
 
         // Ingest and store symbols
-        let symbols =
-            extract_javascript_symbols(&js_path, source.as_bytes()).expect("Failed to parse test.js");
+        let symbols = extract_javascript_symbols(&js_path, source.as_bytes())
+            .expect("Failed to parse test.js");
 
         let symbol = &symbols[0];
         code_graph
@@ -182,7 +177,11 @@ function validFunction() {
         );
 
         // Should fail on syntax error
-        assert!(result.is_err(), "Patch should fail on syntax error: {:?}", result);
+        assert!(
+            result.is_err(),
+            "Patch should fail on syntax error: {:?}",
+            result
+        );
 
         // Verify original file is unchanged (atomic rollback)
         let current_content =
@@ -217,8 +216,8 @@ const greet = (name) => {
             CodeGraph::open(&graph_db_path).expect("Failed to open graph database");
 
         // Ingest symbols
-        let symbols =
-            extract_javascript_symbols(&js_path, source.as_bytes()).expect("Failed to parse test.js");
+        let symbols = extract_javascript_symbols(&js_path, source.as_bytes())
+            .expect("Failed to parse test.js");
 
         // Find the greet variable/function
         let greet = symbols
@@ -241,7 +240,7 @@ const greet = (name) => {
         let resolved = resolve_symbol(
             &code_graph,
             Some(&js_path),
-            None,  // Don't filter by kind
+            None, // Don't filter by kind
             "greet",
         )
         .expect("Failed to resolve greet");
@@ -265,7 +264,8 @@ const greet = (name) => {
 
         // Should succeed if node is available
         if result.is_ok() {
-            let new_content = std::fs::read_to_string(&js_path).expect("Failed to read patched file");
+            let new_content =
+                std::fs::read_to_string(&js_path).expect("Failed to read patched file");
             assert!(
                 new_content.contains("return 42;"),
                 "Patched content should be present"

@@ -8,8 +8,10 @@ use crate::error::{Result, SpliceError};
 use crate::ingest::{
     detect::detect_language,
     detect::Language as DetectLanguage,
-    {extract_cpp_symbols, extract_java_symbols, extract_javascript_symbols,
-     extract_python_symbols, extract_rust_symbols, extract_typescript_symbols},
+    {
+        extract_cpp_symbols, extract_java_symbols, extract_javascript_symbols,
+        extract_python_symbols, extract_rust_symbols, extract_typescript_symbols,
+    },
 };
 use crate::symbol::{AnySymbol, Language};
 use std::path::Path;
@@ -39,11 +41,9 @@ use std::path::Path;
 /// ```
 pub fn extract_symbols(path: &Path, source: &[u8]) -> Result<Vec<AnySymbol>> {
     // Detect language from file extension
-    let detect_lang = detect_language(path).ok_or_else(|| {
-        SpliceError::Parse {
-            file: path.to_path_buf(),
-            message: "Unknown file extension - cannot detect language".to_string(),
-        }
+    let detect_lang = detect_language(path).ok_or_else(|| SpliceError::Parse {
+        file: path.to_path_buf(),
+        message: "Unknown file extension - cannot detect language".to_string(),
     })?;
 
     // Route to appropriate parser

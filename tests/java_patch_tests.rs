@@ -48,7 +48,10 @@ public class Test {
             extract_java_symbols(&java_path, source.as_bytes()).expect("Failed to parse Test.java");
 
         // Should have class and 2 methods
-        assert!(symbols.len() >= 2, "Expected at least 2 symbols (class + methods)");
+        assert!(
+            symbols.len() >= 2,
+            "Expected at least 2 symbols (class + methods)"
+        );
 
         // Store symbols with file association and language
         for symbol in &symbols {
@@ -65,13 +68,8 @@ public class Test {
         }
 
         // Resolve the "greet" method
-        let resolved = resolve_symbol(
-            &code_graph,
-            Some(&java_path),
-            Some("method"),
-            "greet",
-        )
-        .expect("Failed to resolve greet method");
+        let resolved = resolve_symbol(&code_graph, Some(&java_path), Some("method"), "greet")
+            .expect("Failed to resolve greet method");
 
         // Apply patch: replace method body
         let new_body = r#"
@@ -150,13 +148,8 @@ public class Test {
             .expect("Failed to store symbol");
 
         // Resolve method
-        let resolved = resolve_symbol(
-            &code_graph,
-            Some(&java_path),
-            Some("method"),
-            "validMethod",
-        )
-        .expect("Failed to resolve method");
+        let resolved = resolve_symbol(&code_graph, Some(&java_path), Some("method"), "validMethod")
+            .expect("Failed to resolve method");
 
         // Read original content for comparison
         let original_content =
@@ -179,7 +172,11 @@ public class Test {
         );
 
         // Should fail on syntax error
-        assert!(result.is_err(), "Patch should fail on syntax error: {:?}", result);
+        assert!(
+            result.is_err(),
+            "Patch should fail on syntax error: {:?}",
+            result
+        );
 
         // Verify original file is unchanged (atomic rollback)
         let current_content =
@@ -236,13 +233,8 @@ public class Calculator {
             .expect("Failed to store symbol");
 
         // Resolve class
-        let resolved = resolve_symbol(
-            &code_graph,
-            Some(&java_path),
-            Some("class"),
-            "Calculator",
-        )
-        .expect("Failed to resolve class");
+        let resolved = resolve_symbol(&code_graph, Some(&java_path), Some("class"), "Calculator")
+            .expect("Failed to resolve class");
 
         // Apply valid patch
         let new_body = r#"
@@ -269,7 +261,8 @@ public class Calculator {
 
         // Should succeed if javac is available
         if result.is_ok() {
-            let new_content = std::fs::read_to_string(&java_path).expect("Failed to read patched file");
+            let new_content =
+                std::fs::read_to_string(&java_path).expect("Failed to read patched file");
             assert!(
                 new_content.contains("subtract"),
                 "Patched content should be present"

@@ -117,10 +117,7 @@ mod tests {
         assert_eq!(imports[0].import_kind, ImportKind::CppSystemInclude);
         // Note: tree-sitter may normalize whitespace differently
         // The path should still contain stdio.h
-        assert!(imports[0]
-            .path
-            .last()
-            .is_some_and(|p| p.contains("stdio")));
+        assert!(imports[0].path.last().is_some_and(|p| p.contains("stdio")));
     }
 
     #[test]

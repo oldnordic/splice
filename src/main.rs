@@ -3,8 +3,10 @@
 //! This is the main entry point for the splice command-line interface.
 //! The CLI is a thin adapter over existing APIs - NO logic is implemented here.
 
+use serde_json::{json, Map, Value};
 use std::collections::HashMap;
-use std::path::Path;
+use std::env;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
@@ -17,14 +19,17 @@ fn main() -> ExitCode {
     }
 
     // Execute command
-    let result = match cli.command {
+    let result: Result<splice::cli::CliSuccessPayload, splice::SpliceError> = match cli.command {
         splice::cli::Commands::Delete {
             file,
             symbol,
             kind,
             analyzer,
             language,
-        } => execute_delete(&file, &symbol, kind, analyzer, language),
+            create_backup,
+            operation_id,
+            metadata,
+        } => execute_delete(&file, &symbol, kind, analyzer, language, create_backup, operation_id, metadata),
 
         splice::cli::Commands::Patch {
             file,
@@ -33,19 +38,52 @@ fn main() -> ExitCode {
             analyzer,
             with_: replacement_file,
             language,
-        } => execute_patch(&file, &symbol, kind, analyzer, &replacement_file, language),
+            batch,
+            preview,
+            create_backup,
+            operation_id,
+            metadata,
+        } => match batch {
+            Some(batch_path) => execute_patch_batch(&batch_path, analyzer, language, create_backup, operation_id, metadata),
+            None => execute_single_patch(
+                file,
+                symbol,
+                kind,
+                analyzer,
+                replacement_file,
+                language,
+                preview,
+                create_backup,
+                operation_id,
+                metadata,
+            ),
+        },
 
         splice::cli::Commands::Plan { file } => execute_plan(&file),
+
+        splice::cli::Commands::Undo { manifest } => execute_undo(&manifest),
+
+        splice::cli::Commands::ApplyFiles {
+            glob,
+            find,
+            replace,
+            language,
+            no_validate,
+            create_backup,
+            operation_id,
+            metadata,
+        } => execute_apply_files(&glob, &find, &replace, language, !no_validate, create_backup, operation_id, metadata),
     };
 
     // Handle result
     match result {
-        Ok(msg) => {
-            println!("{}", msg);
+        Ok(payload) => {
+            emit_success_payload(&payload);
             ExitCode::SUCCESS
         }
         Err(e) => {
-            eprintln!("Error: {}", e);
+            let payload = splice::cli::CliErrorPayload::from_error(&e);
+            emit_error_payload(&payload);
             ExitCode::from(1)
         }
     }
@@ -56,9 +94,10 @@ fn main() -> ExitCode {
 /// This function is a thin adapter that:
 /// 1. Extracts symbols from source file using language-aware dispatcher
 /// 2. Finds all references to the symbol (same-file and cross-file)
-/// 3. Deletes all references first (in reverse byte order per file)
-/// 4. Deletes the definition last
-/// 5. Applies each deletion with validation gates
+/// 3. Optionally creates a backup if requested
+/// 4. Deletes all references first (in reverse byte order per file)
+/// 5. Deletes the definition last
+/// 6. Applies each deletion with validation gates
 ///
 /// All logic is delegated to existing APIs.
 fn execute_delete(
@@ -67,7 +106,10 @@ fn execute_delete(
     kind: Option<splice::cli::SymbolKind>,
     analyzer: Option<splice::cli::AnalyzerMode>,
     language: Option<splice::cli::Language>,
-) -> Result<String, splice::SpliceError> {
+    create_backup: bool,
+    operation_id: Option<String>,
+    metadata: Option<String>,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::CodeGraph;
     use splice::patch::apply_patch_with_validation;
     use splice::resolve::references::find_references;
@@ -79,11 +121,9 @@ fn execute_delete(
         .map(|l| l.to_symbol_language())
         .or_else(|| SymbolLanguage::from_path(file_path));
 
-    let symbol_lang = symbol_lang.ok_or_else(|| {
-        splice::SpliceError::Parse {
-            file: file_path.to_path_buf(),
-            message: "Cannot detect language - unknown file extension".to_string(),
-        }
+    let symbol_lang = symbol_lang.ok_or_else(|| splice::SpliceError::Parse {
+        file: file_path.to_path_buf(),
+        message: "Cannot detect language - unknown file extension".to_string(),
     })?;
 
     // Step 1: Read source file
@@ -150,10 +190,7 @@ fn execute_delete(
     let mut refs_by_file: HashMap<String, Vec<&splice::resolve::references::Reference>> =
         HashMap::new();
     for r in &ref_set.references {
-        refs_by_file
-            .entry(r.file_path.clone())
-            .or_default()
-            .push(r);
+        refs_by_file.entry(r.file_path.clone()).or_default().push(r);
     }
 
     // Sort each file's references by byte offset descending
@@ -161,7 +198,30 @@ fn execute_delete(
         refs.sort_by_key(|r| std::cmp::Reverse(r.byte_start));
     }
 
-    // Step 10: Delete references from each file
+    // Step 10: Create backup if requested
+    let backup_manifest_path = if create_backup {
+        use splice::patch::BackupWriter;
+
+        let workspace_root = find_workspace_root(file_path)?;
+        let mut backup_writer = BackupWriter::new(&workspace_root, operation_id.clone())?;
+
+        // Backup the file containing the definition
+        backup_writer.backup_file(file_path)?;
+
+        // Backup all files that contain references
+        for file_path_str in refs_by_file.keys() {
+            let path = Path::new(file_path_str);
+            if path != file_path {
+                backup_writer.backup_file(path)?;
+            }
+        }
+
+        Some(backup_writer.finalize()?)
+    } else {
+        None
+    };
+
+    // Step 11: Delete references from each file
     let mut deleted_count = 0;
     let mut files_modified = Vec::new();
 
@@ -208,21 +268,58 @@ fn execute_delete(
     }
 
     // Step 12: Return success message
-    if ref_set.has_glob_ambiguity {
-        Ok(format!(
+    let base_message = if ref_set.has_glob_ambiguity {
+        format!(
             "Deleted '{}' ({} references + definition) across {} file(s). WARNING: glob imports detected - some references may have been missed.",
             symbol_name,
             deleted_count - 1,
             files_modified.len()
-        ))
+        )
     } else {
-        Ok(format!(
+        format!(
             "Deleted '{}' ({} references + definition) across {} file(s).",
             symbol_name,
             deleted_count - 1,
             files_modified.len()
-        ))
+        )
+    };
+
+    // Collect span IDs (byte ranges) for all deleted spans
+    let mut span_ids: Vec<serde_json::Value> = Vec::new();
+    for r in &ref_set.references {
+        span_ids.push(json!({
+            "file": r.file_path,
+            "byte_start": r.byte_start,
+            "byte_end": r.byte_end,
+        }));
     }
+    // Add definition span
+    span_ids.push(json!({
+        "file": file_path.to_string_lossy(),
+        "byte_start": def.byte_start,
+        "byte_end": def.byte_end,
+    }));
+
+    // Build response data
+    let mut response_data = serde_json::Map::new();
+    if let Some(manifest_path) = backup_manifest_path {
+        response_data.insert("backup_manifest".to_string(), json!(manifest_path.to_string_lossy()));
+    }
+    if let Some(op_id) = operation_id {
+        response_data.insert("operation_id".to_string(), json!(op_id));
+    }
+    if let Some(meta) = metadata {
+        // Try to parse as JSON, if fails include as string
+        if let Ok(parsed) = serde_json::from_str::<Value>(&meta) {
+            response_data.insert("metadata".to_string(), parsed);
+        } else {
+            response_data.insert("metadata".to_string(), json!(meta));
+        }
+    }
+    response_data.insert("span_ids".to_string(), json!(span_ids));
+    response_data.insert("files_modified".to_string(), json!(files_modified));
+
+    Ok(splice::cli::CliSuccessPayload::with_data(base_message, serde_json::Value::Object(response_data)))
 }
 
 /// Execute the patch command.
@@ -234,6 +331,36 @@ fn execute_delete(
 /// 4. Applies patch with validation gates
 ///
 /// All logic is delegated to existing APIs.
+fn execute_single_patch(
+    file_path: Option<PathBuf>,
+    symbol_name: Option<String>,
+    kind: Option<splice::cli::SymbolKind>,
+    analyzer: Option<splice::cli::AnalyzerMode>,
+    replacement_file: Option<PathBuf>,
+    language: Option<splice::cli::Language>,
+    preview: bool,
+    create_backup: bool,
+    operation_id: Option<String>,
+    metadata: Option<String>,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    let file_path = require_patch_arg("--file", file_path)?;
+    let symbol_name = require_patch_arg("--symbol", symbol_name)?;
+    let replacement_file = require_patch_arg("--with", replacement_file)?;
+
+    execute_patch(
+        &file_path,
+        &symbol_name,
+        kind,
+        analyzer,
+        &replacement_file,
+        language,
+        preview,
+        create_backup,
+        operation_id,
+        metadata,
+    )
+}
+
 fn execute_patch(
     file_path: &Path,
     symbol_name: &str,
@@ -241,9 +368,13 @@ fn execute_patch(
     analyzer: Option<splice::cli::AnalyzerMode>,
     replacement_file: &Path,
     language: Option<splice::cli::Language>,
-) -> Result<String, splice::SpliceError> {
+    preview: bool,
+    create_backup: bool,
+    operation_id: Option<String>,
+    metadata: Option<String>,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::CodeGraph;
-    use splice::patch::apply_patch_with_validation;
+    use splice::patch::{apply_patch_with_validation, preview_patch, FilePatchSummary};
     use splice::resolve::resolve_symbol;
     use splice::symbol::{Language as SymbolLanguage, Symbol};
     use splice::validate::AnalyzerMode as ValidateAnalyzerMode;
@@ -253,11 +384,9 @@ fn execute_patch(
         .map(|l| l.to_symbol_language())
         .or_else(|| SymbolLanguage::from_path(file_path));
 
-    let symbol_lang = symbol_lang.ok_or_else(|| {
-        splice::SpliceError::Parse {
-            file: file_path.to_path_buf(),
-            message: "Cannot detect language - unknown file extension".to_string(),
-        }
+    let symbol_lang = symbol_lang.ok_or_else(|| splice::SpliceError::Parse {
+        file: file_path.to_path_buf(),
+        message: "Cannot detect language - unknown file extension".to_string(),
     })?;
 
     // Step 1: Read source file
@@ -308,6 +437,7 @@ fn execute_patch(
     let workspace_dir = file_path.parent().ok_or_else(|| {
         splice::SpliceError::Other("Cannot determine workspace directory".to_string())
     })?;
+    let workspace_root = find_workspace_root(file_path)?;
 
     // Step 9: Convert CLI analyzer mode to validate analyzer mode (default to Off)
     let analyzer_mode = match analyzer {
@@ -321,7 +451,38 @@ fn execute_patch(
         None => ValidateAnalyzerMode::Off,
     };
 
-    // Step 10: Apply patch with validation
+    // Step 10: Create backup if requested (skip for preview mode)
+    let backup_manifest_path = if create_backup && !preview {
+        use splice::patch::BackupWriter;
+
+        let mut backup_writer = BackupWriter::new(&workspace_root, operation_id.clone())?;
+        backup_writer.backup_file(file_path)?;
+        Some(backup_writer.finalize()?)
+    } else {
+        None
+    };
+
+    if preview {
+        let (summary, report) = preview_patch(
+            file_path,
+            resolved.byte_start,
+            resolved.byte_end,
+            &replacement_content,
+            &workspace_root,
+            symbol_lang,
+            analyzer_mode,
+        )?;
+        let message = format!(
+            "Previewed patch '{}' at bytes {}..{} (hash: {} -> {})",
+            symbol_name,
+            resolved.byte_start,
+            resolved.byte_end,
+            summary.before_hash,
+            summary.after_hash
+        );
+        return Ok(build_success_payload(message, vec![summary], Some(report)));
+    }
+
     let (before_hash, after_hash) = apply_patch_with_validation(
         file_path,
         resolved.byte_start,
@@ -332,10 +493,188 @@ fn execute_patch(
         analyzer_mode,
     )?;
 
-    // Step 11: Return success message
-    Ok(format!(
+    let summary = FilePatchSummary {
+        file: file_path.to_path_buf(),
+        before_hash,
+        after_hash,
+    };
+
+    let message = format!(
         "Patched '{}' at bytes {}..{} (hash: {} -> {})",
-        symbol_name, resolved.byte_start, resolved.byte_end, before_hash, after_hash
+        symbol_name,
+        resolved.byte_start,
+        resolved.byte_end,
+        summary.before_hash,
+        summary.after_hash
+    );
+
+    // Build span ID
+    let span_id = json!({
+        "file": file_path.to_string_lossy(),
+        "byte_start": resolved.byte_start,
+        "byte_end": resolved.byte_end,
+    });
+
+    // Build response data
+    let mut response_data = serde_json::Map::new();
+    response_data.insert(
+        "files".to_string(),
+        json!([{
+            "file": file_path.to_string_lossy(),
+            "before_hash": summary.before_hash,
+            "after_hash": summary.after_hash,
+        }]),
+    );
+    response_data.insert("span_ids".to_string(), json!([span_id]));
+    if let Some(manifest_path) = backup_manifest_path {
+        response_data.insert("backup_manifest".to_string(), json!(manifest_path.to_string_lossy()));
+    }
+    if let Some(op_id) = operation_id {
+        response_data.insert("operation_id".to_string(), json!(op_id));
+    }
+    if let Some(meta) = metadata {
+        // Try to parse as JSON, if fails include as string
+        if let Ok(parsed) = serde_json::from_str::<Value>(&meta) {
+            response_data.insert("metadata".to_string(), parsed);
+        } else {
+            response_data.insert("metadata".to_string(), json!(meta));
+        }
+    }
+
+    Ok(splice::cli::CliSuccessPayload::with_data(message, serde_json::Value::Object(response_data)))
+}
+
+/// Execute a batch patch command driven by a JSON manifest.
+fn execute_patch_batch(
+    batch_path: &Path,
+    analyzer: Option<splice::cli::AnalyzerMode>,
+    language: Option<splice::cli::Language>,
+    create_backup: bool,
+    operation_id: Option<String>,
+    metadata: Option<String>,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::patch::{apply_batch_with_validation, load_batches_from_file};
+    use splice::validate::AnalyzerMode as ValidateAnalyzerMode;
+
+    let absolute_batch = if batch_path.is_absolute() {
+        batch_path.to_path_buf()
+    } else {
+        env::current_dir()
+            .map_err(|err| {
+                splice::SpliceError::Other(format!("Failed to resolve current directory: {}", err))
+            })?
+            .join(batch_path)
+    };
+
+    let workspace_dir = absolute_batch.parent().ok_or_else(|| {
+        splice::SpliceError::Other(
+            "Cannot determine workspace directory from --batch path".to_string(),
+        )
+    })?;
+    let workspace_dir = workspace_dir.to_path_buf();
+
+    let symbol_language = language
+        .ok_or_else(|| {
+            splice::SpliceError::Other(
+                "The --language flag is required when --batch is used".to_string(),
+            )
+        })?
+        .to_symbol_language();
+
+    let analyzer_mode = match analyzer {
+        Some(splice::cli::AnalyzerMode::Off) => ValidateAnalyzerMode::Off,
+        Some(splice::cli::AnalyzerMode::Os) => ValidateAnalyzerMode::Path,
+        Some(splice::cli::AnalyzerMode::Path) => {
+            return Err(splice::SpliceError::Other(
+                "Explicit analyzer path not yet supported".to_string(),
+            ));
+        }
+        None => ValidateAnalyzerMode::Off,
+    };
+
+    let batches = load_batches_from_file(&absolute_batch)?;
+    let batch_count = batches.len();
+
+    // Create backup if requested
+    let backup_manifest_path = if create_backup {
+        use splice::patch::BackupWriter;
+
+        let workspace_root = find_workspace_root(&absolute_batch)?;
+
+        // Collect all files that will be patched
+        let mut files_to_backup: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
+        for batch in &batches {
+            for replacement in batch.replacements() {
+                files_to_backup.insert(replacement.file.clone());
+            }
+        }
+
+        let mut backup_writer = BackupWriter::new(&workspace_root, operation_id.clone())?;
+        for file in files_to_backup {
+            backup_writer.backup_file(&file)?;
+        }
+        Some(backup_writer.finalize()?)
+    } else {
+        None
+    };
+
+    let summaries =
+        apply_batch_with_validation(&batches, &workspace_dir, symbol_language, analyzer_mode)?;
+
+    let files_data: Vec<_> = summaries
+        .iter()
+        .map(|summary| {
+            json!({
+                "file": summary.file.to_string_lossy(),
+                "before_hash": summary.before_hash,
+                "after_hash": summary.after_hash,
+            })
+        })
+        .collect();
+
+    // Collect span_ids from all batches
+    let mut span_ids: Vec<serde_json::Value> = Vec::new();
+    for batch in &batches {
+        for replacement in batch.replacements() {
+            span_ids.push(json!({
+                "file": replacement.file.to_string_lossy(),
+                "byte_start": replacement.start,
+                "byte_end": replacement.end,
+            }));
+        }
+    }
+
+    let mut response_data = json!({
+        "batch_file": absolute_batch.to_string_lossy(),
+        "batches_applied": batch_count,
+        "files": files_data,
+        "span_ids": span_ids,
+    });
+
+    if let Some(manifest_path) = &backup_manifest_path {
+        response_data["backup_manifest"] = json!(manifest_path.to_string_lossy());
+    }
+
+    if let Some(op_id) = operation_id {
+        response_data["operation_id"] = json!(op_id);
+    }
+
+    if let Some(meta) = metadata {
+        // Try to parse as JSON, if fails include as string
+        if let Ok(parsed) = serde_json::from_str::<Value>(&meta) {
+            response_data["metadata"] = parsed;
+        } else {
+            response_data["metadata"] = json!(meta);
+        }
+    }
+
+    Ok(splice::cli::CliSuccessPayload::with_data(
+        format!(
+            "Patched {} file(s) across {} batch(es).",
+            summaries.len(),
+            batch_count
+        ),
+        response_data,
     ))
 }
 
@@ -346,7 +685,7 @@ fn execute_patch(
 /// 2. Calls execute_plan from the plan module
 ///
 /// All logic is delegated to the plan module.
-fn execute_plan(plan_path: &Path) -> Result<String, splice::SpliceError> {
+fn execute_plan(plan_path: &Path) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::plan::execute_plan;
 
     // Determine workspace directory (parent of plan file)
@@ -360,12 +699,221 @@ fn execute_plan(plan_path: &Path) -> Result<String, splice::SpliceError> {
     let messages = execute_plan(plan_path, workspace_dir)?;
 
     // Return summary message
-    Ok(format!(
+    Ok(splice::cli::CliSuccessPayload::message_only(format!(
         "Plan executed successfully: {} steps completed",
         messages.len()
-    ))
+    )))
 }
 
+/// Execute the undo command.
+///
+/// This function restores files from a backup manifest created during
+/// a previous splice operation.
+fn execute_undo(manifest_path: &Path) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::patch::restore_from_manifest;
+
+    // Determine workspace directory (parent of manifest's parent directory)
+    // The manifest is at .splice-backup/<operation_id>/manifest.json
+    // The workspace root is the parent of .splice-backup
+    let backup_dir = manifest_path.parent().ok_or_else(|| {
+        splice::SpliceError::Other("Manifest has no parent directory".to_string())
+    })?;
+
+    let splice_backup_dir = backup_dir.parent().ok_or_else(|| {
+        splice::SpliceError::Other(
+            "Backup directory has no parent directory".to_string()
+        )
+    })?;
+
+    let workspace_root = splice_backup_dir.parent().ok_or_else(|| {
+        splice::SpliceError::Other(
+            "Cannot determine workspace root from manifest path".to_string()
+        )
+    })?;
+
+    // Restore from backup
+    let restored_count = restore_from_manifest(manifest_path, workspace_root)?;
+
+    Ok(splice::cli::CliSuccessPayload::message_only(format!(
+        "Restored {} file(s) from backup.",
+        restored_count
+    )))
+}
+
+/// Execute the apply-files command.
+///
+/// This function applies a text pattern replacement to multiple files
+/// matching a glob pattern, with AST confirmation to ensure replacements
+/// land on valid code tokens.
+fn execute_apply_files(
+    glob_pattern: &str,
+    find_pattern: &str,
+    replace_pattern: &str,
+    language: Option<splice::cli::Language>,
+    validate: bool,
+    create_backup: bool,
+    operation_id: Option<String>,
+    metadata: Option<String>,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::patch::{apply_pattern_replace, find_pattern_in_files, BackupWriter, PatternReplaceConfig};
+
+    // Get current directory as workspace root
+    let workspace_root = env::current_dir()
+        .map_err(|err| {
+            splice::SpliceError::Other(format!("Failed to resolve current directory: {}", err))
+        })?;
+
+    // Convert CLI language to symbol language
+    let symbol_language = language.map(|l| l.to_symbol_language());
+
+    // Create backup if requested
+    let backup_manifest_path = if create_backup {
+        let mut backup_writer = BackupWriter::new(&workspace_root, operation_id.clone())?;
+
+        // First, find all matching files to back up
+        let find_config = PatternReplaceConfig {
+            glob_pattern: glob_pattern.to_string(),
+            find_pattern: find_pattern.to_string(),
+            replace_pattern: replace_pattern.to_string(),
+            language: symbol_language,
+            validate: false,
+        };
+        let matches = find_pattern_in_files(&find_config)?;
+
+        // Backup each file that will be modified
+        for m in &matches {
+            backup_writer.backup_file(&m.file)?;
+        }
+
+        Some(backup_writer.finalize()?)
+    } else {
+        None
+    };
+
+    // Create configuration for pattern replacement
+    let config = PatternReplaceConfig {
+        glob_pattern: glob_pattern.to_string(),
+        find_pattern: find_pattern.to_string(),
+        replace_pattern: replace_pattern.to_string(),
+        language: symbol_language,
+        validate,
+    };
+
+    // Apply the pattern replacement
+    let result = apply_pattern_replace(&config, &workspace_root)?;
+
+    // Build response data
+    let mut response_data = serde_json::Map::new();
+    response_data.insert("files_patched".to_string(), json!(result.files_patched));
+    response_data.insert("replacements_count".to_string(), json!(result.replacements_count));
+    if let Some(manifest_path) = backup_manifest_path {
+        response_data.insert("backup_manifest".to_string(), json!(manifest_path.to_string_lossy()));
+    }
+    if let Some(op_id) = operation_id {
+        response_data.insert("operation_id".to_string(), json!(op_id));
+    }
+    if let Some(meta) = metadata {
+        // Try to parse as JSON, if fails include as string
+        if let Ok(parsed) = serde_json::from_str::<Value>(&meta) {
+            response_data.insert("metadata".to_string(), parsed);
+        } else {
+            response_data.insert("metadata".to_string(), json!(meta));
+        }
+    }
+
+    let message = format!(
+        "Applied replacements to {} file(s) ({} replacements).",
+        result.files_patched.len(),
+        result.replacements_count
+    );
+
+    Ok(splice::cli::CliSuccessPayload::with_data(message, serde_json::Value::Object(response_data)))
+}
+
+/// Emit JSON payload for successful CLI responses.
+fn emit_success_payload(payload: &splice::cli::CliSuccessPayload) {
+    match serde_json::to_string(payload) {
+        Ok(json) => println!("{}", json),
+        Err(err) => {
+            let fallback = json!({
+                "status": "ok",
+                "message": payload.message.clone(),
+            });
+            println!("{}", fallback.to_string());
+            eprintln!("Serialization warning: {}", err);
+        }
+    }
+}
+
+/// Emit JSON payload for CLI errors.
+fn emit_error_payload(payload: &splice::cli::CliErrorPayload) {
+    match serde_json::to_string(payload) {
+        Ok(json) => eprintln!("{}", json),
+        Err(err) => {
+            let fallback = json!({
+                "status": "error",
+                "error": {
+                    "kind": "SerializationFailure",
+                    "message": err.to_string()
+                }
+            });
+            eprintln!("{}", fallback.to_string());
+        }
+    }
+}
+
+fn require_patch_arg<T>(flag: &str, value: Option<T>) -> Result<T, splice::SpliceError> {
+    value.ok_or_else(|| {
+        splice::SpliceError::Other(format!(
+            "{} is required unless --batch <file> is provided",
+            flag
+        ))
+    })
+}
+
+fn build_success_payload(
+    message: String,
+    files: Vec<splice::patch::FilePatchSummary>,
+    preview_report: Option<splice::patch::PreviewReport>,
+) -> splice::cli::CliSuccessPayload {
+    let file_values: Vec<Value> = files
+        .iter()
+        .map(|summary| {
+            json!({
+                "file": summary.file.to_string_lossy(),
+                "before_hash": summary.before_hash,
+                "after_hash": summary.after_hash,
+            })
+        })
+        .collect();
+
+    let mut data = Map::new();
+    data.insert("files".to_string(), Value::Array(file_values));
+
+    if let Some(report) = preview_report {
+        data.insert(
+            "preview_report".to_string(),
+            serde_json::to_value(report).expect("preview report should serialize"),
+        );
+    }
+
+    splice::cli::CliSuccessPayload::with_data(message, Value::Object(data))
+}
+
+fn find_workspace_root(path: &Path) -> Result<PathBuf, splice::SpliceError> {
+    let mut current = path.parent();
+    while let Some(dir) = current {
+        if dir.join("Cargo.toml").exists() {
+            return Ok(dir.to_path_buf());
+        }
+        current = dir.parent();
+    }
+
+    Err(splice::SpliceError::Other(format!(
+        "Cannot find Cargo.toml for {}",
+        path.display()
+    )))
+}
 /// Extract symbols with explicit language (helper function).
 fn extract_symbols_with_language(
     path: &Path,
@@ -400,10 +948,7 @@ fn extract_symbols_with_language(
         }
         splice::symbol::Language::TypeScript => {
             let symbols = extract_typescript_symbols(path, source)?;
-            Ok(symbols
-                .into_iter()
-                .map(SymbolWrapper::TypeScript)
-                .collect())
+            Ok(symbols.into_iter().map(SymbolWrapper::TypeScript).collect())
         }
     }
 }

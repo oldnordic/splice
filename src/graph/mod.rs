@@ -211,7 +211,7 @@ impl CodeGraph {
             .get(name)
             .and_then(|ids| ids.first())
             .copied()
-            .ok_or_else(|| SpliceError::SymbolNotFound(name.to_string()))
+            .ok_or_else(|| SpliceError::symbol_not_found(name, None))
     }
 
     /// Get all symbol nodes with a given name across all files.
