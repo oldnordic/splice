@@ -1,6 +1,6 @@
 [package]
 name = "splice"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2021"
 description = "Span-safe refactoring kernel for Rust using SQLiteGraph"
 license = "GPL-3.0-or-later"
@@ -43,6 +43,7 @@ clap = { version = "4.5", features = ["derive"] }
 # Logging
 log = "0.4"
 env_logger = "0.11"
+which = "6"
+tempfile = "3.10"
 
 [dev-dependencies]
-tempfile = "3.10"

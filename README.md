@@ -2,7 +2,7 @@
 
 Span-safe refactoring kernel for 7 languages using tree-sitter and SQLiteGraph.
 
-**Version**: 0.3.0
+**Version**: 0.4.0
 **License**: GPL-3.0-or-later
 
 ## What This Is
