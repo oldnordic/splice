@@ -163,6 +163,75 @@ See [Plan File](../../../.claude/plans/iridescent-questing-sundae.md) for detail
 
 ---
 
+## Upcoming Tasks (Required before codemcp tooling improvements)
+
+### Task A: Structured Error Responses
+- **Need**: codemcp agents reported opaque `span replacement failed` messages (docs/pr5.md).
+- **Implementation**:
+  - Extend `src/error.rs` with variants carrying `symbol`, `file`, `hint`.
+  - Update `src/cli/mod.rs` and `src/patch/mod.rs` to serialize failures as JSON payloads returned over stdout/stderr.
+  - Diagnostics must include `{tool, level, file, line, column, message, code?, hint?}` for cargo, tree-sitter, rust-analyzer, and every non-Rust compiler.
+- **Acceptance**: Integration test asserting CLI returns `SymbolNotFound` with symbol/file + friendly hint.
+- **Status 2025-01-29**: Structured JSON error payloads landed (`src/error.rs::SpliceError`, `src/cli/mod.rs::CliErrorPayload`, `src/main.rs::emit_error_payload`) with regression tests (`tests/cli_tests.rs::test_cli_symbol_not_found_returns_structured_json`, `tests/cli_tests.rs::test_cli_patch_syntax_error_emits_diagnostics`, `tests/cli_tests.rs::test_cli_cargo_check_failure_emits_diagnostics`, `src/validate/mod.rs::tests::parse_rust_analyzer_output_extracts_file_line`). Cargo/tree-sitter/rust-analyzer diagnostics now flow into CLI responses (see `src/patch/mod.rs::gate_compiler_validation`, `src/patch/mod.rs::gate_cargo_check`, `src/validate/mod.rs::gate_rust_analyzer`). Next step before Task B: enrich diagnostics with tool metadata (binary path/version, e.g., `tool_info: {name, path, version}`) and surface remediation links per error code so codemcp can trace specific compiler builds.
+
+### Task B: Batch Patch API
+- **Need**: Bulk rename/bulk delete flows currently require N sequential invocations → slow and unsafe to partially succeed.
+- **Implementation**:
+  - Add `SpanBatch` struct (file path + Vec<SpanReplacement>) in `src/patch/mod.rs`.
+  - Implement `apply_batch_with_validation(batches)` that sorts spans per file, locks workspace once, and aborts + rolls back all files on failure.
+  - CLI: new `splice patch --batch <file.json>` format where JSON describes multiple files.
+- **Progress 2025-12-31**:
+  - Documented the diagnostics payload contract in `docs/DIAGNOSTICS_OUTPUT.md` so CLI/LLM consumers know how rust-analyzer and multi-language compiler gates emit JSON.
+  - `src/patch/mod.rs` now exposes `SpanReplacement`, `SpanBatch`, `FilePatchSummary`, and `apply_batch_with_validation` that fan edits across files, run tree-sitter per file, and execute `cargo check`/rust-analyzer once. Rollback restores every file on failure.
+  - Guard test `tests/patch_tests.rs::test_apply_batch_rolls_back_on_failure` passes by ensuring a bad replacement in `b.rs` trips the cargo gate while leaving both modules pristine.
+  - CLI now accepts `splice patch --batch <file.json> --language <lang>` (`src/cli/mod.rs::Commands::Patch`, `src/main.rs::execute_patch_batch`) which loads manifests via `src/patch/batch_loader.rs::load_batches_from_file`. Paths are resolved relative to the batch file (see `docs/BATCH_PATCH_SPEC.md`), and failures surface as structured JSON errors.
+  - Integration test `tests/cli_tests.rs::test_cli_batch_patch_rolls_back_on_failure` drives the CLI end-to-end to confirm Cargo failures leave every file untouched.
+  - Success payloads now include per-file metadata (`before_hash`/`after_hash`) for both single-span and batch patch commands, exposed through `CliSuccessPayload`. `tests/cli_tests.rs::test_cli_batch_patch_success_returns_metadata` verifies the JSON structure.
+  - Next: move to Task C (`--preview`) now that batch auditing data is in place.
+- **Acceptance**: Tests verifying atomic rollback when second file fails validation.
+
+### Task C: Dry-Run / Preview Flag
+- **Need**: Agents (and codemcp) want to inspect diffs + diagnostics before touching disk.
+- **Implementation**:
+  - Add `--preview` to CLI; patch engine clones the workspace, runs validation in the temp copy, and reports line/byte stats for each file.
+  - Return `preview_report` JSON section consumed by codemcp for “preview” responses.
+- **Progress 2026-01-01**:
+  - `docs/PREVIEW_FLAG.md` documents the preview flow and the `preview_report` schema.
+  - `src/main.rs::execute_patch` delegates to `src/patch/mod.rs::preview_patch`, which clones the workspace, applies the edit, and runs validations without touching the real files.
+  - `tests/cli_tests.rs::test_cli_patch_preview` ensures the CLI succeeds, surfaces preview metadata, and leaves the workspace unchanged.
+- **Acceptance**: Integration test ensures preview leaves workspace untouched and surfaces lint output.
+
+### Task D: Backup / Undo Support
+- **Need**: codemcp plans `undo_last_operation` but Splice currently destroys originals.
+- **Implementation**:
+  - Introduce `BackupWriter` in `src/patch/mod.rs` to copy original files to `.splice-backup/<operation_id>/`.
+  - CLI accepts `--create-backup` + optional `--operation-id` (UUID). Response returns manifest path for codemcp.
+- **Acceptance**: Tests ensuring backups exist + `splice undo --manifest <path>` restores files.
+
+### Task E: Multi-file Pattern Replace
+- **Need**: docs/pr5.md #5 describes multi-file assertions needing same change.
+- **Implementation**:
+  - Add CLI command `splice apply-files --glob tests/**/*.rs --find "len(), 12" --replace "len(), 36"` that internally builds spans from search results (respecting AST boundaries).
+  - Use tree-sitter or text search with AST confirmation to guarantee replacements land on the intended literal.
+- **Acceptance**: Fixture test updating multiple files, verifying replacements + validation gate.
+
+### Task F: Operation Metadata Hook
+- **Need**: codemcp wants to log Magellan span IDs + Splice hashes for auditing.
+- **Implementation**:
+  - CLI accepts `--operation-id` and optional metadata JSON; response echoes `operation_id`, `file_hashes_before/after`, `span_ids`.
+  - `src/patch/mod.rs` computes SHA-256 before/after per file.
+- **Acceptance**: Unit test verifying metadata fields present in CLI JSON output.
+
+### Task G: Diagnostics Output Guidance
+- **Need**: codemcp and other agents must understand how diagnostics look for Rust analyzer and every supported language without inventing bespoke parsers.
+- **Implementation**:
+  - Publish `docs/DIAGNOSTICS_HUMAN_LLM.md` describing the CLI JSON schema (`src/cli/mod.rs::CliErrorPayload`/`DiagnosticPayload`) and reminding agents that `validate::gate_rust_analyzer` plus the per-language `validate_file` paths produce the same structure.
+  - Highlight the supported languages from `src/ingest/detect.rs::Language` and the native compiler runtimes in `src/validate/gates.rs::validate_file`.
+- **Acceptance**: Doc exists, references the JSON contract, and states that Rust analyzer output is parsed/normalized before serialization.
+- **Next**: Keep this doc in sync whenever we add languages or change diagnostics metadata so the contract remains a reliable source of truth.
+
+---
+
 ## Historical State (2025-12-28)
 
 **Status**: Multi-Language Support Complete (Rust, Python, C/C++, JavaScript, Java)

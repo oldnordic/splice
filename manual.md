@@ -68,6 +68,12 @@ cp target/release/splice ~/.local/bin/
 
 ---
 
+## Diagnostics Output
+
+Splice now documents its diagnostics JSON contract in `docs/DIAGNOSTICS_HUMAN_LLM.md`. The note explains how rust-analyzer output is normalized alongside cargo, tree-sitter, and the per-language compiler gates so that both humans and LLM agents read the same structured payload (`CliErrorPayload`/`DiagnosticPayload`).
+
+---
+
 ## Command Reference
 
 ### splice delete

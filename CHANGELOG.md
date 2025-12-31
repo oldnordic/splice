@@ -3,6 +3,11 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Documentation: `docs/DIAGNOSTICS_HUMAN_LLM.md` describing the CLI diagnostics JSON contract, rust-analyzer normalization, and the per-language validator outputs so both humans and LLM agents rely on the same structured payload.
+
 ## [0.3.1] - 2025-12-31
 
 ### Fixed

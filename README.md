@@ -177,6 +177,7 @@ splice plan --file <PLAN.json>
 
 - **manual.md** - Complete user manual
 - **CHANGELOG.md** - Version history
+- **docs/DIAGNOSTICS_HUMAN_LLM.md** - CLI diagnostics contract for humans and LLMs, including rust-analyzer and multi-language validation output
 
 ## Requirements
 
