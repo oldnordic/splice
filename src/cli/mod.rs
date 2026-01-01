@@ -160,6 +160,49 @@ pub enum Commands {
         #[arg(long)]
         metadata: Option<String>,
     },
+
+    /// Query symbols by labels (uses Magellan integration).
+    Query {
+        /// Path to the Magellan database.
+        #[arg(short, long)]
+        db: std::path::PathBuf,
+
+        /// Labels to query (can be specified multiple times).
+        /// Examples: rust, python, fn, struct, class, method, etc.
+        #[arg(short, long)]
+        label: Vec<String>,
+
+        /// List all available labels.
+        #[arg(long)]
+        list: bool,
+
+        /// Count entities with specified label(s).
+        #[arg(long)]
+        count: bool,
+
+        /// Show source code for each result.
+        #[arg(long)]
+        show_code: bool,
+    },
+
+    /// Get code chunks from the database (uses Magellan integration).
+    Get {
+        /// Path to the Magellan database.
+        #[arg(short, long)]
+        db: std::path::PathBuf,
+
+        /// Path to the source file.
+        #[arg(short, long)]
+        file: std::path::PathBuf,
+
+        /// Start byte offset.
+        #[arg(long)]
+        start: usize,
+
+        /// End byte offset.
+        #[arg(long)]
+        end: usize,
+    },
 }
 
 /// Symbol kind for filtering.

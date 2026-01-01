@@ -4,6 +4,7 @@
 //! in SQLiteGraph. It handles symbol storage, span queries, and
 //! relationship management for multi-language code analysis.
 
+pub mod magellan_integration;
 pub mod schema;
 
 use crate::error::{Result, SpliceError};

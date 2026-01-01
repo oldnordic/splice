@@ -73,6 +73,21 @@ fn main() -> ExitCode {
             operation_id,
             metadata,
         } => execute_apply_files(&glob, &find, &replace, language, !no_validate, create_backup, operation_id, metadata),
+
+        splice::cli::Commands::Query {
+            db,
+            label,
+            list,
+            count,
+            show_code,
+        } => execute_query(&db, &label, list, count, show_code),
+
+        splice::cli::Commands::Get {
+            db,
+            file,
+            start,
+            end,
+        } => execute_get(&db, &file, start, end),
     };
 
     // Handle result
@@ -828,6 +843,167 @@ fn execute_apply_files(
     );
 
     Ok(splice::cli::CliSuccessPayload::with_data(message, serde_json::Value::Object(response_data)))
+}
+
+/// Execute the query command.
+///
+/// This function queries symbols by labels using Magellan integration.
+fn execute_query(
+    db_path: &Path,
+    labels: &[String],
+    list: bool,
+    count: bool,
+    show_code: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::graph::magellan_integration::MagellanIntegration;
+
+    // Open Magellan integration
+    let integration = MagellanIntegration::open(db_path)?;
+
+    // List all labels mode
+    if list {
+        let all_labels = integration.get_all_labels()?;
+        println!("{} labels in use:", all_labels.len());
+        for label in &all_labels {
+            let count = integration.count_by_label(label)?;
+            println!("  {} ({})", label, count);
+        }
+        return Ok(splice::cli::CliSuccessPayload::message_only(format!(
+            "Listed {} labels",
+            all_labels.len()
+        )));
+    }
+
+    // Count mode
+    if count {
+        if labels.is_empty() {
+            return Err(splice::SpliceError::Other(
+                "--count requires at least one --label".to_string(),
+            ));
+        }
+
+        let mut counts = serde_json::Map::new();
+        for label in labels {
+            let entity_count = integration.count_by_label(label)?;
+            counts.insert(label.clone(), json!(entity_count));
+        }
+        return Ok(splice::cli::CliSuccessPayload::with_data(
+            format!("Counted entities for {} label(s)", labels.len()),
+            json!(counts),
+        ));
+    }
+
+    // Query mode - get symbols by label(s)
+    if labels.is_empty() {
+        return Err(splice::SpliceError::Other(
+            "No labels specified. Use --label <LABEL> or --list to see all labels".to_string(),
+        ));
+    }
+
+    let labels_ref: Vec<&str> = labels.iter().map(|s| s.as_str()).collect();
+    let results = integration.query_by_labels(&labels_ref)?;
+
+    if results.is_empty() {
+        if labels.len() == 1 {
+            println!("No symbols found with label '{}'", labels[0]);
+        } else {
+            println!("No symbols found with labels: {}", labels.join(", "));
+        }
+        return Ok(splice::cli::CliSuccessPayload::message_only(
+            "No symbols found".to_string(),
+        ));
+    }
+
+    // Build response data
+    let symbols_data: Vec<serde_json::Value> = results
+        .iter()
+        .map(|r| {
+            json!({
+                "entity_id": r.entity_id,
+                "name": r.name,
+                "file_path": r.file_path,
+                "kind": r.kind,
+                "byte_start": r.byte_start,
+                "byte_end": r.byte_end,
+            })
+        })
+        .collect();
+
+    // Print results to console
+    if labels.len() == 1 {
+        println!("{} symbols with label '{}':", results.len(), labels[0]);
+    } else {
+        println!(
+            "{} symbols with labels [{}]:",
+            results.len(),
+            labels.join(", ")
+        );
+    }
+
+    for result in &results {
+        println!();
+        println!(
+            "  {} ({}) in {} [{}-{}]",
+            result.name, result.kind, result.file_path, result.byte_start, result.byte_end
+        );
+
+        // Show code chunk if requested
+        if show_code {
+            let path = std::path::Path::new(&result.file_path);
+            if let Ok(Some(code)) = integration.get_code_chunk(path, result.byte_start, result.byte_end) {
+                for line in code.lines() {
+                    println!("    {}", line);
+                }
+            }
+        }
+    }
+
+    Ok(splice::cli::CliSuccessPayload::with_data(
+        format!("Found {} symbols", results.len()),
+        json!(symbols_data),
+    ))
+}
+
+/// Execute the get command.
+///
+/// This function retrieves code chunks from the database using Magellan integration.
+fn execute_get(
+    db_path: &Path,
+    file_path: &Path,
+    start: usize,
+    end: usize,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::graph::magellan_integration::MagellanIntegration;
+
+    // Open Magellan integration
+    let integration = MagellanIntegration::open(db_path)?;
+
+    // Get code chunk
+    let code = integration.get_code_chunk(file_path, start, end)?;
+
+    match code {
+        Some(content) => {
+            // Print to console
+            println!("{}", content);
+
+            // Return success
+            Ok(splice::cli::CliSuccessPayload::with_data(
+                format!("Retrieved code chunk ({} bytes)", content.len()),
+                json!({
+                    "file": file_path.to_string_lossy(),
+                    "byte_start": start,
+                    "byte_end": end,
+                    "content_length": content.len(),
+                }),
+            ))
+        }
+        None => Ok(splice::cli::CliSuccessPayload::message_only(format!(
+            "No code chunk found at {}:{}-{}",
+            file_path.display(),
+            start,
+            end
+        ))),
+    }
 }
 
 /// Emit JSON payload for successful CLI responses.

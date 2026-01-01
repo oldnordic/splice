@@ -9,6 +9,7 @@ pub mod dispatch;
 pub mod imports;
 pub mod java;
 pub mod javascript;
+pub mod magellan;
 pub mod python;
 pub mod rust;
 pub mod typescript;
@@ -27,6 +28,7 @@ pub use imports::{
 };
 pub use java::{extract_java_symbols, JavaSymbol, JavaSymbolKind};
 pub use javascript::{extract_javascript_symbols, JavaScriptSymbol, JavaScriptSymbolKind};
+pub use magellan::{ingest_file_with_magellan, MagellanIngestor};
 pub use python::{extract_python_symbols, PythonSymbol, PythonSymbolKind};
 pub use rust::{extract_rust_symbols, RustSymbol, RustSymbolKind, Visibility};
 pub use typescript::{extract_typescript_symbols, TypeScriptSymbol, TypeScriptSymbolKind};

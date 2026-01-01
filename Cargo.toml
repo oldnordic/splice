@@ -12,9 +12,12 @@ name = "splice"
 path = "src/lib.rs"
 
 [dependencies]
-sqlitegraph = { version = "0.2.10", features = ["sqlite-backend"] }
+# Magellan for code indexing and label queries
+magellan = "0.5.0"
+# SQLiteGraph re-exported from Magellan, also keep for direct access
+sqlitegraph = { version = "0.2.11", default-features = false }
 
-# AST parsing
+# AST parsing (kept for patch validation)
 tree-sitter = "0.22"
 tree-sitter-rust = "0.21"
 tree-sitter-python = "0.21"
