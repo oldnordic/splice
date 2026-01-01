@@ -1,12 +1,14 @@
 # Splice Manual
 
-**Version**: 0.4.1
+**Version**: 0.5.0
 
 ---
 
 ## Overview
 
 Splice is a span-safe refactoring tool that performs byte-accurate, AST-validated operations on code in 7 languages: Rust, Python, C, C++, Java, JavaScript, and TypeScript.
+
+**NEW in v0.5.0**: Magellan integration for code indexing and label-based symbol discovery.
 
 ### Core Philosophy
 
@@ -251,6 +253,67 @@ splice undo --manifest .splice-backup/my-change/manifest.json
   └── files/             # Backed-up files
       ├── src/lib.rs     # Original file contents
       └── tests/test.rs
+```
+
+### splice query (NEW in v0.5.0)
+
+Query symbols by labels using Magellan integration.
+
+```bash
+splice query --db <FILE> [--label <LABEL>]... [--list] [--count] [--show-code]
+```
+
+**Required Arguments:**
+- `--db <FILE>`: Path to the Magellan database
+
+**Optional Arguments:**
+- `--label <LABEL>`: Label to query (can be specified multiple times for AND semantics)
+- `--list`: List all available labels with counts
+- `--count`: Count entities with specified label(s)
+- `--show-code`: Show source code for each result
+
+**Available Labels:**
+- Language labels: `rust`, `python`, `javascript`, `typescript`, `c`, `cpp`, `java`
+- Symbol kind labels: `fn`, `method`, `struct`, `class`, `enum`, `interface`, `module`, `union`, `namespace`, `typealias`
+
+**Examples:**
+```bash
+# List all labels with counts
+splice query --db code.db --list
+
+# Find all Rust functions
+splice query --db code.db --label rust --label fn
+
+# Show code for each struct
+splice query --db code.db --label struct --show-code
+
+# Count all classes
+splice query --db code.db --label class --count
+```
+
+### splice get (NEW in v0.5.0)
+
+Get code chunks from the database using Magellan integration.
+
+```bash
+splice get --db <FILE> --file <PATH> --start <N> --end <N>
+```
+
+**Required Arguments:**
+- `--db <FILE>`: Path to the Magellan database
+- `--file <PATH>`: File path
+- `--start <N>`: Start byte offset
+- `--end <N>`: End byte offset
+
+**Features:**
+- Retrieves source code without re-reading the file
+- Uses code chunks stored during indexing
+- Returns None if no chunk exists at the specified span
+
+**Example:**
+```bash
+# Get code for a specific function (bytes 0-100)
+splice get --db code.db --file src/lib.rs --start 0 --end 100
 ```
 
 ---
@@ -685,4 +748,6 @@ splice patch --help
 splice apply-files --help
 splice undo --help
 splice plan --help
+splice query --help
+splice get --help
 ```

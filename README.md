@@ -2,12 +2,14 @@
 
 Span-safe refactoring kernel for 7 languages using tree-sitter and SQLiteGraph.
 
-**Version**: 0.4.1
+**Version**: 0.5.0
 **License**: GPL-3.0-or-later
 
 ## What This Is
 
 Splice is a command-line tool that performs byte-accurate, AST-validated refactoring operations on code in 7 languages: Rust, Python, C, C++, Java, JavaScript, and TypeScript. It can replace function bodies, delete symbols, apply batch changes, perform pattern replacements, and undo operations.
+
+**NEW in v0.5.0**: Magellan integration for code indexing and label-based symbol discovery.
 
 ## What This Is NOT
 
@@ -21,6 +23,8 @@ Splice is a command-line tool that performs byte-accurate, AST-validated refacto
 - **patch**: Replace function bodies, class definitions, enum variants with validation (single or batch)
 - **delete**: Remove symbol definitions and all references (cross-file, Rust-only)
 - **apply-files**: Multi-file pattern replacement with AST confirmation
+- **query**: Query symbols by labels using Magellan integration (NEW)
+- **get**: Get code chunks from the database without re-reading files (NEW)
 - **undo**: Restore files from backup manifest
 - **plan**: Orchestrate multi-step refactors via JSON plans
 - **preview**: Inspect changes before applying (dry-run mode)
@@ -197,6 +201,26 @@ Restore from backup:
 splice undo --manifest .splice-backup/my-change/manifest.json
 ```
 
+### Query Symbols by Label (Magellan Integration)
+
+```bash
+# List all available labels
+splice query --db code.db --list
+
+# Find all Rust functions
+splice query --db code.db --label rust --label fn
+
+# Show code for each result
+splice query --db code.db --label struct --show-code
+```
+
+### Get Code Chunks (Magellan Integration)
+
+```bash
+# Get code by byte span without re-reading the file
+splice get --db code.db --file src/lib.rs --start 0 --end 100
+```
+
 ## Commands
 
 ### splice delete
@@ -279,6 +303,39 @@ Execute a multi-step refactoring plan.
 splice plan --file <PLAN.json>
 ```
 
+### splice query
+
+Query symbols by labels using Magellan integration.
+
+```bash
+splice query --db <FILE> [--label <LABEL>]... [--list] [--count] [--show-code]
+```
+
+**Optional Arguments:**
+- `--db <FILE>`: Path to the Magellan database (required)
+- `--label <LABEL>`: Label to query (can be specified multiple times for AND semantics)
+- `--list`: List all available labels with counts
+- `--count`: Count entities with specified label(s)
+- `--show-code`: Show source code for each result
+
+**Available labels:**
+- Language labels: `rust`, `python`, `javascript`, `typescript`, `c`, `cpp`, `java`
+- Symbol kind labels: `fn`, `method`, `struct`, `class`, `enum`, `interface`, `module`, `union`, `namespace`, `typealias`
+
+### splice get
+
+Get code chunks from the database using Magellan integration.
+
+```bash
+splice get --db <FILE> --file <PATH> --start <N> --end <N>
+```
+
+**Required Arguments:**
+- `--db <FILE>`: Path to the Magellan database
+- `--file <PATH>`: File path
+- `--start <N>`: Start byte offset
+- `--end <N>`: End byte offset
+
 ## Documentation
 
 - **manual.md** - Complete user manual
@@ -319,7 +376,7 @@ Every operation passes:
 cargo test
 ```
 
-Test Coverage: 368/368 tests passing
+Test Coverage: 334/334 tests passing
 
 ## Feedback
 

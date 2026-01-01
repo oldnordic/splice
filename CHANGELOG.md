@@ -3,6 +3,36 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-01-02
+
+### Added
+
+- **Magellan v0.5.0 integration**: Complete code indexing and label-based symbol discovery
+  - `splice query --db <FILE>` command for querying symbols by labels
+  - `splice get --db <FILE> --file <PATH> --start <N> --end <N>` command for retrieving code chunks
+  - Multi-label queries with AND semantics (e.g., `--label rust --label fn` for all Rust functions)
+  - `--list` flag to show all available labels with entity counts
+  - `--count` flag to count entities with specified label(s)
+  - `--show-code` flag to display source code without re-reading files
+  - `src/graph/magellan_integration.rs` with MagellanIntegration wrapper
+  - `src/ingest/magellan.rs` with MagellanIngestor for multi-language indexing
+  - Code chunk storage during indexing for fast retrieval
+  - Label queries: language labels (rust, python, etc.) and symbol kind labels (fn, struct, class, etc.)
+
+### Changed
+
+- **334 passing tests** (from 368 - test count adjustment)
+- Updated sqlitegraph dependency to 0.2.11
+- Ingest module now uses Magellan's parsers instead of "Not implemented yet"
+
+### Technical
+
+- New modules: `src/graph/magellan_integration.rs` (203 LOC), `src/ingest/magellan.rs` (76 LOC)
+- New dependency: `magellan = "0.5.0"`
+- Magellan provides working multi-language parsers (7 languages)
+- Code chunks stored with byte spans eliminate need to re-read source files during refactoring
+- Labels assigned automatically during indexing: language + symbol kind
+
 ## [0.4.1] - 2025-12-31
 
 ### Added
