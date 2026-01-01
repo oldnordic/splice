@@ -165,6 +165,29 @@ See [Plan File](../../../.claude/plans/iridescent-questing-sundae.md) for detail
 
 ## Upcoming Tasks (Required before codemcp tooling improvements)
 
+### Phase 3: Magellan Integration (2026-01-02)
+
+**Objective**: Use Magellan v0.5.0 as ingestion engine instead of duplicating parsers.
+
+**Why**: Magellan now has:
+- Working multi-language parsers (7 languages)
+- Label-based symbol queries
+- Code chunk storage (no file re-reading needed)
+- 97/97 tests passing
+
+**Implementation Plan**: See `docs/MAGELLAN_INTEGRATION_PLAN.md`
+
+**Changes**:
+- Add `magellan = "0.5.0"` dependency
+- Use Magellan's `CodeGraph` instead of sqlitegraph directly
+- Remove ~1000 LOC of redundant parsers
+- Complete ingest module (currently "Not implemented yet")
+- Add `query` and `get` CLI commands
+- Support label-based symbol discovery
+- Code chunk retrieval for refactoring
+
+**Status**: ⏳ Planning complete, ready to implement
+
 ### Task A: Structured Error Responses
 - **Need**: codemcp agents reported opaque `span replacement failed` messages (docs/pr5.md).
 - **Implementation**:
