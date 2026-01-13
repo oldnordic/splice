@@ -19,6 +19,10 @@ pub enum SpliceError {
         source: std::io::Error,
     },
 
+    /// Stdout closed early (broken pipe).
+    #[error("stdout pipe closed")]
+    BrokenPipe,
+
     /// SQLiteGraph backend error.
     #[error("Graph error: {0}")]
     Graph(#[from] sqlitegraph::SqliteGraphError),
@@ -335,6 +339,7 @@ impl SpliceError {
     pub fn kind(&self) -> &'static str {
         match self {
             SpliceError::Io { .. } => "Io",
+            SpliceError::BrokenPipe => "BrokenPipe",
             SpliceError::Graph(_) => "Graph",
             SpliceError::Parse { .. } => "Parse",
             SpliceError::SymbolNotFound { .. } => "SymbolNotFound",

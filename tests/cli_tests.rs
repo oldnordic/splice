@@ -7,23 +7,82 @@
 mod tests {
     use serde_json::{json, Value};
     use sha2::{Digest, Sha256};
+    use splice::graph::magellan_integration::MagellanIntegration;
     use splice::ingest::rust::extract_rust_symbols;
     use std::collections::HashMap;
     use std::io::Write;
     use std::path::PathBuf;
-    use std::process::Command;
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
+    use std::process::{Command, Stdio};
     use tempfile::{NamedTempFile, TempDir};
 
     /// Get the path to the splice binary.
     fn get_splice_binary() -> PathBuf {
+        if let Ok(path) = std::env::var("SPLICE_TEST_BIN") {
+            return PathBuf::from(path);
+        }
+
+        if let Ok(path) = std::env::var("CARGO_BIN_EXE_splice") {
+            return PathBuf::from(path);
+        }
+
         // During testing, use cargo to build/run the binary
         let mut path = std::env::current_exe().unwrap();
         // This test binary is in target/debug/deps/
         // The splice binary is in target/debug/
         path.pop(); // deps
+        let deps_dir = path.clone();
         path.pop(); // debug
-        path.push("splice");
-        path
+        let bin_path = path.join("splice");
+
+        let bin_mtime = std::fs::metadata(&bin_path)
+            .and_then(|meta| meta.modified())
+            .ok();
+
+        let mut newest: Option<(std::time::SystemTime, PathBuf)> = None;
+        if let Ok(entries) = std::fs::read_dir(deps_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+                if !name.starts_with("splice-") || !path.is_file() {
+                    continue;
+                }
+
+                if let Ok(metadata) = entry.metadata() {
+                    #[cfg(unix)]
+                    let is_executable = metadata.permissions().mode() & 0o111 != 0;
+                    #[cfg(not(unix))]
+                    let is_executable = true;
+
+                    if !is_executable {
+                        continue;
+                    }
+
+                    if let Ok(modified) = metadata.modified() {
+                        if newest
+                            .as_ref()
+                            .map(|(time, _)| modified > *time)
+                            .unwrap_or(true)
+                        {
+                            newest = Some((modified, path));
+                        }
+                    }
+                }
+            }
+        }
+
+        match (bin_mtime, newest) {
+            (Some(bin_time), Some((deps_time, deps_path))) => {
+                if deps_time > bin_time {
+                    deps_path
+                } else {
+                    bin_path
+                }
+            }
+            (None, Some((_, deps_path))) => deps_path,
+            _ => bin_path,
+        }
     }
 
     /// Test A: Successful CLI patch.
@@ -511,6 +570,56 @@ pub fn greet(name: &str) -> String {
         assert!(
             error.get("hint").and_then(|v| v.as_str()).is_some(),
             "hint should be populated for guidance"
+        );
+    }
+
+    /// Test L: Broken pipe on stdout exits cleanly.
+    #[test]
+    fn test_cli_query_broken_pipe_is_graceful() {
+        let workspace_dir = TempDir::new().expect("Failed to create temp workspace");
+        let workspace_path = workspace_dir.path();
+
+        let src_dir = workspace_path.join("src");
+        std::fs::create_dir(&src_dir).expect("Failed to create src directory");
+
+        let lib_rs_path = src_dir.join("lib.rs");
+        std::fs::write(
+            &lib_rs_path,
+            r#"
+pub fn greet(name: &str) -> String {
+    format!("Hello, {}!", name)
+}
+"#,
+        )
+        .expect("Failed to write lib.rs");
+
+        let db_path = workspace_path.join("magellan.db");
+        let mut integration =
+            MagellanIntegration::open(&db_path).expect("Failed to open Magellan db");
+        integration
+            .index_file(&lib_rs_path)
+            .expect("Failed to index source file");
+
+        let splice_binary = get_splice_binary();
+        let mut child = Command::new(&splice_binary)
+            .arg("query")
+            .arg("--db")
+            .arg(&db_path)
+            .arg("--label")
+            .arg("rust")
+            .arg("--label")
+            .arg("fn")
+            .arg("--show-code")
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("Failed to run splice CLI");
+
+        drop(child.stdout.take());
+
+        let status = child.wait().expect("Failed to wait for splice CLI");
+        assert!(
+            status.success(),
+            "CLI should exit cleanly when stdout pipe closes"
         );
     }
 

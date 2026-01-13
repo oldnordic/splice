@@ -10,6 +10,8 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
+    install_broken_pipe_hook();
+
     // Parse CLI arguments
     let cli = splice::cli::parse_args();
 
@@ -92,16 +94,59 @@ fn main() -> ExitCode {
 
     // Handle result
     match result {
-        Ok(payload) => {
-            emit_success_payload(&payload);
-            ExitCode::SUCCESS
-        }
+        Ok(payload) => match emit_success_payload(&payload) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(err) => {
+                if matches!(err, splice::SpliceError::BrokenPipe) {
+                    ExitCode::SUCCESS
+                } else {
+                    let payload = splice::cli::CliErrorPayload::from_error(&err);
+                    emit_error_payload(&payload);
+                    ExitCode::from(1)
+                }
+            }
+        },
         Err(e) => {
-            let payload = splice::cli::CliErrorPayload::from_error(&e);
-            emit_error_payload(&payload);
-            ExitCode::from(1)
+            if matches!(e, splice::SpliceError::BrokenPipe) {
+                ExitCode::SUCCESS
+            } else {
+                let payload = splice::cli::CliErrorPayload::from_error(&e);
+                emit_error_payload(&payload);
+                ExitCode::from(1)
+            }
         }
     }
+}
+
+fn install_broken_pipe_hook() {
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        if is_broken_pipe_panic(info) {
+            std::process::exit(0);
+        }
+        default_hook(info);
+    }));
+}
+
+fn is_broken_pipe_panic(info: &std::panic::PanicHookInfo<'_>) -> bool {
+    if let Some(err) = info.payload().downcast_ref::<std::io::Error>() {
+        return err.kind() == std::io::ErrorKind::BrokenPipe;
+    }
+
+    let message = if let Some(msg) = info.payload().downcast_ref::<&str>() {
+        *msg
+    } else if let Some(msg) = info.payload().downcast_ref::<String>() {
+        msg.as_str()
+    } else {
+        ""
+    };
+
+    if message.contains("Broken pipe") || message.contains("failed printing to stdout") {
+        return true;
+    }
+
+    let info_message = info.to_string();
+    info_message.contains("Broken pipe") || info_message.contains("failed printing to stdout")
 }
 
 /// Execute the delete command.
@@ -863,10 +908,10 @@ fn execute_query(
     // List all labels mode
     if list {
         let all_labels = integration.get_all_labels()?;
-        println!("{} labels in use:", all_labels.len());
+        write_stdout_line(&format!("{} labels in use:", all_labels.len()))?;
         for label in &all_labels {
             let count = integration.count_by_label(label)?;
-            println!("  {} ({})", label, count);
+            write_stdout_line(&format!("  {} ({})", label, count))?;
         }
         return Ok(splice::cli::CliSuccessPayload::message_only(format!(
             "Listed {} labels",
@@ -905,9 +950,9 @@ fn execute_query(
 
     if results.is_empty() {
         if labels.len() == 1 {
-            println!("No symbols found with label '{}'", labels[0]);
+            write_stdout_line(&format!("No symbols found with label '{}'", labels[0]))?;
         } else {
-            println!("No symbols found with labels: {}", labels.join(", "));
+            write_stdout_line(&format!("No symbols found with labels: {}", labels.join(", ")))?;
         }
         return Ok(splice::cli::CliSuccessPayload::message_only(
             "No symbols found".to_string(),
@@ -931,28 +976,32 @@ fn execute_query(
 
     // Print results to console
     if labels.len() == 1 {
-        println!("{} symbols with label '{}':", results.len(), labels[0]);
+        write_stdout_line(&format!(
+            "{} symbols with label '{}':",
+            results.len(),
+            labels[0]
+        ))?;
     } else {
-        println!(
+        write_stdout_line(&format!(
             "{} symbols with labels [{}]:",
             results.len(),
             labels.join(", ")
-        );
+        ))?;
     }
 
     for result in &results {
-        println!();
-        println!(
+        write_stdout_line("")?;
+        write_stdout_line(&format!(
             "  {} ({}) in {} [{}-{}]",
             result.name, result.kind, result.file_path, result.byte_start, result.byte_end
-        );
+        ))?;
 
         // Show code chunk if requested
         if show_code {
             let path = std::path::Path::new(&result.file_path);
             if let Ok(Some(code)) = integration.get_code_chunk(path, result.byte_start, result.byte_end) {
                 for line in code.lines() {
-                    println!("    {}", line);
+                    write_stdout_line(&format!("    {}", line))?;
                 }
             }
         }
@@ -984,7 +1033,8 @@ fn execute_get(
     match code {
         Some(content) => {
             // Print to console
-            println!("{}", content);
+            write_stdout_bytes(content.as_bytes())?;
+            write_stdout_bytes(b"\n")?;
 
             // Return success
             Ok(splice::cli::CliSuccessPayload::with_data(
@@ -1006,17 +1056,39 @@ fn execute_get(
     }
 }
 
+fn write_stdout_bytes(bytes: &[u8]) -> Result<(), splice::SpliceError> {
+    use std::io::{self, Write};
+
+    let mut stdout = io::stdout();
+    if let Err(err) = stdout.write_all(bytes) {
+        if err.kind() == io::ErrorKind::BrokenPipe {
+            return Err(splice::SpliceError::BrokenPipe);
+        }
+        return Err(splice::SpliceError::Io {
+            path: PathBuf::from("<stdout>"),
+            source: err,
+        });
+    }
+    Ok(())
+}
+
+fn write_stdout_line(line: &str) -> Result<(), splice::SpliceError> {
+    write_stdout_bytes(line.as_bytes())?;
+    write_stdout_bytes(b"\n")
+}
+
 /// Emit JSON payload for successful CLI responses.
-fn emit_success_payload(payload: &splice::cli::CliSuccessPayload) {
+fn emit_success_payload(payload: &splice::cli::CliSuccessPayload) -> Result<(), splice::SpliceError> {
     match serde_json::to_string(payload) {
-        Ok(json) => println!("{}", json),
+        Ok(json) => write_stdout_line(&json),
         Err(err) => {
             let fallback = json!({
                 "status": "ok",
                 "message": payload.message.clone(),
             });
-            println!("{}", fallback.to_string());
+            write_stdout_line(&fallback.to_string())?;
             eprintln!("Serialization warning: {}", err);
+            Ok(())
         }
     }
 }
