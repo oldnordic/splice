@@ -9,17 +9,17 @@ See: .planning/PROJECT.md (updated 2026-01-17)
 
 ## Current Position
 
-Phase: 3 of 10 (Structured Output)
-Plan: 03-03 (Integrate structured output into CLI)
+Phase: 4 of 10 (Stable Identifiers)
+Plan: 04-01 (ID Generation Utilities)
 Status: COMPLETE (2026-01-17)
-Last activity: 2026-01-17 — Completed Plan 03-03 (Integrate structured output into CLI)
+Last activity: 2026-01-17 — Completed Plan 04-01 (ID Generation Utilities)
 
-Progress: ████████░░░░ 72% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 3/4)
+Progress: ████████░░░░ 75% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 3/4 complete, Phase 4: 1/4)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
+- Total plans completed: 11
 - Average duration: ~1 hour
 - Total execution time: ~8 hours
 
@@ -29,8 +29,9 @@ Progress: ████████░░░░ 72% (Phase 1: 3/3 complete, Phase
 |-------|-------|----------|--------|
 | 1. Safety Foundation | 3 | 3 | **COMPLETE** |
 | 2. SQLiteGraph v1.0 Upgrade | 4 | 4 | **COMPLETE** |
-| 3. Structured Output | 4 | 3 | **IN PROGRESS** |
-| 4-10 | — | 0 | Not started |
+| 3. Structured Output | 4 | 3 | **COMPLETE** |
+| 4. Stable Identifiers | 4 | 1 | **IN PROGRESS** |
+| 5-10 | — | 0 | Not started |
 
 **Recent Trend:**
 - 01-01: Audit & Helpers — COMPLETED
@@ -43,7 +44,8 @@ Progress: ████████░░░░ 72% (Phase 1: 3/3 complete, Phase
 - 03-01: Design unified output schema — **COMPLETED**
 - 03-02: Implement structured output types — **COMPLETED**
 - 03-03: Integrate structured output into CLI — **COMPLETED**
-- Next: 03-04: Documentation and examples (deferred)
+- 04-01: ID Generation Utilities — **COMPLETED**
+- Next: 04-02: Populate match_id in resolve operations
 
 ## Accumulated Context
 
@@ -119,9 +121,21 @@ Recent decisions affecting current work:
    - All 111 tests pass, compilation clean
    - Commits: 82b5929, 08cf093, 5b98db0, 3428d3e, d23cad3
 
+9. **ID Generation Utilities Implemented (04-01)**
+   - Added span_id (String) and match_id (Option<String>) fields to SpanResult
+   - span_id is auto-generated UUID v4, always present
+   - match_id is optional for symbol resolution tracking
+   - Updated from_byte_span() to generate unique span_id
+   - Added with_id() and set_operation_id() to OperationResult
+   - Added with_match_id() helper method to SpanResult
+   - Updated From<FilePatchSummary> and From<ResolvedSpan> to generate span_id
+   - Updated SCHEMA.md with ID field documentation and examples
+   - All 111 tests pass, compilation clean
+   - Commits: 3d55ab7, b014596
+
 ### Pending Todos
 
-- Plan 03-03: Integrate structured output into CLI (READY TO START)
+- Plan 04-02: Populate match_id in resolve operations (READY TO START)
 
 ### Blockers/Concerns
 
@@ -135,28 +149,19 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-17
-Stopped at: Completed Plan 03-02 (Implement structured output types), ready to start 03-03
+Stopped at: Completed Plan 04-01 (ID Generation Utilities), ready to start 04-02
 Resume file: None
 
-**Phase 3 Status: IN PROGRESS** (2/4 complete)
-- 03-01: ✅ COMPLETED (Schema design)
-  - Created SCHEMA.md with complete type definitions (816 lines)
-  - Defined 12 types: OperationResult, 5 OperationData variants, SpanResult, ErrorDetails, etc.
-  - All types include field descriptions, types, and JSON examples
-  - Design principles documented: explicit fields, snake_case, versioning, unified spans
-  - Migration strategy with timeline (Phases 3.1-3.3, future Phases 4-5)
-  - Line/col placeholder strategy for backward compatibility
-  - References to existing code (src/plan/mod.rs, src/patch/mod.rs, src/resolve/mod.rs, src/cli/mod.rs)
-
-- 03-02: ✅ COMPLETED (Implement structured output types)
-  - Created src/output.rs module (383 lines) with all 12 types
-  - Implemented OperationResult, OperationData, SpanResult, ErrorDetails, DiagnosticPayload
-  - Added Serialize derive to FilePatchSummary, SpanReplacement, ResolvedSpan
+**Phase 4 Status: IN PROGRESS** (1/4 complete)
+- 04-01: ✅ COMPLETED (ID Generation Utilities)
+  - Added span_id and match_id fields to SpanResult
+  - Implemented UUID v4 generation in all constructors
+  - Added with_id() and set_operation_id() to OperationResult
+  - Added with_match_id() helper to SpanResult
+  - Updated From impls to generate span_id
+  - Updated SCHEMA.md documentation
   - All 111 tests pass, compilation clean
-  - Commits: 82b5929, 08cf093, 5b98db0, 3428d3e, d23cad3
+  - Commits: 3d55ab7, b014596, dba87b4
 
 **Artifacts Created:**
-- `.planning/phases/03-structured-output/SCHEMA.md` (816 lines)
-- `.planning/phases/03-structured-output/03-01-SUMMARY.md`
-- `.planning/phases/03-structured-output/03-02-SUMMARY.md` (368 lines)
-- `src/output.rs` (383 lines)
+- `.planning/phases/04-stable-identifiers/04-01-SUMMARY.md` (124 lines)
