@@ -388,6 +388,54 @@ fn execute_delete(
     response_data.insert("span_ids".to_string(), json!(span_ids));
     response_data.insert("files_modified".to_string(), json!(files_modified));
 
+    // Check if JSON output is requested
+    if _json_output {
+        use splice::output::{OperationResult, OperationData, DeleteResult, SpanResult};
+
+        // Create span results for all deleted spans
+        let mut spans: Vec<SpanResult> = Vec::new();
+        for r in &ref_set.references {
+            spans.push(SpanResult::from_byte_span(
+                r.file_path.clone(),
+                r.byte_start,
+                r.byte_end,
+            ));
+        }
+        // Add definition span
+        spans.push(SpanResult::from_byte_span(
+            file_path.to_string_lossy().to_string(),
+            def.byte_start,
+            def.byte_end,
+        ).with_symbol(symbol_name.to_string(), _kind_str.unwrap_or("unknown").to_string()));
+
+        // Calculate total bytes removed
+        let total_bytes_removed: usize = ref_set.references.iter()
+            .map(|r| r.byte_end - r.byte_start)
+            .sum::<usize>() + (def.byte_end - def.byte_start);
+
+        // Create delete result
+        let delete_result = DeleteResult {
+            file: file_path.to_string_lossy().to_string(),
+            symbol: symbol_name.to_string(),
+            kind: _kind_str.unwrap_or("unknown").to_string(),
+            spans,
+            bytes_removed: total_bytes_removed,
+            lines_removed: 0, // TODO: Calculate from diff
+            references_removed: deleted_count - 1,
+        };
+
+        // Create operation result
+        let result = OperationResult::new("delete".to_string())
+            .success(base_message.clone())
+            .with_result(OperationData::Delete(delete_result));
+
+        // Output structured JSON directly
+        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+
+        // Return a dummy payload marked as already emitted
+        return Ok(splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted());
+    }
+
     Ok(splice::cli::CliSuccessPayload::with_data(base_message, serde_json::Value::Object(response_data)))
 }
 
