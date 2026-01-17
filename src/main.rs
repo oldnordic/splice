@@ -94,6 +94,18 @@ fn main() -> ExitCode {
             start,
             end,
         } => execute_get(&db, &file, start, end, json_output),
+
+        splice::cli::Commands::Log {
+            operation_type,
+            status,
+            after,
+            before,
+            limit,
+            offset,
+            execution_id,
+            json,
+            stats,
+        } => execute_log(operation_type, status, after, before, limit, offset, execution_id, json, stats, json_output),
     };
 
     // Handle result
@@ -1666,6 +1678,193 @@ fn execute_get(
             end
         ))),
     }
+}
+
+/// Execute the `log` command.
+///
+/// This function queries the execution log and displays results.
+fn execute_log(
+    operation_type: Option<String>,
+    status: Option<String>,
+    after: Option<String>,
+    before: Option<String>,
+    limit: usize,
+    offset: usize,
+    execution_id: Option<String>,
+    json: bool,
+    stats: bool,
+    json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::execution::{init_execution_log_db, get_execution, get_execution_stats, ExecutionQuery};
+    use splice::SpliceError;
+
+    // Get splice directory
+    let splice_dir = std::path::PathBuf::from(".splice");
+    let conn = init_execution_log_db(&splice_dir)?;
+
+    // Handle --execution-id
+    if let Some(id) = execution_id {
+        let log = get_execution(&conn, &id)?
+            .ok_or_else(|| SpliceError::ExecutionNotFound { execution_id: id })?;
+
+        if json || json_output {
+            let json_output = serde_json::to_string_pretty(&log).map_err(|e| {
+                SpliceError::Other(format!("failed to serialize execution to JSON: {}", e))
+            })?;
+            println!("{}", json_output);
+
+            return Ok(splice::cli::CliSuccessPayload::with_data(
+                "Execution details".to_string(),
+                json!({ "execution_id": log.execution_id }),
+            ));
+        } else {
+            // Table format for single execution
+            println!("Execution Details:");
+            println!("  ID: {}", log.execution_id);
+            println!("  Type: {}", log.operation_type);
+            println!("  Status: {}", log.status);
+            println!("  Time: {}", log.timestamp);
+            if let Some(workspace) = &log.workspace {
+                println!("  Workspace: {}", workspace);
+            }
+            if let Some(cmd) = &log.command_line {
+                println!("  Command: {}", cmd);
+            }
+            if let Some(duration) = log.duration_ms {
+                println!("  Duration: {}ms", duration);
+            }
+
+            return Ok(splice::cli::CliSuccessPayload::message_only(
+                "Execution details retrieved".to_string(),
+            ));
+        }
+    }
+
+    // Handle --stats
+    if stats {
+        let stats = get_execution_stats(&conn)?;
+
+        if json || json_output {
+            let json_output = serde_json::to_string_pretty(&stats).map_err(|e| {
+                SpliceError::Other(format!("failed to serialize stats to JSON: {}", e))
+            })?;
+            println!("{}", json_output);
+
+            return Ok(splice::cli::CliSuccessPayload::with_data(
+                "Execution statistics".to_string(),
+                json!({ "total_operations": stats.total_operations }),
+            ));
+        } else {
+            // Human-readable stats
+            println!("Execution Statistics:");
+            println!("  Total operations: {}", stats.total_operations);
+
+            println!("  By type:");
+            for (op_type, count) in &stats.by_type {
+                println!("    {}: {}", op_type, count);
+            }
+
+            println!("  By status:");
+            for (status, count) in &stats.by_status {
+                println!("    {}: {}", status, count);
+            }
+
+            if let Some(oldest) = &stats.oldest_execution {
+                println!("  Oldest: {}", oldest);
+            }
+            if let Some(newest) = &stats.newest_execution {
+                println!("  Newest: {}", newest);
+            }
+
+            return Ok(splice::cli::CliSuccessPayload::message_only(
+                "Statistics retrieved".to_string(),
+            ));
+        }
+    }
+
+    // Build query from filters
+    let mut query = ExecutionQuery::new()
+        .with_limit(limit)
+        .with_offset(offset);
+
+    if let Some(op_type) = operation_type {
+        query = query.with_operation_type(op_type);
+    }
+
+    if let Some(s) = status {
+        query = query.with_status(s);
+    }
+
+    // Parse date filters
+    if let Some(after_str) = after {
+        let timestamp = parse_date(&after_str)?;
+        query = query.after(timestamp);
+    }
+
+    if let Some(before_str) = before {
+        let timestamp = parse_date(&before_str)?;
+        query = query.before(timestamp);
+    }
+
+    let logs = query.execute(&conn)?;
+
+    if json || json_output {
+        let json_output = serde_json::to_string_pretty(&logs).map_err(|e| {
+            SpliceError::Other(format!("failed to serialize logs to JSON: {}", e))
+        })?;
+        println!("{}", json_output);
+
+        Ok(splice::cli::CliSuccessPayload::with_data(
+            format!("{} executions", logs.len()),
+            json!({ "count": logs.len() }),
+        ))
+    } else {
+        // Table format
+        if logs.is_empty() {
+            println!("No executions found matching criteria.");
+            return Ok(splice::cli::CliSuccessPayload::message_only(
+                "No executions found".to_string(),
+            ));
+        }
+
+        // Print header
+        println!(
+            "{:<10} {:<8} {:<8} {:<20} {:<10} {}",
+            "ID", "Type", "Status", "Time", "Duration", "Message"
+        );
+        println!("{}", "-".repeat(100));
+
+        // Print rows
+        for log in &logs {
+            use splice::execution::format_table_row;
+            println!("{}", format_table_row(log));
+        }
+
+        println!("\nShowing {} of {} executions", logs.len(), logs.len());
+
+        Ok(splice::cli::CliSuccessPayload::message_only(
+            format!("Retrieved {} executions", logs.len()),
+        ))
+    }
+}
+
+/// Parse date string to Unix timestamp.
+///
+/// Accepts either Unix timestamp (integer) or ISO 8601 format.
+fn parse_date(input: &str) -> Result<i64, splice::SpliceError> {
+    use splice::SpliceError;
+
+    // Try Unix timestamp first
+    if let Ok(ts) = input.parse::<i64>() {
+        return Ok(ts);
+    }
+
+    // Try ISO 8601
+    chrono::DateTime::parse_from_rfc3339(input)
+        .map(|dt| dt.timestamp())
+        .map_err(|_| SpliceError::InvalidDateFormat {
+            input: input.to_string(),
+        })
 }
 
 fn write_stdout_bytes(bytes: &[u8]) -> Result<(), splice::SpliceError> {
