@@ -393,9 +393,18 @@ fn execute_delete(
     // Check if JSON output is requested
     if _json_output {
         use splice::output::{OperationResult, OperationData, DeleteResult, SpanResult};
+        use splice::resolve::resolve_symbol;
+
+        // Resolve the definition to get match_id
+        let resolved_def = resolve_symbol(&code_graph, Some(file_path), _kind_str, symbol_name)?;
 
         // Create span results for all deleted spans
         let mut spans: Vec<SpanResult> = Vec::new();
+
+        // Add definition span with match_id
+        spans.push(SpanResult::from(resolved_def.clone()));
+
+        // Add reference spans (no match_id)
         for r in &ref_set.references {
             spans.push(SpanResult::from_byte_span(
                 r.file_path.clone(),
@@ -403,12 +412,6 @@ fn execute_delete(
                 r.byte_end,
             ));
         }
-        // Add definition span
-        spans.push(SpanResult::from_byte_span(
-            file_path.to_string_lossy().to_string(),
-            def.byte_start,
-            def.byte_end,
-        ).with_symbol(symbol_name.to_string(), _kind_str.unwrap_or("unknown").to_string()));
 
         // Calculate total bytes removed
         let total_bytes_removed: usize = ref_set.references.iter()
