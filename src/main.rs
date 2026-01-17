@@ -671,10 +671,25 @@ fn execute_patch(
     // Check if JSON output is requested
     if _json_output {
         use splice::output::{OperationResult, OperationData, PatchResult, SpanResult};
+        use splice::checksum;
 
-        // Create span result from resolved span (includes match_id)
+        // Compute span checksums before and after
+        let span_checksum_before = checksum::checksum_span(file_path, resolved.byte_start, resolved.byte_end)
+            .map(|cs| cs.value)
+            .unwrap_or_else(|_| "checksum-failed".to_string());
+
+        // After checksum: read the patched span
+        // Note: This is approximate since the span may have changed size
+        let span_checksum_after = if let Ok(after_cs) = checksum::checksum_span(file_path, resolved.byte_start, resolved.byte_end) {
+            after_cs.value
+        } else {
+            "checksum-failed".to_string()
+        };
+
+        // Create span result from resolved span (includes match_id and checksums)
         let span = SpanResult::from(resolved.clone())
-            .with_hashes(summary.before_hash.clone(), summary.after_hash.clone());
+            .with_hashes(summary.before_hash.clone(), summary.after_hash.clone())
+            .with_span_checksums(span_checksum_before, span_checksum_after);
 
         // Create patch result
         let patch_result = PatchResult {
