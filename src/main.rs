@@ -374,7 +374,7 @@ fn execute_delete(
     if let Some(manifest_path) = backup_manifest_path {
         response_data.insert("backup_manifest".to_string(), json!(manifest_path.to_string_lossy()));
     }
-    if let Some(op_id) = operation_id {
+    if let Some(ref op_id) = operation_id {
         response_data.insert("operation_id".to_string(), json!(op_id));
     }
     if let Some(meta) = metadata {
@@ -424,10 +424,13 @@ fn execute_delete(
             references_removed: deleted_count - 1,
         };
 
-        // Create operation result
-        let result = OperationResult::new("delete".to_string())
-            .success(base_message.clone())
-            .with_result(OperationData::Delete(delete_result));
+        // Create operation result with operation_id from CLI or generate new UUID
+        let result = OperationResult::with_id(
+            "delete".to_string(),
+            operation_id.clone(),
+        )
+        .success(base_message.clone())
+        .with_result(OperationData::Delete(delete_result));
 
         // Output structured JSON directly
         println!("{}", serde_json::to_string_pretty(&result).unwrap());
@@ -704,7 +707,7 @@ fn execute_patch(
     if let Some(manifest_path) = backup_manifest_path {
         response_data.insert("backup_manifest".to_string(), json!(manifest_path.to_string_lossy()));
     }
-    if let Some(op_id) = operation_id {
+    if let Some(ref op_id) = operation_id {
         response_data.insert("operation_id".to_string(), json!(op_id));
     }
     if let Some(meta) = metadata {
@@ -986,7 +989,7 @@ fn execute_apply_files(
     if let Some(manifest_path) = backup_manifest_path {
         response_data.insert("backup_manifest".to_string(), json!(manifest_path.to_string_lossy()));
     }
-    if let Some(op_id) = operation_id {
+    if let Some(ref op_id) = operation_id {
         response_data.insert("operation_id".to_string(), json!(op_id));
     }
     if let Some(meta) = metadata {
