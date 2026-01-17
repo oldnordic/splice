@@ -31,7 +31,7 @@ pub struct CodeGraph {
 impl CodeGraph {
     /// Open or create a code graph at the given path.
     pub fn open(path: &std::path::Path) -> Result<Self> {
-        let cfg = sqlitegraph::GraphConfig::sqlite();
+        let cfg = sqlitegraph::GraphConfig::native();
         let backend = sqlitegraph::open_graph(path, &cfg)?;
         Ok(Self {
             backend,
