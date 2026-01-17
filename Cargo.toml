@@ -13,7 +13,7 @@ path = "src/lib.rs"
 
 [dependencies]
 # Magellan for code indexing and label queries
-magellan = "0.5.3"
+magellan = { version = "0.5.3", features = ["native-v2"] }
 # SQLiteGraph re-exported from Magellan, also keep for direct access
 sqlitegraph = { version = "1.0", default-features = false, features = ["native-v2"] }
 
