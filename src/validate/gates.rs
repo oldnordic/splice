@@ -89,8 +89,11 @@ pub fn validate_file(path: &Path) -> Result<ValidationOutcome> {
 
 /// Validate a Python file using `python -m py_compile`.
 fn validate_python(path: &Path) -> Result<ValidationOutcome> {
+    let path_str = path
+        .to_str()
+        .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 path: {}", path.display())))?;
     let output = Command::new("python")
-        .args(["-m", "py_compile", path.to_str().unwrap()])
+        .args(["-m", "py_compile", path_str])
         .output();
 
     match output {
@@ -131,8 +134,11 @@ fn validate_python(path: &Path) -> Result<ValidationOutcome> {
 
 /// Validate a C file using `gcc -fsyntax-only`.
 fn validate_c(path: &Path) -> Result<ValidationOutcome> {
+    let path_str = path
+        .to_str()
+        .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 path: {}", path.display())))?;
     let output = Command::new("gcc")
-        .args(["-fsyntax-only", "-c", path.to_str().unwrap()])
+        .args(["-fsyntax-only", "-c", path_str])
         .output();
 
     match output {
@@ -173,8 +179,11 @@ fn validate_c(path: &Path) -> Result<ValidationOutcome> {
 
 /// Validate a C++ file using `g++ -fsyntax-only`.
 fn validate_cpp(path: &Path) -> Result<ValidationOutcome> {
+    let path_str = path
+        .to_str()
+        .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 path: {}", path.display())))?;
     let output = Command::new("g++")
-        .args(["-fsyntax-only", "-c", path.to_str().unwrap()])
+        .args(["-fsyntax-only", "-c", path_str])
         .output();
 
     match output {
@@ -215,8 +224,11 @@ fn validate_cpp(path: &Path) -> Result<ValidationOutcome> {
 
 /// Validate a Java file using `javac`.
 fn validate_java(path: &Path) -> Result<ValidationOutcome> {
+    let path_str = path
+        .to_str()
+        .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 path: {}", path.display())))?;
     let output = Command::new("javac")
-        .args([path.to_str().unwrap()])
+        .args([path_str])
         .output();
 
     match output {
@@ -258,8 +270,11 @@ fn validate_java(path: &Path) -> Result<ValidationOutcome> {
 /// Validate a JavaScript file using `node --check`.
 fn validate_javascript(path: &Path) -> Result<ValidationOutcome> {
     // node --check is available in Node 16+
+    let path_str = path
+        .to_str()
+        .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 path: {}", path.display())))?;
     let output = Command::new("node")
-        .args(["--check", path.to_str().unwrap()])
+        .args(["--check", path_str])
         .output();
 
     match output {
@@ -309,10 +324,13 @@ fn validate_javascript(path: &Path) -> Result<ValidationOutcome> {
 fn validate_typescript(path: &Path) -> Result<ValidationOutcome> {
     // tsc --noEmit validates TypeScript without generating output files
     // We need to run it in the directory containing tsconfig.json (if it exists)
-    let parent_dir = path.parent().unwrap_or_else(|| Path::new("."));
+    let path_str = path
+        .to_str()
+        .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 path: {}", path.display())))?;
+    let parent_dir = path.parent().map(|p| p.as_ref()).unwrap_or(Path::new("."));
 
     let output = Command::new("tsc")
-        .args(["--noEmit", path.to_str().unwrap()])
+        .args(["--noEmit", path_str])
         .current_dir(parent_dir)
         .output();
 
