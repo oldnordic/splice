@@ -20,6 +20,10 @@ pub struct Cli {
     /// Enable verbose logging.
     #[arg(short, long, global = true)]
     pub verbose: bool,
+
+    /// Output structured JSON (default: human-readable).
+    #[arg(long, global = true)]
+    json: bool,
 }
 
 /// Available Splice commands.
@@ -304,6 +308,13 @@ pub enum AnalyzerMode {
 /// It returns the parsed Cli struct or exits on error.
 pub fn parse_args() -> Cli {
     Cli::parse()
+}
+
+impl Cli {
+    /// Check if JSON output mode is enabled.
+    pub fn json_output(&self) -> bool {
+        self.json
+    }
 }
 
 /// JSON success payload for CLI responses.
