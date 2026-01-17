@@ -91,6 +91,7 @@ fn extract_import_statement(
                 // `import os.path` -> path = ["os", "path"], imported_name = "os"
                 let path = extract_dotted_name_path(child, source);
                 if !path.is_empty() {
+                    // SAFE: Guarded by is_empty() check above - path has at least one element
                     let imported_name = path.first().unwrap().clone();
                     result.push(super::ImportFact {
                         file_path: std::path::PathBuf::new(),
@@ -196,6 +197,7 @@ fn extract_import_from_statement(
                     // Imported names after `import`
                     // For dotted names, use the last component as the imported name
                     // e.g., `from os.path import join` -> "join"
+                    // SAFE: Guarded by is_empty() check above - continue ensures name_path has at least one element
                     imported_names.push(name_path.last().unwrap().clone());
                 }
             }
