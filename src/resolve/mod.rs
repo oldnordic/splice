@@ -10,13 +10,15 @@ pub mod references;
 
 use crate::error::{Result, SpliceError};
 use crate::graph::CodeGraph;
+use serde::Serialize;
 use sqlitegraph::NodeId;
 use std::path::Path;
 
 /// A resolved symbol with complete location information.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ResolvedSpan {
     /// Graph node ID for this symbol.
+    #[serde(skip_serializing)]
     pub node_id: NodeId,
 
     /// Symbol name.
