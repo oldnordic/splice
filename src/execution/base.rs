@@ -111,7 +111,7 @@ fn create_tables(conn: &Connection) -> Result<()> {
 /// Execution log entry.
 ///
 /// Represents a single operation in the audit trail.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ExecutionLog {
     /// Database row ID
     pub id: i64,
