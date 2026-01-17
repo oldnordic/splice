@@ -960,6 +960,7 @@ fn find_identifiers_recursive(
                         line: line + 1,
                         column: col,
                         context,
+                        match_id: None,
                     });
                 }
             }
@@ -982,6 +983,7 @@ fn find_identifiers_recursive(
                         line: line + 1,
                         column: col,
                         context,
+                        match_id: None,
                     });
                 }
             }
@@ -1048,6 +1050,7 @@ fn find_identifiers_recursive(
                                     line: line + 1,
                                     column: col,
                                     context,
+                                    match_id: None,
                                 });
                             }
                         }

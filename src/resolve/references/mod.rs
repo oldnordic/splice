@@ -38,6 +38,13 @@ pub struct Reference {
 
     /// Context around the reference for verification.
     pub context: ReferenceContext,
+
+    /// Symbol resolution match ID (None for references from find_references)
+    ///
+    /// This field is populated when the reference comes from a resolve_symbol()
+    /// call, but is None for references found by find_references() since those
+    /// don't go through the resolution process.
+    pub match_id: Option<String>,
 }
 
 /// Context information about a reference.
