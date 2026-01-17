@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-17)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** Phase 1 — Safety Foundation
+**Current focus:** Phase 7 — Validation Hooks (next phase)
 
 ## Current Position
 
-Phase: 4 of 10 (Stable Identifiers)
-Plan: 04-03 of 4
-Status: In progress
-Last activity: 2026-01-17 — Completed Plan 04-03 (match_id and span_id Population)
+Phase: 6 of 10 (Deterministic Ordering)
+Plan: All 3 complete
+Status: **COMPLETE** — Moving to Phase 7
+Last activity: 2026-01-17 — Completed Phase 6 (Deterministic Ordering)
 
-Progress: █████████░░░ 82% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 4/4 complete, Phase 4: 3/4)
+Progress: ██████████░ 60% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 4/4 complete, Phase 4: 3/3 complete, Phase 5: 3/3 complete, Phase 6: 3/3 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
+- Total plans completed: 22
 - Average duration: ~1 hour
-- Total execution time: ~9 hours
+- Total execution time: ~18 hours
 
 **By Phase:**
 
@@ -30,24 +30,19 @@ Progress: █████████░░░ 82% (Phase 1: 3/3 complete, Phase
 | 1. Safety Foundation | 3 | 3 | **COMPLETE** |
 | 2. SQLiteGraph v1.0 Upgrade | 4 | 4 | **COMPLETE** |
 | 3. Structured Output | 4 | 4 | **COMPLETE** |
-| 4. Stable Identifiers | 4 | 3 | **IN PROGRESS** |
-| 5-10 | — | 0 | Not started |
+| 4. Stable Identifiers | 3 | 3 | **COMPLETE** |
+| 5. Span-Aware Metadata | 3 | 3 | **COMPLETE** |
+| 6. Deterministic Ordering | 3 | 3 | **COMPLETE** |
+| 7-10 | — | 0 | Not started |
 
 **Recent Trend:**
-- 01-01: Audit & Helpers — COMPLETED
-- 01-02: Fix Core Production Paths — COMPLETED
-- 01-03: Fix Language Modules — COMPLETED
-- 02-01: Study API differences and migration path — **COMPLETED**
-- 02-02: Update Cargo.toml dependencies — **COMPLETED**
-- 02-03: Migrate code to new API — **COMPLETED**
-- 02-04: Verify database compatibility — **COMPLETED**
-- 03-01: Design unified output schema — **COMPLETED**
-- 03-02: Implement structured output types — **COMPLETED**
-- 03-03: Integrate structured output into CLI — **COMPLETED**
-- 04-01: ID Generation Utilities — **COMPLETED**
-- 04-02: execution_id Integration — **COMPLETED**
-- 04-03: match_id and span_id Population — **COMPLETED**
-- Next: 04-04: Complete Phase 4 (if plan exists) or Phase 5
+- 01-01 through 01-03: Safety Foundation — **COMPLETE**
+- 02-01 through 02-04: SQLiteGraph v1.0 Upgrade — **COMPLETE**
+- 03-01 through 03-03: Structured Output Schema — **COMPLETE**
+- 04-01 through 04-03: Stable Identifiers — **COMPLETE**
+- 05-01 through 05-03: Span-Aware Metadata — **COMPLETE**
+- 06-01 through 06-03: Deterministic Ordering — **COMPLETE**
+- Next: Phase 7 — Validation Hooks
 
 ## Accumulated Context
 
@@ -56,158 +51,92 @@ Progress: █████████░░░ 82% (Phase 1: 3/3 complete, Phase
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-1. **Error Context Helpers (01-01)**
-   - Added `.with_context()`, `.with_path()` helper methods to SpliceError
-   - Provides consistent error chaining pattern
+1-11. (From previous phases — see prior STATE.md versions)
 
-2. **unwrap() Replacement Patterns (01-01, 01-02)**
-   - `.parent().unwrap()` → `.parent().ok_or_else(|| SpliceError::Other(...))?`
-   - `.to_str().unwrap()` → `.to_str().ok_or_else(|| SpliceError::Other(...))?`
-   - Result types: `.map_err(|e| SpliceError::Other(...))?`
+12. **Line/Col Storage in Graph (05-01)**
+    - Updated node.data to include line_start, line_end, col_start, col_end
+    - Modified symbol extraction to calculate line/col using ropey
+    - All future ingested symbols will have accurate line/column info
+    - Backward compatibility: old data returns 0 for missing fields
+    - Commit: 8d2cfe8
 
-3. **SQLiteGraph v1.0 Migration Strategy (02-01)**
-   - Confirmed SQLiteGraph 1.0.0 is published and ready
-   - All types in use are compatible (NodeSpec, EdgeSpec, NodeId, etc.)
-   - Only ONE line of code needs to change: `GraphConfig::sqlite()` → `GraphConfig::native()`
-   - Cargo.toml requires `features = ["native-v2"]`
-   - **Database migration required:** Backend format change (SQLite → Native V2)
-   - Export/import migration path needed for existing databases
-   - Low technical risk, high data migration risk
+13. **Line/Col in Output Types (05-02)**
+    - Added line_start, line_end, col_start, col_end to SpanResult
+    - Updated ResolvedSpan to include line/col fields
+    - Added with_line_col() helper method
+    - SCHEMA.md updated with line/col documentation
+    - Placeholders (0) used until Phase 05-03 populates them
+    - Commits: 1f8a7f5, 542a7ad
 
-4. **Dependency Upgrade Complete (02-02)**
-   - Upgraded sqlitegraph from 0.2.11 to 1.0.0
-   - Added native-v2 feature flag for both magellan and sqlitegraph
-   - Compilation successful - no API breakage
-   - Duplicate sqlitegraph versions acceptable (Magellan uses 0.2.11 internally)
-   - New dependencies added: rayon, crossbeam-* for parallel processing
-   - Ready for code migration in Plan 02-03
+14. **Line/Col Retrieval (05-03)**
+    - Updated resolve_symbol() to retrieve line/col from graph node.data
+    - Updated resolve_symbol_in_file() similarly
+    - Removed TODO comments — line/col now fully functional
+    - Commit: 691d57b
 
-5. **Code Migration Complete (02-03)**
-   - Changed `GraphConfig::sqlite()` to `GraphConfig::native()` (1 line)
-   - All types compatible (NodeSpec, EdgeSpec, NodeId, Label, PropertyKey)
-   - GraphBackend trait methods work identically
-   - All 111 tests pass
-   - Fixed test infrastructure (empty file issue with Native V2)
-   - **100% API compatibility confirmed** - only GraphConfig constructor changed
+15. **Ord Implementations for Sorting (06-01)**
+    - StepResult: derive Ord (all simple types)
+    - SpanResult: manual Ord by file_path, byte_start, byte_end (ignores UUIDs)
+    - FilePatternResult: manual Ord by file path (ignores Vec)
+    - DiagnosticPayload: manual Ord by tool, file, line, column, level, message
+    - Commit: 66f10d1
 
-6. **Database Compatibility Verified (02-04)**
-   - Magellan v0.5.3 uses sqlitegraph v0.2.11 internally (confirmed)
-   - Splice uses sqlitegraph v1.0.0 with native-v2 feature
-   - Duplicate dependencies work correctly via Cargo
-   - Native V2 and SQLite backends are incompatible formats
-   - Re-indexing is the recommended migration approach
-   - Rollback plan documented (rollback-plan.md)
-   - All 111 tests pass
-   - **Phase 2 COMPLETE** - SQLiteGraph v1.0 upgrade successful
+16. **Main Command Sorting (06-02)**
+    - DeleteResult.spans: sorted by file_path then byte_start
+    - PlanResult.files_affected: sorted alphabetically
+    - Commit: 2152669
 
-7. **Unified Output Schema Designed (03-01)**
-   - Created comprehensive SCHEMA.md (816 lines)
-   - Defined 12 types for structured output (OperationResult, OperationData variants, SpanResult, ErrorDetails, etc.)
-   - All types include field descriptions, types, and JSON examples
-   - Design principles: explicit fields, snake_case naming, versioning, unified spans
-   - Migration strategy documented with timeline (Phases 3.1-3.3)
-   - Backward compatibility: Add Serialize derives, create new module, replace ad-hoc JSON
-   - Line/col placeholders (0/1) for Phase 3, population planned for Phase 5
-
-8. **Structured Output Types Implemented (03-02)**
-   - Created src/output.rs module (383 lines) with all 12 types from SCHEMA.md
-   - Implemented OperationResult (top-level wrapper) with helper methods
-   - Implemented OperationData tagged enum with 5 variants (Patch, Delete, Plan, Query, ApplyFiles)
-   - Implemented SpanResult (unified span representation) with conversion impls
-   - Implemented ErrorDetails and DiagnosticPayload for error reporting
-   - Added Serialize derive to FilePatchSummary (src/patch/mod.rs:86)
-   - Added Serialize derive to SpanReplacement (src/patch/mod.rs:33)
-   - Added Serialize derive to ResolvedSpan (src/resolve/mod.rs:18)
-   - Skipped node_id serialization (NodeId doesn't implement Serialize)
-   - Exported output module in src/lib.rs
-   - All 111 tests pass, compilation clean
-   - Commits: 82b5929, 08cf093, 5b98db0, 3428d3e, d23cad3
-
-9. **ID Generation Utilities Implemented (04-01)**
-   - Added span_id (String) and match_id (Option<String>) fields to SpanResult
-   - span_id is auto-generated UUID v4, always present
-   - match_id is optional for symbol resolution tracking
-   - Updated from_byte_span() to generate unique span_id
-   - Added with_id() and set_operation_id() to OperationResult
-   - Added with_match_id() helper method to SpanResult
-   - Updated From<FilePatchSummary> and From<ResolvedSpan> to generate span_id
-   - Updated SCHEMA.md with ID field documentation and examples
-   - All 111 tests pass, compilation clean
-   - Commits: 3d55ab7, b014596, dba87b4
-
-10. **operation_id Propagation Complete (04-02)**
-    - Patch command uses OperationResult::with_id() to propagate operation_id
-    - Delete command uses OperationResult::with_id() to propagate operation_id
-    - Batch command now has structured JSON output with operation_id and unique span_id per span
-    - Plan command now has structured JSON output with operation_id and step results
-    - Fixed borrow errors with `ref` keyword in pattern matching
-    - All commands generate UUID automatically if operation_id not provided
-    - Added operation_id and metadata CLI flags to Plan command
-    - Error payload operation_id deferred to future phase (per plan Task 5)
-    - All 111 tests pass, compilation clean
-    - Commits: ef62d7d, b3698a6, 1b28216, af7e977
-
-11. **match_id and span_id Population (04-03)**
-    - Added match_id field to ResolvedSpan struct
-    - Generate match_id using UUID v4 in resolve_symbol()
-    - Updated From<ResolvedSpan> for SpanResult to copy match_id
-    - Patch command now uses From<ResolvedSpan> to preserve match_id
-    - Delete command resolves definition for match_id, references have match_id: None
-    - Added match_id: Option<String> to Reference struct
-    - Created 4 unit tests for span_id uniqueness and match_id preservation
-    - All 115 tests pass (111 original + 4 new)
-    - Commits: e855daf, 8eff6d5, a798325, ac797a9, 3fe94c0, bf67229
+17. **Query and Batch Sorting (06-03)**
+    - Query symbols: sorted by file_path then byte_start
+    - ApplyFilesResult.files: sorted by file path
+    - FilePatternResult.spans: sorted by byte offset
+    - Commit: be704c4
 
 ### Pending Todos
 
-- Plan 04-04: Complete Phase 4 (if plan exists) or move to Phase 5
+- Phase 7: Validation Hooks — checksums and pre/post verification
+- Phase 8: Execution Logging — audit trail with execution_id
+- Phase 9: Integration Testing — Magellan compatibility, end-to-end tests
+- Phase 10: Documentation Update — docs/manual for v2.0
 
 ### Blockers/Concerns
 
-**Database Migration Risk (02-01):** ✅ RESOLVED
-- Native V2 backend uses different storage format than SQLite backend
-- Existing 0.2.11 databases cannot be opened with v1.0 Native V2
-- **Solution:** Re-indexing is the recommended migration approach
-- Rollback plan documented in rollback-plan.md
-- Risk: LOW (re-indexing is simpler than migration utility)
+**None currently blocking.** All completed phases passed tests successfully.
 
 ## Session Continuity
 
 Last session: 2026-01-17
-Stopped at: Completed Plan 04-03 (match_id and span_id Population)
+Stopped at: Completed Phase 6 (Deterministic Ordering)
 Resume file: None
 
-**Phase 4 Status: IN PROGRESS** (3/4 complete)
-- 04-01: ✅ COMPLETED (ID Generation Utilities)
-  - Added span_id and match_id fields to SpanResult
-  - Implemented UUID v4 generation in all constructors
-  - Added with_id() and set_operation_id() to OperationResult
-  - Added with_match_id() helper to SpanResult
-  - Updated From impls to generate span_id
-  - Updated SCHEMA.md documentation
-  - All 111 tests pass, compilation clean
-  - Commits: 3d55ab7, b014596, dba87b4
+**Phase 6 Status: COMPLETE** (3/3 complete)
+- 06-01: ✅ COMPLETED (Ord implementations for sorting)
+  - StepResult: derive Ord
+  - SpanResult: manual Ord by file_path, byte_start, byte_end
+  - FilePatternResult: manual Ord by file path
+  - DiagnosticPayload: manual Ord by tool, file, line, column, level, message
+  - All 118 unit tests pass, compilation clean
+  - Commit: 66f10d1
 
-- 04-02: ✅ COMPLETED (execution_id Integration)
-  - Propagated operation_id from CLI flags to structured output
-  - Patch, delete, batch, plan commands all use OperationResult::with_id()
-  - Added structured JSON output for batch and plan commands
-  - Fixed borrow errors with `ref` keyword
-  - All 111 tests pass, compilation clean
-  - Commits: ef62d7d, b3698a6, 1b28216, af7e977
+- 06-02: ✅ COMPLETED (Main command sorting)
+  - DeleteResult.spans: sort() before output
+  - PlanResult.files_affected: sort alphabetically
+  - All 118 unit tests pass, compilation clean
+  - Commit: 2152669
 
-- 04-03: ✅ COMPLETED (match_id and span_id Population)
-  - Added match_id field to ResolvedSpan struct
-  - Generate match_id using UUID v4 in resolve_symbol()
-  - Updated From<ResolvedSpan> for SpanResult to copy match_id
-  - Patch command uses From<ResolvedSpan> to preserve match_id
-  - Delete command resolves definition for match_id, references have match_id: None
-  - Added match_id: Option<String> to Reference struct
-  - Created 4 unit tests for span_id uniqueness and match_id preservation
-  - All 115 tests pass (111 original + 4 new)
-  - Commits: e855daf, 8eff6d5, a798325, ac797a9, 3fe94c0, bf67229
+- 06-03: ✅ COMPLETED (Query and batch sorting)
+  - Query symbols: sort_by file_path, byte_start
+  - ApplyFilesResult.files: sort() by file path
+  - FilePatternResult.spans: sort() by byte offset
+  - All 118 unit tests pass, compilation clean
+  - Commit: be704c4
 
 **Artifacts Created:**
-- `.planning/phases/04-stable-identifiers/04-01-SUMMARY.md` (124 lines)
-- `.planning/phases/04-stable-identifiers/04-02-SUMMARY.md` (125 lines)
-- `.planning/phases/04-stable-identifiers/04-03-SUMMARY.md` (135 lines)
+- `.planning/phases/06-deterministic-ordering/06-01-SUMMARY.md`
+- `.planning/phases/06-deterministic-ordering/06-02-SUMMARY.md`
+- `.planning/phases/06-deterministic-ordering/06-03-SUMMARY.md`
+
+**Next Phase: Phase 7 — Validation Hooks**
+- Goal: Implement checksums and pre/post verification hooks
+- Depends on: Phase 5 (metadata enables checksums)
+- Plans: TBD (likely 3 plans: design, pre-verification, post-verification)
