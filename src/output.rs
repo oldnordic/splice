@@ -36,11 +36,16 @@ pub struct OperationResult {
 impl OperationResult {
     /// Create a new operation result with a generated UUID.
     pub fn new(operation_type: String) -> Self {
+        Self::with_id(operation_type, None)
+    }
+
+    /// Create a new operation result with an optional operation ID.
+    pub fn with_id(operation_type: String, operation_id: Option<String>) -> Self {
         use uuid::Uuid;
 
         Self {
             version: SCHEMA_VERSION.to_string(),
-            operation_id: Uuid::new_v4().to_string(),
+            operation_id: operation_id.unwrap_or_else(|| Uuid::new_v4().to_string()),
             operation_type,
             status: "ok".to_string(),
             message: String::new(),
@@ -49,6 +54,12 @@ impl OperationResult {
             result: None,
             error: None,
         }
+    }
+
+    /// Set or override the operation_id.
+    pub fn set_operation_id(mut self, operation_id: String) -> Self {
+        self.operation_id = operation_id;
+        self
     }
 
     /// Set success status with message.
@@ -238,6 +249,11 @@ pub struct SpanResult {
     pub col_start: usize,
     /// End column (0-based, 0 if not available)
     pub col_end: usize,
+    /// Unique ID for this span (generated automatically)
+    pub span_id: String,
+    /// Symbol resolution match ID (populated when from resolve_symbol())
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub match_id: Option<String>,
     /// Hash before modification (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub before_hash: Option<String>,
@@ -249,6 +265,7 @@ pub struct SpanResult {
 impl SpanResult {
     /// Create from file path and byte span only (line/col set to 0).
     pub fn from_byte_span(file_path: String, byte_start: usize, byte_end: usize) -> Self {
+        use uuid::Uuid;
         Self {
             file_path,
             symbol: None,
@@ -259,6 +276,8 @@ impl SpanResult {
             line_end: 0,
             col_start: 0,
             col_end: 0,
+            span_id: Uuid::new_v4().to_string(),
+            match_id: None,
             before_hash: None,
             after_hash: None,
         }
@@ -284,6 +303,12 @@ impl SpanResult {
         self.line_end = line_end;
         self.col_start = col_start;
         self.col_end = col_end;
+        self
+    }
+
+    /// Add match_id from symbol resolution.
+    pub fn with_match_id(mut self, match_id: String) -> Self {
+        self.match_id = Some(match_id);
         self
     }
 }
@@ -348,6 +373,7 @@ pub struct DiagnosticPayload {
 
 impl From<crate::patch::FilePatchSummary> for SpanResult {
     fn from(summary: crate::patch::FilePatchSummary) -> Self {
+        use uuid::Uuid;
         Self {
             file_path: summary.file.to_string_lossy().to_string(),
             symbol: None,
@@ -358,6 +384,8 @@ impl From<crate::patch::FilePatchSummary> for SpanResult {
             line_end: 0,
             col_start: 0,
             col_end: 0,
+            span_id: Uuid::new_v4().to_string(),
+            match_id: None,
             before_hash: Some(summary.before_hash),
             after_hash: Some(summary.after_hash),
         }
@@ -366,6 +394,7 @@ impl From<crate::patch::FilePatchSummary> for SpanResult {
 
 impl From<crate::resolve::ResolvedSpan> for SpanResult {
     fn from(span: crate::resolve::ResolvedSpan) -> Self {
+        use uuid::Uuid;
         Self {
             file_path: span.file_path,
             symbol: Some(span.name),
@@ -376,6 +405,8 @@ impl From<crate::resolve::ResolvedSpan> for SpanResult {
             line_end: span.line_end,
             col_start: span.col_start,
             col_end: span.col_end,
+            span_id: Uuid::new_v4().to_string(),
+            match_id: None,
             before_hash: None,
             after_hash: None,
         }
