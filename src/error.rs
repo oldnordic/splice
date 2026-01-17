@@ -464,3 +464,115 @@ impl From<validate::ErrorLevel> for DiagnosticLevel {
         }
     }
 }
+
+// Context helper extensions for SpliceError
+impl SpliceError {
+    /// Add additional context to this error.
+    ///
+    /// This method provides a chainable way to add context to errors,
+    /// similar to anyhow's context. It returns the same error with
+    /// an enhanced message.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use crate::error::{SpliceError, Result};
+    ///
+    /// fn do_something() -> Result<()> {
+    ///     Err(SpliceError::Other("base error".to_string()))
+    ///         .with_context("while doing important work")?;
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn with_context(self, context: impl Into<String>) -> Self {
+        let ctx = context.into();
+        match self {
+            SpliceError::Other(msg) => {
+                SpliceError::Other(format!("{}: {}", ctx, msg))
+            }
+            SpliceError::Parse { file, message } => {
+                SpliceError::Parse {
+                    file,
+                    message: format!("{}: {}", ctx, message),
+                }
+            }
+            SpliceError::Io { path, source } => {
+                SpliceError::Io {
+                    path,
+                    source,
+                }
+            }
+            other => other,
+        }
+    }
+
+    /// Attach a path to this error.
+    ///
+    /// This is useful for errors that occur during file operations
+    /// where the path isn't already attached.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use crate::error::{SpliceError, Result};
+    /// use std::path::Path;
+    ///
+    /// fn process_file(path: &Path) -> Result<()> {
+    ///     Err(SpliceError::Other("failed".to_string()))
+    ///         .with_path(path)?;
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn with_path(self, path: impl AsRef<std::path::Path>) -> Self {
+        let path_buf = path.as_ref().to_path_buf();
+        match self {
+            SpliceError::Other(msg) => {
+                SpliceError::Parse {
+                    file: path_buf.clone(),
+                    message: msg,
+                }
+            }
+            SpliceError::Parse { file: _, message } => {
+                SpliceError::Parse {
+                    file: path_buf,
+                    message,
+                }
+            }
+            SpliceError::SymbolNotFound {
+                message,
+                symbol,
+                file: _,
+                hint,
+            } => {
+                SpliceError::SymbolNotFound {
+                    message,
+                    symbol,
+                    file: Some(path_buf),
+                    hint,
+                }
+            }
+            other => other,
+        }
+    }
+
+    /// Create an I/O error with path context.
+    pub fn io_with_path(path: impl Into<PathBuf>, source: std::io::Error) -> Self {
+        SpliceError::Io {
+            path: path.into(),
+            source,
+        }
+    }
+
+    /// Create a parse error with file context.
+    pub fn parse_with_file(file: impl Into<PathBuf>, message: impl Into<String>) -> Self {
+        SpliceError::Parse {
+            file: file.into(),
+            message: message.into(),
+        }
+    }
+
+    /// Create an "Other" error with a message.
+    pub fn other(msg: impl Into<String>) -> Self {
+        SpliceError::Other(msg.into())
+    }
+}
