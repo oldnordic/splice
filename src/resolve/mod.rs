@@ -21,6 +21,9 @@ pub struct ResolvedSpan {
     #[serde(skip_serializing)]
     pub node_id: NodeId,
 
+    /// Unique ID for this resolution attempt (generated once per resolve call).
+    pub match_id: String,
+
     /// Symbol name.
     pub name: String,
 
@@ -74,6 +77,11 @@ pub fn resolve_symbol(
     kind: Option<&str>,
     name: &str,
 ) -> Result<ResolvedSpan> {
+    use uuid::Uuid;
+
+    // Generate match_id for this resolution attempt
+    let match_id = Uuid::new_v4().to_string();
+
     // Build cache key for lookup
     let _cache_key = if let Some(file_path) = file {
         let file_str = file_path
@@ -86,7 +94,7 @@ pub fn resolve_symbol(
 
     // For file-specific resolution, use the cache directly
     if let Some(file_path) = file {
-        return resolve_symbol_in_file(graph, file_path, kind, name);
+        return resolve_symbol_in_file(graph, file_path, kind, name, &match_id);
     }
 
     // Name-only resolution: check for ambiguity
@@ -151,6 +159,7 @@ pub fn resolve_symbol(
     // TODO: Store line/col in graph during ingest
     Ok(ResolvedSpan {
         node_id,
+        match_id,
         name: name.to_string(),
         kind: kind_str,
         language,
@@ -170,6 +179,7 @@ fn resolve_symbol_in_file(
     file_path: &Path,
     kind: Option<&str>,
     name: &str,
+    match_id: &str,
 ) -> Result<ResolvedSpan> {
     let file_str = file_path
         .to_str()
@@ -231,6 +241,7 @@ fn resolve_symbol_in_file(
     // TODO: Return actual line/col when we store it
     Ok(ResolvedSpan {
         node_id,
+        match_id: match_id.to_string(),
         name: name.to_string(),
         kind: kind_str,
         language,
