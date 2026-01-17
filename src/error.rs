@@ -211,6 +211,29 @@ pub enum SpliceError {
     /// Generic error with context.
     #[error("{0}")]
     Other(String),
+
+    /// Pre-verification failed.
+    #[error("Pre-verification failed: {check}")]
+    PreVerificationFailed {
+        /// The check that failed.
+        check: String,
+    },
+
+    /// File was externally modified.
+    #[error("File modified externally: {file}")]
+    FileExternallyModified {
+        /// The file that was modified.
+        file: String,
+    },
+
+    /// Insufficient disk space.
+    #[error("Insufficient disk space: needed {needed} bytes, available {available} bytes")]
+    InsufficientDiskSpace {
+        /// Bytes needed.
+        needed: u64,
+        /// Bytes available.
+        available: u64,
+    },
 }
 
 impl From<std::io::Error> for SpliceError {
@@ -395,6 +418,9 @@ impl SpliceError {
             SpliceError::PlanExecutionFailed { .. } => "PlanExecutionFailed",
             SpliceError::Utf8(_) => "Utf8",
             SpliceError::Other(_) => "Other",
+            SpliceError::PreVerificationFailed { .. } => "PreVerificationFailed",
+            SpliceError::FileExternallyModified { .. } => "FileExternallyModified",
+            SpliceError::InsufficientDiskSpace { .. } => "InsufficientDiskSpace",
         }
     }
 
@@ -423,6 +449,7 @@ impl SpliceError {
                 file: Some(file), ..
             } => Some(file.as_path()),
             SpliceError::AmbiguousReference { file, .. } => Some(Path::new(file)),
+            SpliceError::FileExternallyModified { file } => Some(Path::new(file)),
             _ => None,
         }
     }
