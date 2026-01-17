@@ -8,6 +8,9 @@ use crate::error::{Result, SpliceError};
 use rusqlite::{params, Connection};
 use std::path::Path;
 
+// Re-export SpliceError for use in tests
+use crate::error::SpliceError as TestError;
+
 /// Execution log database filename.
 pub const DB_FILENAME: &str = "operations.db";
 
@@ -457,5 +460,38 @@ mod tests {
         let result = insert_execution_log(&conn, &log2);
 
         assert!(result.is_err(), "duplicate execution_id should fail");
+    }
+
+    #[test]
+    fn test_execution_log_error_display() {
+        let error = TestError::ExecutionLogError {
+            message: "database corrupted".to_string(),
+            source: None,
+        };
+
+        let error_string = error.to_string();
+        assert!(
+            error_string.contains("Execution log database error"),
+            "error should contain descriptive message"
+        );
+        assert!(
+            error_string.contains("database corrupted"),
+            "error should contain specific message"
+        );
+    }
+
+    #[test]
+    fn test_execution_not_found_error() {
+        let execution_id = "non-existent-id";
+        let error = TestError::ExecutionNotFound {
+            execution_id: execution_id.to_string(),
+        };
+
+        let error_string = error.to_string();
+        assert!(
+            error_string.contains(execution_id),
+            "error should contain execution ID"
+        );
+        assert!(error_string.contains("not found"), "error should indicate not found");
     }
 }

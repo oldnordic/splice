@@ -234,6 +234,33 @@ pub enum SpliceError {
         /// Bytes available.
         available: u64,
     },
+
+    /// Execution log database error.
+    #[error("Execution log database error: {message}")]
+    ExecutionLogError {
+        /// Error message describing what went wrong.
+        message: String,
+        /// Underlying error source.
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
+
+    /// Failed to record execution in log.
+    #[error("Failed to record execution: {execution_id}")]
+    ExecutionRecordFailed {
+        /// Execution ID that failed to record.
+        execution_id: String,
+        /// Underlying error source.
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
+
+    /// Execution log entry not found.
+    #[error("Execution log not found: {execution_id}")]
+    ExecutionNotFound {
+        /// Execution ID that was not found.
+        execution_id: String,
+    },
 }
 
 impl From<std::io::Error> for SpliceError {
@@ -421,6 +448,9 @@ impl SpliceError {
             SpliceError::PreVerificationFailed { .. } => "PreVerificationFailed",
             SpliceError::FileExternallyModified { .. } => "FileExternallyModified",
             SpliceError::InsufficientDiskSpace { .. } => "InsufficientDiskSpace",
+            SpliceError::ExecutionLogError { .. } => "ExecutionLogError",
+            SpliceError::ExecutionRecordFailed { .. } => "ExecutionRecordFailed",
+            SpliceError::ExecutionNotFound { .. } => "ExecutionNotFound",
         }
     }
 
