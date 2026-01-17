@@ -136,6 +136,70 @@ pub fn has_file_changed(path: &Path, expected_checksum: &str) -> Result<bool> {
     Ok(actual.as_hex() != expected_checksum)
 }
 
+/// Compute diff checksum for verification (checksum of only changed bytes).
+///
+/// This function computes a checksum of the concatenated changes, which can be used
+/// to verify that a set of replacements were applied correctly.
+///
+/// # Arguments
+///
+/// * `path` - Path to the file
+/// * `changes` - Slice of (start, end, replacement_content) tuples
+///
+/// # Returns
+///
+/// * `Ok(Checksum)` - Checksum of all replacement content concatenated
+/// * `Err(SpliceError)` - If file cannot be read or changes are out of bounds
+///
+/// # Example
+///
+/// ```no_run
+/// use splice::checksum;
+///
+/// // Compute checksum of changes to verify later
+/// let changes = vec![
+///     (10, 20, "new content 1"),
+///     (50, 60, "new content 2"),
+/// ];
+/// let checksum = checksum::checksum_diff(path, &changes)?;
+/// ```
+pub fn checksum_diff(path: &Path, changes: &[(usize, usize, &str)]) -> Result<Checksum> {
+    // Read file to validate bounds
+    let contents = std::fs::read(path)
+        .map_err(|e| SpliceError::IoContext {
+            context: format!("Failed to read file for diff checksum: {}", path.display()),
+            source: e,
+        })?;
+
+    let file_size = contents.len();
+
+    // Validate all spans are within bounds
+    for (start, end, _) in changes {
+        if *start > *end || *end > file_size {
+            return Err(SpliceError::InvalidSpan {
+                file: path.to_path_buf(),
+                start: *start,
+                end: *end,
+                file_size,
+            });
+        }
+    }
+
+    // Concatenate all replacement content and compute checksum
+    let diff_content: String = changes
+        .iter()
+        .map(|(_, _, replacement)| *replacement)
+        .collect();
+
+    let size = diff_content.len();
+    let mut hasher = Sha256::new();
+    hasher.update(diff_content.as_bytes());
+    let result = hasher.finalize();
+    let value = format!("{:x}", result);
+
+    Ok(Checksum::new(value, ChecksumAlgorithm::Sha256, size))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -250,5 +314,73 @@ mod tests {
 
         // line_start > line_end
         assert!(checksum_line_range(file.path(), 2, 1).is_err());
+    }
+
+    #[test]
+    fn test_checksum_diff_single_change() {
+        let mut file = NamedTempFile::new().unwrap();
+        file.write_all(b"0123456789").unwrap();
+
+        let changes = vec![(2, 5, "abc")];
+        let checksum = checksum_diff(file.path(), &changes).unwrap();
+
+        assert_eq!(checksum.size, 3); // "abc" length
+        assert_eq!(checksum.algorithm, ChecksumAlgorithm::Sha256);
+    }
+
+    #[test]
+    fn test_checksum_diff_multiple_changes() {
+        let mut file = NamedTempFile::new().unwrap();
+        file.write_all(b"0123456789abcdefghijklmn").unwrap();
+
+        let changes = vec![
+            (2, 5, "abc"),
+            (10, 15, "xyz"),
+        ];
+        let checksum = checksum_diff(file.path(), &changes).unwrap();
+
+        assert_eq!(checksum.size, 6); // "abc" + "xyz" = 3 + 3
+    }
+
+    #[test]
+    fn test_checksum_diff_same_content_same_checksum() {
+        let mut file = NamedTempFile::new().unwrap();
+        file.write_all(b"0123456789").unwrap();
+
+        let changes1 = vec![(2, 5, "abc")];
+        let changes2 = vec![(2, 5, "abc")];
+
+        let checksum1 = checksum_diff(file.path(), &changes1).unwrap();
+        let checksum2 = checksum_diff(file.path(), &changes2).unwrap();
+
+        assert_eq!(checksum1.value, checksum2.value);
+    }
+
+    #[test]
+    fn test_checksum_diff_different_content_different_checksum() {
+        let mut file = NamedTempFile::new().unwrap();
+        file.write_all(b"0123456789").unwrap();
+
+        let changes1 = vec![(2, 5, "abc")];
+        let changes2 = vec![(2, 5, "def")];
+
+        let checksum1 = checksum_diff(file.path(), &changes1).unwrap();
+        let checksum2 = checksum_diff(file.path(), &changes2).unwrap();
+
+        assert_ne!(checksum1.value, checksum2.value);
+    }
+
+    #[test]
+    fn test_checksum_diff_invalid_bounds() {
+        let mut file = NamedTempFile::new().unwrap();
+        file.write_all(b"0123456789").unwrap();
+
+        // start > end
+        let changes = vec![(5, 2, "abc")];
+        assert!(checksum_diff(file.path(), &changes).is_err());
+
+        // end beyond file size
+        let changes = vec![(5, 20, "abc")];
+        assert!(checksum_diff(file.path(), &changes).is_err());
     }
 }
