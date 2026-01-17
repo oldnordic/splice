@@ -888,6 +888,11 @@ fn execute_patch_batch(
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::patch::{apply_batch_with_validation, load_batches_from_file};
     use splice::validate::AnalyzerMode as ValidateAnalyzerMode;
+    use splice::execution::log;
+
+    // Start timing
+    let start = std::time::Instant::now();
+    let command_line = std::env::args().collect::<Vec<_>>().join(" ");
 
     let absolute_batch = if batch_path.is_absolute() {
         batch_path.to_path_buf()
@@ -1009,13 +1014,30 @@ fn execute_patch_batch(
             batch_count
         );
 
+        // Record execution (before apply_result is moved)
+        let duration_ms = start.elapsed().as_millis() as i64;
+        let parameters = serde_json::json!({
+            "batch_file": absolute_batch.to_string_lossy(),
+            "file_count": apply_result.files.len(),
+            "span_count": apply_result.files.iter().map(|f| f.matches as usize).sum::<usize>(),
+        });
+
         // Create operation result with operation_id from CLI or generate new UUID
         let result = OperationResult::with_id(
             "batch".to_string(),
             operation_id.clone(),
         )
-        .success(message)
+        .success(message.clone())
         .with_result(OperationData::ApplyFiles(apply_result));
+
+        if let Err(e) = log::record_execution_with_params(
+            &result,
+            duration_ms,
+            Some(command_line.clone()),
+            parameters,
+        ) {
+            eprintln!("Failed to record execution: {}", e);
+        }
 
         // Output structured JSON directly
         println!("{}", serde_json::to_string_pretty(&result).unwrap());
@@ -1058,7 +1080,7 @@ fn execute_patch_batch(
         response_data["backup_manifest"] = json!(manifest_path.to_string_lossy());
     }
 
-    if let Some(op_id) = operation_id {
+    if let Some(ref op_id) = operation_id {
         response_data["operation_id"] = json!(op_id);
     }
 
@@ -1071,12 +1093,30 @@ fn execute_patch_batch(
         }
     }
 
+    // Record execution for regular output
+    let message = format!(
+        "Patched {} file(s) across {} batch(es).",
+        summaries.len(),
+        batch_count
+    );
+    let duration_ms = start.elapsed().as_millis() as i64;
+    let parameters = serde_json::json!({
+        "batch_file": absolute_batch.to_string_lossy(),
+        "file_count": summaries.len(),
+        "span_count": span_ids.len(),
+    });
+    if let Err(e) = log::record_execution_with_params(
+        &splice::output::OperationResult::with_id("batch".to_string(), operation_id.clone())
+            .success(message.clone()),
+        duration_ms,
+        Some(command_line.clone()),
+        parameters,
+    ) {
+        eprintln!("Failed to record execution: {}", e);
+    }
+
     Ok(splice::cli::CliSuccessPayload::with_data(
-        format!(
-            "Patched {} file(s) across {} batch(es).",
-            summaries.len(),
-            batch_count
-        ),
+        message,
         response_data,
     ))
 }
