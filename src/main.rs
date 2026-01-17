@@ -14,6 +14,7 @@ fn main() -> ExitCode {
 
     // Parse CLI arguments
     let cli = splice::cli::parse_args();
+    let json_output = cli.json_output();
 
     // Initialize logger if verbose
     if cli.verbose {
@@ -31,7 +32,7 @@ fn main() -> ExitCode {
             create_backup,
             operation_id,
             metadata,
-        } => execute_delete(&file, &symbol, kind, analyzer, language, create_backup, operation_id, metadata),
+        } => execute_delete(&file, &symbol, kind, analyzer, language, create_backup, operation_id, metadata, json_output),
 
         splice::cli::Commands::Patch {
             file,
@@ -46,7 +47,7 @@ fn main() -> ExitCode {
             operation_id,
             metadata,
         } => match batch {
-            Some(batch_path) => execute_patch_batch(&batch_path, analyzer, language, create_backup, operation_id, metadata),
+            Some(batch_path) => execute_patch_batch(&batch_path, analyzer, language, create_backup, operation_id, metadata, json_output),
             None => execute_single_patch(
                 file,
                 symbol,
@@ -58,12 +59,13 @@ fn main() -> ExitCode {
                 create_backup,
                 operation_id,
                 metadata,
+                json_output,
             ),
         },
 
-        splice::cli::Commands::Plan { file } => execute_plan(&file),
+        splice::cli::Commands::Plan { file } => execute_plan(&file, json_output),
 
-        splice::cli::Commands::Undo { manifest } => execute_undo(&manifest),
+        splice::cli::Commands::Undo { manifest } => execute_undo(&manifest, json_output),
 
         splice::cli::Commands::ApplyFiles {
             glob,
@@ -74,7 +76,7 @@ fn main() -> ExitCode {
             create_backup,
             operation_id,
             metadata,
-        } => execute_apply_files(&glob, &find, &replace, language, !no_validate, create_backup, operation_id, metadata),
+        } => execute_apply_files(&glob, &find, &replace, language, !no_validate, create_backup, operation_id, metadata, json_output),
 
         splice::cli::Commands::Query {
             db,
@@ -82,26 +84,26 @@ fn main() -> ExitCode {
             list,
             count,
             show_code,
-        } => execute_query(&db, &label, list, count, show_code),
+        } => execute_query(&db, &label, list, count, show_code, json_output),
 
         splice::cli::Commands::Get {
             db,
             file,
             start,
             end,
-        } => execute_get(&db, &file, start, end),
+        } => execute_get(&db, &file, start, end, json_output),
     };
 
     // Handle result
     match result {
-        Ok(payload) => match emit_success_payload(&payload) {
+        Ok(payload) => match emit_success_payload(&payload, json_output) {
             Ok(()) => ExitCode::SUCCESS,
             Err(err) => {
                 if matches!(err, splice::SpliceError::BrokenPipe) {
                     ExitCode::SUCCESS
                 } else {
                     let payload = splice::cli::CliErrorPayload::from_error(&err);
-                    emit_error_payload(&payload);
+                    emit_error_payload(&payload, json_output);
                     ExitCode::from(1)
                 }
             }
@@ -111,7 +113,7 @@ fn main() -> ExitCode {
                 ExitCode::SUCCESS
             } else {
                 let payload = splice::cli::CliErrorPayload::from_error(&e);
-                emit_error_payload(&payload);
+                emit_error_payload(&payload, json_output);
                 ExitCode::from(1)
             }
         }
@@ -169,6 +171,7 @@ fn execute_delete(
     create_backup: bool,
     operation_id: Option<String>,
     metadata: Option<String>,
+    _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::CodeGraph;
     use splice::patch::apply_patch_with_validation;
@@ -408,6 +411,7 @@ fn execute_single_patch(
     create_backup: bool,
     operation_id: Option<String>,
     metadata: Option<String>,
+    _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     let file_path = require_patch_arg("--file", file_path)?;
     let symbol_name = require_patch_arg("--symbol", symbol_name)?;
@@ -424,6 +428,7 @@ fn execute_single_patch(
         create_backup,
         operation_id,
         metadata,
+        _json_output,
     )
 }
 
@@ -438,6 +443,7 @@ fn execute_patch(
     create_backup: bool,
     operation_id: Option<String>,
     metadata: Option<String>,
+    _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::CodeGraph;
     use splice::patch::{apply_patch_with_validation, preview_patch, FilePatchSummary};
@@ -624,6 +630,7 @@ fn execute_patch_batch(
     create_backup: bool,
     operation_id: Option<String>,
     metadata: Option<String>,
+    _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::patch::{apply_batch_with_validation, load_batches_from_file};
     use splice::validate::AnalyzerMode as ValidateAnalyzerMode;
@@ -757,7 +764,7 @@ fn execute_patch_batch(
 /// 2. Calls execute_plan from the plan module
 ///
 /// All logic is delegated to the plan module.
-fn execute_plan(plan_path: &Path) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+fn execute_plan(plan_path: &Path, _json_output: bool) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::plan::execute_plan;
 
     // Determine workspace directory (parent of plan file)
@@ -781,7 +788,7 @@ fn execute_plan(plan_path: &Path) -> Result<splice::cli::CliSuccessPayload, spli
 ///
 /// This function restores files from a backup manifest created during
 /// a previous splice operation.
-fn execute_undo(manifest_path: &Path) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+fn execute_undo(manifest_path: &Path, _json_output: bool) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::patch::restore_from_manifest;
 
     // Determine workspace directory (parent of manifest's parent directory)
@@ -826,6 +833,7 @@ fn execute_apply_files(
     create_backup: bool,
     operation_id: Option<String>,
     metadata: Option<String>,
+    _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::patch::{apply_pattern_replace, find_pattern_in_files, BackupWriter, PatternReplaceConfig};
 
@@ -911,6 +919,7 @@ fn execute_query(
     list: bool,
     count: bool,
     show_code: bool,
+    _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::magellan_integration::MagellanIntegration;
 
@@ -1033,6 +1042,7 @@ fn execute_get(
     file_path: &Path,
     start: usize,
     end: usize,
+    _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::magellan_integration::MagellanIntegration;
 
@@ -1090,7 +1100,7 @@ fn write_stdout_line(line: &str) -> Result<(), splice::SpliceError> {
 }
 
 /// Emit JSON payload for successful CLI responses.
-fn emit_success_payload(payload: &splice::cli::CliSuccessPayload) -> Result<(), splice::SpliceError> {
+fn emit_success_payload(payload: &splice::cli::CliSuccessPayload, _json_output: bool) -> Result<(), splice::SpliceError> {
     match serde_json::to_string(payload) {
         Ok(json) => write_stdout_line(&json),
         Err(err) => {
@@ -1106,7 +1116,7 @@ fn emit_success_payload(payload: &splice::cli::CliSuccessPayload) -> Result<(), 
 }
 
 /// Emit JSON payload for CLI errors.
-fn emit_error_payload(payload: &splice::cli::CliErrorPayload) {
+fn emit_error_payload(payload: &splice::cli::CliErrorPayload, _json_output: bool) {
     match serde_json::to_string(payload) {
         Ok(json) => eprintln!("{}", json),
         Err(err) => {
