@@ -1137,6 +1137,11 @@ fn execute_plan(
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::output::{OperationResult, OperationData, PlanResult, StepResult};
     use splice::plan::execute_plan;
+    use splice::execution::log;
+
+    // Start timing
+    let start = std::time::Instant::now();
+    let command_line = std::env::args().collect::<Vec<_>>().join(" ");
 
     // Determine workspace directory (parent of plan file)
     let workspace_dir = plan_path.parent().ok_or_else(|| {
@@ -1147,6 +1152,7 @@ fn execute_plan(
 
     // Execute plan
     let messages = execute_plan(plan_path, workspace_dir)?;
+    let step_count = messages.len();
 
     // Check if JSON output is requested
     if _json_output {
@@ -1184,13 +1190,29 @@ fn execute_plan(
         // Create operation result with operation_id from CLI or generate new UUID
         let result = OperationResult::with_id(
             "plan".to_string(),
-            operation_id,
+            operation_id.clone(),
         )
         .success(message)
         .with_result(OperationData::Plan(plan_result));
 
         // Output structured JSON directly
         println!("{}", serde_json::to_string_pretty(&result).unwrap());
+
+        // Record execution for JSON output
+        let duration_ms = start.elapsed().as_millis() as i64;
+        let parameters = serde_json::json!({
+            "plan_file": plan_path.to_string_lossy(),
+            "step_count": step_count,
+        });
+        if let Err(e) = log::record_execution_with_params(
+            &splice::output::OperationResult::with_id("plan".to_string(), operation_id.clone())
+                .success(format!("Plan executed successfully: {} steps completed", step_count)),
+            duration_ms,
+            Some(command_line.clone()),
+            parameters,
+        ) {
+            eprintln!("Failed to record execution: {}", e);
+        }
 
         // Return a dummy payload marked as already emitted
         return Ok(splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted());
@@ -1216,11 +1238,28 @@ fn execute_plan(
         }
     }
 
+    // Record execution for regular output
+    let duration_ms = start.elapsed().as_millis() as i64;
+    let message = format!(
+        "Plan executed successfully: {} steps completed",
+        messages.len()
+    );
+    let parameters = serde_json::json!({
+        "plan_file": plan_path.to_string_lossy(),
+        "step_count": step_count,
+    });
+    if let Err(e) = log::record_execution_with_params(
+        &splice::output::OperationResult::with_id("plan".to_string(), operation_id.clone())
+            .success(message.clone()),
+        duration_ms,
+        Some(command_line.clone()),
+        parameters,
+    ) {
+        eprintln!("Failed to record execution: {}", e);
+    }
+
     Ok(splice::cli::CliSuccessPayload::with_data(
-        format!(
-            "Plan executed successfully: {} steps completed",
-            messages.len()
-        ),
+        message,
         serde_json::Value::Object(response_data),
     ))
 }
@@ -1277,6 +1316,11 @@ fn execute_apply_files(
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::patch::{apply_pattern_replace, find_pattern_in_files, BackupWriter, PatternReplaceConfig};
+    use splice::execution::log;
+
+    // Start timing
+    let start = std::time::Instant::now();
+    let command_line = std::env::args().collect::<Vec<_>>().join(" ");
 
     // Get current directory as workspace root
     let workspace_root = env::current_dir()
@@ -1348,6 +1392,26 @@ fn execute_apply_files(
         result.replacements_count
     );
 
+    // Record execution
+    let duration_ms = start.elapsed().as_millis() as i64;
+    let file_count = result.files_patched.len();
+    let parameters = serde_json::json!({
+        "glob": glob_pattern,
+        "find": find_pattern,
+        "replace": replace_pattern,
+        "language": language.map(|l| l.as_str().to_string()),
+        "file_count": file_count,
+    });
+    if let Err(e) = log::record_execution_with_params(
+        &splice::output::OperationResult::with_id("apply-files".to_string(), operation_id.clone())
+            .success(message.clone()),
+        duration_ms,
+        Some(command_line.clone()),
+        parameters,
+    ) {
+        eprintln!("Failed to record execution: {}", e);
+    }
+
     Ok(splice::cli::CliSuccessPayload::with_data(message, serde_json::Value::Object(response_data)))
 }
 
@@ -1363,6 +1427,11 @@ fn execute_query(
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::magellan_integration::MagellanIntegration;
+    use splice::execution::log;
+
+    // Start timing
+    let start = std::time::Instant::now();
+    let command_line = std::env::args().collect::<Vec<_>>().join(" ");
 
     // Open Magellan integration
     let integration = MagellanIntegration::open(db_path)?;
@@ -1375,10 +1444,27 @@ fn execute_query(
             let count = integration.count_by_label(label)?;
             write_stdout_line(&format!("  {} ({})", label, count))?;
         }
-        return Ok(splice::cli::CliSuccessPayload::message_only(format!(
-            "Listed {} labels",
-            all_labels.len()
-        )));
+
+        // Record execution for list mode
+        let duration_ms = start.elapsed().as_millis() as i64;
+        let label_count = all_labels.len();
+        let message = format!("Listed {} labels", label_count);
+        let parameters = serde_json::json!({
+            "db": db_path.to_string_lossy(),
+            "list": true,
+            "label_count": label_count,
+        });
+        if let Err(e) = log::record_execution_with_params(
+            &splice::output::OperationResult::new("query".to_string())
+                .success(message.clone()),
+            duration_ms,
+            Some(command_line.clone()),
+            parameters,
+        ) {
+            eprintln!("Failed to record execution: {}", e);
+        }
+
+        return Ok(splice::cli::CliSuccessPayload::message_only(message));
     }
 
     // Count mode
@@ -1394,8 +1480,28 @@ fn execute_query(
             let entity_count = integration.count_by_label(label)?;
             counts.insert(label.clone(), json!(entity_count));
         }
+
+        // Record execution for count mode
+        let duration_ms = start.elapsed().as_millis() as i64;
+        let labels_count = labels.len();
+        let message = format!("Counted entities for {} label(s)", labels_count);
+        let parameters = serde_json::json!({
+            "db": db_path.to_string_lossy(),
+            "count": true,
+            "labels": labels,
+        });
+        if let Err(e) = log::record_execution_with_params(
+            &splice::output::OperationResult::new("query".to_string())
+                .success(message.clone()),
+            duration_ms,
+            Some(command_line.clone()),
+            parameters,
+        ) {
+            eprintln!("Failed to record execution: {}", e);
+        }
+
         return Ok(splice::cli::CliSuccessPayload::with_data(
-            format!("Counted entities for {} label(s)", labels.len()),
+            message,
             json!(counts),
         ));
     }
@@ -1422,9 +1528,26 @@ fn execute_query(
         } else {
             write_stdout_line(&format!("No symbols found with labels: {}", labels.join(", ")))?;
         }
-        return Ok(splice::cli::CliSuccessPayload::message_only(
-            "No symbols found".to_string(),
-        ));
+
+        // Record execution for empty results
+        let duration_ms = start.elapsed().as_millis() as i64;
+        let message = "No symbols found".to_string();
+        let parameters = serde_json::json!({
+            "db": db_path.to_string_lossy(),
+            "labels": labels,
+            "results_count": 0,
+        });
+        if let Err(e) = log::record_execution_with_params(
+            &splice::output::OperationResult::new("query".to_string())
+                .success(message.clone()),
+            duration_ms,
+            Some(command_line.clone()),
+            parameters,
+        ) {
+            eprintln!("Failed to record execution: {}", e);
+        }
+
+        return Ok(splice::cli::CliSuccessPayload::message_only(message));
     }
 
     // Build response data
@@ -1475,8 +1598,28 @@ fn execute_query(
         }
     }
 
+    // Record execution for normal query
+    let duration_ms = start.elapsed().as_millis() as i64;
+    let results_count = results.len();
+    let message = format!("Found {} symbols", results_count);
+    let parameters = serde_json::json!({
+        "db": db_path.to_string_lossy(),
+        "labels": labels,
+        "show_code": show_code,
+        "results_count": results_count,
+    });
+    if let Err(e) = log::record_execution_with_params(
+        &splice::output::OperationResult::new("query".to_string())
+            .success(message.clone()),
+        duration_ms,
+        Some(command_line.clone()),
+        parameters,
+    ) {
+        eprintln!("Failed to record execution: {}", e);
+    }
+
     Ok(splice::cli::CliSuccessPayload::with_data(
-        format!("Found {} symbols", results.len()),
+        message,
         json!(symbols_data),
     ))
 }
