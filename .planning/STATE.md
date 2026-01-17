@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-17)
 
 ## Current Position
 
-Phase: 6 of 10 (Deterministic Ordering)
-Plan: All 3 complete
-Status: **COMPLETE** — Moving to Phase 7
-Last activity: 2026-01-17 — Completed Phase 6 (Deterministic Ordering)
+Phase: 7 of 10 (Validation Hooks)
+Plan: PLANNED — Ready for execution
+Status: **PLANNED** — 3 plans ready
+Last activity: 2026-01-17 — Created Phase 7 plans (Validation Hooks)
 
-Progress: ██████████░ 60% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 4/4 complete, Phase 4: 3/3 complete, Phase 5: 3/3 complete, Phase 6: 3/3 complete)
+Progress: ██████████░ 60% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 4/4 complete, Phase 4: 3/3 complete, Phase 5: 3/3 complete, Phase 6: 3/3 complete, Phase 7: 0/3 planned)
 
 ## Performance Metrics
 
@@ -33,7 +33,7 @@ Progress: ██████████░ 60% (Phase 1: 3/3 complete, Phase 2:
 | 4. Stable Identifiers | 3 | 3 | **COMPLETE** |
 | 5. Span-Aware Metadata | 3 | 3 | **COMPLETE** |
 | 6. Deterministic Ordering | 3 | 3 | **COMPLETE** |
-| 7-10 | — | 0 | Not started |
+| 7. Validation Hooks | 3 | 0 | **PLANNED** |
 
 **Recent Trend:**
 - 01-01 through 01-03: Safety Foundation — **COMPLETE**
@@ -42,7 +42,8 @@ Progress: ██████████░ 60% (Phase 1: 3/3 complete, Phase 2:
 - 04-01 through 04-03: Stable Identifiers — **COMPLETE**
 - 05-01 through 05-03: Span-Aware Metadata — **COMPLETE**
 - 06-01 through 06-03: Deterministic Ordering — **COMPLETE**
-- Next: Phase 7 — Validation Hooks
+- 07-01 through 07-03: Validation Hooks — **PLANNED**
+- Next: Execute Phase 7 plans
 
 ## Accumulated Context
 
@@ -136,7 +137,39 @@ Resume file: None
 - `.planning/phases/06-deterministic-ordering/06-02-SUMMARY.md`
 - `.planning/phases/06-deterministic-ordering/06-03-SUMMARY.md`
 
-**Next Phase: Phase 7 — Validation Hooks**
-- Goal: Implement checksums and pre/post verification hooks
-- Depends on: Phase 5 (metadata enables checksums)
-- Plans: TBD (likely 3 plans: design, pre-verification, post-verification)
+**Phase 7 Status: PLANNED** (3/3 plans ready)
+- 07-01: ✅ PLANNED (Design checksum system)
+  - New module: src/checksum.rs (~150 LOC)
+  - SHA-256 for files, spans, line ranges
+  - Checksum structs with algorithm metadata
+  - Tests: 6 unit tests + 2 integration tests
+  - PLAN.md created
+
+- 07-02: ✅ PLANNED (Implement pre-verification hooks)
+  - New module: src/verify.rs (~200 LOC)
+  - File ready checks (exists, writable, readable)
+  - Workspace resource checks (disk space, permissions)
+  - Graph sync verification
+  - CLI flags: --strict, --skip-pre-verify
+  - Tests: 6 unit tests + 3 integration tests
+  - PLAN.md created
+
+- 07-03: ✅ PLANNED (Implement post-verification hooks)
+  - Extend src/verify.rs (~150 additional LOC)
+  - Syntax verification (tree-sitter reparse)
+  - Compiler verification (language-specific)
+  - Semantic preservation checks
+  - Localized change verification
+  - Span checksums in output
+  - Tests: 6 unit tests + 4 integration tests
+  - PLAN.md created
+
+**Artifacts Created:**
+- `.planning/phases/07-validation-hooks/07-01-PLAN.md`
+- `.planning/phases/07-validation-hooks/07-02-PLAN.md`
+- `.planning/phases/07-validation-hooks/07-03-PLAN.md`
+
+**Next Phase: Execute Phase 7 plans in order**
+- 07-01 depends on: None (Phase 5 complete)
+- 07-02 depends on: 07-01 (checksums required)
+- 07-03 depends on: 07-01, 07-02 (checksums + pre-verify required)
