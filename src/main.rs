@@ -537,6 +537,11 @@ fn execute_patch(
     use splice::resolve::resolve_symbol;
     use splice::symbol::{Language as SymbolLanguage, Symbol};
     use splice::validate::AnalyzerMode as ValidateAnalyzerMode;
+    use splice::execution::log;
+
+    // Start timing
+    let start = std::time::Instant::now();
+    let command_line = std::env::args().collect::<Vec<_>>().join(" ");
 
     // Determine language (from CLI flag or auto-detect from file extension)
     let symbol_lang = language
@@ -649,6 +654,26 @@ fn execute_patch(
             summary.before_hash,
             summary.after_hash
         );
+
+        // Record execution for preview
+        let duration_ms = start.elapsed().as_millis() as i64;
+        let parameters = serde_json::json!({
+            "file": file_path.to_string_lossy(),
+            "symbol": symbol_name,
+            "kind": kind_str,
+            "preview": true,
+            "create_backup": create_backup,
+        });
+        if let Err(e) = log::record_execution_with_params(
+            &splice::output::OperationResult::with_id("patch".to_string(), operation_id.clone())
+                .success(message.clone()),
+            duration_ms,
+            Some(command_line),
+            parameters,
+        ) {
+            eprintln!("Failed to record execution: {}", e);
+        }
+
         return Ok(build_success_payload(message, vec![summary], Some(report)));
     }
 
@@ -703,21 +728,41 @@ fn execute_patch(
             lines_removed: 0, // TODO: Calculate from diff
         };
 
-        // Create operation result with operation_id from CLI or generate new UUID
-        let result = OperationResult::with_id(
-            "patch".to_string(),
-            operation_id.clone(),
-        )
-        .success(format!(
+        let message = format!(
             "Patched '{}' at bytes {}..{} (hash: {} -> {})",
             symbol_name,
             resolved.byte_start,
             resolved.byte_end,
             summary.before_hash,
             summary.after_hash
-        ))
+        );
+
+        // Create operation result with operation_id from CLI or generate new UUID
+        let result = OperationResult::with_id(
+            "patch".to_string(),
+            operation_id.clone(),
+        )
+        .success(message.clone())
         .with_workspace(workspace_root.to_string_lossy().to_string())
         .with_result(OperationData::Patch(patch_result));
+
+        // Record execution
+        let duration_ms = start.elapsed().as_millis() as i64;
+        let parameters = serde_json::json!({
+            "file": file_path.to_string_lossy(),
+            "symbol": symbol_name,
+            "kind": kind_str,
+            "preview": false,
+            "create_backup": create_backup,
+        });
+        if let Err(e) = log::record_execution_with_params(
+            &result,
+            duration_ms,
+            Some(command_line),
+            parameters,
+        ) {
+            eprintln!("Failed to record execution: {}", e);
+        }
 
         // Output structured JSON directly
         println!("{}", serde_json::to_string_pretty(&result).unwrap());
@@ -735,6 +780,25 @@ fn execute_patch(
         summary.before_hash,
         summary.after_hash
     );
+
+    // Record execution
+    let duration_ms = start.elapsed().as_millis() as i64;
+    let parameters = serde_json::json!({
+        "file": file_path.to_string_lossy(),
+        "symbol": symbol_name,
+        "kind": kind_str,
+        "preview": false,
+        "create_backup": create_backup,
+    });
+    if let Err(e) = log::record_execution_with_params(
+        &splice::output::OperationResult::with_id("patch".to_string(), operation_id.clone())
+            .success(message.clone()),
+        duration_ms,
+        Some(command_line),
+        parameters,
+    ) {
+        eprintln!("Failed to record execution: {}", e);
+    }
 
     // Build span ID
     let span_id = json!({
