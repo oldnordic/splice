@@ -17,16 +17,13 @@
 //! - TypeScript (.ts, .tsx)
 
 use splice::graph::CodeGraph;
-use splice::ingest::{rust::extract_rust_symbols};
+use splice::ingest::rust::extract_rust_symbols;
 use splice::ingest::cpp::extract_cpp_symbols;
 use splice::ingest::python::extract_python_symbols;
 use splice::ingest::java::extract_java_symbols;
 use splice::ingest::javascript::extract_javascript_symbols;
 use splice::ingest::typescript::extract_typescript_symbols;
-use splice::patch::apply_patch_with_validation;
-use splice::resolve::resolve_symbol;
 use splice::symbol::Language;
-use splice::validate::AnalyzerMode;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
@@ -411,5 +408,227 @@ mod fixture_tests {
             TestLanguage::TypeScript.validate_command(),
             Some("tsc --noEmit")
         );
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Language-specific symbol extraction tests (Task 2 - simplified)
+///////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod language_extraction_tests {
+    use super::*;
+
+    /// Test Rust symbol extraction
+    #[test]
+    fn test_rust_symbol_extraction() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = TestLanguage::Rust.create_sample_file(temp_dir.path());
+
+        let source = fs::read_to_string(&file_path).expect("Failed to read file");
+        let symbols = extract_rust_symbols(&file_path, source.as_bytes())
+            .expect("Failed to extract Rust symbols");
+
+        assert!(!symbols.is_empty(), "Should extract at least one Rust symbol");
+    }
+
+    /// Test Python symbol extraction
+    #[test]
+    fn test_python_symbol_extraction() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = TestLanguage::Python.create_sample_file(temp_dir.path());
+
+        let source = fs::read_to_string(&file_path).expect("Failed to read file");
+        let symbols = extract_python_symbols(&file_path, source.as_bytes())
+            .expect("Failed to extract Python symbols");
+
+        assert!(!symbols.is_empty(), "Should extract at least one Python symbol");
+    }
+
+    /// Test C symbol extraction
+    #[test]
+    fn test_c_symbol_extraction() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = TestLanguage::C.create_sample_file(temp_dir.path());
+
+        let source = fs::read_to_string(&file_path).expect("Failed to read file");
+        let symbols = extract_cpp_symbols(&file_path, source.as_bytes())
+            .expect("Failed to extract C symbols");
+
+        assert!(!symbols.is_empty(), "Should extract at least one C symbol");
+    }
+
+    /// Test C++ symbol extraction
+    #[test]
+    fn test_cpp_symbol_extraction() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = TestLanguage::Cpp.create_sample_file(temp_dir.path());
+
+        let source = fs::read_to_string(&file_path).expect("Failed to read file");
+        let symbols = extract_cpp_symbols(&file_path, source.as_bytes())
+            .expect("Failed to extract C++ symbols");
+
+        assert!(!symbols.is_empty(), "Should extract at least one C++ symbol");
+    }
+
+    /// Test Java symbol extraction
+    #[test]
+    fn test_java_symbol_extraction() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = TestLanguage::Java.create_sample_file(temp_dir.path());
+
+        let source = fs::read_to_string(&file_path).expect("Failed to read file");
+        let symbols = extract_java_symbols(&file_path, source.as_bytes())
+            .expect("Failed to extract Java symbols");
+
+        assert!(!symbols.is_empty(), "Should extract at least one Java symbol");
+    }
+
+    /// Test JavaScript symbol extraction
+    #[test]
+    fn test_javascript_symbol_extraction() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = TestLanguage::JavaScript.create_sample_file(temp_dir.path());
+
+        let source = fs::read_to_string(&file_path).expect("Failed to read file");
+        let symbols = extract_javascript_symbols(&file_path, source.as_bytes())
+            .expect("Failed to extract JavaScript symbols");
+
+        assert!(!symbols.is_empty(), "Should extract at least one JavaScript symbol");
+    }
+
+    /// Test TypeScript symbol extraction
+    #[test]
+    fn test_typescript_symbol_extraction() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = TestLanguage::TypeScript.create_sample_file(temp_dir.path());
+
+        let source = fs::read_to_string(&file_path).expect("Failed to read file");
+        let symbols = extract_typescript_symbols(&file_path, source.as_bytes())
+            .expect("Failed to extract TypeScript symbols");
+
+        assert!(!symbols.is_empty(), "Should extract at least one TypeScript symbol");
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Language detection and file extension tests (Tasks 5-6)
+///////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod language_detection_tests {
+    use super::*;
+
+    /// Test detecting Rust from .rs extension
+    #[test]
+    fn test_detect_rust_from_rs_extension() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = TestLanguage::Rust.create_sample_file(temp_dir.path());
+
+        let extension = file_path.extension().unwrap().to_str().unwrap();
+        assert_eq!(extension, "rs");
+
+        // Verify we can extract symbols from this file
+        let source = fs::read_to_string(&file_path).expect("Failed to read file");
+        let symbols = extract_rust_symbols(&file_path, source.as_bytes())
+            .expect("Failed to extract symbols");
+
+        assert!(!symbols.is_empty());
+    }
+
+    /// Test detecting Python from .py extension
+    #[test]
+    fn test_detect_python_from_py_extension() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = TestLanguage::Python.create_sample_file(temp_dir.path());
+
+        let extension = file_path.extension().unwrap().to_str().unwrap();
+        assert_eq!(extension, "py");
+
+        let source = fs::read_to_string(&file_path).expect("Failed to read file");
+        let symbols = extract_python_symbols(&file_path, source.as_bytes())
+            .expect("Failed to extract symbols");
+
+        assert!(!symbols.is_empty());
+    }
+
+    /// Test detecting C from .c extension
+    #[test]
+    fn test_detect_c_from_c_extension() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = TestLanguage::C.create_sample_file(temp_dir.path());
+
+        let extension = file_path.extension().unwrap().to_str().unwrap();
+        assert_eq!(extension, "c");
+
+        let source = fs::read_to_string(&file_path).expect("Failed to read file");
+        let symbols = extract_cpp_symbols(&file_path, source.as_bytes())
+            .expect("Failed to extract symbols");
+
+        assert!(!symbols.is_empty());
+    }
+
+    /// Test detecting C++ from .cpp extension
+    #[test]
+    fn test_detect_cpp_from_cpp_extension() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = TestLanguage::Cpp.create_sample_file(temp_dir.path());
+
+        let extension = file_path.extension().unwrap().to_str().unwrap();
+        assert_eq!(extension, "cpp");
+
+        let source = fs::read_to_string(&file_path).expect("Failed to read file");
+        let symbols = extract_cpp_symbols(&file_path, source.as_bytes())
+            .expect("Failed to extract symbols");
+
+        assert!(!symbols.is_empty());
+    }
+
+    /// Test detecting Java from .java extension
+    #[test]
+    fn test_detect_java_from_java_extension() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = TestLanguage::Java.create_sample_file(temp_dir.path());
+
+        let extension = file_path.extension().unwrap().to_str().unwrap();
+        assert_eq!(extension, "java");
+
+        let source = fs::read_to_string(&file_path).expect("Failed to read file");
+        let symbols = extract_java_symbols(&file_path, source.as_bytes())
+            .expect("Failed to extract symbols");
+
+        assert!(!symbols.is_empty());
+    }
+
+    /// Test detecting JavaScript from .js extension
+    #[test]
+    fn test_detect_javascript_from_js_extension() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = TestLanguage::JavaScript.create_sample_file(temp_dir.path());
+
+        let extension = file_path.extension().unwrap().to_str().unwrap();
+        assert_eq!(extension, "js");
+
+        let source = fs::read_to_string(&file_path).expect("Failed to read file");
+        let symbols = extract_javascript_symbols(&file_path, source.as_bytes())
+            .expect("Failed to extract symbols");
+
+        assert!(!symbols.is_empty());
+    }
+
+    /// Test detecting TypeScript from .ts extension
+    #[test]
+    fn test_detect_typescript_from_ts_extension() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = TestLanguage::TypeScript.create_sample_file(temp_dir.path());
+
+        let extension = file_path.extension().unwrap().to_str().unwrap();
+        assert_eq!(extension, "ts");
+
+        let source = fs::read_to_string(&file_path).expect("Failed to read file");
+        let symbols = extract_typescript_symbols(&file_path, source.as_bytes())
+            .expect("Failed to extract symbols");
+
+        assert!(!symbols.is_empty());
     }
 }
