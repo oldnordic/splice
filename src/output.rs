@@ -406,7 +406,7 @@ impl From<crate::resolve::ResolvedSpan> for SpanResult {
             col_start: span.col_start,
             col_end: span.col_end,
             span_id: Uuid::new_v4().to_string(),
-            match_id: None,
+            match_id: Some(span.match_id),
             before_hash: None,
             after_hash: None,
         }
