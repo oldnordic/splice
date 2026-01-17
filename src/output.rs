@@ -167,7 +167,7 @@ pub struct PlanResult {
 }
 
 /// Individual step result.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StepResult {
     /// Step index (1-based)
     pub step: usize,
@@ -313,6 +313,60 @@ impl SpanResult {
     }
 }
 
+// Implement Ord for SpanResult - sorts by file_path, then byte_start, then byte_end
+// Ignores span_id (random UUID), match_id, and hash fields for deterministic ordering
+impl PartialEq for SpanResult {
+    fn eq(&self, other: &Self) -> bool {
+        self.file_path == other.file_path
+            && self.byte_start == other.byte_start
+            && self.byte_end == other.byte_end
+    }
+}
+
+impl Eq for SpanResult {}
+
+impl PartialOrd for SpanResult {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for SpanResult {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self.file_path.cmp(&other.file_path) {
+            std::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+        match self.byte_start.cmp(&other.byte_start) {
+            std::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+        self.byte_end.cmp(&other.byte_end)
+    }
+}
+
+// Implement Ord for FilePatternResult - sorts by file path only
+// Ignores spans Vec (cannot derive Ord with Vec field)
+impl PartialEq for FilePatternResult {
+    fn eq(&self, other: &Self) -> bool {
+        self.file == other.file
+    }
+}
+
+impl Eq for FilePatternResult {}
+
+impl PartialOrd for FilePatternResult {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for FilePatternResult {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.file.cmp(&other.file)
+    }
+}
+
 /// Error details for failed operations.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ErrorDetails {
@@ -367,6 +421,53 @@ pub struct DiagnosticPayload {
     /// Optional remediation link or text
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remediation: Option<String>,
+}
+
+// Implement Ord for DiagnosticPayload - sorts by tool, file, line, column, level, message
+// None < Some for Option fields to group diagnostics without location first
+impl PartialEq for DiagnosticPayload {
+    fn eq(&self, other: &Self) -> bool {
+        self.tool == other.tool
+            && self.file == other.file
+            && self.line == other.line
+            && self.column == other.column
+            && self.level == other.level
+            && self.message == other.message
+    }
+}
+
+impl Eq for DiagnosticPayload {}
+
+impl PartialOrd for DiagnosticPayload {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for DiagnosticPayload {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self.tool.cmp(&other.tool) {
+            std::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+        match self.file.cmp(&other.file) {
+            std::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+        match self.line.cmp(&other.line) {
+            std::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+        match self.column.cmp(&other.column) {
+            std::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+        match self.level.cmp(&other.level) {
+            std::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+        self.message.cmp(&other.message)
+    }
 }
 
 // Conversion from existing types
