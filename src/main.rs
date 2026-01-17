@@ -398,6 +398,8 @@ fn execute_delete(
     if _json_output {
         use splice::output::{OperationResult, OperationData, DeleteResult, SpanResult};
         use splice::resolve::resolve_symbol;
+        use splice::checksum;
+        use std::path::Path;
 
         // Resolve the definition to get match_id
         let resolved_def = resolve_symbol(&code_graph, Some(file_path), _kind_str, symbol_name)?;
@@ -425,6 +427,26 @@ fn execute_delete(
             .map(|r| r.byte_end - r.byte_start)
             .sum::<usize>() + (def.byte_end - def.byte_start);
 
+        // Compute file checksum before deletion
+        let file_checksum_before = checksum::checksum_file(file_path)
+            .map(|cs| cs.value)
+            .unwrap_or_else(|_| "checksum-failed".to_string());
+
+        // Compute checksums for each removed span
+        let mut span_checksums: Vec<String> = Vec::new();
+
+        // Add definition span checksum
+        if let Ok(cs) = checksum::checksum_span(file_path, def.byte_start, def.byte_end) {
+            span_checksums.push(cs.value);
+        }
+
+        // Add reference span checksums
+        for r in &ref_set.references {
+            if let Ok(cs) = checksum::checksum_span(Path::new(&r.file_path), r.byte_start, r.byte_end) {
+                span_checksums.push(cs.value);
+            }
+        }
+
         // Create delete result
         let delete_result = DeleteResult {
             file: file_path.to_string_lossy().to_string(),
@@ -434,6 +456,8 @@ fn execute_delete(
             bytes_removed: total_bytes_removed,
             lines_removed: 0, // TODO: Calculate from diff
             references_removed: deleted_count - 1,
+            file_checksum_before,
+            span_checksums,
         };
 
         // Create operation result with operation_id from CLI or generate new UUID

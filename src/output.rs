@@ -149,6 +149,10 @@ pub struct DeleteResult {
     pub lines_removed: usize,
     /// Number of references removed
     pub references_removed: usize,
+    /// Checksum of file before deletion
+    pub file_checksum_before: String,
+    /// Checksums of each removed span
+    pub span_checksums: Vec<String>,
 }
 
 /// Multi-step plan execution result.
@@ -260,6 +264,12 @@ pub struct SpanResult {
     /// Hash after modification (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub after_hash: Option<String>,
+    /// Checksum of span content before modification (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub span_checksum_before: Option<String>,
+    /// Checksum of span content after modification (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub span_checksum_after: Option<String>,
 }
 
 impl SpanResult {
@@ -280,6 +290,8 @@ impl SpanResult {
             match_id: None,
             before_hash: None,
             after_hash: None,
+            span_checksum_before: None,
+            span_checksum_after: None,
         }
     }
 
@@ -309,6 +321,13 @@ impl SpanResult {
     /// Add match_id from symbol resolution.
     pub fn with_match_id(mut self, match_id: String) -> Self {
         self.match_id = Some(match_id);
+        self
+    }
+
+    /// Add span checksum information.
+    pub fn with_span_checksums(mut self, before: String, after: String) -> Self {
+        self.span_checksum_before = Some(before);
+        self.span_checksum_after = Some(after);
         self
     }
 }
@@ -489,6 +508,8 @@ impl From<crate::patch::FilePatchSummary> for SpanResult {
             match_id: None,
             before_hash: Some(summary.before_hash),
             after_hash: Some(summary.after_hash),
+            span_checksum_before: None,
+            span_checksum_after: None,
         }
     }
 }
@@ -510,6 +531,8 @@ impl From<crate::resolve::ResolvedSpan> for SpanResult {
             match_id: Some(span.match_id),
             before_hash: None,
             after_hash: None,
+            span_checksum_before: None,
+            span_checksum_after: None,
         }
     }
 }
