@@ -15,6 +15,7 @@ mod pattern;
 use crate::error::{Diagnostic, DiagnosticLevel, Result, SpliceError};
 use crate::symbol::Language as SymbolLanguage;
 use crate::validate::{self, AnalyzerMode};
+use crate::verify;
 use ropey::Rope;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -115,13 +116,14 @@ pub struct PreviewReport {
 /// Apply a patch with full validation gates.
 ///
 /// This function:
-/// 1. Computes hash of original file
-/// 2. Replaces [start..end] byte span with new_content
-/// 3. Writes to temp file, fsyncs, atomic rename
-/// 4. Runs tree-sitter reparse gate (language-specific)
-/// 5. Runs compiler validation gate (language-specific)
-/// 6. Runs rust-analyzer gate (if enabled and Rust)
-/// 7. On any failure, rolls back atomically
+/// 1. Pre-verification (file state, workspace resources, graph sync)
+/// 2. Computes hash of original file
+/// 3. Replaces [start..end] byte span with new_content
+/// 4. Writes to temp file, fsyncs, atomic rename
+/// 5. Runs tree-sitter reparse gate (language-specific)
+/// 6. Runs compiler validation gate (language-specific)
+/// 7. Runs rust-analyzer gate (if enabled and Rust)
+/// 8. On any failure, rolls back atomically
 ///
 /// # Arguments
 /// * `file_path` - Path to the file to patch
@@ -144,6 +146,26 @@ pub fn apply_patch_with_validation(
     language: SymbolLanguage,
     analyzer_mode: AnalyzerMode,
 ) -> Result<(String, String)> {
+    // Step 0: Pre-verification before reading file
+    let db_path = workspace_dir.join(".codemcp/codegraph.db");
+    let pre_checks = verify::pre_verify_patch(file_path, None, workspace_dir, &db_path)?;
+
+    // Check for blocking failures
+    for check in &pre_checks {
+        if check.is_blocking() {
+            return Err(SpliceError::PreVerificationFailed {
+                check: format!("{:?}", check),
+            });
+        }
+    }
+
+    // Log warnings but don't fail
+    for check in &pre_checks {
+        if check.is_warning() {
+            log::warn!("Pre-verification warning: {:?}", check);
+        }
+    }
+
     // Step 1: Read original file and compute hash
     let original = std::fs::read(file_path)?;
     let before_hash = compute_hash(&original);
@@ -233,6 +255,13 @@ pub fn apply_batch_with_validation(
 
     for (file_path, mut replacements) in grouped {
         if replacements.is_empty() {
+            continue;
+        }
+
+        // Pre-verify each file
+        let pre_check = verify::verify_file_ready(&file_path, None, workspace_dir);
+        if pre_check.is_blocking() {
+            log::warn!("Skipping {:?}: pre-verification failed: {:?}", file_path, pre_check);
             continue;
         }
 
