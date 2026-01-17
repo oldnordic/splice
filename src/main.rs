@@ -628,7 +628,6 @@ fn execute_patch(
     // Check if JSON output is requested
     if _json_output {
         use splice::output::{OperationResult, OperationData, PatchResult, SpanResult};
-        use uuid::Uuid;
 
         // Create span result
         let span = SpanResult::from_byte_span(
@@ -651,19 +650,21 @@ fn execute_patch(
             lines_removed: 0, // TODO: Calculate from diff
         };
 
-        // Create operation result
-        let _op_id = operation_id.clone().unwrap_or_else(|| Uuid::new_v4().to_string());
-        let result = OperationResult::new("patch".to_string())
-            .success(format!(
-                "Patched '{}' at bytes {}..{} (hash: {} -> {})",
-                symbol_name,
-                resolved.byte_start,
-                resolved.byte_end,
-                summary.before_hash,
-                summary.after_hash
-            ))
-            .with_workspace(workspace_root.to_string_lossy().to_string())
-            .with_result(OperationData::Patch(patch_result));
+        // Create operation result with operation_id from CLI or generate new UUID
+        let result = OperationResult::with_id(
+            "patch".to_string(),
+            operation_id.clone(),
+        )
+        .success(format!(
+            "Patched '{}' at bytes {}..{} (hash: {} -> {})",
+            symbol_name,
+            resolved.byte_start,
+            resolved.byte_end,
+            summary.before_hash,
+            summary.after_hash
+        ))
+        .with_workspace(workspace_root.to_string_lossy().to_string())
+        .with_result(OperationData::Patch(patch_result));
 
         // Output structured JSON directly
         println!("{}", serde_json::to_string_pretty(&result).unwrap());
