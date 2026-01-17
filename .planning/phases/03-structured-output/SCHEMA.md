@@ -510,10 +510,12 @@ pub struct SpanResult {
     pub file_path: String,
 
     /// Symbol name (empty for pattern replacements)
-    pub symbol: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symbol: Option<String>,
 
     /// Symbol kind (function, struct, class, etc. or "text" for patterns)
-    pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
 
     /// Byte offset start (inclusive)
     pub byte_start: usize,
@@ -533,29 +535,40 @@ pub struct SpanResult {
     /// Column end (0-based, in bytes)
     pub col_end: usize,
 
-    /// SHA-256 hash before modification
-    pub before_hash: String,
+    /// Unique ID for this span (UUID v4, auto-generated)
+    pub span_id: String,
 
-    /// SHA-256 hash after modification
-    pub after_hash: String,
+    /// Symbol resolution match ID (optional, from resolve_symbol)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub match_id: Option<String>,
+
+    /// SHA-256 hash before modification (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub before_hash: Option<String>,
+
+    /// SHA-256 hash after modification (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub after_hash: Option<String>,
 }
 ```
 
 ### Field Descriptions
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `file_path` | String | Path to file containing the span |
-| `symbol` | String | Symbol name (empty for non-symbol spans) |
-| `kind` | String | Symbol kind or "text" for pattern replacements |
-| `byte_start` | usize | Start byte offset (inclusive) |
-| `byte_end` | usize | End byte offset (exclusive) |
-| `line_start` | usize | Start line number (1-based) |
-| `line_end` | usize | End line number (1-based) |
-| `col_start` | usize | Start column (0-based) |
-| `col_end` | usize | End column (0-based) |
-| `before_hash` | String | SHA-256 hash before modification |
-| `after_hash` | String | SHA-256 hash after modification |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `file_path` | String | Yes | Path to file containing the span |
+| `symbol` | String | No | Symbol name (None for non-symbol spans) |
+| `kind` | String | No | Symbol kind or "text" for pattern replacements |
+| `byte_start` | usize | Yes | Start byte offset (inclusive) |
+| `byte_end` | usize | Yes | End byte offset (exclusive) |
+| `line_start` | usize | Yes | Start line number (1-based, 0 if not available) |
+| `line_end` | usize | Yes | End line number (1-based, 0 if not available) |
+| `col_start` | usize | Yes | Start column (0-based, 0 if not available) |
+| `col_end` | usize | Yes | End column (0-based, 0 if not available) |
+| `span_id` | String | Yes | UUID v4 uniquely identifying this span (auto-generated) |
+| `match_id` | String | No | Symbol resolution match ID (populated by resolve_symbol operations) |
+| `before_hash` | String | No | SHA-256 hash before modification (optional) |
+| `after_hash` | String | No | SHA-256 hash after modification (optional) |
 
 ### Line/Column Fields Implementation Note
 
@@ -583,10 +596,17 @@ This ensures backward compatibility while allowing future enhancement.
   "line_end": 58,
   "col_start": 4,
   "col_end": 8,
+  "span_id": "550e8400-e29b-41d4-a716-446655440000",
+  "match_id": "660e8400-e29b-41d4-a716-446655440001",
   "before_hash": "a1b2c3d4e5f6789...",
   "after_hash": "f6e5d4c3b2a1098..."
 }
 ```
+
+**Notes:**
+- `span_id` is always present and auto-generated (UUID v4)
+- `match_id` is optional and only present for spans from symbol resolution operations
+- `before_hash` and `after_hash` are optional (present for patch operations)
 
 ---
 
