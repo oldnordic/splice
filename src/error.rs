@@ -19,6 +19,16 @@ pub enum SpliceError {
         source: std::io::Error,
     },
 
+    /// Generic I/O error with context string.
+    #[error("I/O error: {context}")]
+    IoContext {
+        /// Contextual description of the operation.
+        context: String,
+        /// The underlying I/O error.
+        #[source]
+        source: std::io::Error,
+    },
+
     /// Stdout closed early (broken pipe).
     #[error("stdout pipe closed")]
     BrokenPipe,
@@ -85,7 +95,7 @@ pub enum SpliceError {
     },
 
     /// Invalid byte span.
-    #[error("Invalid span ({start}, {end}) in {file}")]
+    #[error("Invalid span ({start}, {end}) in {file} (file size: {file_size})")]
     InvalidSpan {
         /// The file containing the invalid span.
         file: PathBuf,
@@ -93,6 +103,31 @@ pub enum SpliceError {
         start: usize,
         /// End byte offset.
         end: usize,
+        /// File size (bytes).
+        file_size: usize,
+    },
+
+    /// Invalid line range.
+    #[error("Invalid line range ({line_start}, {line_end}) in {file} (total lines: {total_lines})")]
+    InvalidLineRange {
+        /// The file containing the invalid range.
+        file: PathBuf,
+        /// Start line (1-based).
+        line_start: usize,
+        /// End line (1-based).
+        line_end: usize,
+        /// Total lines in file.
+        total_lines: usize,
+    },
+
+    /// Invalid UTF-8 content.
+    #[error("Invalid UTF-8 in file {file}: {source}")]
+    InvalidUtf8 {
+        /// The file with invalid UTF-8.
+        file: PathBuf,
+        /// The underlying UTF-8 error.
+        #[source]
+        source: std::str::Utf8Error,
     },
 
     /// Compiler validation failed.
@@ -338,7 +373,7 @@ impl SpliceError {
     /// Kind identifier for structured logging / CLI output.
     pub fn kind(&self) -> &'static str {
         match self {
-            SpliceError::Io { .. } => "Io",
+            SpliceError::Io { .. } | SpliceError::IoContext { .. } => "Io",
             SpliceError::BrokenPipe => "BrokenPipe",
             SpliceError::Graph(_) => "Graph",
             SpliceError::Parse { .. } => "Parse",
@@ -347,6 +382,8 @@ impl SpliceError {
             SpliceError::ReferenceFailed { .. } => "ReferenceFailed",
             SpliceError::AmbiguousReference { .. } => "AmbiguousReference",
             SpliceError::InvalidSpan { .. } => "InvalidSpan",
+            SpliceError::InvalidLineRange { .. } => "InvalidLineRange",
+            SpliceError::InvalidUtf8 { .. } => "InvalidUtf8",
             SpliceError::CompilerError(_) => "CompilerError",
             SpliceError::ParseValidationFailed { .. } => "ParseValidationFailed",
             SpliceError::CargoCheckFailed { .. } => "CargoCheckFailed",
@@ -377,6 +414,8 @@ impl SpliceError {
         match self {
             SpliceError::Parse { file, .. } => Some(file.as_path()),
             SpliceError::InvalidSpan { file, .. } => Some(file.as_path()),
+            SpliceError::InvalidLineRange { file, .. } => Some(file.as_path()),
+            SpliceError::InvalidUtf8 { file, .. } => Some(file.as_path()),
             SpliceError::ParseValidationFailed { file, .. } => Some(file.as_path()),
             SpliceError::CargoCheckFailed { workspace, .. } => Some(workspace.as_path()),
             SpliceError::CompilerValidationFailed { file, .. } => Some(file.as_path()),
@@ -499,6 +538,12 @@ impl SpliceError {
             SpliceError::Io { path, source } => {
                 SpliceError::Io {
                     path,
+                    source,
+                }
+            }
+            SpliceError::IoContext { context: _, source } => {
+                SpliceError::IoContext {
+                    context: ctx,
                     source,
                 }
             }

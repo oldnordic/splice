@@ -7,6 +7,7 @@
 // env_logger is used by src/main.rs (binary), not this library
 #![expect(unused_crate_dependencies)]
 
+pub mod checksum;
 pub mod cli;
 pub mod error;
 pub mod graph;

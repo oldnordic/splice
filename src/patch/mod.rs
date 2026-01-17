@@ -154,6 +154,7 @@ pub fn apply_patch_with_validation(
             file: file_path.to_path_buf(),
             start,
             end,
+            file_size: original.len(),
         });
     }
 
@@ -162,6 +163,7 @@ pub fn apply_patch_with_validation(
         file: file_path.to_path_buf(),
         start,
         end,
+        file_size: original.len(),
     })?;
 
     // Step 4: Apply byte-exact replacement using ropey
@@ -588,21 +590,24 @@ fn compute_hash(bytes: &[u8]) -> String {
 /// Prefer `apply_patch_with_validation` for all new code.
 pub fn replace_span(file_path: &Path, start: usize, end: usize, new_content: &str) -> Result<()> {
     let original = std::fs::read_to_string(file_path)?;
+    let file_size = original.len();
 
-    if start > end || end > original.len() {
+    if start > end || end > file_size {
         return Err(SpliceError::InvalidSpan {
             file: file_path.to_path_buf(),
             start,
             end,
+            file_size,
         });
     }
 
     // Validate that the span is within bounds
-    if end > original.len() || start > end {
+    if end > file_size || start > end {
         return Err(SpliceError::InvalidSpan {
             file: file_path.to_path_buf(),
             start,
             end,
+            file_size,
         });
     }
 
@@ -671,6 +676,7 @@ fn validate_replacements(
                 file: file_path.to_path_buf(),
                 start: replacement.start,
                 end: replacement.end,
+                file_size: file_len,
             });
         }
 
@@ -679,6 +685,7 @@ fn validate_replacements(
                 file: file_path.to_path_buf(),
                 start: replacement.start,
                 end: replacement.end,
+                file_size: file_len,
             }
         })?;
 
@@ -856,12 +863,15 @@ fn compute_preview_report(
 
 /// Validate that a span aligns with UTF-8 boundaries.
 pub fn validate_utf8_span(source: &str, start: usize, end: usize) -> Result<()> {
+    let file_size = source.len();
+
     // Validate that the span is within bounds
-    if end > source.len() || start > end {
+    if end > file_size || start > end {
         return Err(SpliceError::InvalidSpan {
             file: std::path::PathBuf::from("<unknown>"),
             start,
             end,
+            file_size,
         });
     }
     // If source is valid UTF-8, any slice of it is also valid UTF-8
