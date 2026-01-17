@@ -87,7 +87,7 @@ pub fn farewell(name: &str) -> String {
                     Language::Rust,
                     symbol.byte_start,
                     symbol.byte_end,
-                    0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
+                    symbol.line_start, symbol.line_end, symbol.col_start, symbol.col_end
                 )
                 .expect("Failed to store symbol");
         }
@@ -203,7 +203,7 @@ pub fn valid_function() -> i32 {
                 Language::Rust,
                 symbol.byte_start,
                 symbol.byte_end,
-                    0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
+                    symbol.line_start, symbol.line_end, symbol.col_start, symbol.col_end
             )
             .expect("Failed to store symbol");
 
@@ -322,7 +322,7 @@ pub fn get_number() -> i32 {
                 Language::Rust,
                 symbol.byte_start,
                 symbol.byte_end,
-                    0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
+                    symbol.line_start, symbol.line_end, symbol.col_start, symbol.col_end
             )
             .expect("Failed to store symbol");
 

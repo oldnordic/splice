@@ -68,7 +68,7 @@ function farewell(name: string): number {
                     Language::TypeScript,
                     symbol.byte_start,
                     symbol.byte_end,
-                    0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
+                    symbol.line_start, symbol.line_end, symbol.col_start, symbol.col_end
                 )
                 .expect("Failed to store symbol");
         }
@@ -166,7 +166,7 @@ function validFunction(): number {
                 Language::TypeScript,
                 symbol.byte_start,
                 symbol.byte_end,
-                0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
+                symbol.line_start, symbol.line_end, symbol.col_start, symbol.col_end
             )
             .expect("Failed to store symbol");
 
@@ -267,7 +267,7 @@ interface User {
                 Language::TypeScript,
                 iface.byte_start,
                 iface.byte_end,
-                0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
+                iface.line_start, iface.line_end, iface.col_start, iface.col_end
             )
             .expect("Failed to store symbol");
 

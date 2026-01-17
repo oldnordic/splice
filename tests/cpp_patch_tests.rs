@@ -57,7 +57,7 @@ int farewell(const char* name) {
                     Language::Cpp,
                     symbol.byte_start,
                     symbol.byte_end,
-                    0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
+                    symbol.line_start, symbol.line_end, symbol.col_start, symbol.col_end
                 )
                 .expect("Failed to store symbol");
         }
@@ -144,7 +144,7 @@ int valid_function() {
                 Language::Cpp,
                 symbol.byte_start,
                 symbol.byte_end,
-                    0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
+                    symbol.line_start, symbol.line_end, symbol.col_start, symbol.col_end
             )
             .expect("Failed to store symbol");
 
@@ -225,7 +225,7 @@ int get_number(void) {
                 Language::C,
                 symbol.byte_start,
                 symbol.byte_end,
-                    0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
+                    symbol.line_start, symbol.line_end, symbol.col_start, symbol.col_end
             )
             .expect("Failed to store symbol");
 

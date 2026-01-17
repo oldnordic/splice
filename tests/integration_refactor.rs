@@ -65,7 +65,7 @@ fn foo() {
                     Language::Rust,
                     symbol.byte_start,
                     symbol.byte_end,
-                    0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
+                    symbol.line_start, symbol.line_end, symbol.col_start, symbol.col_end
                 )
                 .expect("Failed to store symbol from file 1");
         }
@@ -79,7 +79,7 @@ fn foo() {
                     Language::Rust,
                     symbol.byte_start,
                     symbol.byte_end,
-                    0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
+                    symbol.line_start, symbol.line_end, symbol.col_start, symbol.col_end
                 )
                 .expect("Failed to store symbol from file 2");
         }
@@ -135,7 +135,7 @@ fn foo() {
                 Language::Rust,
                 symbol.byte_start,
                 symbol.byte_end,
-                    0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
+                    symbol.line_start, symbol.line_end, symbol.col_start, symbol.col_end
             )
             .expect("Failed to store symbol");
 
@@ -195,7 +195,7 @@ fn world() {
                     Language::Rust,
                     symbol.byte_start,
                     symbol.byte_end,
-                    0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
+                    symbol.line_start, symbol.line_end, symbol.col_start, symbol.col_end
                 )
                 .expect("Failed to store symbol");
         }
