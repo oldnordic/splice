@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Safety Foundation** - Eliminate unwrap() calls, establish error handling patterns (COMPLETED 2026-01-17)
 - [x] **Phase 2: SQLiteGraph v1.0 Upgrade** - Migrate to 1.0 with Native V2 backend (COMPLETED 2026-01-17)
-- [ ] **Phase 3: Structured Output Schema** - Design and implement structured JSON with explicit fields
+- [x] **Phase 3: Structured Output Schema** - Design and implement structured JSON with explicit fields (COMPLETED 2026-01-17)
 - [ ] **Phase 4: Stable Identifiers** - Add execution_id, match_id, span_id to all operations
 - [ ] **Phase 5: Span-Aware Metadata** - Line/column in graph, byte+line/col in all output
 - [ ] **Phase 6: Deterministic Ordering** - Ensure sorted output across all operations
@@ -61,9 +61,9 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 03-01: Design output schema structure
-- [ ] 03-02: Implement structured output types
-- [ ] 03-03: Replace ad-hoc JSON with structured schema
+- [x] 03-01: Design output schema structure (COMPLETED 2026-01-17)
+- [x] 03-02: Implement structured output types (COMPLETED 2026-01-17)
+- [x] 03-03: Replace ad-hoc JSON with structured schema (COMPLETED 2026-01-17)
 
 ### Phase 4: Stable Identifiers
 **Goal**: Add execution_id, match_id, span_id to all operations for traceability
@@ -153,7 +153,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 |-------|----------------|--------|------------|
 | 1. Safety Foundation | 3/3 | **COMPLETE** | 2026-01-17 |
 | 2. SQLiteGraph v1.0 Upgrade | 4/4 | **COMPLETE** | 2026-01-17 |
-| 3. Structured Output Schema | 0/3 | Not started | - |
+| 3. Structured Output Schema | 3/3 | **COMPLETE** | 2026-01-17 |
 | 4. Stable Identifiers | 0/3 | Not started | - |
 | 5. Span-Aware Metadata | 0/3 | Not started | - |
 | 6. Deterministic Ordering | 0/3 | Not started | - |
