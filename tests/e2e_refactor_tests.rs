@@ -341,6 +341,341 @@ pub fn caller_function() -> String {
     }
 
     // ============================================================================
-    // Additional helper tests will be added in subsequent tasks
+    // Patch Workflow Tests (Task 2)
+    // ============================================================================
+
+    #[test]
+    fn test_e2e_patch_success() {
+        let workspace = create_rust_workspace();
+        let workspace_path = workspace.path();
+        let lib_path = workspace_path.join("src/lib.rs");
+
+        // Create patch file
+        let patch_content = r#"pub fn greet(name: &str) -> String {
+    format!("Greetings, {}!", name)
+}
+"#;
+        let patch_file = workspace_path.join("patch.rs");
+        fs::write(&patch_file, patch_content).expect("Failed to write patch file");
+
+        // First, index the workspace
+        let index_output = run_splice(&["index", "."], workspace_path);
+        assert!(
+            index_output.status.success(),
+            "Index should succeed: {}",
+            String::from_utf8_lossy(&index_output.stderr)
+        );
+
+        // Run patch command
+        let output = run_splice(
+            &[
+                "patch",
+                "--file",
+                "src/lib.rs",
+                "--symbol",
+                "greet",
+                "--with",
+                "patch.rs",
+            ],
+            workspace_path,
+        );
+
+        // Verify exit code 0
+        assert!(
+            output.status.success(),
+            "Patch should succeed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+
+        // Verify file content updated
+        let updated_content = fs::read_to_string(&lib_path).expect("Failed to read lib.rs");
+        assert!(
+            updated_content.contains("Greetings,"),
+            "Updated content should contain 'Greetings,'"
+        );
+
+        // Verify cargo check passes
+        let check_output = Command::new("cargo")
+            .args(["check", "--quiet"])
+            .current_dir(workspace_path)
+            .output()
+            .expect("Failed to run cargo check");
+
+        assert!(
+            check_output.status.success(),
+            "cargo check should pass: {}",
+            String::from_utf8_lossy(&check_output.stderr)
+        );
+    }
+
+    #[test]
+    fn test_e2e_patch_with_preview() {
+        let workspace = create_rust_workspace();
+        let workspace_path = workspace.path();
+
+        let original_content = fs::read_to_string(workspace_path.join("src/lib.rs"))
+            .expect("Failed to read original lib.rs");
+
+        // Create patch file
+        let patch_content = r#"pub fn greet(name: &str) -> String {
+    format!("Greetings, {}!", name)
+}
+"#;
+        let patch_file = workspace_path.join("patch.rs");
+        fs::write(&patch_file, patch_content).expect("Failed to write patch file");
+
+        // Index the workspace
+        let _index_output = run_splice(&["index", "."], workspace_path);
+
+        // Run patch with preview
+        let output = run_splice(
+            &[
+                "patch",
+                "--file",
+                "src/lib.rs",
+                "--symbol",
+                "greet",
+                "--with",
+                "patch.rs",
+                "--preview",
+            ],
+            workspace_path,
+        );
+
+        // Verify returns preview report (stdout should contain "greet" or "preview")
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            stdout.len() > 0,
+            "Preview should produce output"
+        );
+
+        // Verify original file unchanged
+        let current_content = fs::read_to_string(workspace_path.join("src/lib.rs"))
+            .expect("Failed to read current lib.rs");
+        assert_eq!(
+            current_content, original_content,
+            "Original file should be unchanged in preview mode"
+        );
+    }
+
+    #[test]
+    fn test_e2e_patch_rollback_on_syntax_error() {
+        let workspace = create_rust_workspace();
+        let workspace_path = workspace.path();
+        let lib_path = workspace_path.join("src/lib.rs");
+
+        let original_content = fs::read_to_string(&lib_path).expect("Failed to read original");
+
+        // Create patch with syntax error (missing closing brace)
+        let patch_content = r#"pub fn greet(name: &str) -> String {
+    format!("Greetings, {}!", name)
+"#; // Missing closing brace
+        let patch_file = workspace_path.join("patch.rs");
+        fs::write(&patch_file, patch_content).expect("Failed to write patch file");
+
+        // Index the workspace
+        let _index_output = run_splice(&["index", "."], workspace_path);
+
+        // Run patch command
+        let output = run_splice(
+            &[
+                "patch",
+                "--file",
+                "src/lib.rs",
+                "--symbol",
+                "greet",
+                "--with",
+                "patch.rs",
+                "--skip-validation", // Skip cargo check for this test
+            ],
+            workspace_path,
+        );
+
+        // Verify exit code != 0 (syntax error should fail)
+        assert!(
+            !output.status.success(),
+            "Patch should fail on syntax error"
+        );
+
+        // Verify original file restored
+        let current_content = fs::read_to_string(&lib_path).expect("Failed to read current lib.rs");
+        assert_eq!(
+            current_content, original_content,
+            "Original file should be restored after syntax error"
+        );
+    }
+
+    #[test]
+    fn test_e2e_patch_rollback_on_compile_error() {
+        let workspace = create_rust_workspace();
+        let workspace_path = workspace.path();
+        let lib_path = workspace_path.join("src/lib.rs");
+
+        let original_content = fs::read_to_string(&lib_path).expect("Failed to read original");
+
+        // Create patch with type error (returns i32 instead of String)
+        let patch_content = r#"pub fn greet(name: &str) -> String {
+    42 // Type error: integer literal doesn't match String return
+}
+"#;
+        let patch_file = workspace_path.join("patch.rs");
+        fs::write(&patch_file, patch_content).expect("Failed to write patch file");
+
+        // Index the workspace
+        let _index_output = run_splice(&["index", "."], workspace_path);
+
+        // Run patch command (validation should catch compile error)
+        let output = run_splice(
+            &[
+                "patch",
+                "--file",
+                "src/lib.rs",
+                "--symbol",
+                "greet",
+                "--with",
+                "patch.rs",
+            ],
+            workspace_path,
+        );
+
+        // Verify exit code != 0 (compile error should fail)
+        assert!(
+            !output.status.success(),
+            "Patch should fail on compile error"
+        );
+
+        // Verify original file restored
+        let current_content = fs::read_to_string(&lib_path).expect("Failed to read current lib.rs");
+        assert_eq!(
+            current_content, original_content,
+            "Original file should be restored after compile error"
+        );
+    }
+
+    #[test]
+    fn test_e2e_patch_with_checksum_verification() {
+        let workspace = create_rust_workspace();
+        let workspace_path = workspace.path();
+        let lib_path = workspace_path.join("src/lib.rs");
+
+        // Compute pre-patch checksum
+        let pre_checksum = file_checksum(&lib_path);
+
+        // Create patch file
+        let patch_content = r#"pub fn greet(name: &str) -> String {
+    format!("Greetings, {}!", name)
+}
+"#;
+        let patch_file = workspace_path.join("patch.rs");
+        fs::write(&patch_file, patch_content).expect("Failed to write patch file");
+
+        // Index the workspace
+        let _index_output = run_splice(&["index", "."], workspace_path);
+
+        // Run successful patch
+        let output = run_splice(
+            &[
+                "patch",
+                "--file",
+                "src/lib.rs",
+                "--symbol",
+                "greet",
+                "--with",
+                "patch.rs",
+            ],
+            workspace_path,
+        );
+
+        assert!(
+            output.status.success(),
+            "Patch should succeed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+
+        // Compute post-patch checksum
+        let post_checksum = file_checksum(&lib_path);
+
+        // Verify checksum changed (file was modified)
+        assert_ne!(
+            pre_checksum, post_checksum,
+            "Checksum should change after successful patch"
+        );
+
+        // Verify post-patch checksum represents valid Rust code
+        let check_output = Command::new("cargo")
+            .args(["check", "--quiet"])
+            .current_dir(workspace_path)
+            .output()
+            .expect("Failed to run cargo check");
+
+        assert!(
+            check_output.status.success(),
+            "Post-patch content should pass cargo check"
+        );
+    }
+
+    #[test]
+    fn test_e2e_patch_execution_log_recorded() {
+        let workspace = create_rust_workspace();
+        let workspace_path = workspace.path();
+
+        // Create patch file
+        let patch_content = r#"pub fn greet(name: &str) -> String {
+    format!("Greetings, {}!", name)
+}
+"#;
+        let patch_file = workspace_path.join("patch.rs");
+        fs::write(&patch_file, patch_content).expect("Failed to write patch file");
+
+        // Index the workspace
+        let _index_output = run_splice(&["index", "."], workspace_path);
+
+        // Run patch command
+        let output = run_splice(
+            &[
+                "patch",
+                "--file",
+                "src/lib.rs",
+                "--symbol",
+                "greet",
+                "--with",
+                "patch.rs",
+            ],
+            workspace_path,
+        );
+
+        assert!(
+            output.status.success(),
+            "Patch should succeed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+
+        // Verify .splice/operations.db was created
+        let ops_db_path = workspace_path.join(".splice/operations.db");
+        assert!(
+            ops_db_path.exists(),
+            "operations.db should exist after patch"
+        );
+
+        // Verify execution log contains entry (check file size > 0)
+        let metadata = fs::metadata(&ops_db_path).expect("Failed to read ops db metadata");
+        assert!(
+            metadata.len() > 0,
+            "operations.db should have content"
+        );
+
+        // Parse stdout for execution_id if present
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stdout.contains("execution_id") {
+            assert!(
+                stdout.contains("patch"),
+                "Execution log should reference patch operation"
+            );
+        }
+    }
+
+    // ============================================================================
+    // Additional tests will be added in subsequent tasks
     // ============================================================================
 }
+
