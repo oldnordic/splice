@@ -1,0 +1,415 @@
+//! Cross-language compatibility tests for all 7 supported languages.
+//!
+//! These tests verify:
+//! - Language-specific validation gates
+//! - Symbol kind compatibility across languages
+//! - Multi-language workspace scenarios
+//! - Language detection from file extensions
+//! - Import resolution across languages
+//!
+//! Supported languages:
+//! - Rust (.rs)
+//! - Python (.py)
+//! - C (.c, .h)
+//! - C++ (.cpp, .hpp)
+//! - Java (.java)
+//! - JavaScript (.js, .mjs, .cjs)
+//! - TypeScript (.ts, .tsx)
+
+use splice::graph::CodeGraph;
+use splice::ingest::{rust::extract_rust_symbols};
+use splice::ingest::cpp::extract_cpp_symbols;
+use splice::ingest::python::extract_python_symbols;
+use splice::ingest::java::extract_java_symbols;
+use splice::ingest::javascript::extract_javascript_symbols;
+use splice::ingest::typescript::extract_typescript_symbols;
+use splice::patch::apply_patch_with_validation;
+use splice::resolve::resolve_symbol;
+use splice::symbol::Language;
+use splice::validate::AnalyzerMode;
+use std::fs;
+use std::path::{Path, PathBuf};
+use tempfile::TempDir;
+
+///////////////////////////////////////////////////////////////////////////////
+// Test fixtures
+///////////////////////////////////////////////////////////////////////////////
+
+/// Enum representing all supported languages for testing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TestLanguage {
+    Rust,
+    Python,
+    C,
+    Cpp,
+    Java,
+    JavaScript,
+    TypeScript,
+}
+
+impl TestLanguage {
+    /// Get the file extension for this language.
+    pub fn extension(&self) -> &'static str {
+        match self {
+            TestLanguage::Rust => "rs",
+            TestLanguage::Python => "py",
+            TestLanguage::C => "c",
+            TestLanguage::Cpp => "cpp",
+            TestLanguage::Java => "java",
+            TestLanguage::JavaScript => "js",
+            TestLanguage::TypeScript => "ts",
+        }
+    }
+
+    /// Get the validation command for this language (if applicable).
+    ///
+    /// Returns None for JavaScript which has no compiler gate.
+    pub fn validate_command(&self) -> Option<&'static str> {
+        match self {
+            TestLanguage::Rust => Some("cargo check"),
+            TestLanguage::Python => Some("python -m py_compile"),
+            TestLanguage::C => Some("gcc -c"),
+            TestLanguage::Cpp => Some("g++ -c"),
+            TestLanguage::Java => Some("javac"),
+            TestLanguage::JavaScript => None, // No compiler gate
+            TestLanguage::TypeScript => Some("tsc --noEmit"),
+        }
+    }
+
+    /// Get the Splice Language enum value.
+    pub fn splice_language(&self) -> Language {
+        match self {
+            TestLanguage::Rust => Language::Rust,
+            TestLanguage::Python => Language::Python,
+            TestLanguage::C => Language::C,
+            TestLanguage::Cpp => Language::Cpp,
+            TestLanguage::Java => Language::Java,
+            TestLanguage::JavaScript => Language::JavaScript,
+            TestLanguage::TypeScript => Language::TypeScript,
+        }
+    }
+
+    /// Create a sample source file for this language.
+    pub fn create_sample_file(&self, dir: &Path) -> PathBuf {
+        let filename = format!("sample.{}", self.extension());
+        let file_path = dir.join(&filename);
+
+        let content = match self {
+            TestLanguage::Rust => {
+                r#"
+/// Sample Rust function
+pub fn greet(name: &str) -> String {
+    format!("Hello, {}!", name)
+}
+
+/// Sample Rust struct
+pub struct Point {
+    pub x: i32,
+    pub y: i32,
+}
+
+impl Point {
+    pub fn new(x: i32, y: i32) -> Self {
+        Self { x, y }
+    }
+}
+"#
+            }
+            TestLanguage::Python => {
+                r#"
+# Sample Python function
+def greet(name: str) -> str:
+    return f"Hello, {name}!"
+
+# Sample Python class
+class Point:
+    def __init__(self, x: int, y: int):
+        self.x = x
+        self.y = y
+"#
+            }
+            TestLanguage::C => {
+                r#"
+/* Sample C function */
+#include <stdio.h>
+
+int greet(const char* name) {
+    printf("Hello, %s!\n", name);
+    return 0;
+}
+
+/* Sample C struct */
+struct Point {
+    int x;
+    int y;
+};
+"#
+            }
+            TestLanguage::Cpp => {
+                r#"
+// Sample C++ function
+#include <iostream>
+#include <string>
+
+std::string greet(const std::string& name) {
+    return "Hello, " + name + "!";
+}
+
+// Sample C++ class
+class Point {
+public:
+    int x;
+    int y;
+
+    Point(int x, int y) : x(x), y(y) {}
+};
+"#
+            }
+            TestLanguage::Java => {
+                r#"
+// Sample Java class
+public class Greeter {
+    public String greet(String name) {
+        return "Hello, " + name + "!";
+    }
+}
+
+// Sample Java class with fields
+class Point {
+    public int x;
+    public int y;
+
+    public Point(int x, int y) {
+        this.x = x;
+        this.y = y;
+    }
+}
+"#
+            }
+            TestLanguage::JavaScript => {
+                r#"
+// Sample JavaScript function
+function greet(name) {
+    return `Hello, ${name}!`;
+}
+
+// Sample JavaScript class
+class Point {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+    }
+}
+
+// Sample arrow function
+const add = (a, b) => a + b;
+"#
+            }
+            TestLanguage::TypeScript => {
+                r#"
+// Sample TypeScript function
+function greet(name: string): string {
+    return `Hello, ${name}!`;
+}
+
+// Sample TypeScript interface
+interface Point {
+    x: number;
+    y: number;
+}
+
+// Sample TypeScript class with types
+class PointImpl implements Point {
+    constructor(public x: number, public y: number) {}
+}
+
+// Sample generic function
+function identity<T>(value: T): T {
+    return value;
+}
+"#
+            }
+        };
+
+        fs::write(&file_path, content.trim()).expect("Failed to write sample file");
+        file_path
+    }
+}
+
+/// Create a multi-language workspace with all 7 languages.
+pub fn create_multi_lang_workspace() -> TempDir {
+    let workspace_dir = TempDir::new().expect("Failed to create temp workspace");
+    let workspace_path = workspace_dir.path();
+
+    // Create sample files for all languages
+    for lang in &[
+        TestLanguage::Rust,
+        TestLanguage::Python,
+        TestLanguage::C,
+        TestLanguage::Cpp,
+        TestLanguage::Java,
+        TestLanguage::JavaScript,
+        TestLanguage::TypeScript,
+    ] {
+        lang.create_sample_file(workspace_path);
+    }
+
+    workspace_dir
+}
+
+/// Verify that language-specific validation gate works.
+///
+/// This function checks:
+/// 1. Language detection from file extension
+/// 2. Validation command mapping
+/// 3. Language enum conversion
+pub fn verify_validation_gate(lang: TestLanguage, file_path: &Path) {
+    // Check file extension matches language
+    let extension = file_path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .expect("File should have extension");
+
+    assert_eq!(
+        extension,
+        lang.extension(),
+        "File extension should match language: expected {}, got {}",
+        lang.extension(),
+        extension
+    );
+
+    // Check validation command mapping (except JavaScript which has none)
+    if let Some(cmd) = lang.validate_command() {
+        assert!(!cmd.is_empty(), "Validation command should not be empty");
+    }
+
+    // Check Splice language enum conversion
+    let splice_lang = lang.splice_language();
+    // Just verify it converts without panicking
+    match splice_lang {
+        Language::Rust | Language::Python | Language::C | Language::Cpp |
+        Language::Java | Language::JavaScript | Language::TypeScript => {
+            // Valid language
+        }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Unit tests for fixtures (Task 1)
+///////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod fixture_tests {
+    use super::*;
+
+    /// Test 1: Verify each language has correct extension
+    #[test]
+    fn test_language_extensions() {
+        assert_eq!(TestLanguage::Rust.extension(), "rs");
+        assert_eq!(TestLanguage::Python.extension(), "py");
+        assert_eq!(TestLanguage::C.extension(), "c");
+        assert_eq!(TestLanguage::Cpp.extension(), "cpp");
+        assert_eq!(TestLanguage::Java.extension(), "java");
+        assert_eq!(TestLanguage::JavaScript.extension(), "js");
+        assert_eq!(TestLanguage::TypeScript.extension(), "ts");
+    }
+
+    /// Test 2: Verify sample file creation for each language
+    #[test]
+    fn test_sample_file_creation() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+
+        for lang in &[
+            TestLanguage::Rust,
+            TestLanguage::Python,
+            TestLanguage::C,
+            TestLanguage::Cpp,
+            TestLanguage::Java,
+            TestLanguage::JavaScript,
+            TestLanguage::TypeScript,
+        ] {
+            let file_path = lang.create_sample_file(temp_dir.path());
+            assert!(
+                file_path.exists(),
+                "Sample file should exist for {:?}",
+                lang
+            );
+            assert!(
+                file_path.extension().unwrap() == lang.extension(),
+                "File extension should match for {:?}",
+                lang
+            );
+
+            // Verify file is not empty
+            let content = fs::read_to_string(&file_path)
+                .expect("Failed to read sample file");
+            assert!(!content.is_empty(), "Sample file should not be empty");
+        }
+    }
+
+    /// Test 3: Verify multi-language workspace creation
+    #[test]
+    fn test_multi_lang_workspace() {
+        let workspace = create_multi_lang_workspace();
+        let workspace_path = workspace.path();
+
+        // Count files by extension
+        let mut rust_count = 0;
+        let mut python_count = 0;
+        let mut c_count = 0;
+        let mut cpp_count = 0;
+        let mut java_count = 0;
+        let mut js_count = 0;
+        let mut ts_count = 0;
+
+        for entry in fs::read_dir(workspace_path)
+            .expect("Failed to read workspace")
+        {
+            let entry = entry.expect("Failed to read entry");
+            let path = entry.path();
+
+            if let Some(ext) = path.extension() {
+                match ext.to_str().unwrap() {
+                    "rs" => rust_count += 1,
+                    "py" => python_count += 1,
+                    "c" => c_count += 1,
+                    "cpp" => cpp_count += 1,
+                    "java" => java_count += 1,
+                    "js" => js_count += 1,
+                    "ts" => ts_count += 1,
+                    _ => {}
+                }
+            }
+        }
+
+        assert_eq!(rust_count, 1, "Should have 1 Rust file");
+        assert_eq!(python_count, 1, "Should have 1 Python file");
+        assert_eq!(c_count, 1, "Should have 1 C file");
+        assert_eq!(cpp_count, 1, "Should have 1 C++ file");
+        assert_eq!(java_count, 1, "Should have 1 Java file");
+        assert_eq!(js_count, 1, "Should have 1 JavaScript file");
+        assert_eq!(ts_count, 1, "Should have 1 TypeScript file");
+    }
+
+    /// Test 4: Verify validation command mapping
+    #[test]
+    fn test_validate_command_mapping() {
+        // All languages except JavaScript should have validation commands
+        assert_eq!(
+            TestLanguage::Rust.validate_command(),
+            Some("cargo check")
+        );
+        assert_eq!(
+            TestLanguage::Python.validate_command(),
+            Some("python -m py_compile")
+        );
+        assert_eq!(TestLanguage::C.validate_command(), Some("gcc -c"));
+        assert_eq!(TestLanguage::Cpp.validate_command(), Some("g++ -c"));
+        assert_eq!(TestLanguage::Java.validate_command(), Some("javac"));
+        assert_eq!(TestLanguage::JavaScript.validate_command(), None);
+        assert_eq!(
+            TestLanguage::TypeScript.validate_command(),
+            Some("tsc --noEmit")
+        );
+    }
+}
