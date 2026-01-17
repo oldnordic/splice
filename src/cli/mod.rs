@@ -121,6 +121,14 @@ pub enum Commands {
         /// Path to the plan.json file.
         #[arg(short, long)]
         file: std::path::PathBuf,
+
+        /// Optional operation ID for auditing (auto-generated UUID if not provided).
+        #[arg(long)]
+        operation_id: Option<String>,
+
+        /// Optional JSON metadata to attach to this operation.
+        #[arg(long)]
+        metadata: Option<String>,
     },
 
     /// Undo a previous operation by restoring from a backup manifest.

@@ -63,7 +63,9 @@ fn main() -> ExitCode {
             ),
         },
 
-        splice::cli::Commands::Plan { file } => execute_plan(&file, json_output),
+        splice::cli::Commands::Plan { file, operation_id, metadata } => {
+            execute_plan(&file, operation_id, metadata, json_output)
+        },
 
         splice::cli::Commands::Undo { manifest } => execute_undo(&manifest, json_output),
 
@@ -924,9 +926,16 @@ fn execute_patch_batch(
 /// This function is a thin adapter that:
 /// 1. Reads the plan.json file
 /// 2. Calls execute_plan from the plan module
+/// 3. Outputs structured JSON if requested
 ///
 /// All logic is delegated to the plan module.
-fn execute_plan(plan_path: &Path, _json_output: bool) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+fn execute_plan(
+    plan_path: &Path,
+    operation_id: Option<String>,
+    metadata: Option<String>,
+    _json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::output::{OperationResult, OperationData, PlanResult, StepResult};
     use splice::plan::execute_plan;
 
     // Determine workspace directory (parent of plan file)
@@ -939,11 +948,77 @@ fn execute_plan(plan_path: &Path, _json_output: bool) -> Result<splice::cli::Cli
     // Execute plan
     let messages = execute_plan(plan_path, workspace_dir)?;
 
-    // Return summary message
-    Ok(splice::cli::CliSuccessPayload::message_only(format!(
-        "Plan executed successfully: {} steps completed",
-        messages.len()
-    )))
+    // Check if JSON output is requested
+    if _json_output {
+        // Create step results from messages
+        let steps: Vec<StepResult> = messages
+            .iter()
+            .enumerate()
+            .map(|(idx, msg)| StepResult {
+                step: idx + 1,
+                status: "ok".to_string(),
+                message: msg.clone(),
+                file: plan_path.to_string_lossy().to_string(),
+                symbol: "plan".to_string(),
+            })
+            .collect();
+
+        // Create plan result
+        let plan_result = PlanResult {
+            total_steps: messages.len(),
+            steps_completed: messages.len(),
+            steps,
+            files_affected: vec![plan_path.to_string_lossy().to_string()],
+            total_bytes_changed: 0, // Not tracked in current implementation
+        };
+
+        let message = format!(
+            "Plan executed successfully: {} steps completed",
+            messages.len()
+        );
+
+        // Create operation result with operation_id from CLI or generate new UUID
+        let result = OperationResult::with_id(
+            "plan".to_string(),
+            operation_id,
+        )
+        .success(message)
+        .with_result(OperationData::Plan(plan_result));
+
+        // Output structured JSON directly
+        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+
+        // Return a dummy payload marked as already emitted
+        return Ok(splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted());
+    }
+
+    // Legacy output
+    let mut response_data = serde_json::Map::new();
+    response_data.insert(
+        "steps_completed".to_string(),
+        json!(messages.len()),
+    );
+
+    if let Some(ref op_id) = operation_id {
+        response_data.insert("operation_id".to_string(), json!(op_id));
+    }
+
+    if let Some(ref meta) = metadata {
+        // Try to parse as JSON, if fails include as string
+        if let Ok(parsed) = serde_json::from_str::<Value>(meta) {
+            response_data.insert("metadata".to_string(), parsed);
+        } else {
+            response_data.insert("metadata".to_string(), json!(meta));
+        }
+    }
+
+    Ok(splice::cli::CliSuccessPayload::with_data(
+        format!(
+            "Plan executed successfully: {} steps completed",
+            messages.len()
+        ),
+        serde_json::Value::Object(response_data),
+    ))
 }
 
 /// Execute the undo command.
