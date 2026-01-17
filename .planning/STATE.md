@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-01-17)
 ## Current Position
 
 Phase: 4 of 10 (Stable Identifiers)
-Plan: 04-01 (ID Generation Utilities)
-Status: COMPLETE (2026-01-17)
-Last activity: 2026-01-17 — Completed Plan 04-01 (ID Generation Utilities)
+Plan: 04-02 of 4
+Status: In progress
+Last activity: 2026-01-17 — Completed Plan 04-02 (execution_id Integration)
 
-Progress: ████████░░░░ 75% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 3/4 complete, Phase 4: 1/4)
+Progress: ████████░░░░ 78% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 4/4 complete, Phase 4: 2/4)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: ~1 hour
 - Total execution time: ~8 hours
 
@@ -29,8 +29,8 @@ Progress: ████████░░░░ 75% (Phase 1: 3/3 complete, Phase
 |-------|-------|----------|--------|
 | 1. Safety Foundation | 3 | 3 | **COMPLETE** |
 | 2. SQLiteGraph v1.0 Upgrade | 4 | 4 | **COMPLETE** |
-| 3. Structured Output | 4 | 3 | **COMPLETE** |
-| 4. Stable Identifiers | 4 | 1 | **IN PROGRESS** |
+| 3. Structured Output | 4 | 4 | **COMPLETE** |
+| 4. Stable Identifiers | 4 | 2 | **IN PROGRESS** |
 | 5-10 | — | 0 | Not started |
 
 **Recent Trend:**
@@ -45,7 +45,8 @@ Progress: ████████░░░░ 75% (Phase 1: 3/3 complete, Phase
 - 03-02: Implement structured output types — **COMPLETED**
 - 03-03: Integrate structured output into CLI — **COMPLETED**
 - 04-01: ID Generation Utilities — **COMPLETED**
-- Next: 04-02: Populate match_id in resolve operations
+- 04-02: execution_id Integration — **COMPLETED**
+- Next: 04-03: Populate match_id in resolve operations
 
 ## Accumulated Context
 
@@ -131,11 +132,23 @@ Recent decisions affecting current work:
    - Updated From<FilePatchSummary> and From<ResolvedSpan> to generate span_id
    - Updated SCHEMA.md with ID field documentation and examples
    - All 111 tests pass, compilation clean
-   - Commits: 3d55ab7, b014596
+   - Commits: 3d55ab7, b014596, dba87b4
+
+10. **operation_id Propagation Complete (04-02)**
+    - Patch command uses OperationResult::with_id() to propagate operation_id
+    - Delete command uses OperationResult::with_id() to propagate operation_id
+    - Batch command now has structured JSON output with operation_id and unique span_id per span
+    - Plan command now has structured JSON output with operation_id and step results
+    - Fixed borrow errors with `ref` keyword in pattern matching
+    - All commands generate UUID automatically if operation_id not provided
+    - Added operation_id and metadata CLI flags to Plan command
+    - Error payload operation_id deferred to future phase (per plan Task 5)
+    - All 111 tests pass, compilation clean
+    - Commits: ef62d7d, b3698a6, 1b28216, af7e977
 
 ### Pending Todos
 
-- Plan 04-02: Populate match_id in resolve operations (READY TO START)
+- Plan 04-03: Populate match_id in resolve operations (READY TO START)
 
 ### Blockers/Concerns
 
@@ -149,10 +162,10 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-17
-Stopped at: Completed Plan 04-01 (ID Generation Utilities), ready to start 04-02
+Stopped at: Completed Plan 04-02 (execution_id Integration), ready to start 04-03
 Resume file: None
 
-**Phase 4 Status: IN PROGRESS** (1/4 complete)
+**Phase 4 Status: IN PROGRESS** (2/4 complete)
 - 04-01: ✅ COMPLETED (ID Generation Utilities)
   - Added span_id and match_id fields to SpanResult
   - Implemented UUID v4 generation in all constructors
@@ -163,5 +176,14 @@ Resume file: None
   - All 111 tests pass, compilation clean
   - Commits: 3d55ab7, b014596, dba87b4
 
+- 04-02: ✅ COMPLETED (execution_id Integration)
+  - Propagated operation_id from CLI flags to structured output
+  - Patch, delete, batch, plan commands all use OperationResult::with_id()
+  - Added structured JSON output for batch and plan commands
+  - Fixed borrow errors with `ref` keyword
+  - All 111 tests pass, compilation clean
+  - Commits: ef62d7d, b3698a6, 1b28216, af7e977
+
 **Artifacts Created:**
 - `.planning/phases/04-stable-identifiers/04-01-SUMMARY.md` (124 lines)
+- `.planning/phases/04-stable-identifiers/04-02-SUMMARY.md` (125 lines)
