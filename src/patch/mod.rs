@@ -30,7 +30,7 @@ pub use batch_loader::load_batches_from_file;
 pub use pattern::{find_pattern_in_files, apply_pattern_replace, PatternReplaceConfig, PatternReplaceResult};
 
 /// Replacement to apply within a specific file.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SpanReplacement {
     /// Absolute or workspace-relative file path.
     pub file: PathBuf,
@@ -83,7 +83,7 @@ impl SpanBatch {
 }
 
 /// Result summary for a patched file.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct FilePatchSummary {
     /// Path of the patched file.
     pub file: PathBuf,
