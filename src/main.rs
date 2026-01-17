@@ -800,6 +800,68 @@ fn execute_patch_batch(
     let summaries =
         apply_batch_with_validation(&batches, &workspace_dir, symbol_language, analyzer_mode)?;
 
+    // Check if JSON output is requested
+    if _json_output {
+        use splice::output::{OperationResult, OperationData, ApplyFilesResult, FilePatternResult, SpanResult};
+
+        // Build file results with spans
+        let mut file_results: Vec<FilePatternResult> = Vec::new();
+        for summary in &summaries {
+            // Find all spans for this file
+            let mut spans: Vec<SpanResult> = Vec::new();
+            for batch in &batches {
+                for replacement in batch.replacements() {
+                    if replacement.file == summary.file {
+                        spans.push(SpanResult::from_byte_span(
+                            replacement.file.to_string_lossy().to_string(),
+                            replacement.start,
+                            replacement.end,
+                        ));
+                    }
+                }
+            }
+
+            file_results.push(FilePatternResult {
+                file: summary.file.to_string_lossy().to_string(),
+                matches: spans.len(),
+                replacements: spans.len(),
+                spans,
+                before_hash: summary.before_hash.clone(),
+                after_hash: summary.after_hash.clone(),
+            });
+        }
+
+        // Create batch result structure (reuse ApplyFilesResult)
+        let apply_result = ApplyFilesResult {
+            glob_pattern: absolute_batch.to_string_lossy().to_string(),
+            find_pattern: "batch".to_string(),
+            replace_pattern: "patch".to_string(),
+            files_matched: file_results.len(),
+            files_modified: summaries.len(),
+            files: file_results,
+        };
+
+        let message = format!(
+            "Patched {} file(s) across {} batch(es).",
+            summaries.len(),
+            batch_count
+        );
+
+        // Create operation result with operation_id from CLI or generate new UUID
+        let result = OperationResult::with_id(
+            "batch".to_string(),
+            operation_id.clone(),
+        )
+        .success(message)
+        .with_result(OperationData::ApplyFiles(apply_result));
+
+        // Output structured JSON directly
+        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+
+        // Return a dummy payload marked as already emitted
+        return Ok(splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted());
+    }
+
     let files_data: Vec<_> = summaries
         .iter()
         .map(|summary| {
