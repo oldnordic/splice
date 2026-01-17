@@ -18,6 +18,7 @@ pub mod plan;
 pub mod resolve;
 pub mod symbol;
 pub mod validate;
+pub mod verify;
 
 /// Re-export common error types for convenience.
 pub use error::{Result, SpliceError};
