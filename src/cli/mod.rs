@@ -24,6 +24,14 @@ pub struct Cli {
     /// Output structured JSON (default: human-readable).
     #[arg(long, global = true)]
     json: bool,
+
+    /// Enable strict pre-verification (warnings become errors).
+    #[arg(long, global = true)]
+    pub strict: bool,
+
+    /// Skip pre-verification checks (dangerous!).
+    #[arg(long, global = true, hide = true)]
+    pub skip_pre_verify: bool,
 }
 
 /// Available Splice commands.

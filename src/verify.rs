@@ -315,6 +315,14 @@ pub fn verify_graph_sync(file_path: &Path, db_path: &Path) -> PreVerificationRes
 /// This function runs all verification checks and returns a Vec of results.
 /// The caller should check for blocking failures before proceeding.
 ///
+/// # Arguments
+/// * `file_path` - Path to the file to verify
+/// * `expected_checksum` - Optional expected checksum for external modification detection
+/// * `workspace_root` - Workspace directory path
+/// * `db_path` - Path to graph database
+/// * `strict` - If true, convert warnings to blocking failures
+/// * `skip` - If true, skip all verification checks (returns all Pass)
+///
 /// # Returns
 /// * `Ok(Vec<PreVerificationResult>)` - All checks completed (may contain warnings)
 /// * `Err(SpliceError)` - Fatal error during verification
@@ -323,8 +331,17 @@ pub fn pre_verify_patch(
     expected_checksum: Option<&Checksum>,
     workspace_root: &Path,
     db_path: &Path,
+    strict: bool,
+    skip: bool,
 ) -> Result<Vec<PreVerificationResult>> {
     let mut results = Vec::new();
+
+    // Skip verification if requested
+    if skip {
+        log::warn!("Skipping pre-verification checks (dangerous!)");
+        results.push(PreVerificationResult::pass());
+        return Ok(results);
+    }
 
     // Get file size for workspace resource check
     let file_size = if file_path.exists() {
@@ -336,24 +353,44 @@ pub fn pre_verify_patch(
     };
 
     // Run all checks
-    results.push(verify_file_ready(
+    let mut file_result = verify_file_ready(
         file_path,
         expected_checksum,
         workspace_root,
-    ));
+    );
 
-    results.push(verify_workspace_resources(
+    let mut workspace_result = verify_workspace_resources(
         workspace_root,
         file_size,
-    ));
+    );
 
-    results.push(verify_graph_sync(file_path, db_path));
+    let mut graph_result = verify_graph_sync(file_path, db_path);
 
-    // Check for fatal errors during verification
-    if results.iter().any(|r| r.is_blocking()) {
-        // Return the results so caller can see what failed
-        // The caller should check is_blocking() and return appropriate error
+    // In strict mode, convert warnings to blocking failures
+    if strict {
+        if file_result.is_warning() {
+            file_result = PreVerificationResult::blocking(
+                "strict_mode",
+                format!("Warning treated as error: {:?}", file_result),
+            );
+        }
+        if workspace_result.is_warning() {
+            workspace_result = PreVerificationResult::blocking(
+                "strict_mode",
+                format!("Warning treated as error: {:?}", workspace_result),
+            );
+        }
+        if graph_result.is_warning() {
+            graph_result = PreVerificationResult::blocking(
+                "strict_mode",
+                format!("Warning treated as error: {:?}", graph_result),
+            );
+        }
     }
+
+    results.push(file_result);
+    results.push(workspace_result);
+    results.push(graph_result);
 
     Ok(results)
 }
@@ -464,7 +501,7 @@ mod tests {
         let mut db = File::create(&db_path).unwrap();
         writeln!(db, "dummy db").unwrap();
 
-        let results = pre_verify_patch(&file_path, None, temp_dir.path(), &db_path).unwrap();
+        let results = pre_verify_patch(&file_path, None, temp_dir.path(), &db_path, false, false).unwrap();
         assert!(results.len() == 3);
         assert!(results.iter().all(|r| r.is_pass()));
     }
@@ -475,8 +512,20 @@ mod tests {
         let file_path = temp_dir.path().join("nonexistent.rs");
         let db_path = temp_dir.path().join("codegraph.db");
 
-        let results = pre_verify_patch(&file_path, None, temp_dir.path(), &db_path).unwrap();
+        let results = pre_verify_patch(&file_path, None, temp_dir.path(), &db_path, false, false).unwrap();
         assert!(results.iter().any(|r| r.is_blocking()));
+    }
+
+    #[test]
+    fn test_pre_verify_skip_mode() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("nonexistent.rs");
+        let db_path = temp_dir.path().join("codegraph.db");
+
+        // Skip mode should pass even though file doesn't exist
+        let results = pre_verify_patch(&file_path, None, temp_dir.path(), &db_path, false, true).unwrap();
+        assert!(results.len() == 1);
+        assert!(results.iter().all(|r| r.is_pass()));
     }
 
     #[test]

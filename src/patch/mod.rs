@@ -147,8 +147,11 @@ pub fn apply_patch_with_validation(
     analyzer_mode: AnalyzerMode,
 ) -> Result<(String, String)> {
     // Step 0: Pre-verification before reading file
+    // TODO: Wire strict and skip flags from CLI
+    let strict = false;
+    let skip = false;
     let db_path = workspace_dir.join(".codemcp/codegraph.db");
-    let pre_checks = verify::pre_verify_patch(file_path, None, workspace_dir, &db_path)?;
+    let pre_checks = verify::pre_verify_patch(file_path, None, workspace_dir, &db_path, strict, skip)?;
 
     // Check for blocking failures
     for check in &pre_checks {
