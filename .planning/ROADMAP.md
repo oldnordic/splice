@@ -107,9 +107,9 @@ Plans:
 **Plans**: 3
 
 Plans:
-- [x] 07-01: Design checksum system (PLANNED 2026-01-17)
-- [x] 07-02: Implement pre-verification hooks (PLANNED 2026-01-17)
-- [x] 07-03: Implement post-verification hooks (PLANNED 2026-01-17)
+- [x] 07-01: Design checksum system (COMPLETED 2026-01-17)
+- [x] 07-02: Implement pre-verification hooks (COMPLETED 2026-01-17)
+- [x] 07-03: Implement post-verification hooks (COMPLETED 2026-01-17)
 
 ### Phase 8: Execution Logging
 **Goal**: Implement audit trail with execution_id for all runs
@@ -157,7 +157,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 4. Stable Identifiers | 3/3 | **COMPLETE** | 2026-01-17 |
 | 5. Span-Aware Metadata | 3/3 | **COMPLETE** | 2026-01-17 |
 | 6. Deterministic Ordering | 3/3 | **COMPLETE** | 2026-01-17 |
-| 7. Validation Hooks | 0/3 | **PLANNED** | 2026-01-17 |
+| 7. Validation Hooks | 3/3 | **COMPLETE** | 2026-01-17 |
 | 8. Execution Logging | 0/3 | Not started | - |
 | 9. Integration Testing | 0/3 | Not started | - |
 | 10. Documentation Update | 0/3 | Not started | - |
