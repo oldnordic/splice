@@ -223,6 +223,45 @@ pub enum Commands {
         #[arg(long)]
         end: usize,
     },
+
+    /// Query execution log.
+    Log {
+        /// Filter by operation type (patch, delete, batch, plan, apply-files, query).
+        #[arg(short, long)]
+        operation_type: Option<String>,
+
+        /// Filter by status (ok, error, partial).
+        #[arg(short, long)]
+        status: Option<String>,
+
+        /// Show operations after this date (ISO 8601 or Unix timestamp).
+        #[arg(long)]
+        after: Option<String>,
+
+        /// Show operations before this date (ISO 8601 or Unix timestamp).
+        #[arg(long)]
+        before: Option<String>,
+
+        /// Maximum number of results.
+        #[arg(short, long, default_value = "20")]
+        limit: usize,
+
+        /// Skip first N results.
+        #[arg(long, default_value = "0")]
+        offset: usize,
+
+        /// Get specific execution by ID.
+        #[arg(short, long)]
+        execution_id: Option<String>,
+
+        /// Output as JSON.
+        #[arg(short, long)]
+        json: bool,
+
+        /// Show statistics only.
+        #[arg(long)]
+        stats: bool,
+    },
 }
 
 /// Symbol kind for filtering.
