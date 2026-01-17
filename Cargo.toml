@@ -15,7 +15,7 @@ path = "src/lib.rs"
 # Magellan for code indexing and label queries
 magellan = "0.5.3"
 # SQLiteGraph re-exported from Magellan, also keep for direct access
-sqlitegraph = { version = "0.2.11", default-features = false }
+sqlitegraph = { version = "1.0", default-features = false, features = ["native-v2"] }
 
 # AST parsing (kept for patch validation)
 tree-sitter = "0.22"
