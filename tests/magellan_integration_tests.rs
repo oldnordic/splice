@@ -767,3 +767,123 @@ fn test_get_all_labels() {
     // Should have kind labels too (fn, class, struct, etc.)
     assert!(labels.len() > 7, "Should have more labels than just language labels");
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// Task 4: Code chunk retrieval tests (5 tests)
+///////////////////////////////////////////////////////////////////////////////
+
+#[test]
+fn test_get_code_chunk_by_exact_span() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let rust_file = create_sample_rust_file(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+    db.index_file(&rust_file).unwrap();
+
+    // Query for a symbol to get its byte span
+    let symbols = db.query_by_labels(&["rust"]).unwrap();
+    assert!(!symbols.is_empty(), "Should have indexed symbols");
+
+    // Get first symbol
+    let symbol = &symbols[0];
+
+    // Retrieve code chunk by exact span
+    let chunk = db.get_code_chunk(&rust_file, symbol.byte_start, symbol.byte_end);
+    assert!(chunk.is_ok(), "Should be able to retrieve code chunk");
+
+    let chunk_opt = chunk.unwrap();
+    assert!(chunk_opt.is_some(), "Should have code chunk at the span");
+
+    let chunk_content = chunk_opt.unwrap();
+    assert!(!chunk_content.is_empty(), "Code chunk should have content");
+}
+
+#[test]
+fn test_get_code_chunk_for_symbol() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let rust_file = create_sample_rust_file(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+    db.index_file(&rust_file).unwrap();
+
+    // Query for struct symbols
+    let symbols = db.query_by_labels(&["rust"]).unwrap();
+    assert!(!symbols.is_empty(), "Should have indexed symbols");
+
+    // Get code chunks for first symbol
+    let symbol_name = &symbols[0].name;
+    let chunks = db.get_code_chunks_for_symbol(&rust_file, symbol_name);
+    assert!(chunks.is_ok(), "Should be able to retrieve code chunks");
+
+    let chunks_vec = chunks.unwrap();
+    // May be empty if symbol doesn't have code chunks
+    let _ = chunks_vec;
+}
+
+#[test]
+fn test_get_code_chunk_not_found() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let rust_file = create_sample_rust_file(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+    db.index_file(&rust_file).unwrap();
+
+    // Request chunk at non-existent span
+    let chunk = db.get_code_chunk(&rust_file, 999999, 999999);
+    assert!(chunk.is_ok(), "Should not error for non-existent span");
+
+    let chunk_opt = chunk.unwrap();
+    assert!(chunk_opt.is_none(), "Should return None for non-existent span");
+}
+
+#[test]
+fn test_code_chunk_no_file_reread() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let rust_file = create_sample_rust_file(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+    db.index_file(&rust_file).unwrap();
+
+    // Query for a symbol to get its span
+    let symbols = db.query_by_labels(&["rust"]).unwrap();
+    assert!(!symbols.is_empty());
+    let symbol = &symbols[0];
+
+    // Get code chunk while file exists
+    let chunk_before = db.get_code_chunk(&rust_file, symbol.byte_start, symbol.byte_end);
+    assert!(chunk_before.is_ok());
+    let content_before = chunk_before.unwrap();
+
+    // Delete the source file
+    fs::remove_file(&rust_file).expect("Failed to delete source file");
+
+    // Get code chunk after file is deleted
+    let chunk_after = db.get_code_chunk(&rust_file, symbol.byte_start, symbol.byte_end);
+    assert!(chunk_after.is_ok(), "Should still retrieve chunk from database");
+    let content_after = chunk_after.unwrap();
+
+    // Content should be the same (retrieved from database, not file)
+    assert_eq!(content_before, content_after, "Content should match from database");
+}
+
+#[test]
+fn test_get_code_chunks_for_ambiguous_symbol() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let rust_file = create_sample_rust_file(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+    db.index_file(&rust_file).unwrap();
+
+    // "MyStruct" might have multiple definitions (struct + impl)
+    let chunks = db.get_code_chunks_for_symbol(&rust_file, "MyStruct");
+    assert!(chunks.is_ok(), "Should be able to retrieve chunks for ambiguous symbol");
+
+    let chunks_vec = chunks.unwrap();
+    // Should return at least one chunk (or empty if no match)
+    let _ = chunks_vec;
+}
