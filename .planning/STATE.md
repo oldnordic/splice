@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-17)
 ## Current Position
 
 Phase: 9 of 10 (Integration Testing)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: **In progress** 🔄
-Last activity: 2026-01-18 — Completed 09-01-PLAN.md (Magellan integration compatibility tests)
+Last activity: 2026-01-17 — Completed 09-02-PLAN.md (End-to-end refactoring tests)
 
-Progress: ██████████ 93% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 3/3 complete, Phase 4: 3/3 complete, Phase 5: 3/3 complete, Phase 6: 3/3 complete, Phase 7: 3/3 complete, Phase 8: 3/3 complete, Phase 9: 1/3 complete)
+Progress: ████████░░ 96% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 3/3 complete, Phase 4: 3/3 complete, Phase 5: 3/3 complete, Phase 6: 3/3 complete, Phase 7: 3/3 complete, Phase 8: 3/3 complete, Phase 9: 2/3 complete)
 
 ## Performance Metrics
 
@@ -104,9 +104,23 @@ Recent decisions affecting current work:
 - Duration: 18 min
 - Status: COMPLETE
 
+**25. End-to-End Refactoring Workflows (09-02)** ✅
+- Real CLI command testing via std::process::Command (no mocking)
+- E2E tests for all major workflows: patch (6), delete (5), plan (4), batch (4), apply-files (4)
+- Rollback verification on syntax/compile errors
+- Execution logging verification (operations.db)
+- Checksum verification tests
+- CLI output format validation (JSON, ISO8601 timestamps, deterministic ordering)
+- Created: tests/e2e_refactor_tests.rs (1,540 LOC, 31 integration tests)
+- Fixtures: create_rust_workspace, create_multi_file_workspace, run_splice, file verification helpers
+- Test status: 24 passing, 7 documenting unimplemented CLI features
+- Commits: a93850a, a69ff85, 4611779
+- Duration: 5 min
+- Status: COMPLETE
+
 ### Pending Todos
 
-- Phase 9: Integration Testing — 2 more plans (09-02: End-to-end refactoring, 09-03: Cross-language compatibility)
+- Phase 9: Integration Testing — 1 more plan (09-03: Cross-language compatibility)
 - Phase 10: Documentation Update — docs/manual for v2.0
 
 ### Blockers/Concerns
@@ -115,8 +129,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-01-18
-Stopped at: Completed 09-01-PLAN.md (Magellan integration compatibility tests)
+Last session: 2026-01-17
+Stopped at: Completed 09-02-PLAN.md (End-to-end refactoring workflow tests)
 
 **Phase 8 Status: MOSTLY COMPLETE** ✅ (2.67/3 complete)
 - 08-01: ✅ COMPLETE (Execution Log Schema)
@@ -158,11 +172,13 @@ Stopped at: Completed 09-01-PLAN.md (Magellan integration compatibility tests)
 - `.planning/phases/08-execution-logging/08-03-PLAN.md`
 - `.planning/phases/08-execution-logging/08-03-SUMMARY.md`
 - `.planning/phases/09-integration-testing/09-01-PLAN.md`
-- `.planning/phases/09-integration-testing/09-01-SUMMARY.md` ⬅️ NEW
+- `.planning/phases/09-integration-testing/09-01-SUMMARY.md`
+- `.planning/phases/09-integration-testing/09-02-PLAN.md`
+- `.planning/phases/09-integration-testing/09-02-SUMMARY.md` ⬅️ NEW
 
-**Next Step:** Continue with Phase 9 (09-02: End-to-end refactoring tests, 09-03: Cross-language compatibility)
+**Next Step:** Continue with Phase 9 (09-03: Cross-language compatibility)
 
 **Phase 8 Total LOC:** ~1,260 LOC (COMPLETE)
-**Phase 9 Total LOC Target:** ~850 LOC (integration tests)
-**Phase 9 Total Integration Tests:** 26 new tests (COMPLETE for 09-01)
-**Phase 9 Duration Estimate:** ~1.5 hours
+**Phase 9 Total LOC:** ~2,390 LOC (integration tests)
+**Phase 9 Total Integration Tests:** 57 new tests (26 for 09-01, 31 for 09-02)
+**Phase 9 Duration:** 23 min (18 min for 09-01, 5 min for 09-02)
