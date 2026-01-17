@@ -53,6 +53,9 @@ tempfile = "3.10"
 uuid = { version = "1.10", features = ["v4"] }
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 
+# Direct SQLite access for execution log (same version as Magellan)
+rusqlite = { version = "0.31", features = ["bundled"] }
+
 # Glob pattern matching
 glob = "0.3"
 

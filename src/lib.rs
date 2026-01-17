@@ -10,6 +10,7 @@
 pub mod checksum;
 pub mod cli;
 pub mod error;
+pub mod execution;
 pub mod graph;
 pub mod ingest;
 pub mod output;

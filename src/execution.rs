@@ -8,9 +8,6 @@ use crate::error::{Result, SpliceError};
 use rusqlite::{params, Connection};
 use std::path::Path;
 
-// Re-export SpliceError for use in tests
-use crate::error::SpliceError as TestError;
-
 /// Execution log database filename.
 pub const DB_FILENAME: &str = "operations.db";
 
@@ -42,12 +39,12 @@ pub fn init_execution_log_db(db_dir: &Path) -> Result<Connection> {
     }
 
     let db_path = db_dir.join(DB_FILENAME);
-    let conn = Connection::open(&db_path).map_err(|e| SpliceError::IoContext {
-        context: format!(
+    let conn = Connection::open(&db_path).map_err(|e| SpliceError::ExecutionLogError {
+        message: format!(
             "failed to open execution log database: {}",
             db_path.display()
         ),
-        source: e,
+        source: Some(Box::new(e) as Box<dyn std::error::Error + Send + Sync>),
     })?;
 
     // Create tables
@@ -464,7 +461,9 @@ mod tests {
 
     #[test]
     fn test_execution_log_error_display() {
-        let error = TestError::ExecutionLogError {
+        use crate::error::SpliceError;
+
+        let error = SpliceError::ExecutionLogError {
             message: "database corrupted".to_string(),
             source: None,
         };
@@ -482,8 +481,10 @@ mod tests {
 
     #[test]
     fn test_execution_not_found_error() {
+        use crate::error::SpliceError;
+
         let execution_id = "non-existent-id";
-        let error = TestError::ExecutionNotFound {
+        let error = SpliceError::ExecutionNotFound {
             execution_id: execution_id.to_string(),
         };
 
