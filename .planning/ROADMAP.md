@@ -17,7 +17,7 @@ None
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Safety Foundation** - Eliminate unwrap() calls, establish error handling patterns (COMPLETED 2026-01-17)
-- [ ] **Phase 2: SQLiteGraph v1.0 Upgrade** - Migrate to 1.0 with Native V2 backend
+- [x] **Phase 2: SQLiteGraph v1.0 Upgrade** - Migrate to 1.0 with Native V2 backend (COMPLETED 2026-01-17)
 - [ ] **Phase 3: Structured Output Schema** - Design and implement structured JSON with explicit fields
 - [ ] **Phase 4: Stable Identifiers** - Add execution_id, match_id, span_id to all operations
 - [ ] **Phase 5: Span-Aware Metadata** - Line/column in graph, byte+line/col in all output
@@ -48,10 +48,10 @@ Plans:
 **Plans**: 4 (PLANNED 2026-01-17)
 
 Plans:
-- [ ] 02-01: Study API differences and migration path
-- [ ] 02-02: Update Cargo.toml dependencies
-- [ ] 02-03: Migrate code to new API
-- [ ] 02-04: Verify compatibility with existing databases
+- [x] 02-01: Study API differences and migration path (COMPLETED 2026-01-17)
+- [x] 02-02: Update Cargo.toml dependencies (COMPLETED 2026-01-17)
+- [x] 02-03: Migrate code to new API (COMPLETED 2026-01-17)
+- [x] 02-04: Verify compatibility with existing databases (COMPLETED 2026-01-17)
 
 ### Phase 3: Structured Output Schema
 **Goal**: Design and implement structured JSON output with explicit fields
@@ -152,7 +152,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|------------|
 | 1. Safety Foundation | 3/3 | **COMPLETE** | 2026-01-17 |
-| 2. SQLiteGraph v1.0 Upgrade | 0/4 | **PLANNED** | 2026-01-17 |
+| 2. SQLiteGraph v1.0 Upgrade | 4/4 | **COMPLETE** | 2026-01-17 |
 | 3. Structured Output Schema | 0/3 | Not started | - |
 | 4. Stable Identifiers | 0/3 | Not started | - |
 | 5. Span-Aware Metadata | 0/3 | Not started | - |
