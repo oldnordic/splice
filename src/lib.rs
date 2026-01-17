@@ -11,6 +11,7 @@ pub mod cli;
 pub mod error;
 pub mod graph;
 pub mod ingest;
+pub mod output;
 pub mod patch;
 pub mod plan;
 pub mod resolve;
