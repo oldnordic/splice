@@ -91,7 +91,7 @@ impl CodeGraph {
     ///
     /// This method:
     /// 1. Creates a File node if it doesn't exist
-    /// 2. Creates a Symbol node with all metadata (byte spans + language)
+    /// 2. Creates a Symbol node with all metadata (byte spans, line/col, language)
     /// 3. Creates a DEFINES edge from File to Symbol
     ///
     /// Returns the NodeId of the created Symbol node.
@@ -103,6 +103,10 @@ impl CodeGraph {
         language: Language,
         byte_start: usize,
         byte_end: usize,
+        line_start: usize,
+        line_end: usize,
+        col_start: usize,
+        col_end: usize,
     ) -> Result<NodeId> {
         // Get or create File node
         let file_path_str = file_path
@@ -113,7 +117,7 @@ impl CodeGraph {
         // Determine label based on kind (language-agnostic)
         let label = schema::kind_to_label(kind);
 
-        // Create symbol node with file_path and language in spec
+        // Create symbol node with file_path, language, and line/col in spec
         let node_spec = NodeSpec {
             kind: label.0,
             name: name.to_string(),
@@ -123,6 +127,10 @@ impl CodeGraph {
                 "language": language.as_str(),
                 "byte_start": byte_start,
                 "byte_end": byte_end,
+                "line_start": line_start,
+                "line_end": line_end,
+                "col_start": col_start,
+                "col_end": col_end,
                 "file_path": file_path_str,
             }),
         };
@@ -166,7 +174,7 @@ impl CodeGraph {
         byte_start: usize,
         byte_end: usize,
     ) -> Result<NodeId> {
-        // For backward compatibility, assume Rust language
+        // For backward compatibility, assume Rust language and use 0 placeholders for line/col
         self.store_symbol_with_file_and_language(
             file_path,
             name,
@@ -174,6 +182,7 @@ impl CodeGraph {
             Language::Rust,
             byte_start,
             byte_end,
+            0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
         )
     }
 
@@ -279,5 +288,112 @@ impl CodeGraph {
     /// Access the underlying graph backend mutably for advanced operations.
     pub fn inner_mut(&mut self) -> &mut dyn GraphBackend {
         self.backend.as_mut()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_store_symbol_with_line_col() {
+        // Create a temporary graph database
+        let temp_dir = std::env::temp_dir();
+        let db_path = temp_dir.join(format!("test_graph_{}.db", uuid::Uuid::new_v4()));
+        let mut code_graph = CodeGraph::open(&db_path).expect("Failed to open graph");
+
+        // Store a symbol with specific line/col values
+        let file_path = PathBuf::from("/test/path.rs");
+        let node_id = code_graph
+            .store_symbol_with_file_and_language(
+                &file_path,
+                "test_function",
+                "function",
+                Language::Rust,
+                100,  // byte_start
+                200,  // byte_end
+                5,    // line_start
+                10,   // line_end
+                12,   // col_start
+                45,   // col_end
+            )
+            .expect("Failed to store symbol");
+
+        // Retrieve the node and verify line/col were stored
+        let node = code_graph
+            .inner()
+            .get_node(node_id.as_i64())
+            .expect("Failed to retrieve node");
+
+        assert_eq!(node.data.get("line_start").and_then(|v| v.as_u64()), Some(5));
+        assert_eq!(node.data.get("line_end").and_then(|v| v.as_u64()), Some(10));
+        assert_eq!(node.data.get("col_start").and_then(|v| v.as_u64()), Some(12));
+        assert_eq!(node.data.get("col_end").and_then(|v| v.as_u64()), Some(45));
+
+        // Clean up
+        let _ = std::fs::remove_file(db_path);
+    }
+
+    #[test]
+    fn test_backward_compatibility_zero_values() {
+        // Verify that storing with 0 placeholders works (backward compatibility)
+        let temp_dir = std::env::temp_dir();
+        let db_path = temp_dir.join(format!("test_graph_{}.db", uuid::Uuid::new_v4()));
+        let mut code_graph = CodeGraph::open(&db_path).expect("Failed to open graph");
+
+        let file_path = PathBuf::from("/test/path.rs");
+        let node_id = code_graph
+            .store_symbol_with_file_and_language(
+                &file_path,
+                "old_function",
+                "function",
+                Language::Rust,
+                50,  // byte_start
+                100, // byte_end
+                0, 0, 0, 0, // All line/col zeros (placeholders)
+            )
+            .expect("Failed to store symbol");
+
+        let node = code_graph
+            .inner()
+            .get_node(node_id.as_i64())
+            .expect("Failed to retrieve node");
+
+        // Zeros should be stored correctly
+        assert_eq!(node.data.get("line_start").and_then(|v| v.as_u64()), Some(0));
+        assert_eq!(node.data.get("line_end").and_then(|v| v.as_u64()), Some(0));
+        assert_eq!(node.data.get("col_start").and_then(|v| v.as_u64()), Some(0));
+        assert_eq!(node.data.get("col_end").and_then(|v| v.as_u64()), Some(0));
+
+        // Clean up
+        let _ = std::fs::remove_file(db_path);
+    }
+
+    #[test]
+    fn test_deprecated_method_passes_zeros() {
+        // Verify the deprecated store_symbol_with_file passes zeros
+        let temp_dir = std::env::temp_dir();
+        let db_path = temp_dir.join(format!("test_graph_{}.db", uuid::Uuid::new_v4()));
+        let mut code_graph = CodeGraph::open(&db_path).expect("Failed to open graph");
+
+        let file_path = PathBuf::from("/test/path.rs");
+        let node_id = code_graph
+            .store_symbol_with_file(&file_path, "dep_function", "function", 10, 20)
+            .expect("Failed to store symbol");
+
+        let node = code_graph
+            .inner()
+            .get_node(node_id.as_i64())
+            .expect("Failed to retrieve node");
+
+        // All line/col should be 0 from deprecated method
+        assert_eq!(node.data.get("line_start").and_then(|v| v.as_u64()), Some(0));
+        assert_eq!(node.data.get("line_end").and_then(|v| v.as_u64()), Some(0));
+        assert_eq!(node.data.get("col_start").and_then(|v| v.as_u64()), Some(0));
+        assert_eq!(node.data.get("col_end").and_then(|v| v.as_u64()), Some(0));
+
+        // Clean up
+        let _ = std::fs::remove_file(db_path);
     }
 }

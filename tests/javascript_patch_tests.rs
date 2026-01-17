@@ -57,6 +57,7 @@ function farewell(name) {
                     Language::JavaScript,
                     symbol.byte_start,
                     symbol.byte_end,
+                    0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
                 )
                 .expect("Failed to store symbol");
         }
@@ -143,6 +144,7 @@ function validFunction() {
                 Language::JavaScript,
                 symbol.byte_start,
                 symbol.byte_end,
+                0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
             )
             .expect("Failed to store symbol");
 
@@ -233,6 +235,7 @@ const greet = (name) => {
                 Language::JavaScript,
                 greet.byte_start,
                 greet.byte_end,
+                0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
             )
             .expect("Failed to store symbol");
 

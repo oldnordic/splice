@@ -211,6 +211,7 @@ fn execute_single_step(
     let mut code_graph = CodeGraph::open(&graph_db_path)?;
 
     // Step 4: Store symbols in graph with language metadata
+    // Note: line/col are 0 placeholders here; ingest modules will compute actual values in Plan 05-02
     for symbol in &symbols {
         code_graph.store_symbol_with_file_and_language(
             file_path,
@@ -219,6 +220,7 @@ fn execute_single_step(
             Language::Rust,
             symbol.byte_start,
             symbol.byte_end,
+            0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
         )?;
     }
 

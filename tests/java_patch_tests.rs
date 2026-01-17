@@ -63,6 +63,7 @@ public class Test {
                     Language::Java,
                     symbol.byte_start,
                     symbol.byte_end,
+                    0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
                 )
                 .expect("Failed to store symbol");
         }
@@ -144,6 +145,7 @@ public class Test {
                 Language::Java,
                 method.byte_start,
                 method.byte_end,
+                    0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
             )
             .expect("Failed to store symbol");
 
@@ -229,6 +231,7 @@ public class Calculator {
                 Language::Java,
                 class.byte_start,
                 class.byte_end,
+                    0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
             )
             .expect("Failed to store symbol");
 

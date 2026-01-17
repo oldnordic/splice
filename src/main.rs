@@ -208,6 +208,7 @@ fn execute_delete(
     let mut code_graph = CodeGraph::open(&graph_db_path)?;
 
     // Step 4: Store symbols in graph with language metadata
+    // Note: line/col are 0 placeholders here; ingest modules will compute actual values in Plan 05-02
     for symbol in &symbols {
         code_graph.store_symbol_with_file_and_language(
             file_path,
@@ -216,6 +217,7 @@ fn execute_delete(
             symbol.language(),
             symbol.byte_start(),
             symbol.byte_end(),
+            0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
         )?;
     }
 
@@ -534,6 +536,7 @@ fn execute_patch(
     let mut code_graph = CodeGraph::open(&graph_db_path)?;
 
     // Step 4: Store symbols in graph with language metadata
+    // Note: line/col are 0 placeholders here; ingest modules will compute actual values in Plan 05-02
     for symbol in &symbols {
         code_graph.store_symbol_with_file_and_language(
             file_path,
@@ -542,6 +545,7 @@ fn execute_patch(
             symbol.language(),
             symbol.byte_start(),
             symbol.byte_end(),
+            0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
         )?;
     }
 
