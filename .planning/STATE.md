@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-01-17)
 
 ## Current Position
 
-Phase: 3 of 10 (Magellan Integration)
-Plan: 03-01 (Study Magellan integration requirements)
+Phase: 3 of 10 (Structured Output)
+Plan: 03-02 (Implement structured output types)
 Status: READY TO START (2026-01-17)
-Last activity: 2026-01-17 — Completed Plan 02-04 (Database compatibility verification)
+Last activity: 2026-01-17 — Completed Plan 03-01 (Schema design)
 
-Progress: ████████░░░░ 60% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 0/4)
+Progress: ████████░░░░ 65% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 1/4)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: ~1 hour
-- Total execution time: ~5 hours
+- Total execution time: ~6 hours
 
 **By Phase:**
 
@@ -29,7 +29,7 @@ Progress: ████████░░░░ 60% (Phase 1: 3/3 complete, Phase
 |-------|-------|----------|--------|
 | 1. Safety Foundation | 3 | 3 | **COMPLETE** |
 | 2. SQLiteGraph v1.0 Upgrade | 4 | 4 | **COMPLETE** |
-| 3. Magellan Integration | 4 | 0 | **READY TO START** |
+| 3. Structured Output | 4 | 1 | **IN PROGRESS** |
 | 4-10 | — | 0 | Not started |
 
 **Recent Trend:**
@@ -40,7 +40,8 @@ Progress: ████████░░░░ 60% (Phase 1: 3/3 complete, Phase
 - 02-02: Update Cargo.toml dependencies — **COMPLETED**
 - 02-03: Migrate code to new API — **COMPLETED**
 - 02-04: Verify database compatibility — **COMPLETED**
-- Next: 03-01: Study Magellan integration requirements
+- 03-01: Design unified output schema — **COMPLETED**
+- Next: 03-02: Implement structured output types
 
 ## Accumulated Context
 
@@ -93,9 +94,18 @@ Recent decisions affecting current work:
    - All 111 tests pass
    - **Phase 2 COMPLETE** - SQLiteGraph v1.0 upgrade successful
 
+7. **Unified Output Schema Designed (03-01)**
+   - Created comprehensive SCHEMA.md (816 lines)
+   - Defined 12 types for structured output (OperationResult, OperationData variants, SpanResult, ErrorDetails, etc.)
+   - All types include field descriptions, types, and JSON examples
+   - Design principles: explicit fields, snake_case naming, versioning, unified spans
+   - Migration strategy documented with timeline (Phases 3.1-3.3)
+   - Backward compatibility: Add Serialize derives, create new module, replace ad-hoc JSON
+   - Line/col placeholders (0/1) for Phase 3, population planned for Phase 5
+
 ### Pending Todos
 
-- Plan 03-01: Study Magellan integration requirements (READY TO START)
+- Plan 03-02: Implement structured output types (READY TO START)
 
 ### Blockers/Concerns
 
@@ -109,37 +119,19 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-17
-Stopped at: Completed Plan 02-04 (Database compatibility), ready to start 03-01
+Stopped at: Completed Plan 03-01 (Schema design), ready to start 03-02
 Resume file: None
 
-**Phase 2 Status: COMPLETE ✅**
-- 02-01: ✅ COMPLETED (API differences documented)
-  - Created api-differences.md with full migration analysis
-  - Confirmed v1.0.0 availability and type compatibility
-  - Identified single-line code change
-  - Documented database migration requirements
-- 02-02: ✅ COMPLETED (Dependency update)
-  - Upgraded sqlitegraph to v1.0.0 with native-v2 feature
-  - Enabled native-v2 for magellan dependency
-  - Verified compilation success
-  - Confirmed Magellan compatibility (duplicate versions acceptable)
-- 02-03: ✅ COMPLETED (Code migration)
-  - Updated GraphConfig::sqlite() to GraphConfig::native()
-  - Fixed test infrastructure for Native V2 backend
-  - All 111 tests pass
-  - Confirmed 100% API compatibility
-- 02-04: ✅ COMPLETED (Database compatibility verified)
-  - Magellan v0.5.3 uses sqlitegraph v0.2.11 internally
-  - Native V2 backend operations verified
-  - Magellan integration verified
-  - Database format compatibility analyzed
-  - Rollback plan created
+**Phase 3 Status: IN PROGRESS** (1/4 complete)
+- 03-01: ✅ COMPLETED (Schema design)
+  - Created SCHEMA.md with complete type definitions (816 lines)
+  - Defined 12 types: OperationResult, 5 OperationData variants, SpanResult, ErrorDetails, etc.
+  - All types include field descriptions, types, and JSON examples
+  - Design principles documented: explicit fields, snake_case, versioning, unified spans
+  - Migration strategy with timeline (Phases 3.1-3.3, future Phases 4-5)
+  - Line/col placeholder strategy for backward compatibility
+  - References to existing code (src/plan/mod.rs, src/patch/mod.rs, src/resolve/mod.rs, src/cli/mod.rs)
 
 **Artifacts Created:**
-- `.planning/phases/02-sqlitegraph-upgrade/api-differences.md`
-- `.planning/phases/02-sqlitegraph-upgrade/02-01-SUMMARY.md`
-- `.planning/phases/02-sqlitegraph-upgrade/02-02-SUMMARY.md`
-- `.planning/phases/02-sqlitegraph-upgrade/02-03-SUMMARY.md`
-- `.planning/phases/02-sqlitegraph-upgrade/02-04-SUMMARY.md`
-- `.planning/phases/02-sqlitegraph-upgrade/rollback-plan.md`
-- `examples/test_db.rs` (database operations test)
+- `.planning/phases/03-structured-output/SCHEMA.md` (816 lines)
+- `.planning/phases/03-structured-output/03-01-SUMMARY.md`
