@@ -222,9 +222,35 @@ pub fn apply_patch_with_validation(
         }
     }
 
-    // Step 9: Compute after hash and return
+    // Step 8: Compute after hash
     let refreshed_bytes = std::fs::read(file_path)?;
     let after_hash = compute_hash(&refreshed_bytes);
+
+    // Step 9: Run post-verification to confirm expected changes
+    let post_verify = verify::verify_after_patch(
+        file_path,
+        workspace_dir,
+        &before_hash,
+    )?;
+
+    // Log warnings for user visibility
+    for warning in &post_verify.warnings {
+        log::warn!("Post-verification warning: {}", warning);
+    }
+
+    // Log errors (non-blocking, advisory)
+    for error in &post_verify.errors {
+        log::error!("Post-verification error: {}", error);
+    }
+
+    // Log post-verification status
+    log::info!(
+        "Post-verification: syntax={}, compiler={}, semantic={}, changed={}",
+        post_verify.syntax_ok,
+        post_verify.compiler_ok,
+        post_verify.semantic_ok,
+        post_verify.file_changed(),
+    );
 
     Ok((before_hash, after_hash))
 }
