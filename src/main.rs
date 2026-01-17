@@ -417,6 +417,9 @@ fn execute_delete(
             ));
         }
 
+        // Sort spans deterministically by file_path, then byte_start
+        spans.sort();
+
         // Calculate total bytes removed
         let total_bytes_removed: usize = ref_set.references.iter()
             .map(|r| r.byte_end - r.byte_start)
@@ -974,7 +977,11 @@ fn execute_plan(
             total_steps: messages.len(),
             steps_completed: messages.len(),
             steps,
-            files_affected: vec![plan_path.to_string_lossy().to_string()],
+            files_affected: {
+                let mut files = vec![plan_path.to_string_lossy().to_string()];
+                files.sort();
+                files
+            },
             total_bytes_changed: 0, // Not tracked in current implementation
         };
 
