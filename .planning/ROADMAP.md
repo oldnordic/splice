@@ -20,8 +20,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: SQLiteGraph v1.0 Upgrade** - Migrate to 1.0 with Native V2 backend (COMPLETED 2026-01-17)
 - [x] **Phase 3: Structured Output Schema** - Design and implement structured JSON with explicit fields (COMPLETED 2026-01-17)
 - [x] **Phase 4: Stable Identifiers** - Add execution_id, match_id, span_id to all operations (COMPLETED 2026-01-17)
-- [ ] **Phase 5: Span-Aware Metadata** - Line/column in graph, byte+line/col in all output
-- [ ] **Phase 6: Deterministic Ordering** - Ensure sorted output across all operations
+- [x] **Phase 5: Span-Aware Metadata** - Line/column in graph, byte+line/col in all output (COMPLETED 2026-01-17)
+- [x] **Phase 6: Deterministic Ordering** - Ensure sorted output across all operations (COMPLETED 2026-01-17)
 - [ ] **Phase 7: Validation Hooks** - Checksums and pre/post verification
 - [ ] **Phase 8: Execution Logging** - Audit trail with execution_id
 - [ ] **Phase 9: Integration Testing** - Verify Magellan compatibility, end-to-end tests
@@ -92,12 +92,12 @@ Plans:
 **Goal**: Ensure sorted output across all operations
 **Depends on**: Phase 4 (identifiers required for consistent ordering)
 **Research**: Unlikely (sorting algorithms, BTree ordering)
-**Plans**: TBD
+**Plans**: 3
 
 Plans:
-- [ ] 06-01: Identify all output points
-- [ ] 06-02: Implement sorting for all result types
-- [ ] 06-03: Add tests for ordering consistency
+- [x] 06-01: Ord implementations for sorting (COMPLETED 2026-01-17)
+- [x] 06-02: Main command sorting (delete, plan) (COMPLETED 2026-01-17)
+- [x] 06-03: Query and batch sorting (COMPLETED 2026-01-17)
 
 ### Phase 7: Validation Hooks
 **Goal**: Implement checksums and pre/post verification hooks
@@ -156,7 +156,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 3. Structured Output Schema | 3/3 | **COMPLETE** | 2026-01-17 |
 | 4. Stable Identifiers | 3/3 | **COMPLETE** | 2026-01-17 |
 | 5. Span-Aware Metadata | 3/3 | **COMPLETE** | 2026-01-17 |
-| 6. Deterministic Ordering | 0/3 | Not started | - |
+| 6. Deterministic Ordering | 3/3 | **COMPLETE** | 2026-01-17 |
 | 7. Validation Hooks | 0/3 | Not started | - |
 | 8. Execution Logging | 0/3 | Not started | - |
 | 9. Integration Testing | 0/3 | Not started | - |
