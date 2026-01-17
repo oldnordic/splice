@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-17)
 ## Current Position
 
 Phase: 3 of 10 (Structured Output)
-Plan: 03-02 (Implement structured output types)
+Plan: 03-03 (Integrate structured output into CLI)
 Status: READY TO START (2026-01-17)
-Last activity: 2026-01-17 — Completed Plan 03-01 (Schema design)
+Last activity: 2026-01-17 — Completed Plan 03-02 (Implement structured output types)
 
-Progress: ████████░░░░ 65% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 1/4)
+Progress: ████████░░░░ 68% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 2/4)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
+- Total plans completed: 9
 - Average duration: ~1 hour
-- Total execution time: ~6 hours
+- Total execution time: ~7 hours
 
 **By Phase:**
 
@@ -29,7 +29,7 @@ Progress: ████████░░░░ 65% (Phase 1: 3/3 complete, Phase
 |-------|-------|----------|--------|
 | 1. Safety Foundation | 3 | 3 | **COMPLETE** |
 | 2. SQLiteGraph v1.0 Upgrade | 4 | 4 | **COMPLETE** |
-| 3. Structured Output | 4 | 1 | **IN PROGRESS** |
+| 3. Structured Output | 4 | 2 | **IN PROGRESS** |
 | 4-10 | — | 0 | Not started |
 
 **Recent Trend:**
@@ -41,7 +41,8 @@ Progress: ████████░░░░ 65% (Phase 1: 3/3 complete, Phase
 - 02-03: Migrate code to new API — **COMPLETED**
 - 02-04: Verify database compatibility — **COMPLETED**
 - 03-01: Design unified output schema — **COMPLETED**
-- Next: 03-02: Implement structured output types
+- 03-02: Implement structured output types — **COMPLETED**
+- Next: 03-03: Integrate structured output into CLI
 
 ## Accumulated Context
 
@@ -103,9 +104,23 @@ Recent decisions affecting current work:
    - Backward compatibility: Add Serialize derives, create new module, replace ad-hoc JSON
    - Line/col placeholders (0/1) for Phase 3, population planned for Phase 5
 
+8. **Structured Output Types Implemented (03-02)**
+   - Created src/output.rs module (383 lines) with all 12 types from SCHEMA.md
+   - Implemented OperationResult (top-level wrapper) with helper methods
+   - Implemented OperationData tagged enum with 5 variants (Patch, Delete, Plan, Query, ApplyFiles)
+   - Implemented SpanResult (unified span representation) with conversion impls
+   - Implemented ErrorDetails and DiagnosticPayload for error reporting
+   - Added Serialize derive to FilePatchSummary (src/patch/mod.rs:86)
+   - Added Serialize derive to SpanReplacement (src/patch/mod.rs:33)
+   - Added Serialize derive to ResolvedSpan (src/resolve/mod.rs:18)
+   - Skipped node_id serialization (NodeId doesn't implement Serialize)
+   - Exported output module in src/lib.rs
+   - All 111 tests pass, compilation clean
+   - Commits: 82b5929, 08cf093, 5b98db0, 3428d3e, d23cad3
+
 ### Pending Todos
 
-- Plan 03-02: Implement structured output types (READY TO START)
+- Plan 03-03: Integrate structured output into CLI (READY TO START)
 
 ### Blockers/Concerns
 
@@ -119,10 +134,10 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-17
-Stopped at: Completed Plan 03-01 (Schema design), ready to start 03-02
+Stopped at: Completed Plan 03-02 (Implement structured output types), ready to start 03-03
 Resume file: None
 
-**Phase 3 Status: IN PROGRESS** (1/4 complete)
+**Phase 3 Status: IN PROGRESS** (2/4 complete)
 - 03-01: ✅ COMPLETED (Schema design)
   - Created SCHEMA.md with complete type definitions (816 lines)
   - Defined 12 types: OperationResult, 5 OperationData variants, SpanResult, ErrorDetails, etc.
@@ -132,6 +147,15 @@ Resume file: None
   - Line/col placeholder strategy for backward compatibility
   - References to existing code (src/plan/mod.rs, src/patch/mod.rs, src/resolve/mod.rs, src/cli/mod.rs)
 
+- 03-02: ✅ COMPLETED (Implement structured output types)
+  - Created src/output.rs module (383 lines) with all 12 types
+  - Implemented OperationResult, OperationData, SpanResult, ErrorDetails, DiagnosticPayload
+  - Added Serialize derive to FilePatchSummary, SpanReplacement, ResolvedSpan
+  - All 111 tests pass, compilation clean
+  - Commits: 82b5929, 08cf093, 5b98db0, 3428d3e, d23cad3
+
 **Artifacts Created:**
 - `.planning/phases/03-structured-output/SCHEMA.md` (816 lines)
 - `.planning/phases/03-structured-output/03-01-SUMMARY.md`
+- `.planning/phases/03-structured-output/03-02-SUMMARY.md` (368 lines)
+- `src/output.rs` (383 lines)
