@@ -193,7 +193,13 @@ fn execute_delete(
     let symbols = extract_symbols_with_language(file_path, &source, symbol_lang)?;
 
     // Step 3: Create in-memory graph (for reference finding API compatibility)
-    let graph_db_path = file_path.parent().unwrap().join(".splice_graph.db");
+    let graph_db_path = file_path
+        .parent()
+        .ok_or_else(|| splice::SpliceError::Other(format!(
+            "File path has no parent: {}",
+            file_path.display()
+        )))?
+        .join(".splice_graph.db");
     let mut code_graph = CodeGraph::open(&graph_db_path)?;
 
     // Step 4: Store symbols in graph with language metadata
@@ -456,7 +462,13 @@ fn execute_patch(
     let symbols = extract_symbols_with_language(file_path, &source, symbol_lang)?;
 
     // Step 3: Create in-memory graph
-    let graph_db_path = file_path.parent().unwrap().join(".splice_graph.db");
+    let graph_db_path = file_path
+        .parent()
+        .ok_or_else(|| splice::SpliceError::Other(format!(
+            "File path has no parent: {}",
+            file_path.display()
+        )))?
+        .join(".splice_graph.db");
     let mut code_graph = CodeGraph::open(&graph_db_path)?;
 
     // Step 4: Store symbols in graph with language metadata

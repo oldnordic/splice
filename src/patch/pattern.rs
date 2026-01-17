@@ -162,7 +162,9 @@ fn find_pattern_in_file(
 
             if !is_comment || pattern.starts_with("//") {
                 // Get line and column using ropey
-                let rope = ropey::Rope::from_reader(content.as_bytes()).unwrap();
+                let rope = ropey::Rope::from_reader(content.as_bytes()).map_err(|e| {
+                    crate::SpliceError::Other(format!("Failed to create rope: {}", e))
+                })?;
                 let line = rope.byte_to_line(abs_start) + 1;
                 let line_start_byte = rope.line_to_byte(line - 1);
                 let column = abs_start - line_start_byte;
