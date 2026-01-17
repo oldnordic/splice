@@ -261,6 +261,23 @@ pub enum SpliceError {
         /// Execution ID that was not found.
         execution_id: String,
     },
+
+    /// Invalid date format provided for query.
+    #[error("Invalid date format: {input}")]
+    InvalidDateFormat {
+        /// The input that could not be parsed.
+        input: String,
+    },
+
+    /// Query execution error.
+    #[error("Query error: {message}")]
+    QueryError {
+        /// Error message describing what went wrong.
+        message: String,
+        /// Underlying error source.
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
 }
 
 impl From<std::io::Error> for SpliceError {
@@ -451,6 +468,8 @@ impl SpliceError {
             SpliceError::ExecutionLogError { .. } => "ExecutionLogError",
             SpliceError::ExecutionRecordFailed { .. } => "ExecutionRecordFailed",
             SpliceError::ExecutionNotFound { .. } => "ExecutionNotFound",
+            SpliceError::InvalidDateFormat { .. } => "InvalidDateFormat",
+            SpliceError::QueryError { .. } => "QueryError",
         }
     }
 
