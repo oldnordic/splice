@@ -180,6 +180,11 @@ fn execute_delete(
     use splice::resolve::references::find_references;
     use splice::symbol::{Language as SymbolLanguage, Symbol};
     use splice::validate::AnalyzerMode as ValidateAnalyzerMode;
+    use splice::execution::log;
+
+    // Start timing
+    let start = std::time::Instant::now();
+    let command_line = std::env::args().collect::<Vec<_>>().join(" ");
 
     // Determine language (from CLI flag or auto-detect from file extension)
     let symbol_lang = language
@@ -394,6 +399,24 @@ fn execute_delete(
     response_data.insert("span_ids".to_string(), json!(span_ids));
     response_data.insert("files_modified".to_string(), json!(files_modified));
 
+    // Record execution for regular output
+    let duration_ms = start.elapsed().as_millis() as i64;
+    let parameters = serde_json::json!({
+        "file": file_path.to_string_lossy(),
+        "symbol": symbol_name,
+        "kind": _kind_str,
+        "create_backup": create_backup,
+    });
+    if let Err(e) = log::record_execution_with_params(
+        &splice::output::OperationResult::with_id("delete".to_string(), operation_id.clone())
+            .success(base_message.clone()),
+        duration_ms,
+        Some(command_line.clone()),
+        parameters,
+    ) {
+        eprintln!("Failed to record execution: {}", e);
+    }
+
     // Check if JSON output is requested
     if _json_output {
         use splice::output::{OperationResult, OperationData, DeleteResult, SpanResult};
@@ -467,6 +490,23 @@ fn execute_delete(
         )
         .success(base_message.clone())
         .with_result(OperationData::Delete(delete_result));
+
+        // Record execution
+        let duration_ms = start.elapsed().as_millis() as i64;
+        let parameters = serde_json::json!({
+            "file": file_path.to_string_lossy(),
+            "symbol": symbol_name,
+            "kind": _kind_str,
+            "create_backup": create_backup,
+        });
+        if let Err(e) = log::record_execution_with_params(
+            &result,
+            duration_ms,
+            Some(command_line.clone()),
+            parameters,
+        ) {
+            eprintln!("Failed to record execution: {}", e);
+        }
 
         // Output structured JSON directly
         println!("{}", serde_json::to_string_pretty(&result).unwrap());
@@ -758,7 +798,7 @@ fn execute_patch(
         if let Err(e) = log::record_execution_with_params(
             &result,
             duration_ms,
-            Some(command_line),
+            Some(command_line.clone()),
             parameters,
         ) {
             eprintln!("Failed to record execution: {}", e);
