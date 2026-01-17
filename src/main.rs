@@ -842,6 +842,14 @@ fn execute_patch_batch(
             });
         }
 
+        // Sort file_results deterministically by file path
+        file_results.sort();
+
+        // Sort spans within each file deterministically
+        for result in &mut file_results {
+            result.spans.sort();
+        }
+
         // Create batch result structure (reuse ApplyFilesResult)
         let apply_result = ApplyFilesResult {
             glob_pattern: absolute_batch.to_string_lossy().to_string(),
@@ -1217,7 +1225,13 @@ fn execute_query(
     }
 
     let labels_ref: Vec<&str> = labels.iter().map(|s| s.as_str()).collect();
-    let results = integration.query_by_labels(&labels_ref)?;
+    let mut results = integration.query_by_labels(&labels_ref)?;
+    // Sort results deterministically by file_path, then byte_start
+    results.sort_by(|a, b| {
+        a.file_path
+            .cmp(&b.file_path)
+            .then_with(|| a.byte_start.cmp(&b.byte_start))
+    });
 
     if results.is_empty() {
         if labels.len() == 1 {
