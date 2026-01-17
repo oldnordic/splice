@@ -577,6 +577,54 @@ fn execute_patch(
         after_hash,
     };
 
+    // Check if JSON output is requested
+    if _json_output {
+        use splice::output::{OperationResult, OperationData, PatchResult, SpanResult};
+        use uuid::Uuid;
+
+        // Create span result
+        let span = SpanResult::from_byte_span(
+            file_path.to_string_lossy().to_string(),
+            resolved.byte_start,
+            resolved.byte_end,
+        )
+        .with_symbol(symbol_name.to_string(), resolved.kind.to_string())
+        .with_hashes(summary.before_hash.clone(), summary.after_hash.clone());
+
+        // Create patch result
+        let patch_result = PatchResult {
+            file: file_path.to_string_lossy().to_string(),
+            symbol: symbol_name.to_string(),
+            kind: resolved.kind.to_string(),
+            spans: vec![span],
+            before_hash: summary.before_hash.clone(),
+            after_hash: summary.after_hash.clone(),
+            lines_added: 0, // TODO: Calculate from diff
+            lines_removed: 0, // TODO: Calculate from diff
+        };
+
+        // Create operation result
+        let _op_id = operation_id.clone().unwrap_or_else(|| Uuid::new_v4().to_string());
+        let result = OperationResult::new("patch".to_string())
+            .success(format!(
+                "Patched '{}' at bytes {}..{} (hash: {} -> {})",
+                symbol_name,
+                resolved.byte_start,
+                resolved.byte_end,
+                summary.before_hash,
+                summary.after_hash
+            ))
+            .with_workspace(workspace_root.to_string_lossy().to_string())
+            .with_result(OperationData::Patch(patch_result));
+
+        // Output structured JSON directly
+        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+
+        // Return a dummy payload marked as already emitted
+        return Ok(splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted());
+    }
+
+    // Default output (backward compatible)
     let message = format!(
         "Patched '{}' at bytes {}..{} (hash: {} -> {})",
         symbol_name,
@@ -1101,6 +1149,11 @@ fn write_stdout_line(line: &str) -> Result<(), splice::SpliceError> {
 
 /// Emit JSON payload for successful CLI responses.
 fn emit_success_payload(payload: &splice::cli::CliSuccessPayload, _json_output: bool) -> Result<(), splice::SpliceError> {
+    // If payload was already emitted (e.g., --json mode with OperationResult), skip
+    if payload.already_emitted {
+        return Ok(());
+    }
+
     match serde_json::to_string(payload) {
         Ok(json) => write_stdout_line(&json),
         Err(err) => {

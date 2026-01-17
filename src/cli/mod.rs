@@ -327,6 +327,9 @@ pub struct CliSuccessPayload {
     /// Optional structured data.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
+    /// Whether this payload has already been emitted (for --json mode).
+    #[serde(skip)]
+    pub already_emitted: bool,
 }
 
 impl CliSuccessPayload {
@@ -336,6 +339,7 @@ impl CliSuccessPayload {
             status: "ok",
             message,
             data: None,
+            already_emitted: false,
         }
     }
 
@@ -345,7 +349,14 @@ impl CliSuccessPayload {
             status: "ok",
             message,
             data: Some(data),
+            already_emitted: false,
         }
+    }
+
+    /// Mark this payload as already emitted (for --json mode).
+    pub fn already_emitted(mut self) -> Self {
+        self.already_emitted = true;
+        self
     }
 }
 
