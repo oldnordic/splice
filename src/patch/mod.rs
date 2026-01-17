@@ -227,11 +227,32 @@ pub fn apply_patch_with_validation(
     let after_hash = compute_hash(&refreshed_bytes);
 
     // Step 9: Run post-verification to confirm expected changes
-    let post_verify = verify::verify_after_patch(
+    let mut post_verify = verify::verify_after_patch(
         file_path,
         workspace_dir,
         &before_hash,
     )?;
+
+    // Step 9.1: Verify localized change (no unintended modifications)
+    let localized = verify::verify_localized_change(
+        file_path,
+        &original,
+        (start, end),
+    );
+
+    match &localized {
+        Ok(true) => {
+            log::info!("Localized change verification passed");
+        }
+        Ok(false) => {
+            log::warn!("Localized change verification detected modifications outside target span");
+            post_verify.add_warning("File modified outside target span");
+        }
+        Err(e) => {
+            log::warn!("Localized change verification failed: {}", e);
+            post_verify.add_warning(format!("Could not verify localized change: {}", e));
+        }
+    }
 
     // Log warnings for user visibility
     for warning in &post_verify.warnings {
