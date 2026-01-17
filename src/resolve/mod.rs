@@ -155,8 +155,28 @@ pub fn resolve_symbol(
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
-    // For now, we don't have line/col stored yet, use 0 as placeholders
-    // TODO: Store line/col in graph during ingest
+    // Retrieve line/col from graph (stored by ingest modules)
+    let line_start = node
+        .data
+        .get("line_start")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as usize;
+    let line_end = node
+        .data
+        .get("line_end")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as usize;
+    let col_start = node
+        .data
+        .get("col_start")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as usize;
+    let col_end = node
+        .data
+        .get("col_end")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as usize;
+
     Ok(ResolvedSpan {
         node_id,
         match_id,
@@ -166,10 +186,10 @@ pub fn resolve_symbol(
         file_path: file_path_str,
         byte_start,
         byte_end,
-        line_start: 0,
-        line_end: 0,
-        col_start: 0,
-        col_end: 0,
+        line_start,
+        line_end,
+        col_start,
+        col_end,
     })
 }
 
@@ -238,7 +258,28 @@ fn resolve_symbol_in_file(
         .ok_or_else(|| SpliceError::Other("Missing file_path property".to_string()))?
         .to_string();
 
-    // TODO: Return actual line/col when we store it
+    // Retrieve line/col from graph (stored by ingest modules)
+    let line_start = node
+        .data
+        .get("line_start")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as usize;
+    let line_end = node
+        .data
+        .get("line_end")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as usize;
+    let col_start = node
+        .data
+        .get("col_start")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as usize;
+    let col_end = node
+        .data
+        .get("col_end")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as usize;
+
     Ok(ResolvedSpan {
         node_id,
         match_id: match_id.to_string(),
@@ -248,10 +289,10 @@ fn resolve_symbol_in_file(
         file_path: node_file_path,
         byte_start,
         byte_end,
-        line_start: 0,
-        line_end: 0,
-        col_start: 0,
-        col_end: 0,
+        line_start,
+        line_end,
+        col_start,
+        col_end,
     })
 }
 
