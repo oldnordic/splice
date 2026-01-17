@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-17)
 ## Current Position
 
 Phase: 7 of 10 (Validation Hooks)
-Plan: PLANNED — Ready for execution
-Status: **PLANNED** — 3 plans ready
-Last activity: 2026-01-17 — Created Phase 7 plans (Validation Hooks)
+Plan: 07-02 — Pre-validation hooks
+Status: **IN PROGRESS** — 1/3 complete
+Last activity: 2026-01-17 — Completed 07-01 (Checksum System)
 
-Progress: ██████████░ 60% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 4/4 complete, Phase 4: 3/3 complete, Phase 5: 3/3 complete, Phase 6: 3/3 complete, Phase 7: 0/3 planned)
+Progress: ██████████░ 63% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 4/4 complete, Phase 4: 3/3 complete, Phase 5: 3/3 complete, Phase 6: 3/3 complete, Phase 7: 1/3 complete, 2 planned)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 22
+- Total plans completed: 23
 - Average duration: ~1 hour
-- Total execution time: ~18 hours
+- Total execution time: ~19 hours
 
 **By Phase:**
 
@@ -33,7 +33,7 @@ Progress: ██████████░ 60% (Phase 1: 3/3 complete, Phase 2:
 | 4. Stable Identifiers | 3 | 3 | **COMPLETE** |
 | 5. Span-Aware Metadata | 3 | 3 | **COMPLETE** |
 | 6. Deterministic Ordering | 3 | 3 | **COMPLETE** |
-| 7. Validation Hooks | 3 | 0 | **PLANNED** |
+| 7. Validation Hooks | 3 | 1 | **IN PROGRESS** |
 
 **Recent Trend:**
 - 01-01 through 01-03: Safety Foundation — **COMPLETE**
@@ -42,8 +42,9 @@ Progress: ██████████░ 60% (Phase 1: 3/3 complete, Phase 2:
 - 04-01 through 04-03: Stable Identifiers — **COMPLETE**
 - 05-01 through 05-03: Span-Aware Metadata — **COMPLETE**
 - 06-01 through 06-03: Deterministic Ordering — **COMPLETE**
-- 07-01 through 07-03: Validation Hooks — **PLANNED**
-- Next: Execute Phase 7 plans
+- 07-01: Checksum System — **COMPLETE**
+- 07-02 through 07-03: Validation Hooks — **PLANNED**
+- Next: Execute 07-02 (Pre-validation hooks)
 
 ## Accumulated Context
 
@@ -93,6 +94,18 @@ Recent decisions affecting current work:
     - FilePatternResult.spans: sorted by byte offset
     - Commit: be704c4
 
+18. **Checksum System Design (07-01)**
+    - Created src/checksum.rs module with SHA-256 support (386 LOC)
+    - Checksum functions: checksum_file, checksum_span, checksum_line_range
+    - Utility functions: verify_file, has_file_changed, checksum_diff
+    - Added span_checksum_before/after to SpanResult output type
+    - Added file_checksum_before/span_checksums to DeleteResult output type
+    - Extended error types: InvalidLineRange, InvalidUtf8, IoContext
+    - Updated InvalidSpan to include file_size field
+    - Delete operation now computes and returns checksums
+    - All 131 unit tests pass (13 new checksum tests)
+    - Commits: 7abaf4e, 5a47809, e6c09c9
+
 ### Pending Todos
 
 - Phase 7: Validation Hooks — checksums and pre/post verification
@@ -107,7 +120,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-17
-Stopped at: Completed Phase 6 (Deterministic Ordering)
+Stopped at: Completed Phase 7.1 (Checksum System)
 Resume file: None
 
 **Phase 6 Status: COMPLETE** (3/3 complete)
@@ -138,12 +151,15 @@ Resume file: None
 - `.planning/phases/06-deterministic-ordering/06-03-SUMMARY.md`
 
 **Phase 7 Status: PLANNED** (3/3 plans ready)
-- 07-01: ✅ PLANNED (Design checksum system)
-  - New module: src/checksum.rs (~150 LOC)
-  - SHA-256 for files, spans, line ranges
-  - Checksum structs with algorithm metadata
-  - Tests: 6 unit tests + 2 integration tests
-  - PLAN.md created
+- 07-01: ✅ COMPLETED (Checksum system)
+  - Created src/checksum.rs module (386 LOC)
+  - SHA-256 checksums for files, spans, line ranges
+  - Utility functions: verify_file, has_file_changed, checksum_diff
+  - Span checksum fields in output types
+  - Delete operation computes checksums
+  - All 131 unit tests pass
+  - Commits: 7abaf4e, 5a47809, e6c09c9
+  - SUMMARY.md created
 
 - 07-02: ✅ PLANNED (Implement pre-verification hooks)
   - New module: src/verify.rs (~200 LOC)
@@ -166,6 +182,7 @@ Resume file: None
 
 **Artifacts Created:**
 - `.planning/phases/07-validation-hooks/07-01-PLAN.md`
+- `.planning/phases/07-validation-hooks/07-01-SUMMARY.md`
 - `.planning/phases/07-validation-hooks/07-02-PLAN.md`
 - `.planning/phases/07-validation-hooks/07-03-PLAN.md`
 
