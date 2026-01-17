@@ -634,14 +634,9 @@ fn execute_patch(
     if _json_output {
         use splice::output::{OperationResult, OperationData, PatchResult, SpanResult};
 
-        // Create span result
-        let span = SpanResult::from_byte_span(
-            file_path.to_string_lossy().to_string(),
-            resolved.byte_start,
-            resolved.byte_end,
-        )
-        .with_symbol(symbol_name.to_string(), resolved.kind.to_string())
-        .with_hashes(summary.before_hash.clone(), summary.after_hash.clone());
+        // Create span result from resolved span (includes match_id)
+        let span = SpanResult::from(resolved.clone())
+            .with_hashes(summary.before_hash.clone(), summary.after_hash.clone());
 
         // Create patch result
         let patch_result = PatchResult {
