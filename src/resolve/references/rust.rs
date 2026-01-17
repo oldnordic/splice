@@ -1111,11 +1111,16 @@ fn extract_context(node: tree_sitter::Node, _source: &[u8]) -> ReferenceContext 
 mod tests {
     use super::*;
     use std::io::Write;
-    use tempfile::NamedTempFile;
+    use tempfile::{NamedTempFile, TempDir};
 
     fn create_test_graph() -> CodeGraph {
-        let temp = NamedTempFile::new().unwrap();
-        CodeGraph::open(temp.path()).unwrap()
+        let temp_dir = TempDir::new().unwrap();
+        let graph_path = temp_dir.path().join("test_graph.db");
+        let graph = CodeGraph::open(&graph_path).unwrap();
+        // Keep temp_dir alive by leaking it
+        // Safe in tests - OS will clean up on process exit
+        std::mem::forget(temp_dir);
+        graph
     }
 
     #[test]
