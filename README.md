@@ -469,12 +469,11 @@ All operations are logged to `.splice/operations.db` with timestamps, durations,
 cargo test
 ```
 
-Test Coverage: 334+ tests passing, including:
-- 267 unit tests for core functionality
-- 57 integration tests for multi-language workflows
-- Magellan compatibility tests for all 7 languages
+Test Coverage: 215+ tests passing, including:
+- 171 unit tests for core functionality
+- 26 Magellan integration tests for all 7 languages
+- 18 cross-language compatibility tests
 - End-to-end refactoring workflow tests
-- Cross-language compatibility tests
 
 ## Feedback
 

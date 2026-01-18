@@ -3,6 +3,74 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-01-18
+
+### Major Release - Comprehensive Overhaul
+
+This release represents a complete overhaul of Splice's internal architecture, safety, and observability. The codebase has been refactored across 10 phases with 31 individual plans, 133 commits, and significant improvements to code quality and test coverage.
+
+### Added
+
+**Safety Foundation**
+- Eliminated all `unwrap()` calls from production code paths
+- Established consistent error handling patterns using `?` operator
+- Added context helpers for better error messages
+
+**Structured Output & Identifiers**
+- All operations now return structured JSON with explicit fields
+- `execution_id` (UUID): Unique identifier for each operation run
+- `match_id`: Unique identifier for each symbol match
+- `span_id`: Unique identifier for each span operation
+- Line and column coordinates included in all output (byte + line/col)
+- Deterministic ordering across all operations (sorted results)
+
+**Validation & Observability**
+- SHA-256 checksums for pre/post-operation verification
+- Execution logging audit trail in `.splice/operations.db`
+- `splice log` command to query execution history
+- Filters: operation_type, status, date_range, execution_id
+- Output formats: table (human), JSON (machine)
+- Statistics summary option
+
+**Integration Tests**
+- 26 Magellan integration tests (all 7 languages)
+- 18 cross-language compatibility tests
+- End-to-end refactoring workflow tests
+- Total: 215+ passing tests
+
+### Changed
+
+**Dependencies**
+- SQLiteGraph upgraded from 0.2.11 to 1.0 with Native V2 backend
+- Magellan upgraded to 0.5.3 with native-v2 features
+- tree-sitter upgraded from 0.21 to 0.22
+- Added `uuid` for execution ID generation
+- Added `chrono` for timestamp handling
+- Added `rusqlite` for execution log database access
+- Added `sha2` for checksum computation
+
+**Architecture**
+- New modules:
+  - `src/execution/` - Execution logging infrastructure
+  - `src/output/` - Structured output types
+  - `src/checksum.rs` - SHA-256 checksum computation
+  - `src/verify.rs` - Validation hooks
+- Refactored error handling throughout codebase
+- Improved test organization and coverage
+
+### Technical Notes
+
+- **Breaking Change**: JSON output format now includes new required fields (execution_id, match_id, span_id)
+- **Databases**: `.splice/operations.db` created for audit trail (separate from codegraph.db)
+- **Test Status**: 215+ tests passing. Some existing tests have known failures due to hardcoded paths in test fixtures.
+- **Backward Compatibility**: Existing codegraph.db files remain compatible
+
+### Migration from v0.5.x
+
+- JSON output now includes additional identifier fields
+- Execution logging is enabled by default (set `SPLICE_EXECUTION_LOG=false` to disable)
+- Validation hooks run automatically (can be skipped with `--no-validate` for apply-files)
+
 ## [0.5.3] - 2026-01-13
 
 ### Fixed
