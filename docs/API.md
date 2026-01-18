@@ -134,6 +134,259 @@ replacements.sort_by_key(|r| std::cmp::Reverse(r.start));
 
 ---
 
+## Execution Logging API
+
+Splice v2.0 provides persistent audit trail storage for all operations via the execution logging module.
+
+### Database Initialization
+
+```rust
+use splice::execution::{init_execution_log_db, DB_FILENAME};
+use std::path::Path;
+
+/// Initialize the execution log database at the given path
+/// Creates .splice/operations.db with all necessary tables
+pub fn init_execution_log_db(db_dir: &Path) -> Result<Connection>
+```
+
+**Example:**
+```rust
+let workspace = Path::new("/path/to/workspace");
+let splice_dir = workspace.join(".splice");
+let conn = init_execution_log_db(&splice_dir)?;
+```
+
+### ExecutionLog Entry
+
+Represents a single operation in the audit trail with full metadata.
+
+```rust
+use splice::execution::ExecutionLog;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExecutionLog {
+    /// Database row ID
+    pub id: i64,
+    /// Unique operation identifier (UUID)
+    pub execution_id: String,
+    /// Operation type (e.g., "patch", "delete", "plan")
+    pub operation_type: String,
+    /// Operation status ("ok", "error", "partial")
+    pub status: String,
+    /// ISO 8601 timestamp
+    pub timestamp: String,
+    /// Workspace root path (if available)
+    pub workspace: Option<String>,
+    /// Full command line for reproducibility
+    pub command_line: Option<String>,
+    /// Operation-specific parameters (JSON)
+    pub parameters: Option<serde_json::Value>,
+    /// Summary of results (JSON)
+    pub result_summary: Option<serde_json::Value>,
+    /// Error details if status != "ok" (JSON)
+    pub error_details: Option<serde_json::Value>,
+    /// Operation duration in milliseconds
+    pub duration_ms: Option<i64>,
+    /// Unix timestamp for sorting
+    pub created_at: i64,
+}
+```
+
+### ExecutionLogBuilder
+
+Fluent builder for constructing execution log entries.
+
+```rust
+use splice::execution::ExecutionLogBuilder;
+
+pub struct ExecutionLogBuilder { /* ... */ }
+
+impl ExecutionLogBuilder {
+    /// Create a new builder with required fields
+    pub fn new(execution_id: String, operation_type: String) -> Self
+
+    /// Set the operation status
+    pub fn status(self, status: String) -> Self
+
+    /// Set the workspace root path
+    pub fn workspace(self, workspace: String) -> Self
+
+    /// Set the command line
+    pub fn command_line(self, command_line: String) -> Self
+
+    /// Set the operation parameters (JSON)
+    pub fn parameters(self, parameters: serde_json::Value) -> Self
+
+    /// Set the result summary (JSON)
+    pub fn result_summary(self, result_summary: serde_json::Value) -> Self
+
+    /// Set the error details (JSON)
+    pub fn error_details(self, error_details: serde_json::Value) -> Self
+
+    /// Set the operation duration in milliseconds
+    pub fn duration_ms(self, duration_ms: i64) -> Self
+
+    /// Build the ExecutionLog entry
+    pub fn build(self) -> ExecutionLog
+}
+```
+
+**Example:**
+```rust
+use uuid::Uuid;
+
+let execution_id = Uuid::new_v4().to_string();
+let log = ExecutionLogBuilder::new(execution_id, "patch".to_string())
+    .status("ok".to_string())
+    .workspace("/path/to/workspace".to_string())
+    .command_line("splice patch foo bar baz".to_string())
+    .duration_ms(1234)
+    .result_summary(serde_json::json!({
+        "files_modified": 3,
+        "replacements_applied": 7
+    }))
+    .build();
+```
+
+### Recording Operations
+
+```rust
+use splice::execution::insert_execution_log;
+
+/// Insert an execution log entry into the database
+/// Returns the database row ID of the inserted entry
+pub fn insert_execution_log(conn: &Connection, log: &ExecutionLog) -> Result<i64>
+```
+
+### Querying Operations
+
+```rust
+use splice::execution::{
+    ExecutionQuery,
+    get_execution,
+    get_recent_executions,
+    get_execution_stats,
+};
+
+/// Query builder for flexible filtering
+pub struct ExecutionQuery { /* ... */ }
+
+impl ExecutionQuery {
+    pub fn new() -> Self
+    pub fn with_operation_type(self, op: String) -> Self
+    pub fn with_status(self, status: String) -> Self
+    pub fn after(self, timestamp: i64) -> Self
+    pub fn before(self, timestamp: i64) -> Self
+    pub fn with_limit(self, limit: usize) -> Self
+    pub fn with_offset(self, offset: usize) -> Self
+    pub fn for_execution(self, id: String) -> Self
+    pub fn execute(&self, conn: &Connection) -> Result<Vec<ExecutionLog>>
+}
+
+/// Get execution by execution_id
+pub fn get_execution(conn: &Connection, execution_id: &str) -> Result<Option<ExecutionLog>>
+
+/// Get recent executions
+pub fn get_recent_executions(conn: &Connection, limit: usize) -> Result<Vec<ExecutionLog>>
+
+/// Get execution statistics
+pub fn get_execution_stats(conn: &Connection) -> Result<ExecutionStats>
+```
+
+**Query Examples:**
+```rust
+// Get last 10 patch operations
+let patches = ExecutionQuery::new()
+    .with_operation_type("patch".to_string())
+    .with_limit(10)
+    .execute(&conn)?;
+
+// Get failed operations from last hour
+let one_hour_ago = chrono::Utc::now().timestamp() - 3600;
+let failed = ExecutionQuery::new()
+    .with_status("error".to_string())
+    .after(one_hour_ago)
+    .execute(&conn)?;
+
+// Get specific execution
+let exec = get_execution(&conn, "uuid-here")?;
+
+// Get statistics
+let stats = get_execution_stats(&conn)?;
+println!("Total operations: {}", stats.total_operations);
+```
+
+### Database Schema
+
+The execution log is stored in `.splice/operations.db` with the following schema:
+
+```sql
+CREATE TABLE execution_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    execution_id TEXT NOT NULL UNIQUE,
+    operation_type TEXT NOT NULL,
+    status TEXT NOT NULL,
+    timestamp TEXT NOT NULL,
+    workspace TEXT,
+    command_line TEXT,
+    parameters TEXT,
+    result_summary TEXT,
+    error_details TEXT,
+    duration_ms INTEGER,
+    created_at INTEGER NOT NULL
+);
+
+-- Indexes for efficient querying
+CREATE INDEX idx_execution_log_execution_id ON execution_log(execution_id);
+CREATE INDEX idx_execution_log_operation_type ON execution_log(operation_type);
+CREATE INDEX idx_execution_log_timestamp ON execution_log(created_at);
+CREATE INDEX idx_execution_log_status ON execution_log(status);
+```
+
+### ExecutionStats
+
+Aggregated statistics about all operations.
+
+```rust
+use splice::execution::ExecutionStats;
+use std::collections::HashMap;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExecutionStats {
+    /// Total number of operations in the log
+    pub total_operations: i64,
+    /// Count of operations grouped by type
+    pub by_type: HashMap<String, i64>,
+    /// Count of operations grouped by status
+    pub by_status: HashMap<String, i64>,
+    /// Timestamp of the oldest execution (ISO 8601)
+    pub oldest_execution: Option<String>,
+    /// Timestamp of the newest execution (ISO 8601)
+    pub newest_execution: Option<String>,
+}
+```
+
+**JSON Example:**
+```json
+{
+  "total_operations": 150,
+  "by_type": {
+    "patch": 100,
+    "delete": 30,
+    "plan": 20
+  },
+  "by_status": {
+    "ok": 140,
+    "error": 8,
+    "partial": 2
+  },
+  "oldest_execution": "2026-01-01T00:00:00Z",
+  "newest_execution": "2026-01-18T12:34:56Z"
+}
+```
+
+---
+
 ## SQLite Backend API
 
 ### Core Types
