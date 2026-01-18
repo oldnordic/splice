@@ -5,24 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-01-17)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** Phase 9 — Integration Testing
+**Current focus:** Phase 10 — Documentation Update
 
 ## Current Position
 
-Phase: 9 of 10 (Integration Testing)
-Plan: 3 of 3 in current phase
-Status: **In progress** 🔄
-Last activity: 2026-01-17 — Completed 09-03-PLAN.md (Cross-language compatibility tests)
+Phase: 10 of 10 (Documentation Update)
+Plan: 1 of 1 in current phase
+Status: **Complete** ✅
+Last activity: 2026-01-18 — Completed 10-01-PLAN.md (README.md update to v2.0)
 
-Progress: ████████░░ 97% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 3/3 complete, Phase 4: 3/3 complete, Phase 5: 3/3 complete, Phase 6: 3/3 complete, Phase 7: 3/3 complete, Phase 8: 3/3 complete, Phase 9: 3/3 complete)
+Progress: ██████████ 100% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 3/3 complete, Phase 4: 3/3 complete, Phase 5: 3/3 complete, Phase 6: 3/3 complete, Phase 7: 3/3 complete, Phase 8: 3/3 complete, Phase 9: 3/3 complete, Phase 10: 1/1 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 30
-- Total plans planned: 30
+- Total plans completed: 31
+- Total plans planned: 31
 - Average duration: ~1 hour
-- Total execution time: ~23 hours
+- Total execution time: ~24 hours
 
 **By Phase:**
 
@@ -37,6 +37,7 @@ Progress: ████████░░ 97% (Phase 1: 3/3 complete, Phase 2: 4/
 | 7. Validation Hooks | 3 | 3 | **COMPLETE** |
 | 8. Execution Logging | 3 | 3 | **COMPLETE** |
 | 9. Integration Testing | 3 | 3 | **COMPLETE** |
+| 10. Documentation Update | 1 | 1 | **COMPLETE** |
 
 **Recent Trend:**
 - 01-01 through 01-03: Safety Foundation — **COMPLETE**
@@ -48,7 +49,8 @@ Progress: ████████░░ 97% (Phase 1: 3/3 complete, Phase 2: 4/
 - 07-01 through 07-03: Validation Hooks — **COMPLETE**
 - 08-01 through 08-03: Execution Logging — **COMPLETE**
 - 09-01 through 09-03: Integration Testing — **COMPLETE**
-- Next: Phase 10 (Final Polish & Documentation)
+- 10-01: Documentation Update — **COMPLETE**
+- All phases complete! Splice v2.0 overhaul finished.
 
 ## Accumulated Context
 
@@ -133,9 +135,24 @@ Recent decisions affecting current work:
 - Duration: 45 min
 - Status: COMPLETE (with deferred items)
 
+### Phase 10: Documentation Update Plans
+
+**27. README.md Update to v2.0 (10-01)** ✅
+- Updated README version from 0.5.0 to 2.0.0
+- Added comprehensive v2.0 features section covering all 9 phases
+- Documented structured JSON output with execution_id, match_id, span_id
+- Added splice log command documentation with filters and examples
+- Updated Architecture section to include src/execution/, src/output/, src/checksum/
+- Updated Validation Gates section to mention checksums and hooks
+- Updated Testing section with 334+ tests breakdown
+- Modified: README.md (+93 LOC, -11 LOC)
+- Commits: c8480ee, 887f03c, 4fb2743, c15f528
+- Duration: 12 min
+- Status: COMPLETE
+
 ### Pending Todos
 
-- Phase 10: Documentation Update — docs/manual for v2.0
+- All phases complete! Splice v2.0 overhaul finished.
 
 ### Blockers/Concerns
 
@@ -193,11 +210,17 @@ Stopped at: Completed 09-02-PLAN.md (End-to-end refactoring workflow tests)
 - `.planning/phases/09-integration-testing/09-01-PLAN.md`
 - `.planning/phases/09-integration-testing/09-01-SUMMARY.md`
 - `.planning/phases/09-integration-testing/09-02-PLAN.md`
-- `.planning/phases/09-integration-testing/09-02-SUMMARY.md` ⬅️ NEW
+- `.planning/phases/09-integration-testing/09-02-SUMMARY.md`
+- `.planning/phases/09-integration-testing/09-03-PLAN.md`
+- `.planning/phases/09-integration-testing/09-03-SUMMARY.md`
+- `.planning/phases/10-documentation-update/10-01-PLAN.md`
+- `.planning/phases/10-documentation-update/10-01-SUMMARY.md` ⬅️ NEW
 
-**Next Step:** Continue with Phase 9 (09-03: Cross-language compatibility)
+**Next Step:** All phases complete! Splice v2.0 overhaul finished.
 
 **Phase 8 Total LOC:** ~1,260 LOC (COMPLETE)
 **Phase 9 Total LOC:** ~2,390 LOC (integration tests)
 **Phase 9 Total Integration Tests:** 57 new tests (26 for 09-01, 31 for 09-02)
-**Phase 9 Duration:** 23 min (18 min for 09-01, 5 min for 09-02)
+**Phase 9 Duration:** 68 min (18 min for 09-01, 5 min for 09-02, 45 min for 09-03)
+**Phase 10 Total LOC:** ~116 LOC (SUMMARY.md)
+**Phase 10 Duration:** 12 min (10-01 only)
