@@ -19,10 +19,10 @@ Progress: ██████████ 100% (Phase 1: 3/3 complete, Phase 2: 4
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 31
-- Total plans planned: 31
+- Total plans completed: 33
+- Total plans planned: 33
 - Average duration: ~1 hour
-- Total execution time: ~24 hours
+- Total execution time: ~24.5 hours
 
 **By Phase:**
 
@@ -150,9 +150,38 @@ Recent decisions affecting current work:
 - Duration: 12 min
 - Status: COMPLETE
 
+**28. Manual Documentation Update (10-02)** ✅
+- Updated docs/manual for v2.0 features
+- Documented validation gates (syntax, compiler, analyzer)
+- Added structured output examples
+- Explained rollback behavior
+- Commits: (see 10-02-SUMMARY.md for details)
+- Duration: 30 min
+- Status: COMPLETE
+
+**29. API Documentation Update (10-03)** ✅
+- Added Splice v2.0 output types to docs/API.md
+- Documented execution logging API (init, log, query)
+- Documented validation hooks API (pre/post verification)
+- Preserved SQLiteGraph API reference
+- Total: 1,010 lines added across 3 sections
+- Commits: 16eb6e0, 98aaaaa, 5224499
+- Duration: 15 min
+- Status: COMPLETE
+
+**Artifacts Created:**
+- `.planning/phases/10-documentation-update/10-01-PLAN.md`
+- `.planning/phases/10-documentation-update/10-01-SUMMARY.md`
+- `.planning/phases/10-documentation-update/10-02-PLAN.md`
+- `.planning/phases/10-documentation-update/10-02-SUMMARY.md`
+- `.planning/phases/10-documentation-update/10-03-PLAN.md`
+- `.planning/phases/10-documentation-update/10-03-SUMMARY.md`
+
 ### Pending Todos
 
-- All phases complete! Splice v2.0 overhaul finished.
+**NONE** - All phases complete!
+
+**Project Status:** READY FOR RELEASE
 
 ### Blockers/Concerns
 
