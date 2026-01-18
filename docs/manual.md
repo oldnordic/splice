@@ -68,6 +68,387 @@ For detailed phase-by-phase implementation, see [ROADMAP.md](../.planning/ROADMA
 
 ---
 
+## Structured Output Schema
+
+Splice v2.0 uses a structured JSON output schema with explicit fields, versioning, and stable identifiers.
+
+### Top-Level Structure
+
+All Splice operations return a top-level `OperationResult` object:
+
+```json
+{
+  "version": "2.0.0",
+  "operation_id": "550e8400-e29b-41d4-a716-446655440000",
+  "operation_type": "patch|delete|plan|query|apply_files",
+  "status": "ok|error|partial",
+  "message": "Human-readable status message",
+  "timestamp": "2026-01-17T12:34:56.789Z",
+  "workspace": "/path/to/workspace",
+  "result": { /* OperationData variant */ },
+  "error": { /* ErrorDetails, if status is "error" */ }
+}
+```
+
+**Fields:**
+- `version` (string): Schema version (currently "2.0.0")
+- `operation_id` (string): UUID v4 uniquely identifying this operation execution
+- `operation_type` (string): One of: "patch", "delete", "plan", "query", "apply_files"
+- `status` (string): "ok" (success), "error" (failure), or "partial" (mixed results)
+- `message` (string): Human-readable description of operation outcome
+- `timestamp` (string): ISO 8601 timestamp (RFC 3339 format, UTC)
+- `workspace` (string, optional): Absolute path to workspace root
+- `result` (object, optional): Operation-specific result data (see below)
+- `error` (object, optional): Error details if status is "error"
+
+### Operation Types
+
+#### Patch Operation
+
+Single file symbol modification:
+
+```json
+{
+  "version": "2.0.0",
+  "operation_id": "550e8400-e29b-41d4-a716-446655440000",
+  "operation_type": "patch",
+  "status": "ok",
+  "message": "Patched function 'old_name' in src/lib.rs",
+  "timestamp": "2026-01-17T12:34:56.789Z",
+  "workspace": "/home/user/project",
+  "result": {
+    "type": "patch",
+    "file": "src/lib.rs",
+    "symbol": "old_name",
+    "kind": "function",
+    "spans": [
+      {
+        "file_path": "src/lib.rs",
+        "symbol": "old_name",
+        "kind": "function",
+        "byte_start": 120,
+        "byte_end": 256,
+        "line_start": 8,
+        "line_end": 15,
+        "col_start": 4,
+        "col_end": 2,
+        "span_id": "660e8400-e29b-41d4-a716-446655440000",
+        "match_id": "770e8400-e29b-41d4-a716-446655440000",
+        "before_hash": "a1b2c3d4",
+        "after_hash": "e5f6g7h8",
+        "span_checksum_before": "9f8e7d6c5b4a3210fedcba0987654321abcdeff1234567890abcdef123456789",
+        "span_checksum_after": "9876543210abcdef0987654321abcdeff1234567890abcdef1234567890abcde"
+      }
+    ],
+    "before_hash": "sha256:...",
+    "after_hash": "sha256:...",
+    "lines_added": 8,
+    "lines_removed": 8
+  }
+}
+```
+
+**PatchResult Fields:**
+- `file` (string): Path to patched file (relative to workspace)
+- `symbol` (string): Symbol name that was modified
+- `kind` (string): Symbol kind (function, struct, enum, etc.)
+- `spans` (array): List of `SpanResult` objects modified
+- `before_hash` (string): File hash before patching (SHA-256)
+- `after_hash` (string): File hash after patching (SHA-256)
+- `lines_added` (number): Total lines added
+- `lines_removed` (number): Total lines removed
+
+#### Delete Operation
+
+Symbol deletion (definition + all references):
+
+```json
+{
+  "version": "2.0.0",
+  "operation_id": "550e8400-e29b-41d4-a716-446655440000",
+  "operation_type": "delete",
+  "status": "ok",
+  "message": "Deleted function 'unused_func' and 3 references",
+  "timestamp": "2026-01-17T12:34:56.789Z",
+  "workspace": "/home/user/project",
+  "result": {
+    "type": "delete",
+    "file": "src/lib.rs",
+    "symbol": "unused_func",
+    "kind": "function",
+    "spans": [
+      {
+        "file_path": "src/lib.rs",
+        "symbol": "unused_func",
+        "kind": "function",
+        "byte_start": 100,
+        "byte_end": 200,
+        "line_start": 5,
+        "line_end": 12,
+        "col_start": 0,
+        "col_end": 1,
+        "span_id": "660e8400-e29b-41d4-a716-446655440000",
+        "match_id": "770e8400-e29b-41d4-a716-446655440000",
+        "span_checksum_before": "abc123...",
+        "span_checksum_after": null
+      }
+      // ... more spans for references
+    ],
+    "bytes_removed": 512,
+    "lines_removed": 24,
+    "references_removed": 3,
+    "file_checksum_before": "sha256:...",
+    "span_checksums": ["sha256:...", "sha256:...", ...]
+  }
+}
+```
+
+**DeleteResult Fields:**
+- `file` (string): Path to file containing deleted symbol
+- `symbol` (string): Symbol name that was deleted
+- `kind` (string): Symbol kind
+- `spans` (array): All removed spans (definition + references)
+- `bytes_removed` (number): Total bytes removed
+- `lines_removed` (number): Total lines removed
+- `references_removed` (number): Number of reference spans removed
+- `file_checksum_before` (string): File checksum before deletion
+- `span_checksums` (array of string): SHA-256 checksums of each removed span
+
+#### Plan Operation
+
+Multi-step plan execution:
+
+```json
+{
+  "version": "2.0.0",
+  "operation_id": "550e8400-e29b-41d4-a716-446655440000",
+  "operation_type": "plan",
+  "status": "ok",
+  "message": "Executed 3 steps successfully",
+  "timestamp": "2026-01-17T12:34:56.789Z",
+  "workspace": "/home/user/project",
+  "result": {
+    "type": "plan",
+    "total_steps": 3,
+    "steps_completed": 3,
+    "steps": [
+      {
+        "step": 1,
+        "status": "ok",
+        "message": "Patched 'func_a' in src/a.rs",
+        "file": "src/a.rs",
+        "symbol": "func_a"
+      },
+      {
+        "step": 2,
+        "status": "ok",
+        "message": "Patched 'func_b' in src/b.rs",
+        "file": "src/b.rs",
+        "symbol": "func_b"
+      },
+      {
+        "step": 3,
+        "status": "ok",
+        "message": "Patched 'func_c' in src/c.rs",
+        "file": "src/c.rs",
+        "symbol": "func_c"
+      }
+    ],
+    "files_affected": ["src/a.rs", "src/b.rs", "src/c.rs"],
+    "total_bytes_changed": 1024
+  }
+}
+```
+
+**PlanResult Fields:**
+- `total_steps` (number): Number of steps in plan
+- `steps_completed` (number): Number of successfully executed steps
+- `steps` (array): List of `StepResult` objects
+- `files_affected` (array of string): All files modified (sorted)
+- `total_bytes_changed` (number): Total bytes changed across all steps
+
+#### Query Operation
+
+Magellan label-based symbol search:
+
+```json
+{
+  "version": "2.0.0",
+  "operation_id": "550e8400-e29b-41d4-a716-446655440000",
+  "operation_type": "query",
+  "status": "ok",
+  "message": "Found 5 matching symbols",
+  "timestamp": "2026-01-17T12:34:56.789Z",
+  "workspace": "/home/user/project",
+  "result": {
+    "type": "query",
+    "labels": ["Function", "Method"],
+    "count": 5,
+    "symbols": [
+      {
+        "file_path": "src/lib.rs",
+        "symbol": "process_request",
+        "kind": "function",
+        "byte_start": 100,
+        "byte_end": 500,
+        "line_start": 10,
+        "line_end": 25,
+        "col_start": 0,
+        "col_end": 1,
+        "span_id": "660e8400-e29b-41d4-a716-446655440000",
+        "match_id": "770e8400-e29b-41d4-a716-446655440000"
+      }
+      // ... more symbols
+    ]
+  }
+}
+```
+
+**QueryResult Fields:**
+- `labels` (array of string): Labels queried (sorted)
+- `count` (number): Number of results found
+- `symbols` (array): Matching `SpanResult` objects (sorted by file_path, byte_start, byte_end)
+
+#### ApplyFiles Operation
+
+Pattern replacement across multiple files:
+
+```json
+{
+  "version": "2.0.0",
+  "operation_id": "550e8400-e29b-41d4-a716-446655440000",
+  "operation_type": "apply_files",
+  "status": "ok",
+  "message": "Replaced pattern in 3 files",
+  "timestamp": "2026-01-17T12:34:56.789Z",
+  "workspace": "/home/user/project",
+  "result": {
+    "type": "apply_files",
+    "glob_pattern": "src/**/*.rs",
+    "find_pattern": "old_pattern",
+    "replace_pattern": "new_pattern",
+    "files_matched": 5,
+    "files_modified": 3,
+    "files": [
+      {
+        "file": "src/a.rs",
+        "matches": 2,
+        "replacements": 2,
+        "spans": [/* SpanResult objects */],
+        "before_hash": "sha256:...",
+        "after_hash": "sha256:..."
+      }
+      // ... more files
+    ]
+  }
+}
+```
+
+**ApplyFilesResult Fields:**
+- `glob_pattern` (string): Glob pattern used for file matching
+- `find_pattern` (string): Pattern that was searched for
+- `replace_pattern` (string): Replacement pattern
+- `files_matched` (number): Number of files matching glob pattern
+- `files_modified` (number): Number of files actually modified
+- `files` (array): List of `FilePatternResult` objects (sorted by file path)
+
+### SpanResult Structure
+
+Unified span representation used across all operations:
+
+```json
+{
+  "file_path": "src/lib.rs",
+  "symbol": "function_name",
+  "kind": "function",
+  "byte_start": 100,
+  "byte_end": 500,
+  "line_start": 10,
+  "line_end": 25,
+  "col_start": 0,
+  "col_end": 1,
+  "span_id": "550e8400-e29b-41d4-a716-446655440000",
+  "match_id": "660e8400-e29b-41d4-a716-446655440000",
+  "before_hash": "sha256:...",
+  "after_hash": "sha256:...",
+  "span_checksum_before": "sha256:...",
+  "span_checksum_after": "sha256:..."
+}
+```
+
+**Fields:**
+- `file_path` (string): Absolute or relative path to file
+- `symbol` (string, optional): Symbol name (if applicable)
+- `kind` (string, optional): Symbol kind (function, struct, etc.)
+- `byte_start` (number): Start byte offset (0-based)
+- `byte_end` (number): End byte offset (exclusive)
+- `line_start` (number): Start line number (1-based, 0 if unavailable)
+- `line_end` (number): End line number (1-based, 0 if unavailable)
+- `col_start` (number): Start column (0-based, 0 if unavailable)
+- `col_end` (number): End column (0-based, 0 if unavailable)
+- `span_id` (string): UUID v4 uniquely identifying this span
+- `match_id` (string, optional): UUID from symbol resolution (for traceability)
+- `before_hash` (string, optional): Content hash before modification
+- `after_hash` (string, optional): Content hash after modification
+- `span_checksum_before` (string, optional): SHA-256 checksum before modification
+- `span_checksum_after` (string, optional): SHA-256 checksum after modification
+
+### Deterministic Ordering
+
+All arrays in Splice v2.0 output are deterministically sorted for reproducibility:
+
+**Sorting Rules:**
+- `SpanResult`: sorted by `file_path`, then `byte_start`, then `byte_end`
+- `FilePatternResult`: sorted by `file` path
+- `DiagnosticPayload`: sorted by `tool`, `file`, `line`, `column`, `level`, `message`
+- String arrays (labels, files_affected): lexicographic sort
+
+This ensures identical operations produce identical JSON output, enabling:
+- Diff-based verification
+- Reliable testing
+- Caching strategies
+
+### Error Response Format
+
+```json
+{
+  "version": "2.0.0",
+  "operation_id": "550e8400-e29b-41d4-a716-446655440000",
+  "operation_type": "patch",
+  "status": "error",
+  "message": "Validation failed: syntax error in src/lib.rs",
+  "timestamp": "2026-01-17T12:34:56.789Z",
+  "workspace": "/home/user/project",
+  "error": {
+    "kind": "ValidationError",
+    "message": "Post-verification tree-sitter reparse failed",
+    "symbol": "my_function",
+    "file": "src/lib.rs",
+    "hint": "Check for mismatched braces or missing semicolons",
+    "diagnostics": [
+      {
+        "tool": "tree-sitter",
+        "level": "error",
+        "message": "Unexpected token",
+        "file": "src/lib.rs",
+        "line": 42,
+        "column": 10
+      }
+    ]
+  }
+}
+```
+
+**ErrorDetails Fields:**
+- `kind` (string): Error category (ValidationError, IOError, etc.)
+- `message` (string): Human-readable error description
+- `symbol` (string, optional): Symbol context
+- `file` (string, optional): File context
+- `hint` (string, optional): Remediation suggestion
+- `diagnostics` (array, optional): Validation tool diagnostics
+
+---
+
 ## SQLiteGraph API Reference
 
 Splice uses SQLiteGraph as a dependency. The following sections document SQLiteGraph-specific usage patterns.
