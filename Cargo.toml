@@ -6,6 +6,12 @@ description = "Span-safe refactoring kernel for Rust using SQLiteGraph"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/oldnordic/splice"
 readme = "README.md"
+exclude = [
+    ".planning/",
+    "CLAUDE.md",
+    "AGENTS.md",
+    "QUICKSTART.md",
+]
 
 [lib]
 name = "splice"
