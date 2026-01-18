@@ -84,9 +84,36 @@ Delete a function and all its references:
 splice delete --file src/lib.rs --symbol helper --kind function
 ```
 
-Output:
-```
-Deleted 'helper' (3 references + definition) across 2 file(s).
+Output (structured JSON):
+```json
+{
+  "version": "2.0.0",
+  "operation_id": "20250118_123456_abc123",
+  "operation_type": "delete",
+  "status": "success",
+  "message": "Deleted 'helper' (3 references + definition) across 2 file(s).",
+  "timestamp": "2025-01-18T12:34:56.789Z",
+  "result": {
+    "symbol": "helper",
+    "kind": "function",
+    "spans_deleted": 4,
+    "files_affected": 2,
+    "spans": [
+      {
+        "file_path": "src/lib.rs",
+        "symbol": "helper",
+        "kind": "function",
+        "byte_start": 120,
+        "byte_end": 189,
+        "line_start": 5,
+        "line_end": 7,
+        "col_start": 0,
+        "col_end": 1,
+        "span_checksum_before": "a1b2c3d4..."
+      }
+    ]
+  }
+}
 ```
 
 ### Patch a Symbol (Rust)
@@ -346,6 +373,53 @@ splice get --db <FILE> --file <PATH> --start <N> --end <N>
 - `--file <PATH>`: File path
 - `--start <N>`: Start byte offset
 - `--end <N>`: End byte offset
+
+### splice log
+
+Query the execution audit trail from `.splice/operations.db`.
+
+```bash
+# Show recent operations
+splice log
+
+# Filter by operation type
+splice log --operation-type patch
+
+# Filter by status
+splice log --status success
+
+# Filter by date range
+splice log --after "2025-01-01" --before "2025-01-31"
+
+# Query specific execution
+splice log --execution-id 20250118_123456_abc123
+
+# Show statistics
+splice log --stats
+
+# JSON output for programmatic access
+splice log --format json
+```
+
+**Optional Arguments:**
+- `--operation-type <TYPE>`: Filter by operation type (patch, delete, plan, apply-files)
+- `--status <STATUS>`: Filter by status (success, failure, partial)
+- `--after <DATE>`: Show operations after this date (ISO8601 format)
+- `--before <DATE>`: Show operations before this date (ISO8601 format)
+- `--execution-id <ID>`: Query specific execution by ID
+- `--format <FORMAT>`: Output format (table, json) - default: table
+- `--stats`: Show statistics summary instead of individual operations
+- `--limit <N>`: Limit number of results (default: 50)
+
+**Output Fields:**
+- execution_id: Unique identifier for each operation
+- operation_type: Type of operation performed
+- status: Success/failure status
+- timestamp: ISO8601 timestamp when operation started
+- duration_ms: Operation duration in milliseconds
+- command_line: Full command-line invocation
+- workspace: Working directory path
+- affected_files: Number of files modified
 
 ## Documentation
 
