@@ -449,6 +449,417 @@ This ensures identical operations produce identical JSON output, enabling:
 
 ---
 
+## Validation Hooks
+
+Splice v2.0 implements multi-stage validation to ensure safe refactoring operations. All operations are validated before and after modification, with automatic rollback on validation failure.
+
+### Pre-Verification
+
+Pre-verification runs BEFORE any file modifications to ensure the operation can proceed safely.
+
+**Checks Performed:**
+
+1. **File Existence** - Verify target files exist and are accessible
+2. **File Readability** - Confirm files can be read for processing
+3. **File Writability** - Test write permissions before attempting modification
+4. **Workspace Boundaries** - Ensure all files are within workspace root
+5. **Checksum Verification** - Detect external modifications using SHA-256 checksums
+
+**Pre-Verification Flow:**
+
+```rust
+// Example: Pre-verification before patch operation
+use splice::verify::verify_file_ready;
+use splice::checksum::checksum_file;
+
+let file_path = PathBuf::from("src/lib.rs");
+let workspace_root = PathBuf::from("/home/user/project");
+
+// Compute current file checksum
+let checksum = checksum_file(&file_path)?;
+
+// Run pre-verification checks
+let result = verify_file_ready(
+    &file_path,
+    Some(&checksum),
+    &workspace_root
+);
+
+match result {
+    PreVerificationResult::Pass => {
+        // Safe to proceed with modification
+    }
+    PreVerificationResult::Fail { check, reason, blocking } => {
+        if blocking {
+            eprintln!("Cannot proceed: {} - {}", check, reason);
+            // Operation aborted
+        } else {
+            println!("Warning: {} - {}", check, reason);
+            // Can proceed with warning
+        }
+    }
+}
+```
+
+**Pre-Verification Result Types:**
+
+| Result | Description | Action |
+|--------|-------------|--------|
+| `Pass` | All checks passed | Proceed with operation |
+| `Fail { blocking: true }` | Critical failure detected | Abort operation |
+| `Fail { blocking: false }` | Warning condition | Proceed with caution |
+
+**Common Pre-Verification Failures:**
+
+- `file_exists`: File does not exist at expected path
+- `file_readable`: Cannot read file metadata or contents
+- `file_writable`: File is read-only or permissions deny write access
+- `file_in_workspace`: File is outside workspace root directory
+- `file_checksum`: File has been modified externally (checksum mismatch)
+
+### Post-Verification
+
+Post-verification runs AFTER file modifications to validate the changes maintain code integrity.
+
+**Validation Stages:**
+
+1. **Tree-sitter Reparse** - Verify modified files are syntactically valid
+2. **Compiler Validation** - Run language-specific compiler checks
+3. **Semantic Preservation** - Confirm changes preserve program semantics
+4. **Checksum Comparison** - Document actual changes via checksums
+
+**Post-Verification Flow:**
+
+```rust
+// Example: Post-verification after patch operation
+use splice::verify::verify_post_patch;
+use splice::validate::{ValidationGate, CompilerGate};
+
+// After applying modifications
+let modified_file = PathBuf::from("src/lib.rs");
+
+// Stage 1: Tree-sitter reparse
+match verify_post_patch(&modified_file) {
+    PostVerificationResult::Valid => {
+        // Syntax is valid, proceed to compiler check
+    }
+    PostVerificationResult::Invalid { errors } => {
+        // Rollback modifications
+        restore_backup(&modified_file)?;
+        return Err(SpliceError::ValidationFailed { errors });
+    }
+}
+
+// Stage 2: Compiler validation (language-specific)
+let gate = CompilerGate::for_language(Language::Rust);
+match gate.validate(&modified_file) {
+    ValidationStatus::Pass => {
+        // Compilation successful
+    }
+    ValidationStatus::Fail { diagnostics } => {
+        // Rollback modifications
+        restore_backup(&modified_file)?;
+        return Err(SpliceError::CompilationFailed { diagnostics });
+    }
+}
+```
+
+**Rollback Behavior:**
+
+When post-verification fails:
+1. Original file restored from automatic backup
+2. Operation marked as failed in execution log
+3. Error diagnostics returned to user
+4. Workspace left in consistent state
+
+### Checksum Computation
+
+Splice uses SHA-256 checksums for integrity verification at multiple levels:
+
+**Checksum Types:**
+
+1. **File Checksums** - SHA-256 of entire file contents
+2. **Span Checksums** - SHA-256 of specific byte ranges
+3. **Line Range Checksums** - SHA-256 of line ranges for validation
+
+**Checksum Usage:**
+
+```rust
+use splice::checksum::{checksum_file, checksum_span, checksum_line_range};
+
+// File-level checksum
+let file_checksum = checksum_file(&PathBuf::from("src/lib.rs"))?;
+println!("File checksum: {}", file_checksum.as_hex());
+
+// Span-level checksum (for verification)
+let span_checksum = checksum_span(
+    &PathBuf::from("src/lib.rs"),
+    100,  // byte_start
+    500   // byte_end
+)?;
+
+// Line range checksum
+let line_checksum = checksum_line_range(
+    &PathBuf::from("src/lib.rs"),
+    10,   // line_start (1-based)
+    25    // line_end (1-based)
+)?;
+```
+
+**Checksum Fields in Output:**
+
+- `before_hash` / `after_hash`: File hashes before/after operation
+- `span_checksum_before` / `span_checksum_after`: Span content checksums
+- `file_checksum_before`: File checksum before deletion operations
+
+### Validation Gates
+
+Language-specific validation gates enforce compiler-level checks:
+
+**Supported Languages:**
+
+| Language | Compiler Command | Validation Check |
+|----------|-----------------|------------------|
+| Rust | `cargo check` | Compilation, type checking |
+| Python | `python -m py_compile` | Syntax validation |
+| C | `gcc -fsyntax-only` | Compilation, syntax |
+| C++ | `g++ -fsyntax-only` | Compilation, syntax |
+| Java | `javac` | Compilation, type checking |
+| JavaScript | `node --check` | Syntax validation |
+| TypeScript | `tsc --noEmit` | Type checking, syntax |
+
+**Disabling Validation:**
+
+For testing or special cases, validation gates can be disabled (use with caution):
+
+```bash
+# Disable compiler validation (not recommended)
+splice patch --symbol func_name --new-name new_func --no-verify
+```
+
+**Warning:** Disabling validation bypasses safety checks and may leave code in broken state.
+
+---
+
+## Execution Logging
+
+Splice v2.0 maintains a comprehensive audit trail of all operations in a separate SQLite database (`.splice/operations.db`).
+
+### Operations Database
+
+**Location:** `.splice/operations.db` (in workspace root)
+
+**Schema:**
+
+```sql
+CREATE TABLE execution_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    execution_id TEXT NOT NULL UNIQUE,
+    operation_type TEXT NOT NULL,
+    status TEXT NOT NULL,
+    timestamp TEXT NOT NULL,
+    workspace TEXT,
+    command_line TEXT,
+    parameters TEXT,  -- JSON
+    result_summary TEXT,  -- JSON
+    error_details TEXT,
+    duration_ms INTEGER,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for common queries
+CREATE INDEX idx_execution_id ON execution_log(execution_id);
+CREATE INDEX idx_operation_type ON execution_log(operation_type);
+CREATE INDEX idx_status ON execution_log(status);
+CREATE INDEX idx_timestamp ON execution_log(timestamp);
+```
+
+**What Gets Logged:**
+
+- Every operation execution (patch, delete, plan, query, apply_files)
+- Operation parameters and workspace state
+- Success/failure status with error details
+- Execution duration for performance tracking
+- Result summaries for later analysis
+
+### Querying Execution Logs
+
+**Basic Query:**
+
+```bash
+# Show recent operations
+splice log
+
+# Output:
+# ID     Type      Status  Timestamp                    Duration  Message
+# 001    patch     ok      2026-01-17T12:34:56.789Z     125ms     Patched function 'old_name'
+# 002    delete    ok      2026-01-17T12:35:10.123Z     89ms      Deleted function 'unused'
+# 003    query     ok      2026-01-17T12:35:15.456Z     45ms      Found 5 matching symbols
+```
+
+**Filtered Queries:**
+
+```bash
+# Query by operation type
+splice log --operation-type patch
+
+# Query by status
+splice log --status error
+
+# Query by date range
+splice log --after 2026-01-01 --before 2026-01-31
+
+# Query by execution ID
+splice log --execution-id 550e8400-e29b-41d4-a716-446655440000
+```
+
+**Output Formats:**
+
+```bash
+# Table format (default, human-readable)
+splice log --output table
+
+# JSON format (machine-readable)
+splice log --output json
+
+# Statistics summary
+splice log --stats
+
+# Output:
+# Total operations: 152
+#   patch: 45
+#   delete: 32
+#   plan: 28
+#   query: 47
+# Success rate: 94.7%
+# Average duration: 98ms
+```
+
+### Execution Log Fields
+
+**Execution Log Entry:**
+
+```json
+{
+  "id": 1,
+  "execution_id": "550e8400-e29b-41d4-a716-446655440000",
+  "operation_type": "patch",
+  "status": "ok",
+  "timestamp": "2026-01-17T12:34:56.789Z",
+  "workspace": "/home/user/project",
+  "command_line": "splice patch --symbol old_name --new-name new_func src/lib.rs",
+  "parameters": {
+    "symbol": "old_name",
+    "new_name": "new_func",
+    "file": "src/lib.rs"
+  },
+  "result_summary": {
+    "type": "patch",
+    "file": "src/lib.rs",
+    "spans_modified": 3,
+    "lines_added": 8,
+    "lines_removed": 8
+  },
+  "error_details": null,
+  "duration_ms": 125,
+  "created_at": "2026-01-17T12:34:56.790Z"
+}
+```
+
+**Field Descriptions:**
+
+- `id` (integer): Auto-incrementing primary key
+- `execution_id` (string): UUID v4 uniquely identifying this execution
+- `operation_type` (string): Operation type (patch, delete, plan, query, apply_files)
+- `status` (string): Operation status (ok, error, partial)
+- `timestamp` (string): ISO 8601 timestamp of operation start
+- `workspace` (string, optional): Workspace root directory
+- `command_line` (string, optional): Full command line as executed
+- `parameters` (object, optional): Operation parameters (JSON)
+- `result_summary` (object, optional): Summary of operation result (JSON)
+- `error_details` (string, optional): Error message if status is "error"
+- `duration_ms` (integer): Execution duration in milliseconds
+- `created_at` (string): Database record creation timestamp
+
+### Audit Trail Use Cases
+
+**Debugging Failed Operations:**
+
+```bash
+# Find recent failed operations
+splice log --status error --output table
+
+# Get detailed error information
+splice log --execution-id <id> --output json
+```
+
+**Performance Analysis:**
+
+```bash
+# Get statistics
+splice log --stats
+
+# Analyze slow operations
+splice log --output json | jq '.[] | select(.duration_ms > 1000)'
+```
+
+**Reconstruction of Operations:**
+
+```bash
+# Find all operations on a specific file
+splice log --output json | \
+  jq '.[] | select(.parameters.file == "src/lib.rs")'
+```
+
+**Compliance and Review:**
+
+```bash
+# Export all operations for a time period
+splice log --after 2026-01-01 --before 2026-01-31 --output json > audit-trail.json
+```
+
+### Database Management
+
+**Location:**
+
+The execution log database is stored at `.splice/operations.db` in the workspace root. This is separate from `.codemcp/codegraph.db` (Magellan's code graph database).
+
+**Backup:**
+
+```bash
+# Backup execution log database
+cp .splice/operations.db .splice/operations.db.backup
+
+# Restore from backup
+cp .splice/operations.db.backup .splice/operations.db
+```
+
+**Query with SQLite:**
+
+```bash
+# Direct SQL queries
+sqlite3 .splice/operations.db \
+  "SELECT operation_type, status, COUNT(*) FROM execution_log GROUP BY operation_type, status;"
+
+# Find slow operations
+sqlite3 .splice/operations.db \
+  "SELECT execution_id, operation_type, duration_ms \
+   FROM execution_log \
+   WHERE duration_ms > 1000 \
+   ORDER BY duration_ms DESC;"
+```
+
+**Cleanup:**
+
+```bash
+# Delete logs older than 90 days
+sqlite3 .splice/operations.db \
+  "DELETE FROM execution_log \
+   WHERE datetime(timestamp) < datetime('now', '-90 days');"
+```
+
+---
+
 ## SQLiteGraph API Reference
 
 Splice uses SQLiteGraph as a dependency. The following sections document SQLiteGraph-specific usage patterns.
