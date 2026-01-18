@@ -1,6 +1,76 @@
-# SQLiteGraph Manual
+# Splice v2.0 Manual
 
-Comprehensive usage guide for SQLiteGraph with dual backend architecture (SQLite and Native V2).
+Comprehensive guide for Splice v2.0 span-safe refactoring tool with validation infrastructure.
+
+---
+
+## Splice v2.0 Overview
+
+### What is Splice?
+
+Splice is a span-safe code refactoring tool that provides AST-validated code modifications across 7 programming languages (Rust, Python, C, C++, Java, JavaScript, TypeScript). It uses tree-sitter for parsing and SQLiteGraph for code relationship storage, with multi-stage validation (tree-sitter + compiler) before applying changes.
+
+### v2.0 Major Improvements
+
+Splice v2.0 represents a comprehensive overhaul across 9 development phases:
+
+- **Phase 1: Safety Foundation** - Eliminated unsafe `unwrap()` calls in production paths
+- **Phase 2: SQLiteGraph v1.0 Upgrade** - Migrated to SQLiteGraph 1.0 with Native V2 backend
+- **Phase 3: Structured Output** - Unified JSON schema with explicit fields and versioning
+- **Phase 4: Stable Identifiers** - Added execution_id, match_id, span_id for traceability
+- **Phase 5: Span-Aware Metadata** - Included line/column information for every operation
+- **Phase 6: Deterministic Ordering** - Ensured all output is sorted consistently
+- **Phase 7: Validation Hooks** - Added SHA-256 checksums and pre/post verification
+- **Phase 8: Execution Logging** - Implemented audit trail with operations.db
+- **Phase 9: Integration Testing** - Comprehensive test coverage across all features
+
+### Key Features
+
+**Span-Safe Operations:**
+- Byte-accurate span extraction and modification
+- Multi-language support (Rust, Python, C, C++, Java, JavaScript, TypeScript)
+- Tree-sitter based parsing for AST accuracy
+
+**Validation Infrastructure:**
+- Pre-verification: File state, workspace conditions, graph synchronization, checksums
+- Post-verification: Tree-sitter reparse, compiler validation, semantic preservation
+- Automatic rollback on validation failure
+
+**Structured Output:**
+- Versioned JSON schema (currently "2.0.0")
+- Stable identifiers (execution_id, match_id, span_id)
+- Span-aware metadata (byte offsets + line/column)
+- Deterministic ordering for reproducible results
+
+**Audit Trail:**
+- Every operation logged to `.splice/operations.db`
+- Query execution history with filters
+- Statistics and diagnostics
+
+### Migration from v0.5.x
+
+**Breaking Changes:**
+- CLI output now uses structured JSON schema with `version` field
+- All operations include `execution_id` for tracking
+- Line/column information populated (was placeholder in v0.5.x)
+
+**New Capabilities:**
+- `splice log` command for querying execution history
+- Checksum verification for integrity checking
+- Enhanced error messages with validation diagnostics
+
+**Compatibility:**
+- Magellan v0.5.3 integration maintained
+- Database schemas backward compatible
+- Existing workflows continue to work
+
+For detailed phase-by-phase implementation, see [ROADMAP.md](../.planning/ROADMAP.md).
+
+---
+
+## SQLiteGraph API Reference
+
+Splice uses SQLiteGraph as a dependency. The following sections document SQLiteGraph-specific usage patterns.
 
 ---
 
