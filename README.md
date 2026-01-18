@@ -442,18 +442,26 @@ splice log --format json
 
 - **src/cli/** - CLI argument parsing
 - **src/ingest/** - Symbol parsing for 7 languages
-- **src/graph/** - SQLiteGraph integration
+- **src/graph/** - SQLiteGraph integration with Native V2 backend
 - **src/resolve/** - Symbol resolution and reference finding
 - **src/patch/** - Span-safe replacement + validation + batch operations + pattern replace + backup
-- **src/validate/** - Tree-sitter + compiler validation gates
-- **src/plan/** - JSON plan orchestration
+- **src/validate/** - Tree-sitter + compiler validation gates with checksum verification
+- **src/plan/** - JSON plan orchestration with deterministic ordering
+- **src/execution/** - Execution logging audit trail with operations.db
+- **src/output/** - Structured JSON output with v2.0 schema
+- **src/checksum/** - SHA-256 checksum computation for verification hooks
 
 ## Validation Gates
 
 Every operation passes:
 1. UTF-8 boundary validation
-2. Tree-sitter reparse (syntax check)
-3. Language-specific compiler check (cargo check, python -m py_compile, etc.)
+2. Pre-operation checksum computation (SHA-256)
+3. Tree-sitter reparse (syntax check)
+4. Language-specific compiler check (cargo check, python -m py_compile, etc.)
+5. Post-operation checksum verification
+6. Atomic rollback on any failure
+
+All operations are logged to `.splice/operations.db` with timestamps, durations, and command-line capture for complete auditability.
 
 ## Testing
 
@@ -461,7 +469,12 @@ Every operation passes:
 cargo test
 ```
 
-Test Coverage: 334/334 tests passing
+Test Coverage: 334+ tests passing, including:
+- 267 unit tests for core functionality
+- 57 integration tests for multi-language workflows
+- Magellan compatibility tests for all 7 languages
+- End-to-end refactoring workflow tests
+- Cross-language compatibility tests
 
 ## Feedback
 
