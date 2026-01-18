@@ -23,12 +23,8 @@ fn setup_test_workspace() -> TempDir {
     writeln!(file, "    let x = 1;").unwrap();
     writeln!(file, "}}").unwrap();
 
-    // Create .codemcp directory for graph database
-    let codemcp_dir = temp_dir.path().join(".codemcp");
-    fs::create_dir_all(&codemcp_dir).unwrap();
-
-    // Create a minimal codegraph.db
-    let db_path = codemcp_dir.join("codegraph.db");
+    // Create a minimal codegraph.db (using Splice's convention)
+    let db_path = temp_dir.path().join(".splice_graph.db");
     let mut db = File::create(&db_path).unwrap();
     writeln!(db, "dummy db").unwrap();
 

@@ -14,12 +14,8 @@ fn create_test_workspace() -> TempDir {
     let temp_dir = TempDir::new().unwrap();
     let workspace = temp_dir.path();
 
-    // Create .codemcp directory
-    let codemcp_dir = workspace.join(".codemcp");
-    fs::create_dir_all(&codemcp_dir).unwrap();
-
-    // Create a dummy codegraph.db
-    let db_path = codemcp_dir.join("codegraph.db");
+    // Create a dummy codegraph.db (using Splice's convention: .splice_graph.db)
+    let db_path = workspace.join(".splice_graph.db");
     let mut db = File::create(&db_path).unwrap();
     writeln!(db, "dummy database").unwrap();
 
@@ -36,7 +32,7 @@ fn test_pre_verify_blocks_corrupted_file() {
     let temp_dir = create_test_workspace();
     let workspace = temp_dir.path();
     let test_file = workspace.join("test.rs");
-    let db_path = workspace.join(".codemcp/codegraph.db");
+    let db_path = workspace.join(".splice_graph.db");
 
     // Compute checksum of original file
     let original_checksum = splice::checksum::checksum_file(&test_file).unwrap();
@@ -76,7 +72,7 @@ fn test_pre_verify_allows_clean_file() {
     let temp_dir = create_test_workspace();
     let workspace = temp_dir.path();
     let test_file = workspace.join("test.rs");
-    let db_path = workspace.join(".codemcp/codegraph.db");
+    let db_path = workspace.join(".splice_graph.db");
 
     // Compute checksum of file
     let checksum = splice::checksum::checksum_file(&test_file).unwrap();
@@ -102,7 +98,7 @@ fn test_strict_mode_blocks_on_warning() {
     let temp_dir = create_test_workspace();
     let workspace = temp_dir.path();
     let test_file = workspace.join("test.rs");
-    let db_path = workspace.join(".codemcp/codegraph.db");
+    let db_path = workspace.join(".splice_graph.db");
 
     use splice::verify;
 
@@ -156,7 +152,7 @@ fn test_skip_mode_bypasses_all_checks() {
     let temp_dir = create_test_workspace();
     let workspace = temp_dir.path();
     let test_file = workspace.join("test.rs");
-    let db_path = workspace.join(".codemcp/codegraph.db");
+    let db_path = workspace.join(".splice_graph.db");
 
     // Remove the file to make checks fail
     fs::remove_file(&test_file).unwrap();
@@ -197,7 +193,7 @@ fn test_pre_verify_detects_readonly_file() {
     let temp_dir = create_test_workspace();
     let workspace = temp_dir.path();
     let test_file = workspace.join("test.rs");
-    let db_path = workspace.join(".codemcp/codegraph.db");
+    let db_path = workspace.join(".splice_graph.db");
 
     // Make file read-only
     let mut perms = fs::metadata(&test_file).unwrap().permissions();
@@ -245,7 +241,7 @@ fn test_pre_verify_detects_file_outside_workspace() {
     let mut file = File::create(&outside_file).unwrap();
     writeln!(file, "fn external() {{}}").unwrap();
 
-    let db_path = workspace.join(".codemcp/codegraph.db");
+    let db_path = workspace.join(".splice_graph.db");
 
     use splice::verify;
 
@@ -285,7 +281,7 @@ fn test_pre_verify_checks_workspace_writable() {
     fs::set_permissions(workspace, perms.clone()).unwrap();
 
     use splice::verify;
-    let db_path = workspace.join(".codemcp/codegraph.db");
+    let db_path = workspace.join(".splice_graph.db");
 
     let results = verify::pre_verify_patch(
         &test_file,

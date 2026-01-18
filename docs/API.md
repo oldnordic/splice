@@ -662,7 +662,7 @@ use splice::verify::{pre_verify_patch, verify_after_patch};
 use splice::patch::apply_patch_with_validation;
 
 // Step 1: Pre-verification
-let db_path = workspace_root.join(".codemcp/codegraph.db");
+let db_path = workspace_root.join(".splice_graph.db");
 let pre_checks = pre_verify_patch(
     &file_path,
     None,

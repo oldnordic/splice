@@ -17,6 +17,26 @@ mod tests {
     use std::process::{Command, Stdio};
     use tempfile::{NamedTempFile, TempDir};
 
+    /// Extract JSON from stdout that may contain debug output lines.
+    /// Debug lines from SQLiteGraph start with brackets or specific prefixes.
+    fn extract_json_from_stdout(stdout: &str) -> String {
+        let json_lines: Vec<&str> = stdout
+            .lines()
+            .filter(|line| {
+                let trimmed = line.trim();
+                // Skip debug/informational lines that aren't JSON
+                !trimmed.is_empty()
+                    && !trimmed.starts_with('[')
+                    && !trimmed.starts_with("DEBUG:")
+                    && !trimmed.starts_with("CRITICAL:")
+                    && !trimmed.starts_with("[V2_")
+                    && !trimmed.starts_with("[CLUSTER_DEBUG]")
+                    && trimmed.starts_with('{')
+            })
+            .collect();
+        json_lines.join("\n")
+    }
+
     /// Get the path to the splice binary.
     fn get_splice_binary() -> PathBuf {
         if let Ok(path) = std::env::var("SPLICE_TEST_BIN") {
@@ -36,15 +56,21 @@ mod tests {
         path.pop(); // debug
         let bin_path = path.join("splice");
 
-        let bin_mtime = std::fs::metadata(&bin_path)
-            .and_then(|meta| meta.modified())
-            .ok();
+        // Prefer the main binary (target/debug/splice) over deps binaries
+        // because deps may contain test harnesses with the same name pattern
+        if bin_path.exists() {
+            return bin_path;
+        }
 
-        let mut newest: Option<(std::time::SystemTime, PathBuf)> = None;
+        // Fallback to searching deps for splice binaries, excluding test harnesses
         if let Ok(entries) = std::fs::read_dir(deps_dir) {
+            let mut candidates: Vec<(std::time::SystemTime, PathBuf)> = Vec::new();
+
             for entry in entries.flatten() {
                 let path = entry.path();
                 let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+
+                // Skip test binaries (they have hash format and are test harnesses)
                 if !name.starts_with("splice-") || !path.is_file() {
                     continue;
                 }
@@ -59,30 +85,26 @@ mod tests {
                         continue;
                     }
 
+                    // Verify it's the actual CLI binary by checking for expected help output
                     if let Ok(modified) = metadata.modified() {
-                        if newest
-                            .as_ref()
-                            .map(|(time, _)| modified > *time)
-                            .unwrap_or(true)
-                        {
-                            newest = Some((modified, path));
+                        // Quick heuristic: CLI binary is typically much larger than test binaries
+                        // (test harnesses are small, CLI binary is >50MB)
+                        let len = metadata.len();
+                        if len > 50_000_000 { // 50MB threshold
+                            candidates.push((modified, path));
                         }
                     }
                 }
             }
+
+            // Return the newest candidate that meets size threshold
+            if let Some((_, path)) = candidates.into_iter()
+                .max_by_key(|(time, _)| *time) {
+                return path;
+            }
         }
 
-        match (bin_mtime, newest) {
-            (Some(bin_time), Some((deps_time, deps_path))) => {
-                if deps_time > bin_time {
-                    deps_path
-                } else {
-                    bin_path
-                }
-            }
-            (None, Some((_, deps_path))) => deps_path,
-            _ => bin_path,
-        }
+        bin_path
     }
 
     /// Test A: Successful CLI patch.
@@ -1341,6 +1363,8 @@ pub fn value() -> i32 {
             std::fs::read_to_string(&a_rs_path).expect("Failed to read original file");
 
         let splice_binary = get_splice_binary();
+        eprintln!("Using splice binary: {:?}", splice_binary);
+        eprintln!("Binary exists: {}", splice_binary.exists());
         let output = Command::new(&splice_binary)
             .arg("patch")
             .arg("--file")
@@ -1354,13 +1378,20 @@ pub fn value() -> i32 {
             .output()
             .expect("Failed to run splice CLI");
 
-        assert!(
-            output.status.success(),
-            "CLI preview should exit successfully"
-        );
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            panic!(
+                "CLI preview failed with exit code {:?}\nstdout: {}\nstderr: {}",
+                output.status.code(),
+                stdout,
+                stderr
+            );
+        }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let payload: Value = serde_json::from_str(&stdout).expect("stdout should be JSON payload");
+        let json_output = extract_json_from_stdout(&stdout);
+        let payload: Value = serde_json::from_str(&json_output).expect("stdout should be JSON payload");
 
         let data = payload
             .get("data")

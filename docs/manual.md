@@ -822,7 +822,7 @@ splice log --after 2026-01-01 --before 2026-01-31 --output json > audit-trail.js
 
 **Location:**
 
-The execution log database is stored at `.splice/operations.db` in the workspace root. This is separate from `.codemcp/codegraph.db` (Magellan's code graph database).
+The execution log database is stored at `.splice/operations.db` in the workspace root. This is separate from `.splice_graph.db` (the code graph database used by Magellan integration for `query` and `get` commands).
 
 **Backup:**
 

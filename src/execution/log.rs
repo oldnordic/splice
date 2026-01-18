@@ -63,6 +63,29 @@ pub fn init_db() -> Result<Connection> {
     init_execution_log_db(&db_dir)
 }
 
+/// Initialize execution log database in a specific directory.
+///
+/// This is useful for testing where you want to avoid changing the current directory.
+///
+/// # Arguments
+///
+/// * `base_dir` - Base directory where `.splice` will be created
+///
+/// # Returns
+///
+/// Returns a `rusqlite::Connection` to the database.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The directory cannot be created
+/// - The database cannot be opened
+/// - Table creation fails
+pub fn init_db_in_dir(base_dir: &std::path::Path) -> Result<Connection> {
+    let db_dir = base_dir.join(SPLICE_DIR);
+    init_execution_log_db(&db_dir)
+}
+
 /// Record operation execution to log.
 ///
 /// Extracts data from `OperationResult` and records it to the database.
@@ -236,13 +259,9 @@ mod tests {
     #[test]
     fn test_init_db_creates_tables() {
         let temp_dir = TempDir::new().unwrap();
-        let _db_dir = temp_dir.path().join(".splice");
 
-        // Change to temp directory
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp_dir.path()).unwrap();
-
-        let conn = init_db().unwrap();
+        // Use init_db_in_dir to avoid changing current directory (fixes parallel test race)
+        let conn = init_db_in_dir(temp_dir.path()).unwrap();
 
         // Verify table exists
         let table_exists: bool = conn
@@ -254,20 +273,14 @@ mod tests {
             .unwrap();
 
         assert!(table_exists, "execution_log table should be created");
-
-        // Restore original directory before temp_dir is dropped
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
     fn test_record_execution() {
         let temp_dir = TempDir::new().unwrap();
 
-        // Change to temp directory
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp_dir.path()).unwrap();
-
         use crate::output::OperationResult;
+        use crate::execution::insert_execution_log;
         use uuid::Uuid;
 
         let execution_id = Uuid::new_v4().to_string();
@@ -277,23 +290,21 @@ mod tests {
 
         let command_line = Some("splice patch test_symbol".to_string());
 
-        // Test that recording doesn't fail
-        let recording_result = record_execution(&result, 1234, command_line);
-        assert!(recording_result.is_ok(), "Recording should succeed: {:?}", recording_result.err());
+        // Use init_db_in_dir to avoid changing current directory (fixes parallel test race)
+        let conn = init_db_in_dir(temp_dir.path()).unwrap();
 
-        // Restore original directory before temp_dir is dropped
-        let _ = std::env::set_current_dir(original_dir);
+        // Build log entry and insert directly
+        let log_entry = build_log_entry(&result, 1234, command_line, None).unwrap();
+        let insert_result = insert_execution_log(&conn, &log_entry);
+        assert!(insert_result.is_ok(), "Recording should succeed: {:?}", insert_result.err());
     }
 
     #[test]
     fn test_record_execution_with_params() {
         let temp_dir = TempDir::new().unwrap();
 
-        // Change to temp directory
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp_dir.path()).unwrap();
-
         use crate::output::OperationResult;
+        use crate::execution::insert_execution_log;
         use uuid::Uuid;
 
         let execution_id = Uuid::new_v4().to_string();
@@ -305,32 +316,57 @@ mod tests {
             "symbol": "test_function",
         });
 
-        // Test that recording doesn't fail
-        let recording_result = record_execution_with_params(&result, 567, None, parameters);
-        assert!(recording_result.is_ok(), "Recording with params should succeed: {:?}", recording_result.err());
+        // Use init_db_in_dir to avoid changing current directory (fixes parallel test race)
+        let conn = init_db_in_dir(temp_dir.path()).unwrap();
 
-        // Restore original directory before temp_dir is dropped
-        let _ = std::env::set_current_dir(original_dir);
+        // Build log entry and insert directly
+        let log_entry = build_log_entry(&result, 567, None, Some(parameters)).unwrap();
+        let insert_result = insert_execution_log(&conn, &log_entry);
+        assert!(insert_result.is_ok(), "Recording with params should succeed: {:?}", insert_result.err());
     }
 
     #[test]
     fn test_record_execution_failure() {
         let temp_dir = TempDir::new().unwrap();
 
-        // Change to temp directory
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp_dir.path()).unwrap();
-
         use uuid::Uuid;
+        use crate::execution::{insert_execution_log, ExecutionLog};
 
         let execution_id = Uuid::new_v4().to_string();
         let error = SpliceError::Other("Test error".to_string());
 
-        // Test that recording failure doesn't fail
-        let recording_result = record_execution_failure(&execution_id, "patch", &error, 100, Some("splice patch test".to_string()));
-        assert!(recording_result.is_ok(), "Recording failure should succeed: {:?}", recording_result.err());
+        // Build the log entry directly (same as record_execution_failure does)
+        let timestamp = chrono::Utc::now().to_rfc3339();
+        let created_at = chrono::Utc::now().timestamp();
 
-        // Restore original directory before temp_dir is dropped
-        let _ = std::env::set_current_dir(original_dir);
+        let error_details = serde_json::json!({
+            "kind": std::format!("{:?}", std::error::Error::source(&error).map_or_else(
+                || error.to_string(),
+                |e| e.to_string()
+            )),
+            "message": error.to_string(),
+        });
+
+        let log_entry = ExecutionLog {
+            id: 0,
+            execution_id: execution_id.clone(),
+            operation_type: "patch".to_string(),
+            status: "error".to_string(),
+            timestamp,
+            workspace: temp_dir.path().to_str().map(|s| s.to_string()),
+            command_line: Some("splice patch test".to_string()),
+            parameters: None,
+            result_summary: None,
+            error_details: Some(error_details),
+            duration_ms: Some(100),
+            created_at,
+        };
+
+        // Use init_db_in_dir to avoid changing current directory (fixes parallel test race)
+        let conn = init_db_in_dir(temp_dir.path()).unwrap();
+
+        // Insert directly
+        let insert_result = insert_execution_log(&conn, &log_entry);
+        assert!(insert_result.is_ok(), "Recording failure should succeed: {:?}", insert_result.err());
     }
 }

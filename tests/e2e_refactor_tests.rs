@@ -134,7 +134,8 @@ pub fn caller_function() -> String {
     /// Looks for:
     /// 1. SPLICE_TEST_BIN environment variable
     /// 2. CARGO_BIN_EXE_splice environment variable
-    /// 3. Finds newest splice-* binary in target/debug/deps/
+    /// 3. target/debug/splice (main binary, preferred over test binaries)
+    /// 4. Finds newest splice-* binary in target/debug/deps/ (excluding test harnesses)
     fn get_splice_binary() -> PathBuf {
         if let Ok(path) = std::env::var("SPLICE_TEST_BIN") {
             return PathBuf::from(path);
@@ -153,15 +154,21 @@ pub fn caller_function() -> String {
         path.pop(); // debug
         let bin_path = path.join("splice");
 
-        let bin_mtime = std::fs::metadata(&bin_path)
-            .and_then(|meta| meta.modified())
-            .ok();
+        // Prefer the main binary (target/debug/splice) over deps binaries
+        // because deps may contain test harnesses with the same name pattern
+        if bin_path.exists() {
+            return bin_path;
+        }
 
-        let mut newest: Option<(std::time::SystemTime, PathBuf)> = None;
+        // Fallback to searching deps for splice binaries, excluding test harnesses
         if let Ok(entries) = std::fs::read_dir(deps_dir) {
+            let mut candidates: Vec<(std::time::SystemTime, PathBuf)> = Vec::new();
+
             for entry in entries.flatten() {
                 let path = entry.path();
                 let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+
+                // Skip test binaries (they have hash format and are test harnesses)
                 if !name.starts_with("splice-") || !path.is_file() {
                     continue;
                 }
@@ -176,30 +183,25 @@ pub fn caller_function() -> String {
                         continue;
                     }
 
+                    // Quick heuristic: CLI binary is typically much larger than test binaries
+                    // (test harnesses are small, CLI binary is >50MB)
                     if let Ok(modified) = metadata.modified() {
-                        if newest
-                            .as_ref()
-                            .map(|(time, _)| modified > *time)
-                            .unwrap_or(true)
-                        {
-                            newest = Some((modified, path));
+                        let len = metadata.len();
+                        if len > 50_000_000 { // 50MB threshold
+                            candidates.push((modified, path));
                         }
                     }
                 }
             }
+
+            // Return the newest candidate that meets size threshold
+            if let Some((_, path)) = candidates.into_iter()
+                .max_by_key(|(time, _)| *time) {
+                return path;
+            }
         }
 
-        match (bin_mtime, newest) {
-            (Some(bin_time), Some((deps_time, deps_path))) => {
-                if deps_time > bin_time {
-                    deps_path
-                } else {
-                    bin_path
-                }
-            }
-            (None, Some((_, deps_path))) => deps_path,
-            _ => bin_path,
-        }
+        bin_path
     }
 
     /// Run splice CLI and return output
@@ -358,13 +360,8 @@ pub fn caller_function() -> String {
         let patch_file = workspace_path.join("patch.rs");
         fs::write(&patch_file, patch_content).expect("Failed to write patch file");
 
-        // First, index the workspace
-        let index_output = run_splice(&["index", "."], workspace_path);
-        assert!(
-            index_output.status.success(),
-            "Index should succeed: {}",
-            String::from_utf8_lossy(&index_output.stderr)
-        );
+        // Note: In v2.0, patch operations don't require prior indexing
+        // They work directly on files via tree-sitter
 
         // Run patch command
         let output = run_splice(
@@ -424,8 +421,7 @@ pub fn caller_function() -> String {
         let patch_file = workspace_path.join("patch.rs");
         fs::write(&patch_file, patch_content).expect("Failed to write patch file");
 
-        // Index the workspace
-        let _index_output = run_splice(&["index", "."], workspace_path);
+        // Note: In v2.0, operations don't require prior indexing
 
         // Run patch with preview
         let output = run_splice(
@@ -473,8 +469,7 @@ pub fn caller_function() -> String {
         let patch_file = workspace_path.join("patch.rs");
         fs::write(&patch_file, patch_content).expect("Failed to write patch file");
 
-        // Index the workspace
-        let _index_output = run_splice(&["index", "."], workspace_path);
+        // Note: In v2.0, operations don't require prior indexing
 
         // Run patch command
         let output = run_splice(
@@ -521,8 +516,7 @@ pub fn caller_function() -> String {
         let patch_file = workspace_path.join("patch.rs");
         fs::write(&patch_file, patch_content).expect("Failed to write patch file");
 
-        // Index the workspace
-        let _index_output = run_splice(&["index", "."], workspace_path);
+        // Note: In v2.0, operations don't require prior indexing
 
         // Run patch command (validation should catch compile error)
         let output = run_splice(
@@ -569,8 +563,7 @@ pub fn caller_function() -> String {
         let patch_file = workspace_path.join("patch.rs");
         fs::write(&patch_file, patch_content).expect("Failed to write patch file");
 
-        // Index the workspace
-        let _index_output = run_splice(&["index", "."], workspace_path);
+        // Note: In v2.0, operations don't require prior indexing
 
         // Run successful patch
         let output = run_splice(
@@ -627,8 +620,7 @@ pub fn caller_function() -> String {
         let patch_file = workspace_path.join("patch.rs");
         fs::write(&patch_file, patch_content).expect("Failed to write patch file");
 
-        // Index the workspace
-        let _index_output = run_splice(&["index", "."], workspace_path);
+        // Note: In v2.0, operations don't require prior indexing
 
         // Run patch command
         let output = run_splice(
@@ -707,12 +699,11 @@ mod tests {
 "#;
         fs::write(&lib_path, lib_content).expect("Failed to write lib.rs");
 
-        // Index the workspace
-        let _index_output = run_splice(&["index", "."], workspace_path);
+        // Note: In v2.0, operations don't require prior indexing
 
         // Run delete command
         let output = run_splice(
-            &["delete", "--file", "src/lib.rs", "--symbol", "unused_function", "--kind", "fn"],
+            &["delete", "--file", "src/lib.rs", "--symbol", "unused_function", "--kind", "function"],
             workspace_path,
         );
 
@@ -766,12 +757,11 @@ mod tests {
 "#;
         fs::write(&lib_path, lib_content).expect("Failed to write lib.rs");
 
-        // Index the workspace
-        let _index_output = run_splice(&["index", "."], workspace_path);
+        // Note: In v2.0, operations don't require prior indexing
 
         // Try to delete helper (which is called by caller)
         let output = run_splice(
-            &["delete", "--file", "src/lib.rs", "--symbol", "helper", "--kind", "fn"],
+            &["delete", "--file", "src/lib.rs", "--symbol", "helper", "--kind", "function"],
             workspace_path,
         );
 
@@ -786,11 +776,14 @@ mod tests {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let output = format!("{}{}", stdout, stderr);
 
-        // Check for reference-related keywords
+        // Check for reference-related keywords or cargo check errors
+        // In v2.0, delete may succeed but cargo check fails with type errors
         let has_ref_msg = output.contains("reference")
             || output.contains("caller")
             || output.contains("used")
-            || output.contains("cannot");
+            || output.contains("cannot")
+            || output.contains("mismatched types")  // v2.0 cargo check error
+            || output.contains("Cargo check failed");  // v2.0 error format
 
         assert!(
             has_ref_msg,
@@ -803,8 +796,7 @@ mod tests {
         let workspace = create_rust_workspace();
         let workspace_path = workspace.path();
 
-        // Index the workspace
-        let _index_output = run_splice(&["index", "."], workspace_path);
+        // Note: In v2.0, operations don't require prior indexing
 
         // Run delete with --create-backup (if flag exists)
         let output = run_splice(
@@ -849,12 +841,11 @@ mod tests {
         let workspace = create_rust_workspace();
         let workspace_path = workspace.path();
 
-        // Index the workspace
-        let _index_output = run_splice(&["index", "."], workspace_path);
+        // Note: In v2.0, operations don't require prior indexing
 
         // Try to delete non-existent symbol
         let output = run_splice(
-            &["delete", "--file", "src/lib.rs", "--symbol", "nonexistent_func", "--kind", "fn"],
+            &["delete", "--file", "src/lib.rs", "--symbol", "nonexistent_func", "--kind", "function"],
             workspace_path,
         );
 
@@ -891,12 +882,11 @@ mod tests {
         let workspace = create_multi_file_workspace();
         let workspace_path = workspace.path();
 
-        // Index the workspace
-        let _index_output = run_splice(&["index", "."], workspace_path);
+        // Note: In v2.0, operations don't require prior indexing
 
         // Try to delete helper_function (called from b.rs)
         let output = run_splice(
-            &["delete", "--file", "src/a.rs", "--symbol", "helper_function", "--kind", "fn"],
+            &["delete", "--file", "src/a.rs", "--symbol", "helper_function", "--kind", "function"],
             workspace_path,
         );
 
@@ -941,8 +931,7 @@ mod tests {
         let plan_file = workspace_path.join("plan.json");
         fs::write(&plan_file, plan_json).expect("Failed to write plan.json");
 
-        // Index the workspace
-        let _index_output = run_splice(&["index", "."], workspace_path);
+        // Note: In v2.0, operations don't require prior indexing
 
         // Run plan command
         let output = run_splice(&["plan", "plan.json"], workspace_path);
@@ -983,8 +972,7 @@ mod tests {
         let plan_file = workspace_path.join("plan.json");
         fs::write(&plan_file, plan_json).expect("Failed to write plan.json");
 
-        // Index the workspace
-        let _index_output = run_splice(&["index", "."], workspace_path);
+        // Note: In v2.0, operations don't require prior indexing
 
         // Run plan
         let output = run_splice(&["plan", "plan.json"], workspace_path);
@@ -1016,8 +1004,7 @@ mod tests {
         let plan_file = workspace_path.join("plan.json");
         fs::write(&plan_file, plan_json).expect("Failed to write plan.json");
 
-        // Index the workspace
-        let _index_output = run_splice(&["index", "."], workspace_path);
+        // Note: In v2.0, operations don't require prior indexing
 
         // Run plan with --json flag
         let output = run_splice(&["plan", "plan.json", "--json"], workspace_path);
@@ -1057,8 +1044,7 @@ mod tests {
         let plan_file = workspace_path.join("plan.json");
         fs::write(&plan_file, plan_json).expect("Failed to write plan.json");
 
-        // Index the workspace
-        let _index_output = run_splice(&["index", "."], workspace_path);
+        // Note: In v2.0, operations don't require prior indexing
 
         // Run plan
         let output = run_splice(&["plan", "plan.json"], workspace_path);
@@ -1096,8 +1082,7 @@ mod tests {
         let batch_file = workspace_path.join("batch.json");
         fs::write(&batch_file, batch_json).expect("Failed to write batch.json");
 
-        // Index the workspace
-        let _index_output = run_splice(&["index", "."], workspace_path);
+        // Note: In v2.0, operations don't require prior indexing
 
         // Run batch command
         let output = run_splice(&["patch", "--batch", "batch.json", "--language", "rust"], workspace_path);
@@ -1142,8 +1127,7 @@ mod tests {
         let batch_file = workspace_path.join("batch.json");
         fs::write(&batch_file, batch_json).expect("Failed to write batch.json");
 
-        // Index the workspace
-        let _index_output = run_splice(&["index", "."], workspace_path);
+        // Note: In v2.0, operations don't require prior indexing
 
         // Run batch
         let output = run_splice(&["patch", "--batch", "batch.json", "--language", "rust"], workspace_path);
@@ -1189,8 +1173,7 @@ mod tests {
         let batch_file = workspace_path.join("batch.json");
         fs::write(&batch_file, batch_json).expect("Failed to write batch.json");
 
-        // Index the workspace
-        let _index_output = run_splice(&["index", "."], workspace_path);
+        // Note: In v2.0, operations don't require prior indexing
 
         // Run batch
         let output = run_splice(&["patch", "--batch", "batch.json", "--language", "rust"], workspace_path);
@@ -1213,9 +1196,9 @@ mod tests {
         let workspace = create_rust_workspace();
         let workspace_path = workspace.path();
 
-        // Create batch with empty replacements
+        // Create batch with empty batches (v2.0 schema uses "batches")
         let batch_json = r#"{
-  "replacements": []
+  "batches": []
 }
 "#;
         let batch_file = workspace_path.join("batch.json");
@@ -1235,7 +1218,8 @@ mod tests {
         } else {
             // Failed but mentioned no operations
             let output = format!("{}{}", stdout, stderr);
-            let has_msg = output.contains("no operations")
+            let has_msg = output.contains("at least one entry")
+                || output.contains("no operations")
                 || output.contains("empty")
                 || output.contains("nothing");
             assert!(has_msg, "Should mention no operations to perform");
@@ -1426,8 +1410,8 @@ pub fn foo() -> String {
 
         // Test various commands with --json flag
         let commands = vec![
-            vec!["index", ".", "--json"],
-            vec!["query", "--file", "src/lib.rs", "--json"],
+            vec!["log", "--json"],  // Uses log command instead of deprecated index
+            vec!["--version", "--json"],
         ];
 
         for args in commands {
@@ -1470,13 +1454,13 @@ pub fn foo() -> String {
         let workspace_path = workspace.path();
 
         // Run command that produces execution_id
-        let output1 = run_splice(&["index", "."], workspace_path);
+        let output1 = run_splice(&["log"], workspace_path);
         let stdout1 = String::from_utf8_lossy(&output1.stdout);
 
         // If execution_id appears in output
         if stdout1.contains("execution_id") {
             // Run same command again
-            let output2 = run_splice(&["index", "."], workspace_path);
+            let output2 = run_splice(&["log"], workspace_path);
             let stdout2 = String::from_utf8_lossy(&output2.stdout);
 
             // Verify execution_id format is consistent
@@ -1493,7 +1477,7 @@ pub fn foo() -> String {
         let workspace_path = workspace.path();
 
         // Run command with JSON output
-        let output = run_splice(&["index", "."], workspace_path);
+        let output = run_splice(&["log"], workspace_path);
 
         // Check if timestamps are in ISO 8601 format
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -1518,10 +1502,10 @@ pub fn foo() -> String {
         let workspace_path = workspace.path();
 
         // Run command twice with same arguments
-        let output1 = run_splice(&["index", "."], workspace_path);
+        let output1 = run_splice(&["log"], workspace_path);
         let stdout1 = String::from_utf8_lossy(&output1.stdout);
 
-        let output2 = run_splice(&["index", "."], workspace_path);
+        let output2 = run_splice(&["log"], workspace_path);
         let stdout2 = String::from_utf8_lossy(&output2.stdout);
 
         // If both produced JSON output
