@@ -387,6 +387,330 @@ pub struct ExecutionStats {
 
 ---
 
+## Validation Hooks API
+
+Splice v2.0 provides pre and post-verification hooks for safe refactoring operations with automatic rollback on validation failure.
+
+### Pre-Verification
+
+Pre-verification runs BEFORE any file modifications to ensure safe conditions.
+
+#### PreVerificationResult
+
+Result of pre-verification checks with blocking and warning states.
+
+```rust
+use splice::verify::PreVerificationResult;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum PreVerificationResult {
+    /// All checks passed, safe to proceed
+    Pass,
+
+    /// Check failed with details
+    Fail {
+        /// Check that failed
+        check: String,
+        /// Failure reason
+        reason: String,
+        /// True if blocking (error), false if warning
+        blocking: bool,
+    },
+}
+
+impl PreVerificationResult {
+    pub fn is_pass(&self) -> bool
+    pub fn is_blocking(&self) -> bool
+    pub fn is_warning(&self) -> bool
+}
+```
+
+#### Pre-Verification Functions
+
+```rust
+use splice::verify::{
+    pre_verify_patch,
+    verify_file_ready,
+    verify_workspace_resources,
+    verify_graph_sync,
+};
+
+/// Run all pre-verification checks for a patch operation
+pub fn pre_verify_patch(
+    file_path: &Path,
+    expected_checksum: Option<&Checksum>,
+    workspace_root: &Path,
+    db_path: &Path,
+    strict: bool,
+    skip: bool,
+) -> Result<Vec<PreVerificationResult>>
+
+/// Verify file is ready for patching
+pub fn verify_file_ready(
+    file_path: &Path,
+    expected_checksum: Option<&Checksum>,
+    workspace_root: &Path,
+) -> PreVerificationResult
+
+/// Verify workspace has sufficient resources
+pub fn verify_workspace_resources(
+    workspace_root: &Path,
+    estimated_size: usize,
+) -> PreVerificationResult
+
+/// Verify graph database is in sync with files
+pub fn verify_graph_sync(
+    file_path: &Path,
+    db_path: &Path,
+) -> PreVerificationResult
+```
+
+**Pre-Verification Checks:**
+
+1. **File State**
+   - File exists and is readable
+   - File is writable
+   - File checksum matches expected (no external modification)
+   - File is within workspace bounds
+
+2. **Workspace Conditions**
+   - Workspace exists and is writable
+   - Sufficient disk space (2x file size)
+   - Backup directory can be created
+
+3. **Graph Synchronization**
+   - Database file exists and is readable
+   - File mtime <= database mtime
+
+**Example:**
+```rust
+use splice::verify::pre_verify_patch;
+
+let results = pre_verify_patch(
+    &file_path,
+    None,
+    &workspace_root,
+    &db_path,
+    false,  // strict mode
+    false,  // skip verification
+)?;
+
+for result in results {
+    if result.is_blocking() {
+        eprintln!("Cannot proceed: {:?}", result);
+        return Err(...);
+    } else if result.is_warning() {
+        eprintln!("Warning: {:?}", result);
+    }
+}
+```
+
+### Post-Verification
+
+Post-verification runs AFTER file modifications to validate changes.
+
+#### PostVerificationResult
+
+Result of post-verification with validation status and checksums.
+
+```rust
+use splice::verify::PostVerificationResult;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PostVerificationResult {
+    /// Syntax validation passed
+    pub syntax_ok: bool,
+    /// Compiler validation passed
+    pub compiler_ok: bool,
+    /// Semantic validation passed (advisory)
+    pub semantic_ok: bool,
+    /// Checksums before and after
+    pub before_checksum: String,
+    /// After checksum
+    pub after_checksum: String,
+    /// Warnings (non-blocking issues)
+    pub warnings: Vec<String>,
+    /// Errors (blocking issues that would have failed validation)
+    pub errors: Vec<String>,
+}
+
+impl PostVerificationResult {
+    pub fn new(
+        syntax_ok: bool,
+        compiler_ok: bool,
+        before_checksum: String,
+        after_checksum: String,
+    ) -> Self
+
+    pub fn add_warning(&mut self, warning: impl Into<String>)
+    pub fn add_error(&mut self, error: impl Into<String>)
+    pub fn file_changed(&self) -> bool
+}
+```
+
+#### Post-Verification Functions
+
+```rust
+use splice::verify::{
+    verify_after_patch,
+    verify_localized_change,
+    checksum_diff,
+};
+
+/// Verify file after patching
+pub fn verify_after_patch(
+    file_path: &Path,
+    workspace_root: &Path,
+    expected_before: &str,
+) -> Result<PostVerificationResult>
+
+/// Verify changes were localized to target span
+pub fn verify_localized_change(
+    file_path: &Path,
+    original_content: &[u8],
+    target_span: (usize, usize),
+) -> Result<bool>
+
+/// Compare checksums to document changes
+pub fn checksum_diff(before_checksum: &str, after_checksum: &str) -> ChecksumDiff
+```
+
+**Post-Verification Checks:**
+
+1. **Syntax Validation**
+   - Tree-sitter reparse for language-specific syntax
+   - Supports: Rust, Python, C, C++, Java, JavaScript, TypeScript
+
+2. **Compiler Validation**
+   - Language-specific compiler validation
+   - Rust: `cargo check`
+   - Python: `python -m py_compile`
+   - JavaScript: `node --check`
+   - TypeScript: `tsc --noEmit`
+
+3. **Checksum Verification**
+   - SHA-256 before/after comparison
+   - Confirms expected changes occurred
+   - Detects unintended modifications
+
+4. **Localized Change Verification**
+   - Verifies only target span changed
+   - Checks bytes before/after span intact
+   - Detects file-level side effects
+
+**Example:**
+```rust
+use splice::verify::verify_after_patch;
+
+let result = verify_after_patch(&file_path, &workspace_root, &before_hash)?;
+
+if !result.syntax_ok {
+    eprintln!("Syntax validation failed");
+    // Automatic rollback occurs in apply_patch_with_validation
+}
+
+if !result.compiler_ok {
+    eprintln!("Compiler validation failed");
+    // Automatic rollback occurs in apply_patch_with_validation
+}
+
+if !result.file_changed() {
+    eprintln!("Warning: File checksum unchanged - no modification detected");
+}
+
+for warning in &result.warnings {
+    eprintln!("Warning: {}", warning);
+}
+```
+
+### Rollback Behavior
+
+Splice automatically rolls back on validation failure:
+
+```rust
+use splice::patch::apply_patch_with_validation;
+
+// This function handles rollback automatically:
+match apply_patch_with_validation(&file_path, start, end, new_content, ...) {
+    Ok((before_hash, after_hash)) => {
+        // Success: all validation gates passed
+    }
+    Err(SpliceError::ParseValidationFailed { .. }) => {
+        // Automatic rollback: file restored to original bytes
+    }
+    Err(SpliceError::CompilerValidationFailed { .. }) => {
+        // Automatic rollback: file restored to original bytes
+    }
+    Err(_) => {
+        // Any error triggers automatic rollback
+    }
+}
+```
+
+**Rollback Process:**
+1. Original file bytes preserved in memory
+2. On validation failure, write original bytes via atomic rename
+3. Log rollback attempt (failure to rollback is logged but doesn't fail operation)
+4. Return validation error to caller
+
+### Integration Example
+
+Complete example showing verification integration:
+
+```rust
+use splice::verify::{pre_verify_patch, verify_after_patch};
+use splice::patch::apply_patch_with_validation;
+
+// Step 1: Pre-verification
+let db_path = workspace_root.join(".codemcp/codegraph.db");
+let pre_checks = pre_verify_patch(
+    &file_path,
+    None,
+    &workspace_root,
+    &db_path,
+    false,  // strict mode
+    false,  // skip verification
+)?;
+
+// Check for blocking failures
+for check in &pre_checks {
+    if check.is_blocking() {
+        eprintln!("Pre-verification failed: {:?}", check);
+        return Err(...);
+    }
+}
+
+// Step 2: Apply patch with validation
+let (before_hash, after_hash) = apply_patch_with_validation(
+    &file_path,
+    start,
+    end,
+    new_content,
+    &workspace_root,
+    language,
+    analyzer_mode,
+)?;
+
+// Step 3: Post-verification (already run in apply_patch_with_validation)
+let post_result = verify_after_patch(&file_path, &workspace_root, &before_hash)?;
+
+if !post_result.syntax_ok {
+    // This won't happen as apply_patch_with_validation already rolled back
+    unreachable!("Syntax validation should have failed in apply_patch_with_validation");
+}
+
+// Log warnings
+for warning in &post_result.warnings {
+    log::warn!("Post-verification warning: {}", warning);
+}
+
+println!("Patch applied successfully!");
+println!("Before: {}", before_hash);
+println!("After: {}", after_hash);
+```
+
+---
+
 ## SQLite Backend API
 
 ### Core Types
