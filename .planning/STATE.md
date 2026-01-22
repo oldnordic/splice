@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 15 of 17 (Enhanced Errors) — IN PROGRESS
-Plan: 02 of 6 in current phase
-Status: Plan 15-02 complete
-Last activity: 2026-01-22 — Plan 15-02 complete
+Plan: 04 of 6 in current phase
+Status: Plan 15-04 complete
+Last activity: 2026-01-22 — Plan 15-04 complete
 
-Progress: [█████████░░░░░░░░░░░░] 85% (68/80 plans)
+Progress: [█████████░░░░░░░░░░░░] 86% (69/80 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 68 (31 v2.0 + 37 v2.2)
+- Total plans completed: 69 (31 v2.0 + 38 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~28.3 hours (24h v2.0 + 4.3h v2.2)
+- Total execution time: ~28.4 hours (24h v2.0 + 4.4h v2.2)
 
 **By Phase:**
 
@@ -31,8 +31,8 @@ Progress: [█████████░░░░░░░░░░░░] 85% 
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
 | 11-13 (v2.2) | 30/30 | 3.2h | ~6 min |
 | 14 (v2.2) | 5/5 | 30min | ~6 min |
-| 15 (v2.2) | 2/6 | 8min | ~4 min |
-| **Total** | **68/80** | **~28.3h** | **~25 min** |
+| 15 (v2.2) | 3/6 | 12min | ~4 min |
+| **Total** | **69/80** | **~28.4h** | **~25 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
@@ -42,6 +42,7 @@ Progress: [█████████░░░░░░░░░░░░] 85% 
 - Phase 14 complete: context flags with asymmetric extraction, human-readable output, comprehensive tests (5/5 complete)
 - Phase 15-01 complete: severity level diversity in SpliceErrorCode enum (3 warning variants, proper severity() method)
 - Phase 15-02 complete: SpliceError location extraction with line/column support for CLI-16 precision error reporting
+- Phase 15-04 complete: TypeScript error code extraction with parse_typescript_output() function for CLI-20 structured diagnostics
 - Rich span metadata fully integrated into CLI JSON output
 - Dry-run mode with git-compatible output (unified diff, summary header, colors, exit codes)
 - Context flags (-A/-B/-C) fully integrated across all 5 commands with grep-style resolution
@@ -131,6 +132,10 @@ Recent decisions affecting current work:
 - [15-02]: byte_offset_to_line_column handles newline boundaries correctly (offset after \n is column 0)
 - [15-02]: CliErrorPayload::from_error() uses location() instead of TODO placeholder (line 578 removed)
 - [15-02]: Comprehensive test coverage for byte_offset_to_line_column with multi-line scenarios
+- [15-04]: TypeScript error format: file.ts(line,col): error TSXXXX: message
+- [15-04]: parse_typescript_output() function extracts TSXXXX codes using regex pattern
+- [15-04]: remediation_link_for_code() already handles TSXXXX codes (https://www.typescriptlang.org/errors/TSXXXX)
+- [15-04]: Test coverage for both Rust and TypeScript error code extraction (5 tests in compiler_error_tests.rs)
 
 ### Pending Todos
 
@@ -166,7 +171,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 15-02 (Enhanced Errors) - SpliceError location extraction with line/column support
+Stopped at: Completed 15-04 (Enhanced Errors) - TypeScript error code extraction with parse_typescript_output
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -198,10 +203,11 @@ Resume file: None
   - 14-03 (Asymmetric Context Extraction) ✅ Complete
   - 14-04 (Main.rs Context Flag Wiring) ✅ Complete
   - 14-05 (Context Flags Complete) ✅ Complete
-- Phase 15 in progress: 2/6 plans (enhanced errors)
+- Phase 15 in progress: 3/6 plans (enhanced errors)
   - 15-01 (Severity Level Diversity) ✅ Complete
   - 15-02 (Error Location Extraction) ✅ Complete
-- 258 tests passing (including 16 context flag tests, 14 error_codes tests, 1 error location test, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests)
+  - 15-04 (TypeScript Error Code Extraction) ✅ Complete
+- 263 tests passing (including 5 compiler error tests, 16 context flag tests, 14 error_codes tests, 1 error location test, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests)
 - Error code registry with 28 error variants across 9 categories (22 error-level, 6 warning-level)
 - Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
 - Rich span types ready: Relationships, ToolHints, SuggestedAction
@@ -236,5 +242,5 @@ Resume file: None
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 14-05 (Context Flags Complete) - Human-readable context output and comprehensive tests
+Stopped at: Completed 15-04 (TypeScript Error Code Extraction) - parse_typescript_output with regex
 Resume file: None
