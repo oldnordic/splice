@@ -8,18 +8,19 @@ use std::path::Path;
 
 use crate::output::SpanContext;
 
-/// Extract context lines for a byte span with separate before/after context.
+/// Extract context lines for a byte span with asymmetric before/after counts.
 ///
 /// Given a file path and byte range, extracts lines before, within, and after
-/// the span. Uses UTF-8 byte offsets consistent with span coordinates.
+/// the span. Allows different amounts of context before vs after the match.
+/// Uses UTF-8 byte offsets consistent with span coordinates.
 ///
 /// # Arguments
 ///
 /// * `path` - File path to read
 /// * `byte_start` - Start byte offset (must be <= byte_end)
 /// * `byte_end` - End byte offset (must be <= file size)
-/// * `context_lines_before` - Number of context lines before (default: 0)
-/// * `context_lines_after` - Number of context lines after (default: 0)
+/// * `context_before` - Number of context lines before (default: 0)
+/// * `context_after` - Number of context lines after (default: 0)
 ///
 /// # Returns
 ///
@@ -29,19 +30,20 @@ use crate::output::SpanContext;
 /// # Examples
 ///
 /// ```no_run
-/// use splice::context::extract_context_with_before_after;
+/// use splice::context::extract_context_asymmetric;
 /// use std::path::Path;
 ///
-/// let context = extract_context_with_before_after(Path::new("src/main.rs"), 100, 200, 2, 5)?;
+/// // 5 lines before, 2 lines after
+/// let context = extract_context_asymmetric(Path::new("src/main.rs"), 100, 200, 5, 2)?;
 /// println!("Before: {} lines, After: {} lines", context.before.len(), context.after.len());
 /// # Ok::<(), splice::error::SpliceError>(())
 /// ```
-pub fn extract_context_with_before_after(
+pub fn extract_context_asymmetric(
     path: &Path,
     byte_start: usize,
     byte_end: usize,
-    context_lines_before: usize,
-    context_lines_after: usize,
+    context_before: usize,
+    context_after: usize,
 ) -> Result<SpanContext> {
     use ropey::Rope;
 
@@ -94,9 +96,9 @@ pub fn extract_context_with_before_after(
     let start_line = rope.byte_to_line(byte_start);
     let end_line = rope.byte_to_line(byte_end.saturating_sub(1));
 
-    // Calculate context boundaries with separate before/after
-    let context_start = start_line.saturating_sub(context_lines_before);
-    let context_end = (end_line + context_lines_after + 1).min(rope.len_lines());
+    // Calculate context boundaries with asymmetric values
+    let context_start = start_line.saturating_sub(context_before);
+    let context_end = (end_line + context_after + 1).min(rope.len_lines());
 
     // Extract before lines
     let before: Vec<String> = (context_start..start_line)
@@ -119,6 +121,47 @@ pub fn extract_context_with_before_after(
         selected,
         after,
     })
+}
+
+/// Extract context lines for a byte span with separate before/after context.
+///
+/// Given a file path and byte range, extracts lines before, within, and after
+/// the span. Uses UTF-8 byte offsets consistent with span coordinates.
+///
+/// This is a convenience alias for [`extract_context_asymmetric`] with more
+/// descriptive parameter names.
+///
+/// # Arguments
+///
+/// * `path` - File path to read
+/// * `byte_start` - Start byte offset (must be <= byte_end)
+/// * `byte_end` - End byte offset (must be <= file size)
+/// * `context_lines_before` - Number of context lines before (default: 0)
+/// * `context_lines_after` - Number of context lines after (default: 0)
+///
+/// # Returns
+///
+/// * `Ok(SpanContext)` - Extracted context with before/selected/after arrays
+/// * `Err(SpliceError)` - If file cannot be read or span is invalid
+///
+/// # Examples
+///
+/// ```no_run
+/// use splice::context::extract_context_with_before_after;
+/// use std::path::Path;
+///
+/// let context = extract_context_with_before_after(Path::new("src/main.rs"), 100, 200, 2, 5)?;
+/// println!("Before: {} lines, After: {} lines", context.before.len(), context.after.len());
+/// # Ok::<(), splice::error::SpliceError>(())
+/// ```
+pub fn extract_context_with_before_after(
+    path: &Path,
+    byte_start: usize,
+    byte_end: usize,
+    context_lines_before: usize,
+    context_lines_after: usize,
+) -> Result<SpanContext> {
+    extract_context_asymmetric(path, byte_start, byte_end, context_lines_before, context_lines_after)
 }
 
 /// Extract context lines for a byte span.
@@ -154,82 +197,8 @@ pub fn extract_context(
     byte_end: usize,
     context_lines: usize,
 ) -> Result<SpanContext> {
-    use ropey::Rope;
-
-    // Validate byte range
-    if byte_start > byte_end {
-        return Err(SpliceError::InvalidSpan {
-            file: path.to_path_buf(),
-            start: byte_start,
-            end: byte_end,
-            file_size: 0, // Will be updated after read
-        });
-    }
-
-    // Read file
-    let contents = std::fs::read(path).map_err(|e| SpliceError::IoContext {
-        context: format!("Failed to read file for context extraction: {}", path.display()),
-        source: e,
-    })?;
-
-    let file_size = contents.len();
-
-    // Validate end is within file
-    if byte_end > file_size {
-        return Err(SpliceError::InvalidSpan {
-            file: path.to_path_buf(),
-            start: byte_start,
-            end: byte_end,
-            file_size,
-        });
-    }
-
-    // Handle empty file case
-    if file_size == 0 {
-        return Ok(SpanContext {
-            before: vec![],
-            selected: vec![],
-            after: vec![],
-        });
-    }
-
-    // Create Rope for efficient line operations (UTF-8 aware)
-    let rope = Rope::from_str(std::str::from_utf8(&contents).map_err(|e| {
-        SpliceError::InvalidUtf8 {
-            file: path.to_path_buf(),
-            source: e,
-        }
-    })?);
-
-    // Convert byte offsets to line numbers (0-based)
-    let start_line = rope.byte_to_line(byte_start);
-    let end_line = rope.byte_to_line(byte_end.saturating_sub(1));
-
-    // Calculate context boundaries
-    let context_start = start_line.saturating_sub(context_lines);
-    let context_end = (end_line + context_lines + 1).min(rope.len_lines());
-
-    // Extract before lines
-    let before: Vec<String> = (context_start..start_line)
-        .map(|i| rope.line(i).to_string())
-        .collect();
-
-    // Extract selected lines (the span itself)
-    let selected: Vec<String> = (start_line..=end_line)
-        .map(|i| rope.line(i).to_string())
-        .collect();
-
-    // Extract after lines (filter out empty trailing line from ropey behavior)
-    let after: Vec<String> = (end_line + 1..context_end)
-        .map(|i| rope.line(i).to_string())
-        .filter(|line| !line.is_empty())
-        .collect();
-
-    Ok(SpanContext {
-        before,
-        selected,
-        after,
-    })
+    // Delegate to asymmetric version with symmetric context
+    extract_context_asymmetric(path, byte_start, byte_end, context_lines, context_lines)
 }
 
 #[cfg(test)]
@@ -363,5 +332,61 @@ mod tests {
         assert_eq!(context.before.len(), 1); // Only "line 1"
         assert_eq!(context.selected.len(), 1);
         assert_eq!(context.after.len(), 1); // Only "line 3"
+    }
+
+    #[test]
+    fn test_extract_context_asymmetric_basic() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, "line 1").unwrap();
+        writeln!(file, "line 2").unwrap();
+        writeln!(file, "line 3").unwrap();
+        writeln!(file, "line 4").unwrap();
+        writeln!(file, "line 5").unwrap();
+        writeln!(file, "line 6").unwrap();
+        writeln!(file, "line 7").unwrap();
+
+        // Context for line 3-4
+        // Each line is 7 bytes: "line N\n" = 6 + 1
+        // line 1: 0-6, line 2: 7-13, line 3: 14-20, line 4: 21-27
+        // Request 2 lines before, 1 line after
+        let context = extract_context_asymmetric(file.path(), 14, 28, 2, 1).unwrap();
+
+        assert_eq!(context.before.len(), 2); // "line 1", "line 2"
+        assert_eq!(context.selected.len(), 2); // "line 3", "line 4"
+        assert_eq!(context.after.len(), 1); // "line 5"
+    }
+
+    #[test]
+    fn test_extract_context_asymmetric_zero_before() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, "line 1").unwrap();
+        writeln!(file, "line 2").unwrap();
+        writeln!(file, "line 3").unwrap();
+        writeln!(file, "line 4").unwrap();
+
+        // Each line is 7 bytes
+        // line 2: 7-13, Request 0 before, 2 after
+        let context = extract_context_asymmetric(file.path(), 7, 14, 0, 2).unwrap();
+
+        assert_eq!(context.before.len(), 0);
+        assert_eq!(context.selected.len(), 1);
+        assert_eq!(context.after.len(), 2); // "line 3", "line 4"
+    }
+
+    #[test]
+    fn test_extract_context_asymmetric_zero_after() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, "line 1").unwrap();
+        writeln!(file, "line 2").unwrap();
+        writeln!(file, "line 3").unwrap();
+        writeln!(file, "line 4").unwrap();
+
+        // Each line is 7 bytes
+        // line 3: 14-20, Request 2 before, 0 after
+        let context = extract_context_asymmetric(file.path(), 14, 21, 2, 0).unwrap();
+
+        assert_eq!(context.before.len(), 2); // "line 1", "line 2"
+        assert_eq!(context.selected.len(), 1);
+        assert_eq!(context.after.len(), 0);
     }
 }
