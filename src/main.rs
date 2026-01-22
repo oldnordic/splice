@@ -2132,10 +2132,10 @@ fn execute_query(
         for r in &results {
             let path = std::path::Path::new(&r.file_path);
 
-            // Apply expansion if requested
+            // Apply expansion if requested (use expand_to_body_with_docs to include doc comments)
             let (expanded_start, expanded_end) = if expand && expand_level > 0 {
                 use splice::symbol::Language;
-                use splice::expand::expand_symbol_with_level;
+                use splice::expand::expand_to_body_with_docs;
                 use splice::ingest::detect as ingest_detect;
 
                 // Detect language from file path
@@ -2154,8 +2154,8 @@ fn execute_query(
                             ingest_detect::Language::TypeScript => Language::TypeScript,
                         };
 
-                        // Try to expand the symbol
-                        match expand_symbol_with_level(path, r.byte_start, language, expand_level) {
+                        // Try to expand the symbol including doc comments
+                        match expand_to_body_with_docs(path, r.byte_start, language) {
                             Ok((exp_start, exp_end)) => (exp_start, exp_end),
                             Err(_) => (r.byte_start, r.byte_end), // Fall back to original span on error
                         }
@@ -2439,10 +2439,10 @@ fn execute_get(
     // Resolve context counts from -A/-B/-C flags
     let (ctx_before, ctx_after) = splice::resolve_context_counts(context_before, context_after, context_both);
 
-    // Apply expansion if requested
+    // Apply expansion if requested (use expand_to_body_with_docs to include doc comments)
     let (expanded_start, expanded_end) = if expand && expand_level > 0 {
         use splice::symbol::Language;
-        use splice::expand::expand_symbol_with_level;
+        use splice::expand::expand_to_body_with_docs;
         use splice::ingest::detect as ingest_detect;
 
         // Detect language from file path
@@ -2461,8 +2461,8 @@ fn execute_get(
                     ingest_detect::Language::TypeScript => Language::TypeScript,
                 };
 
-                // Try to expand the symbol
-                match expand_symbol_with_level(file_path, start, language, expand_level) {
+                // Try to expand the symbol including doc comments
+                match expand_to_body_with_docs(file_path, start, language) {
                     Ok((exp_start, exp_end)) => (exp_start, exp_end),
                     Err(_) => (start, end), // Fall back to original span on error
                 }

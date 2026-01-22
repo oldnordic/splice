@@ -34,7 +34,7 @@
 //! ```
 
 use crate::error::{Result, SpliceError};
-use crate::expand::tree_walker::{find_parent_symbol_node, expand_to_containing_block};
+use crate::expand::tree_walker::{find_parent_symbol_node, expand_to_containing_block, find_containing_block};
 use crate::symbol::Language;
 use std::path::Path;
 
@@ -355,6 +355,91 @@ pub fn expand_symbol_with_level(
         _ => ExpansionLevel::Body, // Default to Body for higher values
     };
     expand_symbol_impl(path, byte_offset, language, expansion_level)
+}
+
+/// Expand a symbol to its full body including leading doc comments.
+///
+/// This is the preferred expansion function for user-facing output since
+/// documentation provides essential context for understanding symbols.
+///
+/// # Arguments
+///
+/// * `path` - Path to the source file
+/// * `byte_offset` - Byte offset within the file (typically pointing to a symbol name)
+/// * `language` - Programming language
+///
+/// # Returns
+///
+/// Returns `Ok((byte_start, byte_end))` with the expanded span including docs,
+/// or an error if the file cannot be read or parsed.
+///
+/// # Example
+///
+/// ```no_run
+/// use splice::expand::expand_to_body_with_docs;
+/// use splice::symbol::Language;
+///
+/// // Get the full function body including preceding /// docs
+/// let (start, end) = expand_to_body_with_docs("src/lib.rs", 100, Language::Rust)?;
+/// # Ok::<(), splice::SpliceError>(())
+/// ```
+pub fn expand_to_body_with_docs(
+    path: &Path,
+    byte_offset: usize,
+    language: Language,
+) -> Result<(usize, usize)> {
+    // Read the file
+    let source = std::fs::read(path).map_err(|e| SpliceError::Io {
+        path: path.to_path_buf(),
+        source: e,
+    })?;
+
+    // Create parser
+    let mut parser = parser_for_language(language)?;
+
+    // Parse the file
+    let tree = parser
+        .parse(&source, None)
+        .ok_or_else(|| SpliceError::Parse {
+            file: path.to_path_buf(),
+            message: "Parse failed - no tree returned".to_string(),
+        })?;
+
+    // Find the node at the byte offset
+    let root_node = tree.root_node();
+    let node = root_node
+        .descendant_for_byte_range(byte_offset, byte_offset)
+        .ok_or_else(|| SpliceError::InvalidSpan {
+            file: path.to_path_buf(),
+            start: byte_offset,
+            end: byte_offset,
+            file_size: source.len(),
+        })?;
+
+    // Get the expander for this language
+    let expander = get_expander(language);
+
+    // Expand to symbol body
+    let (body_start, body_end) = expander
+        .expand_to_body(node, &source)
+        .ok_or_else(|| SpliceError::Other(format!(
+            "Could not expand symbol at offset {} in {}",
+            byte_offset,
+            path.display()
+        )))?;
+
+    // Find the body node for doc extraction
+    let body_node = root_node
+        .descendant_for_byte_range(body_start, body_end)
+        .ok_or_else(|| SpliceError::Other(format!(
+            "Could not find expanded body node in {}",
+            path.display()
+        )))?;
+
+    // Extend to include leading docs
+    let doc_start = tree_walker::extract_leading_docs(&body_node, &source);
+
+    Ok((doc_start, body_end))
 }
 
 /// Internal implementation of symbol expansion.
