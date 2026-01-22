@@ -405,6 +405,14 @@ pub enum Commands {
         #[arg(short = 'C', long, value_name = "N", default_value = "2")]
         context_both: usize,
 
+        /// Apply replacement to all matches (atomic with rollback on failure).
+        #[arg(long, requires = "replace")]
+        apply: bool,
+
+        /// Replacement text (required with --apply).
+        #[arg(short = 'r', long, value_name = "TEXT")]
+        replace: Option<String>,
+
         /// Output results as JSON.
         #[arg(long)]
         json: bool,
