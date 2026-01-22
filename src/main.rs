@@ -2914,6 +2914,8 @@ fn execute_search(
     path: &Path,
     language: Option<splice::cli::Language>,
     glob: Option<String>,
+    apply: bool,
+    replace: Option<&str>,
     context_before: usize,
     context_after: usize,
     context_both: usize,
@@ -2957,132 +2959,147 @@ fn execute_search(
         }
     };
 
+    // Check if this is an apply operation
+    let apply_replace = apply && replace.is_some();
+
     let config = pattern::PatternReplaceConfig {
         glob_pattern,
         find_pattern: pattern.to_string(),
-        replace_pattern: String::new(), // Not used for search-only
+        replace_pattern: replace.unwrap_or("").to_string(),
         language: symbol_lang,
         validate: false,
     };
 
-    let matches = pattern::find_pattern_in_files(&config)?;
-
-    if json_output {
-        let results: Vec<Value> = matches
-            .into_iter()
-            .map(|m| {
-                // Extract context if requested
-                let (context_before_opt, context_selected_opt, context_after_opt) =
-                    if ctx_before > 0 || ctx_after > 0 {
-                        match extract_context_asymmetric(
-                            &m.file,
-                            m.byte_start,
-                            m.byte_end,
-                            ctx_before,
-                            ctx_after,
-                        ) {
-                            Ok(ctx) => (
-                                Some(ctx.before),
-                                Some(ctx.selected),
-                                Some(ctx.after),
-                            ),
-                            Err(_) => (None, None, None),
-                        }
-                    } else {
-                        (None, None, None)
-                    };
-
-                let mut result = json!({
-                    "file": m.file.to_string_lossy().to_string(),
-                    "byte_start": m.byte_start,
-                    "byte_end": m.byte_end,
-                    "line": m.line,
-                    "column": m.column,
-                    "matched_text": m.matched_text,
-                });
-
-                // Add context fields if present
-                if let (Some(before), Some(selected), Some(after)) =
-                    (context_before_opt, context_selected_opt, context_after_opt)
-                {
-                    if let Some(obj) = result.as_object_mut() {
-                        obj.insert(
-                            "context_before".to_string(),
-                            json!(before),
-                        );
-                        obj.insert(
-                            "context_selected".to_string(),
-                            json!(selected),
-                        );
-                        obj.insert(
-                            "context_after".to_string(),
-                            json!(after),
-                        );
-                    }
-                }
-
-                result
-            })
-            .collect();
-
-        // Wrap results in structured output for LLM consumption
-        let output = json!({
-            "status": "ok",
-            "message": format!("Found {} occurrence(s) of '{}'", results.len(), pattern),
-            "matches": results,
-            "pattern": pattern,
-            "count": results.len(),
-        });
-
-        let payload = serde_json::to_string_pretty(&output)
-            .map_err(|e| splice::SpliceError::Other(format!("Failed to serialize JSON: {}", e)))?;
-        println!("{}", payload);
-
-        Ok(splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted())
-    } else {
-        // Human-readable output
-        for m in &matches {
-            println!("{}:{}:{}: {}", m.file.display(), m.line, m.column, m.matched_text);
-
-            // Show context if requested
-            if ctx_before > 0 || ctx_after > 0 {
-                if let Ok(ctx) = extract_context_asymmetric(
-                    &m.file,
-                    m.byte_start,
-                    m.byte_end,
-                    ctx_before,
-                    ctx_after,
-                ) {
-                    if !ctx.before.is_empty() {
-                        println!("  Context ({} line(s) before):", ctx.before.len());
-                        for (i, line) in ctx.before.iter().enumerate() {
-                            println!("  {}: {}", m.line - ctx.before.len() + i, line);
-                        }
-                    }
-
-                    if !ctx.selected.is_empty() {
-                        for (i, line) in ctx.selected.iter().enumerate() {
-                            println!("  {}: {}", m.line + i, line);
-                        }
-                    }
-
-                    if !ctx.after.is_empty() {
-                        println!("  Context ({} line(s) after):", ctx.after.len());
-                        for (i, line) in ctx.after.iter().enumerate() {
-                            println!("  {}: {}", m.line + ctx.selected.len() + i, line);
-                        }
-                    }
-
-                    println!();
-                }
-            }
-        }
+    // If apply mode, perform replacement and return summary
+    if apply_replace {
+        let result = pattern::apply_pattern_replace(&config, &std::env::current_dir()?)?;
 
         Ok(splice::cli::CliSuccessPayload::message_only(format!(
-            "Found {} occurrence(s) of '{}'",
-            matches.len(),
-            pattern
+            "Applied {} replacement(s) across {} file(s)",
+            result.replacements_count,
+            result.files_patched.len()
         )))
+    } else {
+        // Search-only mode
+        let matches = pattern::find_pattern_in_files(&config)?;
+
+        if json_output {
+            let results: Vec<Value> = matches
+                .into_iter()
+                .map(|m| {
+                    // Extract context if requested
+                    let (context_before_opt, context_selected_opt, context_after_opt) =
+                        if ctx_before > 0 || ctx_after > 0 {
+                            match extract_context_asymmetric(
+                                &m.file,
+                                m.byte_start,
+                                m.byte_end,
+                                ctx_before,
+                                ctx_after,
+                            ) {
+                                Ok(ctx) => (
+                                    Some(ctx.before),
+                                    Some(ctx.selected),
+                                    Some(ctx.after),
+                                ),
+                                Err(_) => (None, None, None),
+                            }
+                        } else {
+                            (None, None, None)
+                        };
+
+                    let mut result = json!({
+                        "file": m.file.to_string_lossy().to_string(),
+                        "byte_start": m.byte_start,
+                        "byte_end": m.byte_end,
+                        "line": m.line,
+                        "column": m.column,
+                        "matched_text": m.matched_text,
+                    });
+
+                    // Add context fields if present
+                    if let (Some(before), Some(selected), Some(after)) =
+                        (context_before_opt, context_selected_opt, context_after_opt)
+                    {
+                        if let Some(obj) = result.as_object_mut() {
+                            obj.insert(
+                                "context_before".to_string(),
+                                json!(before),
+                            );
+                            obj.insert(
+                                "context_selected".to_string(),
+                                json!(selected),
+                            );
+                            obj.insert(
+                                "context_after".to_string(),
+                                json!(after),
+                            );
+                        }
+                    }
+
+                    result
+                })
+                .collect();
+
+            // Wrap results in structured output for LLM consumption
+            let output = json!({
+                "status": "ok",
+                "message": format!("Found {} occurrence(s) of '{}'", results.len(), pattern),
+                "matches": results,
+                "pattern": pattern,
+                "count": results.len(),
+            });
+
+            let payload = serde_json::to_string_pretty(&output)
+                .map_err(|e| splice::SpliceError::Other(format!("Failed to serialize JSON: {}", e)))?;
+            println!("{}", payload);
+
+            Ok(splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted())
+        } else {
+            // Human-readable output
+            for m in &matches {
+                println!("{}:{}:{}: {}", m.file.display(), m.line, m.column, m.matched_text);
+
+                // Show context if requested
+                if ctx_before > 0 || ctx_after > 0 {
+                    if let Ok(ctx) = extract_context_asymmetric(
+                        &m.file,
+                        m.byte_start,
+                        m.byte_end,
+                        ctx_before,
+                        ctx_after,
+                    ) {
+                        if !ctx.before.is_empty() {
+                            println!("  Context ({} line(s) before):", ctx.before.len());
+                            for (i, line) in ctx.before.iter().enumerate() {
+                                println!("  {}: {}", m.line - ctx.before.len() + i, line);
+                            }
+                        }
+
+                        if !ctx.selected.is_empty() {
+                            for (i, line) in ctx.selected.iter().enumerate() {
+                                println!("  {}: {}", m.line + i, line);
+                            }
+                        }
+
+                        if !ctx.after.is_empty() {
+                            println!("  Context ({} line(s) after):", ctx.after.len());
+                            for (i, line) in ctx.after.iter().enumerate() {
+                                println!("  {}: {}", m.line + ctx.selected.len() + i, line);
+                            }
+                        }
+
+                        println!();
+                    }
+                }
+            }
+
+            Ok(splice::cli::CliSuccessPayload::message_only(format!(
+                "Found {} occurrence(s) of '{}'",
+                matches.len(),
+                pattern
+            )))
+        }
     }
 }
 
