@@ -2297,17 +2297,75 @@ fn execute_query(
     }
 
     // Build response data (for non-JSON output)
-    let symbols_data: Vec<serde_json::Value> = results
+    // Pre-calculate expanded boundaries for all results if expansion is requested
+    struct ExpandedResult {
+        result: splice::graph::magellan_integration::SymbolInfo,
+        expanded_start: usize,
+        expanded_end: usize,
+    }
+
+    let expanded_results: Vec<ExpandedResult> = results
         .iter()
         .map(|r| {
-            json!({
-                "entity_id": r.entity_id,
-                "name": r.name,
-                "file_path": r.file_path,
-                "kind": r.kind,
-                "byte_start": r.byte_start,
-                "byte_end": r.byte_end,
-            })
+            // Apply expansion if requested
+            let (exp_start, exp_end) = if expand && expand_level > 0 {
+                use splice::symbol::Language;
+                use splice::expand::expand_to_body_with_docs;
+                use splice::ingest::detect as ingest_detect;
+
+                let path = std::path::Path::new(&r.file_path);
+                let lang = ingest_detect::detect_language(path);
+
+                match lang {
+                    Some(detected_lang) => {
+                        let language = match detected_lang {
+                            ingest_detect::Language::Rust => Language::Rust,
+                            ingest_detect::Language::Python => Language::Python,
+                            ingest_detect::Language::C => Language::C,
+                            ingest_detect::Language::Cpp => Language::Cpp,
+                            ingest_detect::Language::Java => Language::Java,
+                            ingest_detect::Language::JavaScript => Language::JavaScript,
+                            ingest_detect::Language::TypeScript => Language::TypeScript,
+                        };
+
+                        match expand_to_body_with_docs(path, r.byte_start, language) {
+                            Ok((start, end)) => (start, end),
+                            Err(_) => (r.byte_start, r.byte_end),
+                        }
+                    }
+                    None => (r.byte_start, r.byte_end),
+                }
+            } else {
+                (r.byte_start, r.byte_end)
+            };
+
+            ExpandedResult {
+                result: r.clone(),
+                expanded_start: exp_start,
+                expanded_end: exp_end,
+            }
+        })
+        .collect();
+
+    let symbols_data: Vec<serde_json::Value> = expanded_results
+        .iter()
+        .map(|er| {
+            let mut data = json!({
+                "entity_id": er.result.entity_id,
+                "name": er.result.name,
+                "file_path": er.result.file_path,
+                "kind": er.result.kind,
+                "byte_start": er.result.byte_start,
+                "byte_end": er.result.byte_end,
+            });
+
+            // Include expanded span if expansion was performed
+            if expand && expand_level > 0 && (er.expanded_start != er.result.byte_start || er.expanded_end != er.result.byte_end) {
+                data["expanded_byte_start"] = json!(er.expanded_start);
+                data["expanded_byte_end"] = json!(er.expanded_end);
+            }
+
+            data
         })
         .collect();
 
@@ -2315,29 +2373,29 @@ fn execute_query(
     if labels.len() == 1 {
         write_stdout_line(&format!(
             "{} symbols with label '{}':",
-            results.len(),
+            expanded_results.len(),
             labels[0]
         ))?;
     } else {
         write_stdout_line(&format!(
             "{} symbols with labels [{}]:",
-            results.len(),
+            expanded_results.len(),
             labels.join(", ")
         ))?;
     }
 
-    for result in &results {
+    for er in &expanded_results {
         write_stdout_line("")?;
         write_stdout_line(&format!(
             "  {} ({}) in {} [{}-{}]",
-            result.name, result.kind, result.file_path, result.byte_start, result.byte_end
+            er.result.name, er.result.kind, er.result.file_path, er.result.byte_start, er.result.byte_end
         ))?;
 
-        // Show context if requested (human-readable format)
+        // Show context if requested (use expanded span for context extraction)
         if !show_code && (ctx_before > 0 || ctx_after > 0) {
             use splice::context;
-            let path = std::path::Path::new(&result.file_path);
-            if let Ok(ctx) = context::extract_context_asymmetric(path, result.byte_start, result.byte_end, ctx_before, ctx_after) {
+            let path = std::path::Path::new(&er.result.file_path);
+            if let Ok(ctx) = context::extract_context_asymmetric(path, er.expanded_start, er.expanded_end, ctx_before, ctx_after) {
                 if !ctx.before.is_empty() {
                     write_stdout_line(&format!("  Context ({} lines before):", ctx.before.len()))?;
                     for line in &ctx.before {
@@ -2355,12 +2413,13 @@ fn execute_query(
 
         // Show code chunk if requested
         if show_code {
-            let path = std::path::Path::new(&result.file_path);
-            if let Ok(Some(code)) = integration.get_code_chunk(path, result.byte_start, result.byte_end) {
+            let path = std::path::Path::new(&er.result.file_path);
+            // Use expanded span for code retrieval
+            if let Ok(Some(code)) = integration.get_code_chunk(path, er.expanded_start, er.expanded_end) {
                 // Show context before code chunk if context flags are set
                 if ctx_before > 0 || ctx_after > 0 {
                     use splice::context;
-                    if let Ok(ctx) = context::extract_context_asymmetric(path, result.byte_start, result.byte_end, ctx_before, ctx_after) {
+                    if let Ok(ctx) = context::extract_context_asymmetric(path, er.expanded_start, er.expanded_end, ctx_before, ctx_after) {
                         if !ctx.before.is_empty() {
                             write_stdout_line(&format!("  Context ({} lines before):", ctx.before.len()))?;
                             for line in &ctx.before {
@@ -2378,7 +2437,7 @@ fn execute_query(
                 // Show context after code chunk if context flags are set
                 if ctx_before > 0 || ctx_after > 0 {
                     use splice::context;
-                    if let Ok(ctx) = context::extract_context_asymmetric(path, result.byte_start, result.byte_end, ctx_before, ctx_after) {
+                    if let Ok(ctx) = context::extract_context_asymmetric(path, er.expanded_start, er.expanded_end, ctx_before, ctx_after) {
                         if !ctx.after.is_empty() {
                             write_stdout_line(&format!("  Context ({} lines after):", ctx.after.len()))?;
                             for line in &ctx.after {
