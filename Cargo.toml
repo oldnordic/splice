@@ -65,4 +65,9 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 # Glob pattern matching
 glob = "0.3"
 
+# Diff output
+similar = "2.6"        # Unified diff generation using TextDiff::unified_diff()
+nu-ansi-term = "0.50"  # Terminal colors (red for deletions, green for additions)
+is-terminal = "0.4"    # Cross-platform TTY detection
+
 [dev-dependencies]
