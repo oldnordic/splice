@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 14 of 17 (Context Flags) — IN PROGRESS 🔄
-Plan: 03 of ? in current phase
-Status: Plan 14-03 complete - Asymmetric context extraction with extract_context_asymmetric()
-Last activity: 2026-01-22 — Plan 14-03 complete
+Plan: 04 of ? in current phase
+Status: Plan 14-04 complete - Main.rs context flag wiring with grep-style resolution
+Last activity: 2026-01-22 — Plan 14-04 complete
 
-Progress: [████████░░░░░░░░░░░░░] 80% (64/80 plans)
+Progress: [█████████░░░░░░░░░░░░] 81% (65/80 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 64 (31 v2.0 + 33 v2.2)
+- Total plans completed: 65 (31 v2.0 + 34 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~27.8 hours (24h v2.0 + 3.8h v2.2)
+- Total execution time: ~27.9 hours (24h v2.0 + 3.9h v2.2)
 
 **By Phase:**
 
@@ -30,8 +30,8 @@ Progress: [████████░░░░░░░░░░░░░] 80% 
 |-------|-------|-------|----------|
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
 | 11-13 (v2.2) | 30/30 | 3.2h | ~6 min |
-| 14 (v2.2) | 3/? | 12min | ~4 min |
-| **Total** | **64/80** | **~27.8h** | **~26 min** |
+| 14 (v2.2) | 4/? | 16min | ~4 min |
+| **Total** | **65/80** | **~27.9h** | **~26 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
@@ -108,6 +108,10 @@ Recent decisions affecting current work:
 - [14-03]: extract_context() refactored to delegate to extract_context_asymmetric() (DRY principle, 87 lines -> 3 lines)
 - [14-03]: extract_context_with_before_after() kept as convenience alias for backward compatibility
 - [14-03]: extract_context_asymmetric exported from crate root via lib.rs
+- [14-04]: resolve_context_counts() helper function implements grep convention for -A/-B/-C resolution
+- [14-04]: All 5 execute_* functions updated with three context parameters (context_before, context_after, context/context_both)
+- [14-04]: Context resolution moved from main() match arms into individual execute_* function bodies
+- [14-04]: All extract_context calls updated to use extract_context_asymmetric with resolved before/after counts
 
 ### Pending Todos
 
@@ -169,10 +173,11 @@ Resume file: None
   - 13-03 (CLI Flags for Dry-Run and Unified Context) ✅ Complete
   - 13-04 (Dry-run Diff Integration) ✅ Complete
   - 13-05 (Dry-run Exit Code Implementation) ✅ Complete
-- Phase 14 in progress: 3 plans (context flags)
+- Phase 14 in progress: 4 plans (context flags)
   - 14-01 (Unix-style Context Flags) ✅ Complete
   - 14-02 (ApplyFiles Context Flags) ✅ Complete
   - 14-03 (Asymmetric Context Extraction) ✅ Complete
+  - 14-04 (Main.rs Context Flag Wiring) ✅ Complete
 - 236 tests passing (including 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context tests)
 - Error code registry with 26 error variants across 9 categories
 - Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
@@ -190,7 +195,8 @@ Resume file: None
 - preview_patch_with_content() added to return before/after content for diff generation
 - Unix-style context flags (-A, -B, -C) added to all 5 commands (Delete, Patch, Query, Get, ApplyFiles)
 - Asymmetric context extraction with extract_context_asymmetric() for separate before/after counts
-- Verification passed: Phase 12 all must-haves verified (27/27), Phase 13 complete, Phase 14 plans 01-03 complete
+- Context flags wired through main.rs with grep-style resolution via resolve_context_counts()
+- Verification passed: Phase 12 all must-haves verified (27/27), Phase 13 complete, Phase 14 plans 01-04 complete
 
 **Gap Closure Summary:**
 
@@ -205,5 +211,5 @@ Resume file: None
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 14-03 (Asymmetric Context Extraction) - extract_context_asymmetric() function with separate before/after parameters
+Stopped at: Completed 14-04 (Main.rs Context Flag Wiring) - resolve_context_counts helper and all execute_* functions updated
 Resume file: None
