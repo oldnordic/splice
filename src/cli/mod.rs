@@ -67,6 +67,10 @@ pub enum Commands {
         #[arg(long)]
         create_backup: bool,
 
+        /// Include relationship information in output.
+        #[arg(long)]
+        relationships: bool,
+
         /// Optional operation ID for auditing (auto-generated UUID if not provided).
         #[arg(long)]
         operation_id: Option<String>,
@@ -122,6 +126,10 @@ pub enum Commands {
         /// Create a backup before patching.
         #[arg(long)]
         create_backup: bool,
+
+        /// Include relationship information in output.
+        #[arg(long)]
+        relationships: bool,
 
         /// Optional operation ID for auditing (auto-generated UUID if not provided).
         #[arg(long)]
@@ -219,6 +227,10 @@ pub enum Commands {
         /// Show source code for each result.
         #[arg(long)]
         show_code: bool,
+
+        /// Include relationship information in output.
+        #[arg(long)]
+        relationships: bool,
     },
 
     /// Get code chunks from the database (uses Magellan integration).
@@ -242,6 +254,10 @@ pub enum Commands {
         /// Number of context lines before/after spans (default: 3).
         #[arg(long, value_name = "N", default_value = "3")]
         context_lines: usize,
+
+        /// Include relationship information in output.
+        #[arg(long)]
+        relationships: bool,
     },
 
     /// Query execution log.

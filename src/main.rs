@@ -31,6 +31,7 @@ fn main() -> ExitCode {
             language,
             context_lines,
             create_backup,
+            relationships: _,
             operation_id,
             metadata,
         } => execute_delete(&file, &symbol, kind, analyzer, language, context_lines, create_backup, operation_id, metadata, json_output),
@@ -46,6 +47,7 @@ fn main() -> ExitCode {
             context_lines,
             preview,
             create_backup,
+            relationships: _,
             operation_id,
             metadata,
         } => match batch {
@@ -91,6 +93,7 @@ fn main() -> ExitCode {
             list,
             count,
             show_code,
+            relationships: _,
         } => execute_query(&db, &label, context_lines, list, count, show_code, json_output),
 
         splice::cli::Commands::Get {
@@ -99,6 +102,7 @@ fn main() -> ExitCode {
             start,
             end,
             context_lines,
+            relationships: _,
         } => execute_get(&db, &file, start, end, context_lines, json_output),
 
         splice::cli::Commands::Log {
