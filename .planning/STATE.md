@@ -10,36 +10,34 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 12 of 17 (Rich Span Advanced)
-Plan: 03 of 08 in current phase (3 completed)
-Status: In progress - tool hints, suggested action, and relationships modules complete
-Last activity: 2026-01-22 — Completed plan 12-03: Suggested action engine with confidence assessment
+Plan: 01 of 08 in current phase (1 completed)
+Status: In progress - relationship query module complete
+Last activity: 2026-01-22 — Completed plan 12-01: Relationship builder with caching and error codes
 
-Progress: [███████████░░░░░░░░░] 56%
+Progress: [██████████░░░░░░░░░░] 56%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 45 (31 v2.0 + 14 v2.2)
+- Total plans completed: 43 (31 v2.0 + 12 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~25.6 hours (24h v2.0 + 1.6h v2.2)
+- Total execution time: ~25.4 hours (24h v2.0 + 1.4h v2.2)
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
-| 11-17 (v2.2) | 14/49 | 1.6h | ~7 min |
-| **Total** | **45/80** | **~25.6h** | **~29 min** |
+| 11-17 (v2.2) | 12/49 | 1.4h | ~7 min |
+| **Total** | **43/80** | **~25.4h** | **~29 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
 - Baseline velocity established: ~31 min/plan
 - v2.2 plans executing quickly (~4-7 min each)
-- Phase 12 progressing: relationships, tool hints, and suggested action engines complete
+- Phase 12 started: relationship query infrastructure complete
 - Rich span metadata integrated into CLI JSON output
-- Behavioral flag derivation for LLM guidance implemented
-- Confidence scoring based on symbol uniqueness and metadata
 
 *Updated after each plan completion*
 
@@ -56,12 +54,9 @@ Recent decisions affecting current work:
 - [v2.2]: Foundation-first approach (error codes + output schema before features)
 - [v2.2]: Combined milestone — original v2.1 UX improvements merged with Unified JSON Schema work
 - [v2.2 Gap Closure]: Infrastructure-first strategy — build types/functions/tests first, then integrate into CLI
-- [12-02]: Static heuristics for tool hints (may_break_tests, requires_compilation based on visibility and operation type)
-- [12-02]: apply_atomically always true (splice operations are atomic by design)
-- [12-02]: Convenience constructors for common refactoring scenarios (function delete, struct modify, body replace)
-- [12-03]: Three-tier confidence model: High (unique+file+kind), Medium (partial metadata), Low (ambiguous/missing)
-- [12-03]: Action params optional: include contextual params (levels, preserve_signature, remove_references)
-- [12-03]: Lowercase JSON serialization for all enums (delete/replace/expand, high/medium/low)
+- [12-01]: Relationship query infrastructure stubbed - get_callers/get_callees return empty results until edge creation is implemented during code ingestion
+- [12-01]: Session-based caching with RelationshipCache (HashMap key format: {rel_type}:{node_id_or_path})
+- [12-01]: Phase 11 error code integration in Relationships struct (REL_QUERY_FAILED, NODE_NOT_FOUND, FILE_NOT_FOUND)
 
 ### Pending Todos
 
@@ -80,7 +75,6 @@ Recent decisions affecting current work:
 **All Phase 11 gaps resolved.**
 
 **From Research:**
-- [Phase 12]: Relationship query infrastructure stubbed - get_callers/get_callees return empty results until edge creation is implemented during code ingestion
 - [Phase 12]: Semantic kind mapping coverage — need comprehensive mapping of tree-sitter node types for all 7 languages
 - [Phase 12]: LLM action taxonomy completeness — need survey of real LLM agents to see which JSON fields they use
 - [Phase 12]: Performance testing on 10K+ file codebases to validate mitigation strategies
@@ -94,7 +88,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed plan 12-03 (suggested action engine)
+Stopped at: Completed plan 12-01 (relationship builder)
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -103,15 +97,13 @@ Resume file: None
 - 311+ tests passing
 - Comprehensive documentation complete
 
-**v2.2 Status:** PHASE 12 IN PROGRESS (3/8 complete) 🔄
+**v2.2 Status:** PHASE 12 IN PROGRESS (1/8 complete) 🔄
 - Phase 11 complete: 7 infrastructure plans + 4 gap closure plans
-- Phase 12 started: 12-01 (relationships), 12-02 (tool hints), 12-03 (suggested actions) complete
-- 220 tests passing (including hints, relationships, and action tests)
+- Phase 12 started: 12-01 (relationship builder) complete
+- 220 tests passing (including 9 relationship tests)
 - Error code registry with 26 error variants across 9 categories
 - Rich span infrastructure complete AND integrated: context, semantic_kind, language, checksums, error_codes
-- Tool hints module with behavioral flags for LLM guidance
-- Suggested action engine with confidence assessment
-- Relationship query infrastructure (stubbed pending edge creation)
+- Relationship query infrastructure with session caching and Phase 11 error code integration (stubbed pending edge creation)
 
 **Gap Closure Summary:**
 
