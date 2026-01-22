@@ -203,7 +203,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 16-03 (Symbol Expansion and Search) - Progressive expansion with language-agnostic find_containing_block
+Stopped at: Completed 16-04 (Symbol Expansion and Search) - Leading doc comments in symbol expansion
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -241,7 +241,14 @@ Resume file: None
   - 15-03 (Fuzzy Symbol Suggestions) ✅ Complete
   - 15-04 (TypeScript Error Code Extraction) ✅ Complete
   - 15-05 (Error Code Explain Command) ✅ Complete
-- 272 tests passing (including 9 suggestions tests, 5 compiler error tests, 16 context flag tests, 14 error_codes tests, 1 error location test, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests)
+- Phase 16 in progress: 4/6 plans (symbol expansion and search)
+  - 16-01 (Symbol Expansion Infrastructure) ✅ Complete
+  - 16-02 (CLI Expansion Flags) ✅ Complete
+  - 16-04 (Leading Doc Comments) ✅ Complete
+  - 16-03 (Search Command) ⏳ Pending
+  - 16-05 (Advanced Search Features) ⏳ Pending
+  - 16-06 (Search Integration Tests) ⏳ Pending
+- 281 tests passing (including 9 doc extraction tests, 9 suggestions tests, 5 compiler error tests, 16 context flag tests, 14 error_codes tests, 1 error location test, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests, 29 expand tests)
 - Error code registry with 28 error variants across 9 categories (22 error-level, 6 warning-level)
 - Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
 - Rich span types ready: Relationships, ToolHints, SuggestedAction
@@ -280,5 +287,5 @@ Resume file: None
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 16-03 (Symbol Expansion and Search) - Progressive expansion with language-agnostic find_containing_block
+Stopped at: Completed 16-04 (Symbol Expansion and Search) - Leading doc comments in symbol expansion
 Resume file: None
