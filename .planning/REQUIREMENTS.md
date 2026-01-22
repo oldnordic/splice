@@ -11,7 +11,7 @@ Requirements for Unified JSON Schema implementation with LLM-first UX improvemen
 ### Rich Span Extensions - Core
 
 - [ ] **RICHSPAN-01:** Spans include `context` field with `before`, `selected`, `after` arrays
-- [ ] **RICHSPAN-02:** Default context is 3 lines (configurable via `--context-lines <n>`)
+- [ ] **RICHSPAN-02:** Default context is 3 lines (configurable via `--context-lines`)
 - [ ] **RICHSPAN-03:** Context uses UTF-8 byte offsets consistent with span coordinates
 - [ ] **RICHSPAN-04:** Spans include `semantic_kind` field (function, variable, parameter, etc.)
 - [ ] **RICHSPAN-05:** Spans include `language` field detected from file extension/tree-sitter
@@ -125,15 +125,15 @@ Deferred to future release. Tracked but not in current roadmap.
 
 Which phases cover which requirements. All v2.2 requirements mapped to roadmap phases.
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| RICHSPAN-01 through RICHSPAN-13 | Phase 11 | Pending |
-| RICHSPAN-14 through RICHSPAN-21 | Phase 12 | Pending |
-| CLI-01 through CLI-07 | Phase 13 | Pending |
-| CLI-08 through CLI-14 | Phase 14 | Pending |
-| CLI-15 through CLI-21 | Phase 15 | Pending |
-| CLI-22 through CLI-33 | Phase 16 | Pending |
-| TEST-01 through TEST-06 | Phase 17 | Pending |
+| Requirement | Phase | Status | Notes |
+|-------------|-------|--------|-------|
+| RICHSPAN-01 through RICHSPAN-13 | Phase 11 | In Progress | 7/11 plans executed, 4 gap closure plans created |
+| RICHSPAN-14 through RICHSPAN-21 | Phase 12 | Pending | |
+| CLI-01 through CLI-07 | Phase 13 | Pending | |
+| CLI-08 through CLI-14 | Phase 14 | Pending | |
+| CLI-15 through CLI-21 | Phase 15 | Pending | |
+| CLI-22 through CLI-33 | Phase 16 | Pending | |
+| TEST-01 through TEST-06 | Phase 17 | Pending | |
 
 **Coverage:**
 - v2.2 requirements: 45 total
@@ -142,12 +142,33 @@ Which phases cover which requirements. All v2.2 requirements mapped to roadmap p
 
 **Phase Distribution:**
 - Phase 11 (Rich Span Core): 13 requirements (RICHSPAN-01 to RICHSPAN-13)
+  - Infrastructure complete (plans 11-01 through 11-07)
+  - Gap closure plans created (11-08 through 11-11)
+  - Status: 7/11 plans executed, 4 gap closure plans pending execution
 - Phase 12 (Rich Span Advanced): 8 requirements (RICHSPAN-14 to RICHSPAN-21)
 - Phase 13 (Dry-run & Diff): 7 requirements (CLI-01 to CLI-07)
 - Phase 14 (Context Flags): 7 requirements (CLI-08 to CLI-14)
 - Phase 15 (Enhanced Errors): 7 requirements (CLI-15 to CLI-21)
 - Phase 16 (Symbol Expansion + Search): 12 requirements (CLI-22 to CLI-33)
 - Phase 17 (Integration & Testing): 6 requirements (TEST-01 to TEST-06)
+
+**Gap Status (Phase 11):**
+
+| Requirement | Infrastructure | CLI Integration | Plan |
+|-------------|---------------|-----------------|------|
+| RICHSPAN-01: Context field | ✅ Complete | ❌ Not integrated | 11-08 |
+| RICHSPAN-02: --context-lines flag | ❌ Missing | ❌ Missing | 11-08 |
+| RICHSPAN-03: UTF-8 byte offsets | ✅ Complete | ✅ Verified | N/A |
+| RICHSPAN-04: semantic_kind field | ✅ Complete | ❌ Not integrated | 11-09 |
+| RICHSPAN-05: language field | ✅ Complete | ❌ Not integrated | 11-09 |
+| RICHSPAN-06: All 7 languages mapped | ✅ Complete | ✅ Verified | N/A |
+| RICHSPAN-07: checksum_before field | ✅ Complete | ❌ Not integrated | 11-10 |
+| RICHSPAN-08: file_checksum_before field | ✅ Complete | ❌ Not integrated | 11-10 |
+| RICHSPAN-09: SHA-256 checksums | ✅ Complete | ✅ Verified | N/A |
+| RICHSPAN-10: error_code field | ✅ Complete | ❌ Not integrated | 11-11 |
+| RICHSPAN-11: Severity levels | ✅ Complete | ✅ Verified | N/A |
+| RICHSPAN-12: Precise location | ✅ Complete | ✅ Verified | N/A |
+| RICHSPAN-13: What-to-do hints | ✅ Complete | ✅ Verified | N/A |
 
 ---
 *Requirements defined: 2026-01-22*

@@ -49,16 +49,20 @@ See `.planning/milestones/v2.0-ROADMAP.md` for complete details of phases 1-10.
 4. User receives span output with `error_code` field including severity (error/warning/note), precise location (file:line:column), and "what to do" hint
 5. All rich span fields use UTF-8 byte offsets consistent with existing span coordinates
 
-**Plans**: 7 plans in 5 waves
+**Plans**: 11 plans in 8 waves (7 original + 4 gap closure)
 
 Plans:
-- [ ] 11-01-PLAN.md — Extend SpanResult structure with rich metadata fields (context, semantic_kind, language, checksums, error_code)
-- [ ] 11-02-PLAN.md — Implement context extraction module using ropey for efficient line calculations
-- [ ] 11-03-PLAN.md — Implement semantic kind detection mapping tree-sitter node types to standardized kinds
-- [ ] 11-04-PLAN.md — Verify language detection integration (already exists in detect.rs)
-- [ ] 11-05-PLAN.md — Expose checksum_before and file_checksum_before in JSON output (reuse existing SHA-256)
-- [ ] 11-06-PLAN.md — Implement error code field with SPL-E### format, severity level, location, and hints
-- [ ] 11-07-PLAN.md — Ensure all new fields are optional with backward compatibility verification
+- [x] 11-01-PLAN.md — Extend SpanResult structure with rich metadata fields (context, semantic_kind, language, checksums, error_code)
+- [x] 11-02-PLAN.md — Implement context extraction module using ropey for efficient line calculations
+- [x] 11-03-PLAN.md — Implement semantic kind detection mapping tree-sitter node types to standardized kinds
+- [x] 11-04-PLAN.md — Verify language detection integration (already exists in detect.rs)
+- [x] 11-05-PLAN.md — Expose checksum_before and file_checksum_before in JSON output (reuse existing SHA-256)
+- [x] 11-06-PLAN.md — Implement error code field with SPL-E### format, severity level, location, and hints
+- [x] 11-07-PLAN.md — Ensure all new fields are optional with backward compatibility verification
+- [ ] 11-08-PLAN.md — Integrate context extraction into CLI JSON output with --context-lines flag (gap closure)
+- [ ] 11-09-PLAN.md — Integrate semantic kind and language detection into CLI JSON output (gap closure)
+- [ ] 11-10-PLAN.md — Integrate checksum_before and file_checksum_before fields into CLI JSON output (gap closure)
+- [ ] 11-11-PLAN.md — Integrate error codes into CLI error handling for structured diagnostics (gap closure)
 
 #### Phase 12: Rich Span Advanced
 
@@ -233,7 +237,7 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17
 | 8. Execution Logging | v2.0 | 3/3 | Complete | 2026-01-17 |
 | 9. Integration Testing | v2.0 | 3/3 | Complete | 2026-01-17 |
 | 10. Documentation Update | v2.0 | 3/3 | Complete | 2026-01-18 |
-| 11. Rich Span Core | v2.2 | 0/7 | Planning complete | - |
+| 11. Rich Span Core | v2.2 | 7/11 | Gap closure plans created | - |
 | 12. Rich Span Advanced | v2.2 | 0/6 | Not started | - |
 | 13. Dry-run & Diff | v2.2 | 0/5 | Not started | - |
 | 14. Context Flags | v2.2 | 0/5 | Not started | - |
@@ -243,5 +247,5 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%) ✅
-- v2.2: 7/45 plans planned (16%) 🚧
+- v2.2: 11/45 plans planned (24%) 🚧
 
