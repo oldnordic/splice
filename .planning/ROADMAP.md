@@ -49,16 +49,16 @@ See `.planning/milestones/v2.0-ROADMAP.md` for complete details of phases 1-10.
 4. User receives span output with `error_code` field including severity (error/warning/note), precise location (file:line:column), and "what to do" hint
 5. All rich span fields use UTF-8 byte offsets consistent with existing span coordinates
 
-**Plans**: TBD (refined during planning)
+**Plans**: 7 plans in 5 waves
 
 Plans:
-- [ ] 11-01: Extend SpanResult structure with context, semantic_kind, language, checksums, and error_code fields
-- [ ] 11-02: Implement context extraction module using ropey for efficient line calculations
-- [ ] 11-03: Implement semantic kind detection mapping tree-sitter node types to standardized kinds
-- [ ] 11-04: Add language detection from file extension/tree-sitter parser
-- [ ] 11-05: Expose checksum_before and file_checksum_before in JSON output (reuse existing SHA-256 implementation)
-- [ ] 11-06: Implement error code field with SPL-E### format, severity level, location, and hints
-- [ ] 11-07: Ensure all new fields are optional with `#[serde(skip_serializing_if = "Option::is_none")]` for backward compatibility
+- [ ] 11-01-PLAN.md — Extend SpanResult structure with rich metadata fields (context, semantic_kind, language, checksums, error_code)
+- [ ] 11-02-PLAN.md — Implement context extraction module using ropey for efficient line calculations
+- [ ] 11-03-PLAN.md — Implement semantic kind detection mapping tree-sitter node types to standardized kinds
+- [ ] 11-04-PLAN.md — Verify language detection integration (already exists in detect.rs)
+- [ ] 11-05-PLAN.md — Expose checksum_before and file_checksum_before in JSON output (reuse existing SHA-256)
+- [ ] 11-06-PLAN.md — Implement error code field with SPL-E### format, severity level, location, and hints
+- [ ] 11-07-PLAN.md — Ensure all new fields are optional with backward compatibility verification
 
 #### Phase 12: Rich Span Advanced
 
@@ -166,7 +166,7 @@ Plans:
 **Requirements**: CLI-22 through CLI-33
 
 **Success Criteria** (what must be TRUE):
-1. User can use `--expand` flag to get full symbol body instead of just name
+1. User can use `--expand` flag to get full symbol body
 2. Expansion uses AST-aware tree-sitter parent chain walking for accuracy
 3. Multiple expansions work progressively: name → full body → containing block
 4. Expansion includes leading doc comments and documentation
@@ -231,9 +231,9 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17
 | 6. Deterministic Ordering | v2.0 | 3/3 | Complete | 2026-01-17 |
 | 7. Validation Hooks | v2.0 | 3/3 | Complete | 2026-01-17 |
 | 8. Execution Logging | v2.0 | 3/3 | Complete | 2026-01-17 |
-| 9. Integration Testing | v2.0 | 3/3 | Complete | 2026-01-18 |
+| 9. Integration Testing | v2.0 | 3/3 | Complete | 2026-01-17 |
 | 10. Documentation Update | v2.0 | 3/3 | Complete | 2026-01-18 |
-| 11. Rich Span Core | v2.2 | 0/7 | Not started | - |
+| 11. Rich Span Core | v2.2 | 0/7 | Planning complete | - |
 | 12. Rich Span Advanced | v2.2 | 0/6 | Not started | - |
 | 13. Dry-run & Diff | v2.2 | 0/5 | Not started | - |
 | 14. Context Flags | v2.2 | 0/5 | Not started | - |
@@ -243,4 +243,5 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%) ✅
-- v2.2: 0/45 plans planned (0%) 🚧
+- v2.2: 7/45 plans planned (16%) 🚧
+
