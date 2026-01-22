@@ -346,6 +346,12 @@ impl SpanResult {
             after_hash: None,
             span_checksum_before: None,
             span_checksum_after: None,
+            context: None,
+            semantic_kind: None,
+            language: None,
+            checksum_before: None,
+            file_checksum_before: None,
+            error_code: None,
         }
     }
 
@@ -382,6 +388,56 @@ impl SpanResult {
     pub fn with_span_checksums(mut self, before: String, after: String) -> Self {
         self.span_checksum_before = Some(before);
         self.span_checksum_after = Some(after);
+        self
+    }
+
+    /// Add context to span result.
+    pub fn with_context(mut self, context: SpanContext) -> Self {
+        self.context = Some(context);
+        self
+    }
+
+    /// Add semantic kind.
+    pub fn with_semantic_kind(mut self, kind: impl Into<String>) -> Self {
+        self.semantic_kind = Some(kind.into());
+        self
+    }
+
+    /// Add programming language.
+    pub fn with_language(mut self, language: impl Into<String>) -> Self {
+        self.language = Some(language.into());
+        self
+    }
+
+    /// Add checksum_before (alias for span_checksum_before).
+    pub fn with_checksum_before(mut self, checksum: impl Into<String>) -> Self {
+        self.checksum_before = Some(checksum.into());
+        self
+    }
+
+    /// Add file_checksum_before.
+    pub fn with_file_checksum_before(mut self, checksum: impl Into<String>) -> Self {
+        self.file_checksum_before = Some(checksum.into());
+        self
+    }
+
+    /// Add error code.
+    pub fn with_error_code(mut self, error_code: ErrorCode) -> Self {
+        self.error_code = Some(error_code);
+        self
+    }
+
+    /// Add both semantic kind and language.
+    pub fn with_semantic_info(mut self, kind: impl Into<String>, language: impl Into<String>) -> Self {
+        self.semantic_kind = Some(kind.into());
+        self.language = Some(language.into());
+        self
+    }
+
+    /// Add both checksums.
+    pub fn with_both_checksums(mut self, checksum_before: impl Into<String>, file_checksum_before: impl Into<String>) -> Self {
+        self.checksum_before = Some(checksum_before.into());
+        self.file_checksum_before = Some(file_checksum_before.into());
         self
     }
 }
@@ -564,6 +620,12 @@ impl From<crate::patch::FilePatchSummary> for SpanResult {
             after_hash: Some(summary.after_hash),
             span_checksum_before: None,
             span_checksum_after: None,
+            context: None,
+            semantic_kind: None,
+            language: None,
+            checksum_before: None,
+            file_checksum_before: None,
+            error_code: None,
         }
     }
 }
@@ -587,6 +649,12 @@ impl From<crate::resolve::ResolvedSpan> for SpanResult {
             after_hash: None,
             span_checksum_before: None,
             span_checksum_after: None,
+            context: None,
+            semantic_kind: None,
+            language: None,
+            checksum_before: None,
+            file_checksum_before: None,
+            error_code: None,
         }
     }
 }
