@@ -10,7 +10,7 @@
 
 mod backup;
 mod batch_loader;
-mod pattern;
+pub mod pattern;
 
 use crate::error::{Diagnostic, DiagnosticLevel, Result, SpliceError};
 use crate::symbol::Language as SymbolLanguage;
