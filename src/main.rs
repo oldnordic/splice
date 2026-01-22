@@ -9,6 +9,24 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+/// Resolve context counts from -A, -B, -C flags following grep conventions.
+///
+/// # Convention
+/// - `-C N` sets both before and after to N
+/// - If `-A M` is also specified, use `max(N, M)` for after
+/// - If `-B M` is also specified, use `max(N, M)` for before
+/// - Default is `-C 3`, so without flags you get 3 lines on both sides
+///
+/// # Examples
+/// - `-A 5 -B 2`: 5 before, 2 after
+/// - `-C 10 -A 5`: 10 before (from -C), 10 after (max of -C=10 and -A=5)
+/// - No flags: 3 before, 3 after (default -C 3)
+fn resolve_context_counts(context_before: usize, context_after: usize, context_both: usize) -> (usize, usize) {
+    let before = context_before.max(context_both);
+    let after = context_after.max(context_both);
+    (before, after)
+}
+
 fn main() -> ExitCode {
     install_broken_pipe_hook();
 
