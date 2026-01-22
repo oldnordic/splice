@@ -225,6 +225,91 @@ pub fn extract_leading_doc_comments<'a>(
         .collect()
 }
 
+/// Extract the byte offset of leading doc comments for a symbol node.
+///
+/// This function walks prev_sibling nodes to find documentation comments
+/// and returns the adjusted start byte offset that includes those docs.
+///
+/// # Supported Doc Comment Styles
+///
+/// - **Rust**: `///` (line), `//!` (inner line), `/** */` (block), `/*! */` (inner block)
+/// - **Python**: `"""..."""` (docstrings), `#` (comments)
+/// - **C/C++**: `///`, `//!`, `/** */`, `/*! */`
+/// - **Java**: `/** */`, `///`
+/// - **JavaScript/TypeScript**: `/** */`, `///`
+///
+/// # Arguments
+///
+/// * `node` - The symbol node
+/// * `source` - The source code bytes for text extraction
+///
+/// # Returns
+///
+/// Returns the adjusted start byte offset including docs, or the original
+/// node's start byte if no doc comments are found.
+///
+/// # Example
+///
+/// ```no_run
+/// use splice::expand::tree_walker::extract_leading_docs;
+///
+/// let function_node = /* function_item node */;
+/// let source = b"/// Example docs\nfn example() {}";
+///
+/// let doc_start = extract_leading_docs(function_node, source);
+/// assert!(doc_start < function_node.start_byte()); // Docs are included
+/// ```
+pub fn extract_leading_docs(node: &tree_sitter::Node, source: &[u8]) -> usize {
+    let mut current = *node;
+    let mut doc_start = node.start_byte();
+    let mut found_docs = false;
+    let mut blank_lines = 0;
+
+    // Walk previous siblings, stopping at first non-doc, non-blank node
+    while let Some(prev) = current.prev_sibling() {
+        let kind = prev.kind();
+        let is_comment = is_doc_comment_node(&prev);
+
+        if is_comment {
+            // Check if this looks like a doc comment (starts with ///, /**, //!, /*!, """)
+            let text = prev.utf8_text(source).unwrap_or("");
+            let is_doc = text.starts_with("///")
+                || text.starts_with("/**")
+                || text.starts_with("//!")
+                || text.starts_with("/*!")
+                || text.starts_with("\"\"\"")
+                || (text.starts_with("///") && text.len() > 3);
+
+            if is_doc {
+                doc_start = prev.start_byte();
+                found_docs = true;
+                blank_lines = 0;
+                current = prev;
+            } else {
+                // Not a doc-style comment, stop
+                break;
+            }
+        } else if kind == "\n" || prev.is_named() == false {
+            // Allow one blank line between docs and symbol
+            // Tree-sitter may represent blank lines as unnamed nodes
+            blank_lines += 1;
+            if blank_lines > 1 {
+                break;
+            }
+            current = prev;
+        } else {
+            // Hit a non-comment, non-whitespace node
+            break;
+        }
+    }
+
+    if found_docs {
+        doc_start
+    } else {
+        node.start_byte()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
