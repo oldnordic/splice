@@ -340,6 +340,15 @@ pub struct SpanResult {
     /// Error code with severity, location, hint (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<ErrorCode>,
+    /// Code relationships (callers, callees, imports, exports)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub relationships: Option<Relationships>,
+    /// Tool hints for behavioral guidance
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_hints: Option<ToolHints>,
+    /// Suggested action with confidence
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suggested_action: Option<SuggestedAction>,
 }
 
 impl SpanResult {
@@ -368,6 +377,9 @@ impl SpanResult {
             checksum_before: None,
             file_checksum_before: None,
             error_code: None,
+            relationships: None,
+            tool_hints: None,
+            suggested_action: None,
         }
     }
 
@@ -642,6 +654,9 @@ impl From<crate::patch::FilePatchSummary> for SpanResult {
             checksum_before: None,
             file_checksum_before: None,
             error_code: None,
+            relationships: None,
+            tool_hints: None,
+            suggested_action: None,
         }
     }
 }
@@ -671,6 +686,9 @@ impl From<crate::resolve::ResolvedSpan> for SpanResult {
             checksum_before: None,
             file_checksum_before: None,
             error_code: None,
+            relationships: None,
+            tool_hints: None,
+            suggested_action: None,
         }
     }
 }

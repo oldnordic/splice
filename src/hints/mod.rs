@@ -4,7 +4,7 @@
 //! helping LLMs understand safe operations and potential side effects.
 
 use crate::ingest::SemanticKind;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Operation type for tool hint derivation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,7 +22,7 @@ pub enum ToolHintOperation {
 /// Behavioral hints for refactoring operations.
 ///
 /// Provides LLMs with guidance on safe operations and potential side effects.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolHints {
     /// Whether this operation requires full context (closures, impl blocks).
     pub requires_full_context: bool,
