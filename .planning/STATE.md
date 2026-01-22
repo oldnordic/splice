@@ -259,11 +259,12 @@ Resume file: None
 - Phase 16 in progress: 5/6 plans (symbol expansion and search)
   - 16-01 (Symbol Expansion Infrastructure) ✅ Complete
   - 16-02 (CLI Expansion Flags) ✅ Complete
-  - 16-04 (Leading Doc Comments) ✅ Complete
-  - 16-06 (Context+Expansion Integration) ✅ Complete
   - 16-03 (Search Command) ⏳ Pending
-  - 16-05 (Advanced Search Features) ⏳ Pending
-- 293 tests passing (including 12 context+expansion integration tests, 9 doc extraction tests, 9 suggestions tests, 5 compiler error tests, 16 context flag tests, 14 error_codes tests, 1 error location test, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests, 29 expand tests)
+  - 16-04 (Leading Doc Comments) ✅ Complete
+  - 16-05A (Rust/Python Expansion Tests) ✅ Complete
+  - 16-05B (Multi-Language Expansion Tests) ✅ Complete
+  - 16-06 (Context+Expansion Integration) ✅ Complete
+- 307 tests passing (including 25 expansion tests, 12 context+expansion integration tests, 9 doc extraction tests, 9 suggestions tests, 5 compiler error tests, 16 context flag tests, 14 error_codes tests, 1 error location test, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests)
 - Error code registry with 28 error variants across 9 categories (22 error-level, 6 warning-level)
 - Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
 - Rich span types ready: Relationships, ToolHints, SuggestedAction
@@ -290,13 +291,10 @@ Resume file: None
 - Symbol expansion infrastructure: tree_walker module with parent chain walking (21 tests)
 - CLI expansion flags (--expand, --expand-level) for Get and Query commands
 - Leading doc comment extraction with extract_leading_docs() and expand_to_body_with_docs() (9 tests)
+- Rust/Python expansion tests (6 tests) with fixtures for functions, structs, classes
+- Multi-language expansion tests (19 new tests) for C/C++, Java, JavaScript, TypeScript
+- Progressive expansion level tests (4 tests) verifying levels 0, 1, 2 across all languages
 - Context+expansion integration: context flags respect expanded symbol boundaries (12 tests)
-- Verification passed: Phase 12 all must-haves verified (27/27), Phase 13 complete, Phase 14 complete (5/5), Phase 15 complete (6/6), Phase 16-01, 16-02, 16-04, 16-06 complete
-  - 16-04 (Leading Doc Comments) ✅ Complete
-  - 16-03 (Search Command) ⏳ Pending
-  - 16-05 (Advanced Search Features) ⏳ Pending
-  - 16-06 (Search Integration Tests) ⏳ Pending
-- 281 tests passing (including 9 doc extraction tests, 9 suggestions tests, 5 compiler error tests, 16 context flag tests, 14 error_codes tests, 1 error location test, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests, 29 expand tests)
 - Error code registry with 28 error variants across 9 categories (22 error-level, 6 warning-level)
 - Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
 - Rich span types ready: Relationships, ToolHints, SuggestedAction
