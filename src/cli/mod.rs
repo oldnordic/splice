@@ -119,9 +119,13 @@ pub enum Commands {
         #[arg(long, value_name = "N", default_value = "3")]
         context_lines: usize,
 
-        /// Run in preview mode without mutating the workspace.
-        #[arg(long, conflicts_with = "batch")]
+        /// Preview changes without applying (alias: --dry-run, -n).
+        #[arg(short = 'n', long = "dry-run", alias = "preview", conflicts_with = "batch")]
         preview: bool,
+
+        /// Number of context lines in unified diff (default: 3).
+        #[arg(short = 'U', long, value_name = "N", default_value = "3")]
+        unified: usize,
 
         /// Create a backup before patching.
         #[arg(long)]
