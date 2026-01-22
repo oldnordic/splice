@@ -163,6 +163,10 @@ fn main() -> ExitCode {
         splice::cli::Commands::Explain { code } => {
             execute_explain(code, json_output)
         }
+
+        splice::cli::Commands::Search { pattern, path, language, glob, context_after, context_before, context_both, json } => {
+            execute_search(&pattern, &path, language, glob, context_before, context_after, context_both, json_output || json)
+        }
     };
 
     // Handle result
@@ -2903,6 +2907,174 @@ fn execute_explain(code: String, json_output: bool) -> Result<splice::cli::CliSu
     }
 
     Ok(splice::cli::CliSuccessPayload::message_only(format!("Explained {}", code)))
+}
+
+fn execute_search(
+    pattern: &str,
+    path: &Path,
+    language: Option<splice::cli::Language>,
+    glob: Option<String>,
+    context_before: usize,
+    context_after: usize,
+    context_both: usize,
+    json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::context::extract_context_asymmetric;
+    use splice::context::resolve_context_counts;
+    use splice::patch::pattern;
+
+    // Resolve context counts from -A/-B/-C flags
+    let (ctx_before, ctx_after) = resolve_context_counts(context_before, context_after, context_both);
+
+    // Convert CLI language to symbol language
+    let symbol_lang = language.map(|l: splice::cli::Language| l.to_symbol_language());
+
+    // Build glob pattern from user input or construct from path and language
+    let glob_pattern = if let Some(g) = glob {
+        // User provided explicit glob pattern
+        g
+    } else {
+        // Build default glob based on language or all supported types
+        let extensions = if let Some(lang) = language {
+            match lang {
+                splice::cli::Language::Rust => "rs",
+                splice::cli::Language::Python => "py",
+                splice::cli::Language::C => "c",
+                splice::cli::Language::Cpp => "cpp",
+                splice::cli::Language::Java => "java",
+                splice::cli::Language::JavaScript => "js",
+                splice::cli::Language::TypeScript => "ts",
+            }
+        } else {
+            // Search all supported file types
+            "{rs,py,c,cpp,h,hpp,cc,cxx,java,js,mjs,cjs,ts,tsx}"
+        };
+
+        if path.is_dir() {
+            format!("{}/**/*.{}", path.display(), extensions)
+        } else {
+            path.display().to_string()
+        }
+    };
+
+    let config = pattern::PatternReplaceConfig {
+        glob_pattern,
+        find_pattern: pattern.to_string(),
+        replace_pattern: String::new(), // Not used for search-only
+        language: symbol_lang,
+        validate: false,
+    };
+
+    let matches = pattern::find_pattern_in_files(&config)?;
+
+    if json_output {
+        let results: Vec<Value> = matches
+            .into_iter()
+            .map(|m| {
+                // Extract context if requested
+                let (context_before_opt, context_selected_opt, context_after_opt) =
+                    if ctx_before > 0 || ctx_after > 0 {
+                        match extract_context_asymmetric(
+                            &m.file,
+                            m.byte_start,
+                            m.byte_end,
+                            ctx_before,
+                            ctx_after,
+                        ) {
+                            Ok(ctx) => (
+                                Some(ctx.before),
+                                Some(ctx.selected),
+                                Some(ctx.after),
+                            ),
+                            Err(_) => (None, None, None),
+                        }
+                    } else {
+                        (None, None, None)
+                    };
+
+                let mut result = json!({
+                    "file": m.file.to_string_lossy().to_string(),
+                    "byte_start": m.byte_start,
+                    "byte_end": m.byte_end,
+                    "line": m.line,
+                    "column": m.column,
+                    "matched_text": m.matched_text,
+                });
+
+                // Add context fields if present
+                if let (Some(before), Some(selected), Some(after)) =
+                    (context_before_opt, context_selected_opt, context_after_opt)
+                {
+                    if let Some(obj) = result.as_object_mut() {
+                        obj.insert(
+                            "context_before".to_string(),
+                            json!(before),
+                        );
+                        obj.insert(
+                            "context_selected".to_string(),
+                            json!(selected),
+                        );
+                        obj.insert(
+                            "context_after".to_string(),
+                            json!(after),
+                        );
+                    }
+                }
+
+                result
+            })
+            .collect();
+
+        let payload = serde_json::to_string_pretty(&results)
+            .map_err(|e| splice::SpliceError::Other(format!("Failed to serialize JSON: {}", e)))?;
+        println!("{}", payload);
+
+        Ok(splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted())
+    } else {
+        // Human-readable output
+        for m in &matches {
+            println!("{}:{}:{}: {}", m.file.display(), m.line, m.column, m.matched_text);
+
+            // Show context if requested
+            if ctx_before > 0 || ctx_after > 0 {
+                if let Ok(ctx) = extract_context_asymmetric(
+                    &m.file,
+                    m.byte_start,
+                    m.byte_end,
+                    ctx_before,
+                    ctx_after,
+                ) {
+                    if !ctx.before.is_empty() {
+                        println!("  Context ({} line(s) before):", ctx.before.len());
+                        for (i, line) in ctx.before.iter().enumerate() {
+                            println!("  {}: {}", m.line - ctx.before.len() + i, line);
+                        }
+                    }
+
+                    if !ctx.selected.is_empty() {
+                        for (i, line) in ctx.selected.iter().enumerate() {
+                            println!("  {}: {}", m.line + i, line);
+                        }
+                    }
+
+                    if !ctx.after.is_empty() {
+                        println!("  Context ({} line(s) after):", ctx.after.len());
+                        for (i, line) in ctx.after.iter().enumerate() {
+                            println!("  {}: {}", m.line + ctx.selected.len() + i, line);
+                        }
+                    }
+
+                    println!();
+                }
+            }
+        }
+
+        Ok(splice::cli::CliSuccessPayload::message_only(format!(
+            "Found {} occurrence(s) of '{}'",
+            matches.len(),
+            pattern
+        )))
+    }
 }
 
 /// Parse date string to Unix timestamp.

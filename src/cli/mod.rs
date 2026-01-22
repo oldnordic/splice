@@ -381,7 +381,7 @@ pub enum Commands {
         pattern: String,
 
         /// Files or directories to search (defaults to current directory).
-        #[arg(short, long, value_name = "PATH", default_value = ".")]
+        #[arg(long, value_name = "PATH", default_value = ".")]
         path: std::path::PathBuf,
 
         /// Optional language filter (auto-detect if not specified).
