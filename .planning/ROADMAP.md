@@ -59,10 +59,10 @@ Plans:
 - [x] 11-05-PLAN.md — Expose checksum_before and file_checksum_before in JSON output (reuse existing SHA-256)
 - [x] 11-06-PLAN.md — Implement error code field with SPL-E### format, severity level, location, and hints
 - [x] 11-07-PLAN.md — Ensure all new fields are optional with backward compatibility verification
-- [ ] 11-08-PLAN.md — Integrate context extraction into CLI JSON output with --context-lines flag (gap closure)
-- [ ] 11-09-PLAN.md — Integrate semantic kind and language detection into CLI JSON output (gap closure)
-- [ ] 11-10-PLAN.md — Integrate checksum_before and file_checksum_before fields into CLI JSON output (gap closure)
-- [ ] 11-11-PLAN.md — Integrate error codes into CLI error handling for structured diagnostics (gap closure)
+- [x] 11-08-PLAN.md — Integrate context extraction into CLI JSON output with --context-lines flag (gap closure)
+- [x] 11-09-PLAN.md — Integrate semantic kind and language detection into CLI JSON output (gap closure)
+- [x] 11-10-PLAN.md — Integrate checksum_before and file_checksum_before fields into CLI JSON output (gap closure)
+- [x] 11-11-PLAN.md — Integrate error codes into CLI error handling for structured diagnostics (gap closure)
 
 #### Phase 12: Rich Span Advanced
 
@@ -78,7 +78,7 @@ Plans:
 4. Relationship queries are lazy (only executed with `--relationships` flag) and span full codebase via codegraph.db
 5. All advanced fields are optional and don't impact performance when not requested
 
-**Plans**: 6 plans in 3 waves
+**Plans**: 8 plans in 3 waves
 
 Plans:
 - [x] 12-01-PLAN.md — Create relationships module with Relationship and Relationships structs
@@ -129,14 +129,14 @@ Plans:
 5. Context flags work across patch, delete, query, and get commands
 6. Context respects expanded symbol boundaries when used with `--expand` flag
 
-**Plans**: TBD
+**Plans**: 5 plans in 5 waves
 
 Plans:
-- [ ] 14-01: Implement `-A`, `-B`, `-C` flag parsing with defaults
-- [ ] 14-02: Add context extraction logic for all output formats
-- [ ] 14-03: Integrate context flags into patch, delete, query, and get commands
-- [ ] 14-04: Ensure context respects symbol expansion boundaries
-- [ ] 14-05: Test context extraction on large files (>32KB) for performance
+- [ ] 14-01-PLAN.md — Add -A, -B, -C context flags to Delete, Patch, Query commands
+- [ ] 14-02-PLAN.md — Add -A, -B, -C context flags to Get, ApplyFiles commands
+- [ ] 14-03-PLAN.md — Implement asymmetric context extraction function
+- [ ] 14-04-PLAN.md — Wire context flags through main.rs with grep-style resolution
+- [ ] 14-05-PLAN.md — Complete remaining command integration and add human-readable context display
 
 #### Phase 15: Enhanced Errors
 
@@ -249,4 +249,4 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%) ✅
-- v2.2: 35/51 plans planned (69%) 🚧
+- v2.2: 40/51 plans planned (78%) 🚧
