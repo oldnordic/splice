@@ -59,9 +59,17 @@ pub enum Commands {
         #[arg(long, value_name = "LANG")]
         language: Option<Language>,
 
-        /// Number of context lines before/after spans (default: 3).
-        #[arg(long, value_name = "N", default_value = "3")]
-        context_lines: usize,
+        /// Number of context lines after the match.
+        #[arg(short = 'A', long, value_name = "N", default_value = "0")]
+        context_after: usize,
+
+        /// Number of context lines before the match.
+        #[arg(short = 'B', long, value_name = "N", default_value = "0")]
+        context_before: usize,
+
+        /// Number of context lines before and after the match (default: 3).
+        #[arg(short = 'C', long, value_name = "N", default_value = "3")]
+        context: usize,
 
         /// Create a backup before deleting.
         #[arg(long)]
@@ -123,9 +131,17 @@ pub enum Commands {
         #[arg(long, value_name = "FILE")]
         batch: Option<std::path::PathBuf>,
 
-        /// Number of context lines before/after spans (default: 3).
-        #[arg(long, value_name = "N", default_value = "3")]
-        context_lines: usize,
+        /// Number of context lines after the match.
+        #[arg(short = 'A', long, value_name = "N", default_value = "0")]
+        context_after: usize,
+
+        /// Number of context lines before the match.
+        #[arg(short = 'B', long, value_name = "N", default_value = "0")]
+        context_before: usize,
+
+        /// Number of context lines before and after the match (default: 3).
+        #[arg(short = 'C', long, value_name = "N", default_value = "3")]
+        context_both: usize,
 
         /// Preview changes without applying (alias: --dry-run, -n).
         #[arg(short = 'n', long = "dry-run", alias = "preview", conflicts_with = "batch")]
@@ -224,9 +240,17 @@ pub enum Commands {
         #[arg(short, long)]
         label: Vec<String>,
 
-        /// Number of context lines before/after spans (default: 3).
-        #[arg(long, value_name = "N", default_value = "3")]
-        context_lines: usize,
+        /// Number of context lines after the match.
+        #[arg(short = 'A', long, value_name = "N", default_value = "0")]
+        context_after: usize,
+
+        /// Number of context lines before the match.
+        #[arg(short = 'B', long, value_name = "N", default_value = "0")]
+        context_before: usize,
+
+        /// Number of context lines before and after the match (default: 3).
+        #[arg(short = 'C', long, value_name = "N", default_value = "3")]
+        context_both: usize,
 
         /// List all available labels.
         #[arg(long)]
@@ -263,9 +287,17 @@ pub enum Commands {
         #[arg(long)]
         end: usize,
 
-        /// Number of context lines before/after spans (default: 3).
-        #[arg(long, value_name = "N", default_value = "3")]
-        context_lines: usize,
+        /// Number of context lines after the match.
+        #[arg(short = 'A', long, value_name = "N", default_value = "0")]
+        context_after: usize,
+
+        /// Number of context lines before the match.
+        #[arg(short = 'B', long, value_name = "N", default_value = "0")]
+        context_before: usize,
+
+        /// Number of context lines before and after the match (default: 3).
+        #[arg(short = 'C', long, value_name = "N", default_value = "3")]
+        context_both: usize,
 
         /// Include relationship information in output.
         #[arg(long)]

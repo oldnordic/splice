@@ -8,6 +8,119 @@ use std::path::Path;
 
 use crate::output::SpanContext;
 
+/// Extract context lines for a byte span with separate before/after context.
+///
+/// Given a file path and byte range, extracts lines before, within, and after
+/// the span. Uses UTF-8 byte offsets consistent with span coordinates.
+///
+/// # Arguments
+///
+/// * `path` - File path to read
+/// * `byte_start` - Start byte offset (must be <= byte_end)
+/// * `byte_end` - End byte offset (must be <= file size)
+/// * `context_lines_before` - Number of context lines before (default: 0)
+/// * `context_lines_after` - Number of context lines after (default: 0)
+///
+/// # Returns
+///
+/// * `Ok(SpanContext)` - Extracted context with before/selected/after arrays
+/// * `Err(SpliceError)` - If file cannot be read or span is invalid
+///
+/// # Examples
+///
+/// ```no_run
+/// use splice::context::extract_context_with_before_after;
+/// use std::path::Path;
+///
+/// let context = extract_context_with_before_after(Path::new("src/main.rs"), 100, 200, 2, 5)?;
+/// println!("Before: {} lines, After: {} lines", context.before.len(), context.after.len());
+/// # Ok::<(), splice::error::SpliceError>(())
+/// ```
+pub fn extract_context_with_before_after(
+    path: &Path,
+    byte_start: usize,
+    byte_end: usize,
+    context_lines_before: usize,
+    context_lines_after: usize,
+) -> Result<SpanContext> {
+    use ropey::Rope;
+
+    // Validate byte range
+    if byte_start > byte_end {
+        return Err(SpliceError::InvalidSpan {
+            file: path.to_path_buf(),
+            start: byte_start,
+            end: byte_end,
+            file_size: 0, // Will be updated after read
+        });
+    }
+
+    // Read file
+    let contents = std::fs::read(path).map_err(|e| SpliceError::IoContext {
+        context: format!("Failed to read file for context extraction: {}", path.display()),
+        source: e,
+    })?;
+
+    let file_size = contents.len();
+
+    // Validate end is within file
+    if byte_end > file_size {
+        return Err(SpliceError::InvalidSpan {
+            file: path.to_path_buf(),
+            start: byte_start,
+            end: byte_end,
+            file_size,
+        });
+    }
+
+    // Handle empty file case
+    if file_size == 0 {
+        return Ok(SpanContext {
+            before: vec![],
+            selected: vec![],
+            after: vec![],
+        });
+    }
+
+    // Create Rope for efficient line operations (UTF-8 aware)
+    let rope = Rope::from_str(std::str::from_utf8(&contents).map_err(|e| {
+        SpliceError::InvalidUtf8 {
+            file: path.to_path_buf(),
+            source: e,
+        }
+    })?);
+
+    // Convert byte offsets to line numbers (0-based)
+    let start_line = rope.byte_to_line(byte_start);
+    let end_line = rope.byte_to_line(byte_end.saturating_sub(1));
+
+    // Calculate context boundaries with separate before/after
+    let context_start = start_line.saturating_sub(context_lines_before);
+    let context_end = (end_line + context_lines_after + 1).min(rope.len_lines());
+
+    // Extract before lines
+    let before: Vec<String> = (context_start..start_line)
+        .map(|i| rope.line(i).to_string())
+        .collect();
+
+    // Extract selected lines (the span itself)
+    let selected: Vec<String> = (start_line..=end_line)
+        .map(|i| rope.line(i).to_string())
+        .collect();
+
+    // Extract after lines (filter out empty trailing line from ropey behavior)
+    let after: Vec<String> = (end_line + 1..context_end)
+        .map(|i| rope.line(i).to_string())
+        .filter(|line| !line.is_empty())
+        .collect();
+
+    Ok(SpanContext {
+        before,
+        selected,
+        after,
+    })
+}
+
 /// Extract context lines for a byte span.
 ///
 /// Given a file path and byte range, extracts lines before, within, and after

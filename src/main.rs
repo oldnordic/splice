@@ -29,14 +29,20 @@ fn main() -> ExitCode {
             kind,
             analyzer,
             language,
-            context_lines,
+            context_after,
+            context_before,
+            context,
             create_backup,
             relationships,
             dry_run,
             unified,
             operation_id,
             metadata,
-        } => execute_delete(&file, &symbol, kind, analyzer, language, context_lines, create_backup, relationships, dry_run, unified, operation_id, metadata, json_output),
+        } => {
+            // Compute context lines: use max of all flags (follows grep convention)
+            let context_lines = context_after.max(context_before).max(context);
+            execute_delete(&file, &symbol, kind, analyzer, language, context_lines, create_backup, relationships, dry_run, unified, operation_id, metadata, json_output)
+        },
 
         splice::cli::Commands::Patch {
             file,
@@ -46,31 +52,36 @@ fn main() -> ExitCode {
             with_: replacement_file,
             language,
             batch,
-            context_lines,
+            context_after,
+            context_before,
+            context_both,
             preview,
             unified,
             create_backup,
             relationships,
             operation_id,
             metadata,
-        } => match batch {
-            Some(batch_path) => execute_patch_batch(&batch_path, analyzer, language, create_backup, operation_id, metadata, json_output),
-            None => execute_single_patch(
-                file,
-                symbol,
-                kind,
-                analyzer,
-                replacement_file,
-                language,
-                context_lines,
-                preview,
-                unified,
-                create_backup,
-                relationships,
-                operation_id,
-                metadata,
-                json_output,
-            ),
+        } => {
+            let context_lines = context_after.max(context_before).max(context_both);
+            match batch {
+                Some(batch_path) => execute_patch_batch(&batch_path, analyzer, language, create_backup, operation_id, metadata, json_output),
+                None => execute_single_patch(
+                    file,
+                    symbol,
+                    kind,
+                    analyzer,
+                    replacement_file,
+                    language,
+                    context_lines,
+                    preview,
+                    unified,
+                    create_backup,
+                    relationships,
+                    operation_id,
+                    metadata,
+                    json_output,
+                ),
+            }
         },
 
         splice::cli::Commands::Plan { file, operation_id, metadata } => {
@@ -94,21 +105,31 @@ fn main() -> ExitCode {
         splice::cli::Commands::Query {
             db,
             label,
-            context_lines,
+            context_after,
+            context_before,
+            context_both,
             list,
             count,
             show_code,
             relationships,
-        } => execute_query(&db, &label, context_lines, list, count, show_code, relationships, json_output),
+        } => {
+            let context_lines = context_after.max(context_before).max(context_both);
+            execute_query(&db, &label, context_lines, list, count, show_code, relationships, json_output)
+        },
 
         splice::cli::Commands::Get {
             db,
             file,
             start,
             end,
-            context_lines,
+            context_after,
+            context_before,
+            context_both,
             relationships,
-        } => execute_get(&db, &file, start, end, context_lines, relationships, json_output),
+        } => {
+            let context_lines = context_after.max(context_before).max(context_both);
+            execute_get(&db, &file, start, end, context_lines, relationships, json_output)
+        },
 
         splice::cli::Commands::Log {
             operation_type,
