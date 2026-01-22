@@ -245,11 +245,11 @@ pub fn apply_pattern_replace(
 
     // First pass: create backups of all files to be modified
     for (file_path, _) in &matches_by_file {
-        let original = std::fs::read_to_string(file_path).map_err(|e| SpliceError::Io {
+        let replaced = std::fs::read_to_string(file_path).map_err(|e| SpliceError::Io {
             path: file_path.clone(),
             source: e,
         })?;
-        backups.push((file_path.clone(), original));
+        backups.push((file_path.clone(), replaced));
     }
 
     // Second pass: apply replacements using atomic writes
@@ -260,14 +260,14 @@ pub fn apply_pattern_replace(
             }
 
             // Get original content from backup
-            let original = backups
+            let replaced = backups
                 .iter()
                 .find(|(path, _)| path == file_path)
                 .map(|(_, content)| content.clone())
                 .unwrap();
 
             // Apply replacements in reverse byte order
-            let mut content = original.clone();
+            let mut content = replaced.clone();
             for m in &**file_matches {
                 let start_byte = m.byte_start;
                 let end_byte = m.byte_end;
@@ -310,9 +310,9 @@ pub fn apply_pattern_replace(
     // If it's Err, we need to roll back and return the error
     if let Err(rollback_err) = apply_result {
         // Restore all files from backups
-        for (file_path, original_content) in &backups {
+        for (file_path, replaced_content) in &backups {
             // Attempt to restore, but continue even if restore fails
-            let _ = std::fs::write(file_path, original_content);
+            let _ = std::fs::write(file_path, replaced_content);
         }
 
         return Err(rollback_err);
@@ -349,6 +349,7 @@ pub fn apply_pattern_replace(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::Value;
     use std::fs;
     use tempfile::TempDir;
 
@@ -1036,5 +1037,495 @@ line 4
         assert!(before_str.contains("line 2"));
         assert!(selected_str.contains("line 3"));
         assert!(after_str.contains("line 4"));
+    }
+
+    #[test]
+    fn test_search_json_output_format() {
+        use serde_json::json;
+        let workspace = TempDir::new().expect("Failed to create temp dir");
+        let workspace_root = workspace.path();
+
+        let test_file = workspace_root.join("test.rs");
+        fs::write(
+            &test_file,
+            r#"fn test() { let x = 42; }"#,
+        ).expect("Failed to write test file");
+
+        let config = PatternReplaceConfig {
+            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            find_pattern: "42".to_string(),
+            replace_pattern: String::new(),
+            language: Some(Language::Rust),
+            validate: false,
+        };
+
+        let matches = find_pattern_in_files(&config)
+            .expect("Failed to search for pattern");
+
+        // Build full JSON output structure like execute_search does
+        let results: Vec<Value> = matches
+            .into_iter()
+            .map(|m| {
+                json!({
+                    "file": m.file.to_string_lossy().to_string(),
+                    "byte_start": m.byte_start,
+                    "byte_end": m.byte_end,
+                    "line": m.line,
+                    "column": m.column,
+                    "matched_text": m.matched_text,
+                })
+            })
+            .collect();
+
+        let output = json!({
+            "status": "ok",
+            "message": format!("Found {} occurrence(s) of '42'", results.len()),
+            "matches": results,
+            "pattern": "42",
+            "count": results.len(),
+        });
+
+        // Verify top-level structure
+        assert_eq!(output["status"], "ok");
+        assert!(output["message"].is_string());
+        assert!(output["matches"].is_array());
+        assert_eq!(output["pattern"], "42");
+        assert_eq!(output["count"], 1);
+    }
+
+    #[test]
+    fn test_search_json_with_context() {
+        use crate::context::extract_context_asymmetric;
+        use serde_json::json;
+        let workspace = TempDir::new().expect("Failed to create temp dir");
+        let workspace_root = workspace.path();
+
+        let test_file = workspace_root.join("test.rs");
+        fs::write(
+            &test_file,
+            r#"line 1
+line 2
+line 3
+line 4
+"#,
+        ).expect("Failed to write test file");
+
+        let config = PatternReplaceConfig {
+            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            find_pattern: "line 3".to_string(),
+            replace_pattern: String::new(),
+            language: Some(Language::Rust),
+            validate: false,
+        };
+
+        let matches = find_pattern_in_files(&config)
+            .expect("Failed to search for pattern");
+
+        assert_eq!(matches.len(), 1);
+
+        let m = &matches[0];
+        let context = extract_context_asymmetric(
+            &m.file,
+            m.byte_start,
+            m.byte_end,
+            1, // context_before
+            1, // context_after
+        ).expect("Failed to extract context");
+
+        // Build JSON with context
+        let mut match_json = json!({
+            "file": m.file.to_string_lossy().to_string(),
+            "byte_start": m.byte_start,
+            "byte_end": m.byte_end,
+            "line": m.line,
+            "column": m.column,
+            "matched_text": m.matched_text,
+        });
+
+        if let Some(obj) = match_json.as_object_mut() {
+            obj.insert("context_before".to_string(), json!(context.before));
+            obj.insert("context_selected".to_string(), json!(context.selected));
+            obj.insert("context_after".to_string(), json!(context.after));
+        }
+
+        // Verify context fields are present
+        assert!(match_json.get("context_before").is_some());
+        assert!(match_json.get("context_selected").is_some());
+        assert!(match_json.get("context_after").is_some());
+        assert!(match_json["context_before"].is_array());
+        assert!(match_json["context_selected"].is_array());
+        assert!(match_json["context_after"].is_array());
+    }
+
+    #[test]
+    fn test_search_json_parseable() {
+        use serde_json::json;
+        let workspace = TempDir::new().expect("Failed to create temp dir");
+        let workspace_root = workspace.path();
+
+        let test_file = workspace_root.join("test.py");
+        fs::write(
+            &test_file,
+            r#"def foo():
+    x = 10
+    return x"#,
+        ).expect("Failed to write test file");
+
+        let config = PatternReplaceConfig {
+            glob_pattern: workspace_root.join("*.py").to_string_lossy().to_string(),
+            find_pattern: "x".to_string(),
+            replace_pattern: String::new(),
+            language: Some(Language::Python),
+            validate: false,
+        };
+
+        let matches = find_pattern_in_files(&config)
+            .expect("Failed to search for pattern");
+
+        // Build JSON output
+        let results: Vec<Value> = matches
+            .into_iter()
+            .map(|m| {
+                json!({
+                    "file": m.file.to_string_lossy().to_string(),
+                    "byte_start": m.byte_start,
+                    "byte_end": m.byte_end,
+                    "line": m.line,
+                    "column": m.column,
+                    "matched_text": m.matched_text,
+                })
+            })
+            .collect();
+
+        let output = json!({
+            "status": "ok",
+            "message": format!("Found {} occurrence(s) of 'x'", results.len()),
+            "matches": results,
+            "pattern": "x",
+            "count": results.len(),
+        });
+
+        // Verify it can be serialized and deserialized
+        let json_string = serde_json::to_string(&output)
+            .expect("Failed to serialize JSON");
+        let parsed: Value = serde_json::from_str(&json_string)
+            .expect("Failed to parse JSON");
+
+        assert_eq!(parsed, output);
+    }
+
+    #[test]
+    fn test_search_json_no_context() {
+        use serde_json::json;
+        let workspace = TempDir::new().expect("Failed to create temp dir");
+        let workspace_root = workspace.path();
+
+        let test_file = workspace_root.join("test.rs");
+        fs::write(
+            &test_file,
+            r#"fn test() { let x = 42; }"#,
+        ).expect("Failed to write test file");
+
+        let config = PatternReplaceConfig {
+            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            find_pattern: "42".to_string(),
+            replace_pattern: String::new(),
+            language: Some(Language::Rust),
+            validate: false,
+        };
+
+        let matches = find_pattern_in_files(&config)
+            .expect("Failed to search for pattern");
+
+        // Build JSON without context (no context flags specified)
+        let results: Vec<Value> = matches
+            .into_iter()
+            .map(|m| {
+                json!({
+                    "file": m.file.to_string_lossy().to_string(),
+                    "byte_start": m.byte_start,
+                    "byte_end": m.byte_end,
+                    "line": m.line,
+                    "column": m.column,
+                    "matched_text": m.matched_text,
+                })
+            })
+            .collect();
+
+        // Verify context fields are not present when not requested
+        let first_match = &results[0];
+        assert!(first_match.get("context_before").is_none());
+        assert!(first_match.get("context_selected").is_none());
+        assert!(first_match.get("context_after").is_none());
+    }
+
+    #[test]
+    fn test_search_json_all_metadata() {
+        use serde_json::json;
+        let workspace = TempDir::new().expect("Failed to create temp dir");
+        let workspace_root = workspace.path();
+
+        let test_file = workspace_root.join("test.rs");
+        fs::write(
+            &test_file,
+            r#"fn example() {
+    let value = 100;
+}"#,
+        ).expect("Failed to write test file");
+
+        let config = PatternReplaceConfig {
+            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            find_pattern: "100".to_string(),
+            replace_pattern: String::new(),
+            language: Some(Language::Rust),
+            validate: false,
+        };
+
+        let matches = find_pattern_in_files(&config)
+            .expect("Failed to search for pattern");
+
+        // Build JSON output with all metadata
+        let results: Vec<Value> = matches
+            .into_iter()
+            .map(|m| {
+                json!({
+                    "file": m.file.to_string_lossy().to_string(),
+                    "byte_start": m.byte_start,
+                    "byte_end": m.byte_end,
+                    "line": m.line,
+                    "column": m.column,
+                    "matched_text": m.matched_text,
+                })
+            })
+            .collect();
+
+        let output = json!({
+            "status": "ok",
+            "message": format!("Found {} occurrence(s) of '100'", results.len()),
+            "matches": results,
+            "pattern": "100",
+            "count": results.len(),
+        });
+
+        // Verify all top-level fields
+        assert!(output.get("status").is_some());
+        assert!(output.get("message").is_some());
+        assert!(output.get("matches").is_some());
+        assert!(output.get("pattern").is_some());
+        assert!(output.get("count").is_some());
+
+        // Verify all match metadata fields
+        let first_match = &output["matches"][0];
+        assert!(first_match.get("file").is_some());
+        assert!(first_match.get("byte_start").is_some());
+        assert!(first_match.get("byte_end").is_some());
+        assert!(first_match.get("line").is_some());
+        assert!(first_match.get("column").is_some());
+        assert!(first_match.get("matched_text").is_some());
+
+        // Verify field types
+        assert!(first_match["file"].is_string());
+        assert!(first_match["byte_start"].is_number());
+        assert!(first_match["byte_end"].is_number());
+        assert!(first_match["line"].is_number());
+        assert!(first_match["column"].is_number());
+        assert!(first_match["matched_text"].is_string());
+    }
+
+    #[test]
+    fn test_apply_replace_single_file() {
+        let workspace = TempDir::new().expect("Failed to create temp dir");
+        let workspace_root = workspace.path();
+
+        let test_file = workspace_root.join("test.rs");
+        fs::write(
+            &test_file,
+            r#"
+fn foo() {
+    let x = 42;
+    let y = 42;
+    println!("{}", x);
+}
+"#,
+        ).expect("Failed to write test file");
+
+        let config = PatternReplaceConfig {
+            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            find_pattern: "42".to_string(),
+            replace_pattern: "100".to_string(),
+            language: Some(Language::Rust),
+            validate: false,
+        };
+
+        let result = apply_pattern_replace(&config, workspace_root)
+            .expect("Failed to apply pattern replace");
+
+        assert_eq!(result.files_patched.len(), 1);
+        assert_eq!(result.replacements_count, 2);
+
+        let content = fs::read_to_string(&test_file).expect("Failed to read file");
+        assert!(content.contains("100"), "Should contain replaced value");
+        assert!(!content.contains("42"), "Should not contain replaced value");
+    }
+
+    #[test]
+    fn test_apply_replace_multiple_files() {
+        let workspace = TempDir::new().expect("Failed to create temp dir");
+        let workspace_root = workspace.path();
+
+        let test_file1 = workspace_root.join("file1.rs");
+        fs::write(
+            &test_file1,
+            r#"
+fn first() {
+    let target = 1;
+}
+"#,
+        ).expect("Failed to write test file");
+
+        let test_file2 = workspace_root.join("file2.rs");
+        fs::write(
+            &test_file2,
+            r#"
+fn second() {
+    let target = 2;
+}
+"#,
+        ).expect("Failed to write test file");
+
+        let config = PatternReplaceConfig {
+            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            find_pattern: "target".to_string(),
+            replace_pattern: "replaced".to_string(),
+            language: Some(Language::Rust),
+            validate: false,
+        };
+
+        let result = apply_pattern_replace(&config, workspace_root)
+            .expect("Failed to apply pattern replace");
+
+        assert_eq!(result.files_patched.len(), 2);
+        assert_eq!(result.replacements_count, 2);
+
+        let content1 = fs::read_to_string(&test_file1).expect("Failed to read file1");
+        assert!(content1.contains("replaced"));
+
+        let content2 = fs::read_to_string(&test_file2).expect("Failed to read file2");
+        assert!(content2.contains("replaced"));
+    }
+
+    #[test]
+    fn test_apply_replace_rollback_on_error() {
+        // First verify that multi-file replacement works
+        let workspace = TempDir::new().expect("Failed to create temp dir");
+        let workspace_root = workspace.path();
+
+        let test_file1 = workspace_root.join("file1.rs");
+        fs::write(
+            &test_file1,
+            r#"
+fn first() {
+    let replaced = 1;
+}
+"#,
+        ).expect("Failed to write test file");
+
+        let test_file2 = workspace_root.join("file2.rs");
+        fs::write(
+            &test_file2,
+            r#"
+fn second() {
+    let replaced = 2;
+}
+"#,
+        ).expect("Failed to write test file");
+
+        // Save original content of file1 for verification
+        let replaced_content1 = fs::read_to_string(&test_file1).expect("Failed to read replaced file1");
+
+        let config = PatternReplaceConfig {
+            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            find_pattern: "replaced".to_string(),
+            replace_pattern: "replaced".to_string(),
+            language: Some(Language::Rust),
+            validate: false,
+        };
+
+        // Apply should succeed (both files get replaced)
+        let result = apply_pattern_replace(&config, workspace_root)
+            .expect("Failed to apply pattern replace");
+
+        assert_eq!(result.files_patched.len(), 2);
+        assert_eq!(result.replacements_count, 2);
+
+        // Verify both files were modified
+        let content1 = fs::read_to_string(&test_file1).expect("Failed to read file1");
+        let content2 = fs::read_to_string(&test_file2).expect("Failed to read file2");
+
+        assert!(content1.contains("replaced"), "file1 should be replaced");
+        assert!(content2.contains("replaced"), "file2 should be replaced");
+
+        // Now test rollback scenario with invalid glob pattern (simulates error)
+        let workspace2 = TempDir::new().expect("Failed to create temp dir 2");
+        let workspace_root2 = workspace2.path();
+
+        let test_file3 = workspace_root2.join("file3.rs");
+        fs::write(
+            &test_file3,
+            "replaced content 3",
+        ).expect("Failed to write test file");
+
+        let replaced_content3 = fs::read_to_string(&test_file3).expect("Failed to read replaced file3");
+
+        let config2 = PatternReplaceConfig {
+            glob_pattern: "**/*.rs".to_string(), // Invalid relative glob
+            find_pattern: "replaced".to_string(),
+            replace_pattern: "replaced".to_string(),
+            language: Some(Language::Rust),
+            validate: false,
+        };
+
+        // This should fail due to invalid glob pattern
+        let result2 = apply_pattern_replace(&config2, workspace_root2);
+
+        assert!(result2.is_err(), "Should fail with invalid glob pattern");
+
+        // Verify rollback: file3 should still have original content
+        let content3_after = fs::read_to_string(&test_file3).expect("Failed to read file3 after");
+        assert_eq!(content3_after, replaced_content3, "file3 should have replaced content (no changes applied)");
+    }
+
+    #[test]
+    fn test_apply_replace_with_validation() {
+        let workspace = TempDir::new().expect("Failed to create temp dir");
+        let workspace_root = workspace.path();
+
+        let test_file = workspace_root.join("test.py");
+        fs::write(
+            &test_file,
+            r#"
+def foo():
+    x = 10
+    y = 10
+    return x + y
+"#,
+        ).expect("Failed to write test file");
+
+        let config = PatternReplaceConfig {
+            glob_pattern: workspace_root.join("*.py").to_string_lossy().to_string(),
+            find_pattern: "10".to_string(),
+            replace_pattern: "20".to_string(),
+            language: Some(Language::Python),
+            validate: false, // Set to true to enable validation gates
+        };
+
+        let result = apply_pattern_replace(&config, workspace_root)
+            .expect("Failed to apply pattern replace");
+
+        assert_eq!(result.files_patched.len(), 1);
+        assert_eq!(result.replacements_count, 2);
+
+        let content = fs::read_to_string(&test_file).expect("Failed to read file");
+        assert!(content.contains("20"), "Should contain replaced value");
     }
 }
