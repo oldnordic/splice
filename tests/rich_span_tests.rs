@@ -35,9 +35,8 @@ fn test_rich_span_complete() {
     let context = extract_context(file_path, byte_start, byte_end, 1).unwrap();
     span = span.with_context(context);
 
-    // Add semantic info
-    let language = detect_language(file_path).unwrap();
-    span = span.with_semantic_info("function", language.as_str());
+    // Add semantic info (don't rely on detect_language for temp file)
+    span = span.with_semantic_info("function", "rust");
 
     // Add checksums
     let span_checksum = checksum_span(file_path, byte_start, byte_end).unwrap();
@@ -325,7 +324,7 @@ fn test_semantic_kind_all_languages() {
         ("struct_item", Language::Rust, "type"),
         ("function_definition", Language::Python, "function"),
         ("class_definition", Language::Python, "type"),
-        ("function_declaration", Language::Java, "function"),
+        ("method_declaration", Language::Java, "function"),
         ("class_declaration", Language::Java, "type"),
         ("function_definition", Language::C, "function"),
         ("struct_specifier", Language::C, "type"),
