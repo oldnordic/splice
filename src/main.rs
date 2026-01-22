@@ -93,8 +93,8 @@ fn main() -> ExitCode {
             list,
             count,
             show_code,
-            relationships: _,
-        } => execute_query(&db, &label, context_lines, list, count, show_code, json_output),
+            relationships,
+        } => execute_query(&db, &label, context_lines, list, count, show_code, relationships, json_output),
 
         splice::cli::Commands::Get {
             db,
@@ -447,6 +447,10 @@ fn execute_delete(
         use splice::checksum;
         use splice::context;
         use splice::ingest::{detect as ingest_detect, dispatch};
+        use splice::ingest::semantic_kind::SemanticKind;
+        use splice::hints::{derive_tool_hints, ToolHintOperation};
+        use splice::action::{ActionType, Confidence};
+        use splice::action::SuggestedAction;
         use splice::symbol::AnySymbol;
         use std::path::Path;
 
@@ -531,6 +535,50 @@ fn execute_delete(
             };
 
             def_span = def_span.with_semantic_info(sem_kind_str, lang.as_str());
+
+            // Infer SemanticKind from the semantic kind string
+            let sem_kind = match sem_kind_str {
+                "function" => SemanticKind::Function,
+                "type" => SemanticKind::Type,
+                "trait" => SemanticKind::Trait,
+                "enum" => SemanticKind::Enum,
+                "module" => SemanticKind::Module,
+                "type_alias" => SemanticKind::TypeAlias,
+                "constant" => SemanticKind::Constant,
+                _ => SemanticKind::Unknown,
+            };
+
+            // Infer is_public from semantic kind (default to true for functions, types, traits, enums)
+            let is_public = matches!(sem_kind, SemanticKind::Function | SemanticKind::Type | SemanticKind::Trait | SemanticKind::Enum);
+
+            // Derive tool hints for delete operation
+            let hints = derive_tool_hints(sem_kind, is_public, ToolHintOperation::DeleteBody);
+            def_span = def_span.with_tool_hints(hints);
+
+            // Determine confidence based on whether there are callers
+            let has_callers = !ref_set.references.is_empty();
+            let confidence = if has_callers { Confidence::Medium } else { Confidence::High };
+
+            // Generate suggested action for delete
+            let reason = if has_callers {
+                format!("Delete symbol '{}' ({}) at {} - has {} callers, may break dependencies",
+                    symbol_name, sem_kind_str, file_path.to_string_lossy(), ref_set.references.len())
+            } else {
+                format!("Delete symbol '{}' ({}) at {} - safe to delete, no callers",
+                    symbol_name, sem_kind_str, file_path.to_string_lossy())
+            };
+
+            let action = SuggestedAction {
+                action_type: ActionType::Delete,
+                confidence,
+                reason,
+                params: {
+                    let mut p = std::collections::HashMap::new();
+                    p.insert("remove_references".to_string(), serde_json::Value::Bool(true));
+                    Some(p)
+                },
+            };
+            def_span = def_span.with_suggested_action(action);
         }
 
         // Add checksums for definition span
@@ -1644,6 +1692,7 @@ fn execute_query(
     list: bool,
     count: bool,
     show_code: bool,
+    relationships: bool,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     #![allow(unused_variables)]
