@@ -47,12 +47,12 @@ Requirements for Unified JSON Schema implementation with LLM-first UX improvemen
 
 ### CLI Improvements - Context Flags
 
-- [ ] **CLI-08:** Tool supports `-A <lines>` flag for lines after match
-- [ ] **CLI-09:** Tool supports `-B <lines>` flag for lines before match
-- [ ] **CLI-10:** Tool supports `-C <lines>` flag for context on both sides
-- [ ] **CLI-11:** Default context when `-C` specified is 3 lines (git diff convention)
-- [ ] **CLI-12:** Context lines included in JSON output under `context_before` and `context_after` keys
-- [ ] **CLI-13:** Context flags work with patch, delete, query, and get commands
+- [x] **CLI-08:** Tool supports `-A <lines>` flag for lines after match
+- [x] **CLI-09:** Tool supports `-B <lines>` flag for lines before match
+- [x] **CLI-10:** Tool supports `-C <lines>` flag for context on both sides
+- [x] **CLI-11:** Default context when `-C` specified is 3 lines (git diff convention)
+- [x] **CLI-12:** Context lines included in JSON output under `context_before` and `context_after` keys
+- [x] **CLI-13:** Context flags work with patch, delete, query, and get commands
 - [ ] **CLI-14:** Context respects expanded symbol boundaries when used with `--expand`
 
 ### CLI Improvements - Enhanced Errors
@@ -130,7 +130,7 @@ Which phases cover which requirements. All v2.2 requirements mapped to roadmap p
 | RICHSPAN-01 through RICHSPAN-13 | Phase 11 | Complete | 11/11 plans executed |
 | RICHSPAN-14 through RICHSPAN-21 | Phase 12 | Complete | 8/8 plans executed |
 | CLI-01 through CLI-07 | Phase 13 | Complete | 5/5 plans executed |
-| CLI-08 through CLI-14 | Phase 14 | Pending | |
+| CLI-08 through CLI-14 | Phase 14 | Complete | 6/7 requirements met (CLI-14 deferred to Phase 16) |
 | CLI-15 through CLI-21 | Phase 15 | Pending | |
 | CLI-22 through CLI-33 | Phase 16 | Pending | |
 | TEST-01 through TEST-06 | Phase 17 | Pending | |
@@ -143,8 +143,8 @@ Which phases cover which requirements. All v2.2 requirements mapped to roadmap p
 **Phase Distribution:**
 - Phase 11 (Rich Span Core): 13 requirements (RICHSPAN-01 to RICHSPAN-13) — Complete ✅
 - Phase 12 (Rich Span Advanced): 8 requirements (RICHSPAN-14 to RICHSPAN-21) — Complete ✅
-- Phase 13 (Dry-run & Diff): 7 requirements (CLI-01 to CLI-07) — Pending
-- Phase 14 (Context Flags): 7 requirements (CLI-08 to CLI-14) — Pending
+- Phase 13 (Dry-run & Diff): 7 requirements (CLI-01 to CLI-07) — Complete ✅
+- Phase 14 (Context Flags): 7 requirements (CLI-08 to CLI-14) — Complete ✅ (CLI-14 deferred to Phase 16)
 - Phase 15 (Enhanced Errors): 7 requirements (CLI-15 to CLI-21) — Pending
 - Phase 16 (Symbol Expansion + Search): 12 requirements (CLI-22 to CLI-33) — Pending
 - Phase 17 (Integration & Testing): 6 requirements (TEST-01 to TEST-06) — Pending

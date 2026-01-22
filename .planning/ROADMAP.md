@@ -245,11 +245,11 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17
 | 11. Rich Span Core | v2.2 | 11/11 | Complete | 2026-01-22 |
 | 12. Rich Span Advanced | v2.2 | 8/8 | Complete | 2026-01-22 |
 | 13. Dry-run & Diff | v2.2 | 5/5 | Complete | 2026-01-22 |
-| 14. Context Flags | v2.2 | 0/5 | Not started | - |
+| 14. Context Flags | v2.2 | 5/5 | Complete | 2026-01-22 |
 | 15. Enhanced Errors | v2.2 | 0/6 | Not started | - |
 | 16. Symbol Expansion & Search | v2.2 | 0/11 | Not started | - |
 | 17. Integration & Testing | v2.2 | 0/6 | Not started | - |
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%) ✅
-- v2.2: 40/52 plans planned (77%) 🚧
+- v2.2: 45/52 plans complete (87%) 🚧
