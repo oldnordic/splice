@@ -71,6 +71,14 @@ pub enum Commands {
         #[arg(long)]
         relationships: bool,
 
+        /// Preview deletion without applying changes.
+        #[arg(short = 'n', long = "dry-run")]
+        dry_run: bool,
+
+        /// Number of context lines in unified diff (default: 3).
+        #[arg(short = 'U', long, value_name = "N", default_value = "3")]
+        unified: usize,
+
         /// Optional operation ID for auditing (auto-generated UUID if not provided).
         #[arg(long)]
         operation_id: Option<String>,

@@ -32,9 +32,11 @@ fn main() -> ExitCode {
             context_lines,
             create_backup,
             relationships,
+            dry_run,
+            unified,
             operation_id,
             metadata,
-        } => execute_delete(&file, &symbol, kind, analyzer, language, context_lines, create_backup, relationships, operation_id, metadata, json_output),
+        } => execute_delete(&file, &symbol, kind, analyzer, language, context_lines, create_backup, relationships, dry_run, unified, operation_id, metadata, json_output),
 
         splice::cli::Commands::Patch {
             file,
@@ -198,6 +200,8 @@ fn execute_delete(
     context_lines: usize,
     create_backup: bool,
     relationships: bool,
+    _dry_run: bool,
+    _unified: usize,
     operation_id: Option<String>,
     metadata: Option<String>,
     _json_output: bool,
