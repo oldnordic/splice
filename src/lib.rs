@@ -7,6 +7,7 @@
 // env_logger is used by src/main.rs (binary), not this library
 #![expect(unused_crate_dependencies)]
 
+pub mod action;
 pub mod checksum;
 pub mod cli;
 pub mod context;
@@ -14,10 +15,12 @@ pub mod error;
 pub mod error_codes;
 pub mod execution;
 pub mod graph;
+pub mod hints;
 pub mod ingest;
 pub mod output;
 pub mod patch;
 pub mod plan;
+pub mod relationships;
 pub mod resolve;
 pub mod symbol;
 pub mod validate;
@@ -38,6 +41,15 @@ pub use error_codes::{ErrorCode, ErrorSeverity, SpliceErrorCode};
 
 /// Re-export semantic kind detection for convenience.
 pub use ingest::{detect_semantic_kind, SemanticKind};
+
+/// Re-export tool hints for convenience.
+pub use hints::{ToolHints, ToolHintOperation, derive_tool_hints};
+
+/// Re-export action types for convenience.
+pub use action::{SuggestedAction, ActionType, Confidence, suggest_action};
+
+/// Re-export relationship types for convenience.
+pub use relationships::{Relationship, Relationships, RelationshipCache};
 
 /// Splice version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
