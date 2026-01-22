@@ -2132,17 +2132,52 @@ fn execute_query(
         for r in &results {
             let path = std::path::Path::new(&r.file_path);
 
-            // Create base span result
+            // Apply expansion if requested
+            let (expanded_start, expanded_end) = if expand && expand_level > 0 {
+                use splice::symbol::Language;
+                use splice::expand::expand_symbol_with_level;
+                use splice::ingest::detect as ingest_detect;
+
+                // Detect language from file path
+                let lang = ingest_detect::detect_language(path);
+
+                // Only proceed if language detection succeeded
+                match lang {
+                    Some(detected_lang) => {
+                        let language = match detected_lang {
+                            ingest_detect::Language::Rust => Language::Rust,
+                            ingest_detect::Language::Python => Language::Python,
+                            ingest_detect::Language::C => Language::C,
+                            ingest_detect::Language::Cpp => Language::Cpp,
+                            ingest_detect::Language::Java => Language::Java,
+                            ingest_detect::Language::JavaScript => Language::JavaScript,
+                            ingest_detect::Language::TypeScript => Language::TypeScript,
+                        };
+
+                        // Try to expand the symbol
+                        match expand_symbol_with_level(path, r.byte_start, language, expand_level) {
+                            Ok((exp_start, exp_end)) => (exp_start, exp_end),
+                            Err(_) => (r.byte_start, r.byte_end), // Fall back to original span on error
+                        }
+                    }
+                    None => (r.byte_start, r.byte_end), // Language detection failed, use original span
+                }
+            } else {
+                (r.byte_start, r.byte_end)
+            };
+
+            // Create base span result (use expanded span if expansion was requested)
+            let (span_start, span_end) = (expanded_start, expanded_end);
             let mut span = SpanResult::from_byte_span(
                 r.file_path.clone(),
-                r.byte_start,
-                r.byte_end,
+                span_start,
+                span_end,
             )
             .with_symbol(r.name.clone(), r.kind.clone());
 
-            // Add context if requested
+            // Add context if requested (use expanded span for context extraction)
             if ctx_before > 0 || ctx_after > 0 {
-                if let Ok(ctx) = context::extract_context_asymmetric(path, r.byte_start, r.byte_end, ctx_before, ctx_after) {
+                if let Ok(ctx) = context::extract_context_asymmetric(path, span_start, span_end, ctx_before, ctx_after) {
                     span = span.with_context(ctx);
                 }
             }
@@ -2184,8 +2219,8 @@ fn execute_query(
             );
             span = span.with_suggested_action(action);
 
-            // Add checksums
-            if let Ok(cs) = checksum::checksum_span(path, r.byte_start, r.byte_end) {
+            // Add checksums (use expanded span for checksum calculation)
+            if let Ok(cs) = checksum::checksum_span(path, span_start, span_end) {
                 span = span.with_checksum_before(cs.value);
             }
             if let Ok(file_cs) = checksum::checksum_file(path) {
