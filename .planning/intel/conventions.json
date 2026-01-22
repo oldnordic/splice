@@ -1,0 +1,168 @@
+{
+  "file_organization": {
+    "src/": {
+      "purpose": "Main source code directory",
+      "structure": {
+        "lib.rs": "Library entry point, re-exports public modules",
+        "cli/": "Command-line interface with argument parsing",
+        "graph/": "SQLiteGraph integration and schema definitions",
+        "ingest/": {
+          "mod.rs": "Main ingest orchestrator (currently incomplete)",
+          "rust.rs": "Rust-specific symbol extraction",
+          "python.rs": "Python-specific symbol extraction",
+          "cpp.rs": "C/C++ specific symbol extraction",
+          "java.rs": "Java-specific symbol extraction",
+          "javascript.rs": "JavaScript-specific symbol extraction",
+          "typescript.rs": "TypeScript-specific symbol extraction",
+          "detect.rs": "Language detection logic",
+          "dispatch.rs": "Multi-language dispatch logic",
+          "imports/": "Import extraction for each language",
+          "magellan.rs": "Magellan integration wrapper"
+        },
+        "patch/": "Patch replacement logic with validation",
+        "validate/": "Validation gates (tree-sitter + compiler)",
+        "plan/": "JSON plan orchestration",
+        "execution/": "Operation logging and audit trail",
+        "output/": "Structured JSON output formatting",
+        "checksum/": "SHA-256 computation and verification",
+        "symbol/": "Symbol type definitions",
+        "error/": "Error type definitions"
+      }
+    },
+    "docs/": {
+      "purpose": "Project documentation",
+      "structure": {
+        "PHILOSOPHY.md": "LLM-era tool design philosophy",
+        "MAGELLAN_INTEGRATION_PLAN.md": "Integration plan for Magellan v0.5.3",
+        "DIAGNOSTICS_HUMAN_LLM.md": "CLI diagnostics contract",
+        "BATCH_PATCH_SPEC.md": "Batch patching specification",
+        "MULTI_LANGUAGE_PLAN.md": "Multi-language support roadmap",
+        "TODO.md": "Future work and improvements"
+      }
+    }
+  },
+  "naming_conventions": {
+    "files": {
+      "pattern": "snake_case.rs",
+      "exceptions": ["mod.rs", "lib.rs"],
+      "organization": "Related functionality grouped in subdirectories"
+    },
+    "types": {
+      "structs": "PascalCase",
+      "enums": "PascalCase",
+      "traits": "PascalCase",
+      "functions": "snake_case",
+      "methods": "snake_case",
+      "variables": "snake_case",
+      "constants": "SCREAMING_SNAKE_CASE",
+      "modules": "snake_case"
+    },
+    "identifiers": {
+      "prefixes": {
+        "try_": "Functions that may fail",
+        "is_": "Boolean predicates",
+        "get_": "Property getters",
+        "set_": "Property setters",
+        "with_": "Builder pattern methods"
+      },
+      "descriptive_names": {
+        "minimum_length": 3,
+        "avoid_abbreviations": ["tmp", "flg", "cnt", "num"],
+        "clear_semantics": ["byte_span", "file_path", "symbol_name"]
+      }
+    }
+  },
+  "error_handling": {
+    "principles": [
+      "No unwrap() in production paths",
+      "Proper error propagation",
+      "User-friendly error messages",
+      "Context preservation"
+    ],
+    "types": {
+      "Result<T, SpliceError>": "Standard return type for fallible operations",
+      "SpliceError": "Centralized error type with variants",
+      "Error categories": ["SymbolNotFound", "ValidationFailed", "IoError", "Other"]
+    },
+    "patterns": {
+      "early_return": "? operator for error propagation",
+      "error_chaining": "Using context() method for additional info",
+      "custom_errors": "Specific error types for specific failure modes"
+    }
+  },
+  "documentation": {
+    "comments": {
+      "file_headers": "Purpose and overview of module",
+      "struct_docs": "Fields and their purposes",
+      "function_docs": {
+        "purpose": "What the function does",
+        "arguments": "Parameters with types",
+        "returns": "Return type and meaning",
+        "errors": "Possible error conditions",
+        "examples": "Usage examples when helpful"
+      },
+      "module_docs": "Public API overview and usage patterns"
+    },
+    "api_documentation": {
+      "style": "Rust doc comments",
+      "format": "CommonMark with code examples",
+      "targets": ["Library users", "CLI users", "Contributors"]
+    }
+  },
+  "testing": {
+    "structure": {
+      "unit_tests": "#[cfg(test)] in same file",
+      "integration_tests": "tests/ directory",
+      "test_coverage": "215+ tests passing",
+      "categories": [
+        "Core functionality",
+        "Multi-language support",
+        "Magellan integration",
+        "Cross-language compatibility"
+      ]
+    },
+    "conventions": {
+      "test_names": "descriptive_test_scenario",
+      "assert_messages": "Clear description of what's being tested",
+      "temporary_files": "Use tempfile crate for isolation",
+      "cleanup": "Remove temporary test artifacts"
+    }
+  },
+  "validation": {
+    "gates": [
+      "UTF-8 boundary validation",
+      "Pre-operation checksum computation",
+      "Tree-sitter reparse",
+      "Language-specific compiler check",
+      "Post-operation checksum verification"
+    ],
+    "rollback": "Atomic operations on any failure",
+    "compilers": {
+      "rust": "cargo check",
+      "python": "python -m py_compile",
+      "c": "gcc -fsyntax-only",
+      "cpp": "g++ -fsyntax-only",
+      "java": "javac",
+      "javascript": "node --check",
+      "typescript": "tsc --noEmit"
+    }
+  },
+  "output_format": {
+    "json_schema": "v2.0 structured output",
+    "required_fields": [
+      "version",
+      "operation_id",
+      "operation_type",
+      "status",
+      "timestamp",
+      "result"
+    ],
+    "metadata": {
+      "execution_id": "Unique identifier for operation",
+      "match_id": "Identifier for matched patterns",
+      "span_id": "Identifier for span operations",
+      "line/col": "Precise location tracking"
+    },
+    "ordering": "Deterministic sorting for reproducibility"
+  }
+}
