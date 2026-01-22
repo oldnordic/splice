@@ -206,6 +206,14 @@ Recent decisions affecting current work:
 - [16-09]: Language-specific extensions: rs, py, c, cpp, java, js, ts
 - [16-09]: All supported types with brace expansion: {rs,py,c,cpp,h,hpp,cc,cxx,java,js,mjs,cjs,ts,tsx}
 - [16-09]: 5 glob filtering tests verify recursive matching, extension filtering, and empty results
+- [16-10]: Search --apply and --replace flags enable atomic pattern replacement across files with rollback on failure
+- [16-10]: Atomic writes use tempfile crate with persist() for atomic file replacement
+- [16-10]: Rollback mechanism creates backups before any writes and restores on error or panic
+- [16-10]: catch_unwind catches panics during replacement for rollback, converting Box<dyn Any> to SpliceError
+- [16-11]: PatternMatch derives Serialize with optional context_before/context_after fields using serde(skip_serializing_if)
+- [16-11]: JSON output format structured with status, message, matches, pattern, count for LLM consumption
+- [16-11]: Context populated inline during JSON serialization for performance (avoids PatternMatch cloning)
+- [16-11]: 5 JSON tests validate schema, context handling, serialization, and metadata completeness
 - [16-09]: Context extraction reuses existing extract_context_asymmetric() infrastructure for consistency
 
 ### Pending Todos
@@ -242,7 +250,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 16-09 (Symbol Expansion and Search) - --glob flag for file pattern filtering
+Stopped at: Completed 16-11 (Symbol Expansion and Search) - JSON output format for search results
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -360,5 +368,5 @@ Resume file: None
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 16-09 (Symbol Expansion and Search) - --glob flag for file pattern filtering
+Stopped at: Completed 16-11 (Symbol Expansion and Search) - JSON output format for search results
 Resume file: None
