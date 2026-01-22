@@ -32,5 +32,8 @@ pub use graph::CodeGraph;
 pub use context::extract_context;
 pub use output::SpanContext;
 
+/// Re-export semantic kind detection for convenience.
+pub use ingest::{detect_semantic_kind, SemanticKind};
+
 /// Splice version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

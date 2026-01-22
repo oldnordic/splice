@@ -12,6 +12,7 @@ pub mod javascript;
 pub mod magellan;
 pub mod python;
 pub mod rust;
+pub mod semantic_kind;
 pub mod typescript;
 
 use crate::error::Result;
@@ -31,6 +32,7 @@ pub use javascript::{extract_javascript_symbols, JavaScriptSymbol, JavaScriptSym
 pub use magellan::{ingest_file_with_magellan, MagellanIngestor};
 pub use python::{extract_python_symbols, PythonSymbol, PythonSymbolKind};
 pub use rust::{extract_rust_symbols, RustSymbol, RustSymbolKind, Visibility};
+pub use semantic_kind::{detect_semantic_kind, SemanticKind};
 pub use typescript::{extract_typescript_symbols, TypeScriptSymbol, TypeScriptSymbolKind};
 
 /// Main ingest orchestrator.
