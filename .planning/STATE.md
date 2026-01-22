@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 13 of 17 (Dry-run & Diff) — IN PROGRESS 🔄
-Plan: 03 of ? in current phase
-Status: 3 plans complete, CLI flags for dry-run and unified context added
-Last activity: 2026-01-22 — Completed 13-03 (CLI Flags for Dry-Run and Unified Context)
+Plan: 04 of ? in current phase
+Status: 4 plans complete, unified diff output integrated into dry-run mode
+Last activity: 2026-01-22 — Completed 13-04 (Dry-run Diff Integration)
 
-Progress: [█████████████░░░░░░░] 73.75% (59/80 plans complete)
+Progress: [█████████████░░░░░░░] 75.00% (60/80 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 59 (31 v2.0 + 28 v2.2)
+- Total plans completed: 60 (31 v2.0 + 29 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~26.8 hours (24h v2.0 + 2.8h v2.2)
+- Total execution time: ~27.3 hours (24h v2.0 + 3.3h v2.2)
 
 **By Phase:**
 
@@ -30,15 +30,15 @@ Progress: [█████████████░░░░░░░] 73.75% 
 |-------|-------|-------|----------|
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
 | 11-12 (v2.2) | 25/25 | 2.6h | ~6 min |
-| 13 (v2.2) | 3/? | ~7 min | ~2 min |
-| **Total** | **59/80** | **~26.8h** | **~27 min** |
+| 13 (v2.2) | 4/? | ~14 min | ~4 min |
+| **Total** | **60/80** | **~27.3h** | **~27 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
 - Baseline velocity established: ~31 min/plan
 - v2.2 plans executing quickly (~1-11 min each)
 - Phase 12 complete: relationships, tool hints, suggested actions, SpanResult extension, CLI integration, performance tests (8/8 complete)
-- Phase 13 in progress: diff module, CLI flags for dry-run/unified context (3/3 plans complete)
+- Phase 13 in progress: diff module, CLI flags, unified diff integration (4/4 plans complete)
 - Rich span metadata fully integrated into CLI JSON output
 - Performance test suite validates relationship queries scale to 1K symbols
 
@@ -89,11 +89,17 @@ Recent decisions affecting current work:
 - [13-03]: Dry-run aliases follow CLI conventions - short flag -n, long flag --dry-run, alias --preview for backward compatibility
 - [13-03]: Unified context flag uses -U <N> pattern following git diff -U<n> convention
 - [13-03]: Unused parameters prefixed with underscore (_dry_run, _unified) until implementation in plan 13-04
+- [13-04]: Git-style summary header format with proper singular/plural (file/files, insertion/insertions, deletion/deletions)
+- [13-04]: Dry-run pattern: show summary header + unified diff, then exit with preview message
+- [13-04]: Color detection priority: NO_COLOR first (accessibility), then TTY detection, JSON mode overrides both
+- [13-04]: preview_patch_with_content() extends preview_patch() to return before/after content for diff generation
+- [13-04]: Ropey used for deletion simulation (maintains byte-level precision consistent with patch logic)
+- [13-04]: Backward compatibility preserved - original preview_patch() unchanged
 
 ### Pending Todos
 
 **Next Phase:**
-- Phase 13 planning continues (Dry-run & Diff) - 3/? plans complete
+- Phase 13 planning continues (Dry-run & Diff) - 4/? plans complete
 - Integration testing with real LLM agents consuming JSON output
 - CALLS edge creation implementation during code ingestion to enable real relationship queries
 
@@ -155,10 +161,12 @@ Resume file: None
 - Relationships integrated into all four CLI commands (Query, Get, Delete, Patch)
 - Tool hints and suggested action integrated into all four CLI commands (Delete, Patch, Query, Get)
 - Performance test suite validates relationship queries scale to 1K symbols (small: <10ms, large: <100ms)
-- Diff module created: src/diff/mod.rs (339 lines, 4 public functions, 13 tests)
+- Diff module created: src/diff/mod.rs (392 lines, 5 public functions, 21 tests)
 - Diff dependencies added: similar (2.6), nu-ansi-term (0.50), is-terminal (0.4)
 - Diff functions accessible from splice crate root: format_unified_diff, should_use_color, format_colored_diff, format_diff_summary
-- Verification passed: Phase 12 all must-haves verified (27/27)
+- Dry-run mode integrated with git-style summary header and unified diff output
+- preview_patch_with_content() added to return before/after content for diff generation
+- Verification passed: Phase 12 all must-haves verified (27/27), Phase 13 plan 04 complete
 
 **Gap Closure Summary:**
 
@@ -169,3 +177,9 @@ Resume file: None
 | Language detection | ✅ Complete - detect_language() integrated via semantic kind detection | 11e5b70 |
 | Checksum fields | ✅ Complete - checksum_before and file_checksum_before populated via with_both_checksums() | 11e5b70 |
 | Error codes | ✅ Complete - ErrorCode added to CliErrorPayload, SpliceErrorCode conversion integrated | 11e5b70 |
+
+## Session Continuity
+
+Last session: 2026-01-22
+Stopped at: Completed 13-04 (Dry-run Diff Integration) - git-style summary header and unified diff output integrated
+Resume file: None
