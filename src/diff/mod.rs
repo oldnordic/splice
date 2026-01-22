@@ -143,40 +143,75 @@ pub fn format_colored_diff(old: &str, new: &str, use_color: bool) -> String {
 
 /// Generates a git-style summary header for a diff.
 ///
-/// This function creates a summary header similar to git's diff output,
-/// showing the file path and change statistics.
+/// This function creates a summary header following git's diffstat format exactly:
+/// - Shows file count with proper singular/plural ("1 file changed" vs "N files changed")
+/// - Shows insertions with proper singular/plural ("1 insertion(+)" vs "N insertions(+)")
+/// - Shows deletions with proper singular/plural ("1 deletion(-)" vs "N deletions(-)")
 ///
 /// # Arguments
-/// * `path` - The file path that was changed
-/// * `additions` - Number of lines added
+/// * `files` - Number of files changed
+/// * `insertions` - Number of lines added
 /// * `deletions` - Number of lines removed
 ///
 /// # Returns
-/// A String containing the formatted summary header.
+/// A String containing the formatted summary header, or empty string if files == 0.
 ///
 /// # Examples
 /// ```
 /// use splice::format_diff_summary;
 ///
-/// let summary = format_diff_summary("src/main.rs", 5, 2);
-/// // Output: "src/main.rs | 5 insertions(+), 2 deletions(-)"
-/// ```
+/// let summary = format_diff_summary(1, 5, 2);
+/// // Output: " 1 file changed, 5 insertions(+), 2 deletions(-)"
 ///
-/// # Note
-/// This is a placeholder implementation. Full functionality will be added in plan 13-04.
-pub fn format_diff_summary(path: &str, additions: usize, deletions: usize) -> String {
-    if additions == 0 && deletions == 0 {
-        format!("{} | no changes", path)
-    } else {
-        let mut parts = Vec::new();
-        if additions > 0 {
-            parts.push(format!("{} insertion(s)", additions));
-        }
-        if deletions > 0 {
-            parts.push(format!("{} deletion(s)", deletions));
-        }
-        format!("{} | {}", path, parts.join(", "))
+/// let summary = format_diff_summary(2, 10, 3);
+/// // Output: " 2 files changed, 10 insertions(+), 3 deletions(-)"
+///
+/// let summary = format_diff_summary(1, 1, 0);
+/// // Output: " 1 file changed, 1 insertion(+)"
+///
+/// let summary = format_diff_summary(1, 0, 1);
+/// // Output: " 1 file changed, 1 deletion(-)"
+/// ```
+pub fn format_diff_summary(files: usize, insertions: usize, deletions: usize) -> String {
+    // Return empty string if no files changed
+    if files == 0 {
+        return String::new();
     }
+
+    let mut parts = Vec::new();
+
+    // File count with singular/plural
+    if files == 1 {
+        parts.push("1 file changed".to_string());
+    } else {
+        parts.push(format!("{} files changed", files));
+    }
+
+    // Insertions with singular/plural
+    if insertions > 0 {
+        if insertions == 1 {
+            parts.push("1 insertion(+)".to_string());
+        } else {
+            parts.push(format!("{} insertions(+)", insertions));
+        }
+    }
+
+    // Deletions with singular/plural
+    if deletions > 0 {
+        if deletions == 1 {
+            parts.push("1 deletion(-)".to_string());
+        } else {
+            parts.push(format!("{} deletions(-)", deletions));
+        }
+    }
+
+    // Edge case: no actual changes (0 insertions, 0 deletions)
+    if insertions == 0 && deletions == 0 {
+        parts.push("0 insertions(+)".to_string());
+        parts.push("0 deletions(-)".to_string());
+    }
+
+    format!(" {}", parts.join(", "))
 }
 
 #[cfg(test)]
@@ -307,33 +342,50 @@ mod tests {
     }
 
     #[test]
-    fn test_format_diff_summary_with_changes() {
-        let summary = format_diff_summary("src/main.rs", 5, 2);
-        assert!(summary.contains("src/main.rs"));
-        assert!(summary.contains("5 insertion(s)"));
-        assert!(summary.contains("2 deletion(s)"));
+    fn test_format_diff_summary_single_file_with_insertions_and_deletions() {
+        let summary = format_diff_summary(1, 5, 2);
+        assert_eq!(summary, " 1 file changed, 5 insertions(+), 2 deletions(-)");
     }
 
     #[test]
-    fn test_format_diff_summary_only_additions() {
-        let summary = format_diff_summary("test.txt", 3, 0);
-        assert!(summary.contains("test.txt"));
-        assert!(summary.contains("3 insertion(s)"));
-        assert!(!summary.contains("deletion"));
+    fn test_format_diff_summary_multiple_files() {
+        let summary = format_diff_summary(2, 10, 3);
+        assert_eq!(summary, " 2 files changed, 10 insertions(+), 3 deletions(-)");
+    }
+
+    #[test]
+    fn test_format_diff_summary_only_insertions() {
+        let summary = format_diff_summary(1, 3, 0);
+        assert_eq!(summary, " 1 file changed, 3 insertions(+)");
     }
 
     #[test]
     fn test_format_diff_summary_only_deletions() {
-        let summary = format_diff_summary("test.txt", 0, 3);
-        assert!(summary.contains("test.txt"));
-        assert!(summary.contains("3 deletion(s)"));
-        assert!(!summary.contains("insertion"));
+        let summary = format_diff_summary(1, 0, 3);
+        assert_eq!(summary, " 1 file changed, 3 deletions(-)");
+    }
+
+    #[test]
+    fn test_format_diff_summary_singular_insertion() {
+        let summary = format_diff_summary(1, 1, 0);
+        assert_eq!(summary, " 1 file changed, 1 insertion(+)");
+    }
+
+    #[test]
+    fn test_format_diff_summary_singular_deletion() {
+        let summary = format_diff_summary(1, 0, 1);
+        assert_eq!(summary, " 1 file changed, 1 deletion(-)");
     }
 
     #[test]
     fn test_format_diff_summary_no_changes() {
-        let summary = format_diff_summary("test.txt", 0, 0);
-        assert!(summary.contains("test.txt"));
-        assert!(summary.contains("no changes"));
+        let summary = format_diff_summary(1, 0, 0);
+        assert_eq!(summary, " 1 file changed, 0 insertions(+), 0 deletions(-)");
+    }
+
+    #[test]
+    fn test_format_diff_summary_no_files() {
+        let summary = format_diff_summary(0, 0, 0);
+        assert!(summary.is_empty());
     }
 }
