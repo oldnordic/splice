@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 15 of 17 (Enhanced Errors) — IN PROGRESS
-Plan: 03 of 6 in current phase
-Status: Plan 15-03 complete
-Last activity: 2026-01-22 — Plan 15-03 complete (fuzzy symbol suggestions)
+Plan: 05 of 6 in current phase
+Status: Plan 15-05 complete
+Last activity: 2026-01-22 — Plan 15-05 complete (error code explain command)
 
-Progress: [█████████░░░░░░░░░░░░] 86% (69/80 plans)
+Progress: [█████████░░░░░░░░░░░░] 88% (70/80 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 69 (31 v2.0 + 38 v2.2)
+- Total plans completed: 70 (31 v2.0 + 39 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~28.4 hours (24h v2.0 + 4.4h v2.2)
+- Total execution time: ~28.5 hours (24h v2.0 + 4.5h v2.2)
 
 **By Phase:**
 
@@ -31,8 +31,8 @@ Progress: [█████████░░░░░░░░░░░░] 86% 
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
 | 11-13 (v2.2) | 30/30 | 3.2h | ~6 min |
 | 14 (v2.2) | 5/5 | 30min | ~6 min |
-| 15 (v2.2) | 3/6 | 12min | ~4 min |
-| **Total** | **69/80** | **~28.4h** | **~25 min** |
+| 15 (v2.2) | 5/6 | 17min | ~3 min |
+| **Total** | **70/80** | **~28.5h** | **~24 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
@@ -44,6 +44,7 @@ Progress: [█████████░░░░░░░░░░░░] 86% 
 - Phase 15-02 complete: SpliceError location extraction with line/column support for CLI-16 precision error reporting
 - Phase 15-03 complete: Fuzzy symbol suggestions using Levenshtein distance with "Did you mean: ...?" hints
 - Phase 15-04 complete: TypeScript error code extraction with parse_typescript_output() function for CLI-20 structured diagnostics
+- Phase 15-05 complete: Error code explain command with embedded documentation for 22 error codes following rustc --explain pattern
 - Rich span metadata fully integrated into CLI JSON output
 - Dry-run mode with git-compatible output (unified diff, summary header, colors, exit codes)
 - Context flags (-A/-B/-C) fully integrated across all 5 commands with grep-style resolution
@@ -144,6 +145,11 @@ Recent decisions affecting current work:
 - [15-04]: parse_typescript_output() function extracts TSXXXX codes using regex pattern
 - [15-04]: remediation_link_for_code() already handles TSXXXX codes (https://www.typescriptlang.org/errors/TSXXXX)
 - [15-04]: Test coverage for both Rust and TypeScript error code extraction (5 tests in compiler_error_tests.rs)
+- [15-05]: get_error_explanation() function provides detailed documentation for 22 Splice error codes
+- [15-05]: Error explanations follow rustc --explain pattern with causes, remediation, and related codes
+- [15-05]: splice explain command supports both human-readable and JSON output modes
+- [15-05]: All 22 error-level SPL-E### codes have embedded explanations (warning codes excluded)
+- [15-05]: Unknown error codes return helpful message with links to external documentation (rustc, tsc)
 
 ### Pending Todos
 
@@ -211,11 +217,12 @@ Resume file: None
   - 14-03 (Asymmetric Context Extraction) ✅ Complete
   - 14-04 (Main.rs Context Flag Wiring) ✅ Complete
   - 14-05 (Context Flags Complete) ✅ Complete
-- Phase 15 in progress: 3/6 plans (enhanced errors)
+- Phase 15 in progress: 5/6 plans (enhanced errors)
   - 15-01 (Severity Level Diversity) ✅ Complete
   - 15-02 (Error Location Extraction) ✅ Complete
   - 15-03 (Fuzzy Symbol Suggestions) ✅ Complete
   - 15-04 (TypeScript Error Code Extraction) ✅ Complete
+  - 15-05 (Error Code Explain Command) ✅ Complete
 - 272 tests passing (including 9 suggestions tests, 5 compiler error tests, 16 context flag tests, 14 error_codes tests, 1 error location test, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests)
 - Error code registry with 28 error variants across 9 categories (22 error-level, 6 warning-level)
 - Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
@@ -239,7 +246,8 @@ Resume file: None
 - Context flags wired through main.rs with grep-style resolution via resolve_context_counts()
 - Human-readable context display shows "Context (N lines before):" and "Context (N lines after):" in Query and Get commands
 - Comprehensive integration tests for context flags in tests/context_flags_tests.rs (16 tests, 437 lines)
-- Verification passed: Phase 12 all must-haves verified (27/27), Phase 13 complete, Phase 14 complete (5/5)
+- Error code explain command with embedded documentation for 22 error codes following rustc --explain pattern
+- Verification passed: Phase 12 all must-haves verified (27/27), Phase 13 complete, Phase 14 complete (5/5), Phase 15-05 complete
 
 **Gap Closure Summary:**
 
@@ -254,5 +262,5 @@ Resume file: None
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 15-03 (Fuzzy Symbol Suggestions) - Levenshtein distance with "Did you mean" hints
+Stopped at: Completed 15-05 (Error Code Explain Command) - Embedded documentation for 22 error codes
 Resume file: None
