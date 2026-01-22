@@ -10,6 +10,13 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 16 of 17 (Symbol Expansion and Search) — IN PROGRESS
+Plan: 05A of 6 in current phase
+Status: Plan 16-05A complete
+Last activity: 2026-01-22 — Plan 16-05A complete (Expansion tests for Rust and Python)
+
+Progress: [█████████░░░░░░░░░░░] 89% (72/80 plans)
+
+Phase: 16 of 17 (Symbol Expansion and Search) — IN PROGRESS
 Plan: 03 of 6 in current phase
 Status: Plan 16-03 complete
 Last activity: 2026-01-22 — Plan 16-03 complete (Progressive expansion with language-agnostic find_containing_block)
