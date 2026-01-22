@@ -51,6 +51,12 @@ See `.planning/milestones/v2.0-ROADMAP.md` for complete details of phases 1-10.
 
 **Plans**: 11 plans in 8 waves (7 original + 4 gap closure)
 
+- [x] 17-01-PLAN.md — Run all 334+ existing tests and update golden files for new JSON schema
+- [x] 17-02-PLAN.md — Add integration tests for rich span extensions across all 7 languages
+- [x] 17-03-PLAN.md — Add performance tests for context extraction on large files (>32KB)
+- [x] 17-04-PLAN.md — Add performance tests for relationship queries on large codebases (>1K symbols)
+- [x] 17-05-PLAN.md — Add cross-tool alignment tests with Magellan format compatibility
+- [x] 17-06-PLAN.md — Add LLM consumption tests verifying JSON fields are properly used by agents
 Plans:
 - [x] 11-01-PLAN.md — Extend SpanResult structure with rich metadata fields (context, semantic_kind, language, checksums, error_code)
 - [x] 11-02-PLAN.md — Implement context extraction module using ropey for efficient line calculations
@@ -80,6 +86,12 @@ Plans:
 
 **Plans**: 8 plans in 3 waves
 
+- [x] 17-01-PLAN.md — Run all 334+ existing tests and update golden files for new JSON schema
+- [x] 17-02-PLAN.md — Add integration tests for rich span extensions across all 7 languages
+- [x] 17-03-PLAN.md — Add performance tests for context extraction on large files (>32KB)
+- [x] 17-04-PLAN.md — Add performance tests for relationship queries on large codebases (>1K symbols)
+- [x] 17-05-PLAN.md — Add cross-tool alignment tests with Magellan format compatibility
+- [x] 17-06-PLAN.md — Add LLM consumption tests verifying JSON fields are properly used by agents
 Plans:
 - [x] 12-01-PLAN.md — Create relationships module with Relationship and Relationships structs
 - [x] 12-02-PLAN.md — Implement relationship queries (get_callers, get_callees, get_imports, get_exports)
@@ -107,6 +119,12 @@ Plans:
 
 **Plans**: 5 plans in 4 waves
 
+- [x] 17-01-PLAN.md — Run all 334+ existing tests and update golden files for new JSON schema
+- [x] 17-02-PLAN.md — Add integration tests for rich span extensions across all 7 languages
+- [x] 17-03-PLAN.md — Add performance tests for context extraction on large files (>32KB)
+- [x] 17-04-PLAN.md — Add performance tests for relationship queries on large codebases (>1K symbols)
+- [x] 17-05-PLAN.md — Add cross-tool alignment tests with Magellan format compatibility
+- [x] 17-06-PLAN.md — Add LLM consumption tests verifying JSON fields are properly used by agents
 Plans:
 - [x] 13-01-PLAN.md — Add diff-related dependencies (similar, nu-ansi-term, is-terminal)
 - [x] 13-02-PLAN.md — Create diff module with unified diff generation and color detection
@@ -130,6 +148,12 @@ Plans:
 
 **Plans**: 5 plans in 5 waves
 
+- [x] 17-01-PLAN.md — Run all 334+ existing tests and update golden files for new JSON schema
+- [x] 17-02-PLAN.md — Add integration tests for rich span extensions across all 7 languages
+- [x] 17-03-PLAN.md — Add performance tests for context extraction on large files (>32KB)
+- [x] 17-04-PLAN.md — Add performance tests for relationship queries on large codebases (>1K symbols)
+- [x] 17-05-PLAN.md — Add cross-tool alignment tests with Magellan format compatibility
+- [x] 17-06-PLAN.md — Add LLM consumption tests verifying JSON fields are properly used by agents
 Plans:
 - [x] 14-01-PLAN.md — Add -A, -B, -C context flags to Delete, Patch, Query commands
 - [x] 14-02-PLAN.md — Add -A, -B, -C context flags to Get, ApplyFiles commands
@@ -188,17 +212,17 @@ Plans:
 **Plans**: 11 plans in 5 waves
 
 Plans:
-- [ ] 16-01-PLAN.md — Implement AST-aware parent chain walking for symbol expansion
-- [ ] 16-02-PLAN.md — Add `--expand` and `--expand-level <N>` flags to get/query commands
-- [ ] 16-03-PLAN.md — Implement progressive expansion (name → body → containing block)
-- [ ] 16-04-PLAN.md — Include doc comments in expanded output
-- [ ] 16-05-PLAN.md — Test expansion across all 7 languages for consistency
-- [ ] 16-06-PLAN.md — Test context flags respect expanded boundaries (CLI-14 from Phase 14)
-- [ ] 16-07-PLAN.md — Implement `splice search --pattern <text>` command
-- [ ] 16-08-PLAN.md — Add file path, line number, and context to search output
-- [ ] 16-09-PLAN.md — Implement `--glob` flag for file pattern filtering
-- [ ] 16-10-PLAN.md — Add `--apply` flag for atomic find-and-replace with rollback
-- [ ] 16-11-PLAN.md — Add JSON output format for search results
+- [x] 16-01-PLAN.md — Implement AST-aware parent chain walking for symbol expansion
+- [x] 16-02-PLAN.md — Add `--expand` and `--expand-level <N>` flags to get/query commands
+- [x] 16-03-PLAN.md — Implement progressive expansion (name → body → containing block)
+- [x] 16-04-PLAN.md — Include doc comments in expanded output
+- [x] 16-05-PLAN.md — Test expansion across all 7 languages for consistency
+- [x] 16-06-PLAN.md — Test context flags respect expanded boundaries (CLI-14 from Phase 14)
+- [x] 16-07-PLAN.md — Implement `splice search --pattern <text>` command
+- [x] 16-08-PLAN.md — Add file path, line number, and context to search output
+- [x] 16-09-PLAN.md — Implement `--glob` flag for file pattern filtering
+- [x] 16-10-PLAN.md — Add `--apply` flag for atomic find-and-replace with rollback
+- [x] 16-11-PLAN.md — Add JSON output format for search results
 
 #### Phase 17: Integration & Testing
 
@@ -211,19 +235,19 @@ Plans:
 1. All 334+ existing tests pass with new JSON schema (no breaking changes)
 2. New tests verify rich span extensions (context, semantic kind, checksums, error codes) across all 7 languages
 3. Performance tests confirm context extraction works efficiently on large files (>32KB)
-4. Performance tests confirm relationship queries scale on large codebases (>10K LOC)
+4. Performance tests confirm relationship queries scale on large codebases (>1K symbols)
 5. Cross-tool alignment tests verify Magellan format compatibility
 6. LLM consumption tests verify JSON fields are properly structured for agent use
 
-**Plans**: TBD
+**Plans**: 6 plans in 1 wave
 
 Plans:
-- [ ] 17-01: Run all 334+ existing tests and update golden files for new JSON schema
-- [ ] 17-02: Add integration tests for rich span extensions across all 7 languages
-- [ ] 17-03: Add performance tests for context extraction on large files (>32KB)
-- [ ] 17-04: Add performance tests for relationship queries on large codebases (>10K LOC)
-- [ ] 17-05: Add cross-tool alignment tests with Magellan format compatibility
-- [ ] 17-06: Add LLM consumption tests verifying JSON fields are properly used by agents
+- [x] 17-01-PLAN.md — Run all 334+ existing tests and update golden files for new JSON schema
+- [x] 17-02-PLAN.md — Add integration tests for rich span extensions across all 7 languages
+- [x] 17-03-PLAN.md — Add performance tests for context extraction on large files (>32KB)
+- [x] 17-04-PLAN.md — Add performance tests for relationship queries on large codebases (>1K symbols)
+- [x] 17-05-PLAN.md — Add cross-tool alignment tests with Magellan format compatibility
+- [x] 17-06-PLAN.md — Add LLM consumption tests verifying JSON fields are properly used by agents
 
 ## Progress
 
