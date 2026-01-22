@@ -2,6 +2,7 @@
 //!
 //! All errors are typed and provide root cause information.
 
+use crate::suggestions;
 use crate::validate;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
@@ -427,6 +428,58 @@ impl SpliceError {
                     symbol
                 ),
             ),
+        };
+
+        SpliceError::SymbolNotFound {
+            message,
+            symbol,
+            file: file.map(|p| p.to_path_buf()),
+            hint,
+        }
+    }
+
+    /// Create SymbolNotFound with fuzzy match suggestions.
+    ///
+    /// Uses Levenshtein distance to find similar symbol names and include
+    /// them in the error hint. This provides "did you mean" functionality.
+    ///
+    /// # Arguments
+    /// * `symbol` - The symbol name that was not found
+    /// * `file` - Optional file path for context
+    /// * `candidates` - All available symbol names for fuzzy matching
+    pub fn symbol_not_found_with_suggestions(
+        symbol: impl Into<String>,
+        file: Option<&Path>,
+        candidates: &[String],
+    ) -> Self {
+        let symbol = symbol.into();
+        let (message, hint) = if let Some(path) = file {
+            (
+                format!("Symbol '{}' not found in {}", symbol, path.display()),
+                format!(
+                    "Ensure '{}' exists in {} or adjust the --symbol flag",
+                    symbol,
+                    path.display()
+                ),
+            )
+        } else {
+            (format!("Symbol '{}' not found", symbol), String::new())
+        };
+
+        // Try to find similar symbols
+        let suggestions = suggestions::suggest_similar_symbols(&symbol, candidates, 3);
+
+        let hint = if suggestions.is_empty() {
+            if hint.is_empty() {
+                format!(
+                    "Symbol '{}' not found. Run `splice ingest` to index the codebase.",
+                    symbol
+                )
+            } else {
+                hint
+            }
+        } else {
+            format!("Did you mean: {}?", suggestions.join(", "))
         };
 
         SpliceError::SymbolNotFound {
