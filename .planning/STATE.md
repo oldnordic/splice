@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 16 of 17 (Symbol Expansion and Search) — IN PROGRESS
-Plan: 01 of 6 in current phase
-Status: Plan 16-01 complete
-Last activity: 2026-01-22 — Plan 16-01 complete (AST-aware symbol expansion infrastructure)
+Plan: 03 of 6 in current phase
+Status: Plan 16-03 complete
+Last activity: 2026-01-22 — Plan 16-03 complete (Progressive expansion with language-agnostic find_containing_block)
 
-Progress: [████████░░░░░░░░░░░░] 88% (70/80 plans)
+Progress: [█████████░░░░░░░░░░░] 89% (71/80 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 70 (31 v2.0 + 39 v2.2)
+- Total plans completed: 71 (31 v2.0 + 40 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~29.5 hours (24h v2.0 + 5.5h v2.2)
+- Total execution time: ~30 hours (24h v2.0 + 6h v2.2)
 
 **By Phase:**
 
@@ -31,9 +31,9 @@ Progress: [████████░░░░░░░░░░░░] 88% (70
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
 | 11-13 (v2.2) | 30/30 | 3.2h | ~6 min |
 | 14 (v2.2) | 5/5 | 30min | ~6 min |
-| 15 (v2.2) | 5/6 | 17min | ~3 min |
-| 16 (v2.2) | 1/6 | 45min | ~45 min |
-| **Total** | **70/80** | **~29.5h** | **~25 min** |
+| 15 (v2.2) | 6/6 | 17min | ~3 min |
+| 16 (v2.2) | 4/6 | 2h | ~30 min |
+| **Total** | **71/80** | **~30h** | **~25 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
@@ -44,6 +44,7 @@ Progress: [████████░░░░░░░░░░░░] 88% (70
 - Phase 15 complete: Enhanced errors with severity levels, location extraction, fuzzy suggestions, TypeScript error codes, explain command (6/6 complete)
 - Phase 16-01 complete: Symbol expansion infrastructure with tree_walker module and parent chain walking (18 tests)
 - Phase 16-02 complete: CLI expansion flags (--expand, --expand-level) for Get and Query commands with fallback on errors
+- Phase 16-04 complete: Leading doc comments in symbol expansion with extract_leading_docs() and expand_to_body_with_docs() (9 tests)
 - Rich span metadata fully integrated into CLI JSON output
 - Dry-run mode with git-compatible output (unified diff, summary header, colors, exit codes)
 - Context flags (-A/-B/-C) fully integrated across all 5 commands with grep-style resolution
@@ -160,6 +161,13 @@ Recent decisions affecting current work:
 - [16-02]: Default expand-level to 1 (body) when --expand flag is used alone for convenience
 - [16-02]: Graceful degradation on errors - fall back to original span if language detection or expansion fails
 - [16-02]: Per-result expansion in Query command (each result expanded individually based on its file language)
+- [16-03]: Language-agnostic find_containing_block() for level 2 expansion using predefined BLOCK_KINDS constant
+- [16-03]: Progressive expansion pattern: name (level 0) → body (level 1) → containing block (level 2)
+- [16-03]: Direct byte-offset lookup eliminates need for intermediate body_node resolution in expand_symbol_impl
+- [16-04]: Python docstrings wrapped in expression_statement nodes - special handling required for extract_leading_docs()
+- [16-04]: Only doc-style comments captured (///, /**, //!, /*!, """), not regular comments (//, #)
+- [16-04]: Single blank line allowed between docs and symbol for code readability
+- [16-04]: User-facing expansion uses expand_to_body_with_docs() to include documentation, internal uses expand_to_body() for performance
 
 ### Pending Todos
 
@@ -195,7 +203,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 16-01 (Symbol Expansion and Search) - AST-aware symbol expansion infrastructure
+Stopped at: Completed 16-03 (Symbol Expansion and Search) - Progressive expansion with language-agnostic find_containing_block
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -272,5 +280,5 @@ Resume file: None
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 16-01 (Symbol Expansion and Search) - AST-aware symbol expansion infrastructure
+Stopped at: Completed 16-03 (Symbol Expansion and Search) - Progressive expansion with language-agnostic find_containing_block
 Resume file: None
