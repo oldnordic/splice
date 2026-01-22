@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 13 of 17 (Dry-run & Diff) — IN PROGRESS 🔄
-Plan: 01 of ? in current phase
-Status: 1 plan complete, dependencies added for diff output
-Last activity: 2026-01-22 — Completed 13-01 (Diff Dependencies)
+Plan: 02 of ? in current phase
+Status: 2 plans complete, diff module with color detection implemented
+Last activity: 2026-01-22 — Completed 13-02 (Unified Diff Module)
 
-Progress: [████████████░░░░░░░░] 70% (56/80 plans complete)
+Progress: [█████████████░░░░░░░] 71% (57/80 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 57 (31 v2.0 + 26 v2.2)
+- Total plans completed: 58 (31 v2.0 + 27 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~26.6 hours (24h v2.0 + 2.6h v2.2)
+- Total execution time: ~26.7 hours (24h v2.0 + 2.7h v2.2)
 
 **By Phase:**
 
@@ -30,15 +30,15 @@ Progress: [████████████░░░░░░░░] 70% (56
 |-------|-------|-------|----------|
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
 | 11-12 (v2.2) | 25/25 | 2.6h | ~6 min |
-| 13 (v2.2) | 1/? | ~1 min | ~1 min |
-| **Total** | **57/80** | **~26.6h** | **~28 min** |
+| 13 (v2.2) | 2/? | ~5 min | ~2 min |
+| **Total** | **58/80** | **~26.7h** | **~28 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
 - Baseline velocity established: ~31 min/plan
 - v2.2 plans executing quickly (~1-11 min each)
 - Phase 12 complete: relationships, tool hints, suggested actions, SpanResult extension, CLI integration, performance tests (8/8 complete)
-- Phase 13 started: diff dependencies added (similar, nu-ansi-term, is-terminal)
+- Phase 13 in progress: diff module created with unified diff generation and color detection (2/2 plans complete)
 - Rich span metadata fully integrated into CLI JSON output
 - Performance test suite validates relationship queries scale to 1K symbols
 
@@ -81,11 +81,16 @@ Recent decisions affecting current work:
 - [12-08]: suggest_action() called with appropriate ActionType per command (Delete, Replace, Query, Read)
 - [13-01]: Diff output dependencies added - similar (2.6) for unified diff, nu-ansi-term (0.50) for terminal colors, is-terminal (0.4) for TTY detection
 - [13-01]: Successor crate selection - nu-ansi-term replaces deprecated ansi_term, is-terminal replaces unmaintained atty
+- [13-02]: Unified diff module created with similar::TextDiff for standard diff generation
+- [13-02]: Color detection follows accessibility standards - NO_COLOR environment variable checked before TTY detection
+- [13-02]: Color conventions follow git standard - red for deletions (ChangeTag::Delete), green for additions (ChangeTag::Insert)
+- [13-02]: format_diff_summary() stub added in 13-02 to avoid modifying lib.rs again in 13-04 (forward-looking pattern)
+- [13-02]: Diff module integrated into lib.rs with public re-exports for all four functions
 
 ### Pending Todos
 
 **Next Phase:**
-- Phase 13 planning continues (Dry-run & Diff) - 1/1 plans complete
+- Phase 13 planning continues (Dry-run & Diff) - 2/? plans complete
 - Integration testing with real LLM agents consuming JSON output
 - CALLS edge creation implementation during code ingestion to enable real relationship queries
 
@@ -113,7 +118,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 13-01 (Diff Dependencies) - dependencies added for unified diff generation
+Stopped at: Completed 13-02 (Unified Diff Module) - diff module with color detection created and integrated
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -133,9 +138,10 @@ Resume file: None
   - 12-07 (Relationships integration) ✅ Complete
   - 12-06 (Performance tests) ✅ Complete
   - 12-08 (Tool hints/action integration) ✅ Complete
-- Phase 13 in progress: 1 plan (dry-run & diff)
+- Phase 13 in progress: 2 plans (dry-run & diff)
   - 13-01 (Diff Dependencies) ✅ Complete
-- 235 tests passing (including 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests)
+  - 13-02 (Unified Diff Module) ✅ Complete
+- 233 tests passing (including 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests)
 - Error code registry with 26 error variants across 9 categories
 - Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
 - Rich span types ready: Relationships, ToolHints, SuggestedAction
@@ -145,8 +151,10 @@ Resume file: None
 - Relationships integrated into all four CLI commands (Query, Get, Delete, Patch)
 - Tool hints and suggested action integrated into all four CLI commands (Delete, Patch, Query, Get)
 - Performance test suite validates relationship queries scale to 1K symbols (small: <10ms, large: <100ms)
+- Diff module created: src/diff/mod.rs (339 lines, 4 public functions, 13 tests)
 - Diff dependencies added: similar (2.6), nu-ansi-term (0.50), is-terminal (0.4)
-- Verification passed: 27/27 must-haves verified against actual codebase
+- Diff functions accessible from splice crate root: format_unified_diff, should_use_color, format_colored_diff, format_diff_summary
+- Verification passed: Phase 12 all must-haves verified (27/27)
 
 **Gap Closure Summary:**
 
