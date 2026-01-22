@@ -345,4 +345,143 @@ def foo():
         let content = fs::read_to_string(&test_file).expect("Failed to read file");
         assert!(content.contains("20"), "Should contain replaced value");
     }
+
+    #[test]
+    fn test_search_command_rust() {
+        let workspace = TempDir::new().expect("Failed to create temp dir");
+        let workspace_root = workspace.path();
+
+        let test_file = workspace_root.join("test.rs");
+        fs::write(
+            &test_file,
+            r#"
+fn search_function() {
+    let value = "test";
+    println!("{}", value);
+}
+
+fn another_function() {
+    let other = "another";
+}
+"#,
+        ).expect("Failed to write test file");
+
+        let config = PatternReplaceConfig {
+            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            find_pattern: "function".to_string(),
+            replace_pattern: String::new(),
+            language: Some(Language::Rust),
+            validate: false,
+        };
+
+        let matches = find_pattern_in_files(&config)
+            .expect("Failed to search for pattern");
+
+        assert_eq!(matches.len(), 2, "Should find 2 occurrences of 'function'");
+        assert_eq!(matches[0].file, test_file);
+        assert_eq!(matches[0].line, 2);
+    }
+
+    #[test]
+    fn test_search_command_python() {
+        let workspace = TempDir::new().expect("Failed to create temp dir");
+        let workspace_root = workspace.path();
+
+        let test_file = workspace_root.join("test.py");
+        fs::write(
+            &test_file,
+            r#"
+def search_function():
+    value = "test"
+    print(value)
+
+def another_function():
+    other = "another"
+"#,
+        ).expect("Failed to write test file");
+
+        let config = PatternReplaceConfig {
+            glob_pattern: workspace_root.join("*.py").to_string_lossy().to_string(),
+            find_pattern: "function".to_string(),
+            replace_pattern: String::new(),
+            language: Some(Language::Python),
+            validate: false,
+        };
+
+        let matches = find_pattern_in_files(&config)
+            .expect("Failed to search for pattern");
+
+        assert_eq!(matches.len(), 2, "Should find 2 occurrences of 'function'");
+        assert_eq!(matches[0].file, test_file);
+    }
+
+    #[test]
+    fn test_search_command_multiple_files() {
+        let workspace = TempDir::new().expect("Failed to create temp dir");
+        let workspace_root = workspace.path();
+
+        let test_file1 = workspace_root.join("file1.rs");
+        fs::write(
+            &test_file1,
+            r#"
+fn first() {
+    let target = 1;
+}
+"#,
+        ).expect("Failed to write test file");
+
+        let test_file2 = workspace_root.join("file2.rs");
+        fs::write(
+            &test_file2,
+            r#"
+fn second() {
+    let target = 2;
+}
+"#,
+        ).expect("Failed to write test file");
+
+        let config = PatternReplaceConfig {
+            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            find_pattern: "target".to_string(),
+            replace_pattern: String::new(),
+            language: Some(Language::Rust),
+            validate: false,
+        };
+
+        let matches = find_pattern_in_files(&config)
+            .expect("Failed to search for pattern");
+
+        assert_eq!(matches.len(), 2, "Should find 2 occurrences across files");
+        assert_eq!(matches[0].file, test_file1);
+        assert_eq!(matches[1].file, test_file2);
+    }
+
+    #[test]
+    fn test_search_command_no_matches() {
+        let workspace = TempDir::new().expect("Failed to create temp dir");
+        let workspace_root = workspace.path();
+
+        let test_file = workspace_root.join("test.rs");
+        fs::write(
+            &test_file,
+            r#"
+fn example() {
+    let x = 42;
+}
+"#,
+        ).expect("Failed to write test file");
+
+        let config = PatternReplaceConfig {
+            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            find_pattern: "nonexistent".to_string(),
+            replace_pattern: String::new(),
+            language: Some(Language::Rust),
+            validate: false,
+        };
+
+        let matches = find_pattern_in_files(&config)
+            .expect("Failed to search for pattern");
+
+        assert_eq!(matches.len(), 0, "Should find no occurrences");
+    }
 }
