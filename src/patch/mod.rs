@@ -172,29 +172,29 @@ pub fn apply_patch_with_validation(
     }
 
     // Step 1: Read original file and compute hash
-    let original = std::fs::read(file_path)?;
-    let before_hash = compute_hash(&original);
+    let replaced = std::fs::read(file_path)?;
+    let before_hash = compute_hash(&replaced);
 
     // Step 2: Validate span bounds
-    if start > end || end > original.len() {
+    if start > end || end > replaced.len() {
         return Err(SpliceError::InvalidSpan {
             file: file_path.to_path_buf(),
             start,
             end,
-            file_size: original.len(),
+            file_size: replaced.len(),
         });
     }
 
     // Step 3: Validate UTF-8 boundaries
-    std::str::from_utf8(&original[start..end]).map_err(|_| SpliceError::InvalidSpan {
+    std::str::from_utf8(&replaced[start..end]).map_err(|_| SpliceError::InvalidSpan {
         file: file_path.to_path_buf(),
         start,
         end,
-        file_size: original.len(),
+        file_size: replaced.len(),
     })?;
 
     // Step 4: Apply byte-exact replacement using ropey
-    let mut rope = Rope::from_str(std::str::from_utf8(&original)?);
+    let mut rope = Rope::from_str(std::str::from_utf8(&replaced)?);
     let start_char = rope.byte_to_char(start);
     let end_char = rope.byte_to_char(end);
 
@@ -213,7 +213,7 @@ pub fn apply_patch_with_validation(
         Err(e) => {
             log::warn!("Validation failed, rolling back patch: {:?}", e);
 
-            if let Err(rollback_err) = write_atomic(file_path, &original, "rollback") {
+            if let Err(rollback_err) = write_atomic(file_path, &replaced, "rollback") {
                 log::error!(
                     "Failed to restore {} during rollback: {}",
                     file_path.display(),
@@ -238,7 +238,7 @@ pub fn apply_patch_with_validation(
     // Step 9.1: Verify localized change (no unintended modifications)
     let localized = verify::verify_localized_change(
         file_path,
-        &original,
+        &replaced,
         (start, end),
     );
 
@@ -318,9 +318,9 @@ pub fn apply_batch_with_validation(
         }
 
         replacements.sort_by_key(|r| std::cmp::Reverse(r.start));
-        let (original, before_hash) = read_with_hash(&file_path)?;
-        validate_replacements(&file_path, &replacements, &original)?;
-        let patched_bytes = apply_replacements(&original, &replacements)?;
+        let (replaced, before_hash) = read_with_hash(&file_path)?;
+        validate_replacements(&file_path, &replacements, &replaced)?;
+        let patched_bytes = apply_replacements(&replaced, &replacements)?;
         let after_hash = compute_hash(&patched_bytes);
 
         if let Err(write_err) = write_atomic(&file_path, &patched_bytes, "batch") {
@@ -330,7 +330,7 @@ pub fn apply_batch_with_validation(
 
         applied.push(AppliedFile {
             file: file_path,
-            original,
+            replaced,
             before_hash,
             after_hash,
         });
@@ -751,8 +751,8 @@ fn compute_hash(bytes: &[u8]) -> String {
 /// This is a simple span replacement without validation gates.
 /// Prefer `apply_patch_with_validation` for all new code.
 pub fn replace_span(file_path: &Path, start: usize, end: usize, new_content: &str) -> Result<()> {
-    let original = std::fs::read_to_string(file_path)?;
-    let file_size = original.len();
+    let replaced = std::fs::read_to_string(file_path)?;
+    let file_size = replaced.len();
 
     if start > end || end > file_size {
         return Err(SpliceError::InvalidSpan {
@@ -773,7 +773,7 @@ pub fn replace_span(file_path: &Path, start: usize, end: usize, new_content: &st
         });
     }
 
-    let mut rope = Rope::from_str(&original);
+    let mut rope = Rope::from_str(&replaced);
     let start_char = rope.byte_to_char(start);
     let end_char = rope.byte_to_char(end);
 
@@ -821,12 +821,12 @@ fn run_batch_validations(
 fn validate_replacements(
     file_path: &Path,
     replacements: &[SpanReplacement],
-    original: &[u8],
+    replaced: &[u8],
 ) -> Result<()> {
     if replacements.is_empty() {
         return Ok(());
     }
-    let file_len = original.len();
+    let file_len = replaced.len();
 
     let mut sorted = replacements.to_vec();
     sorted.sort_by_key(|r| r.start);
@@ -842,7 +842,7 @@ fn validate_replacements(
             });
         }
 
-        std::str::from_utf8(&original[replacement.start..replacement.end]).map_err(|_| {
+        std::str::from_utf8(&replaced[replacement.start..replacement.end]).map_err(|_| {
             SpliceError::InvalidSpan {
                 file: file_path.to_path_buf(),
                 start: replacement.start,
@@ -865,8 +865,8 @@ fn validate_replacements(
     Ok(())
 }
 
-fn apply_replacements(original: &[u8], replacements: &[SpanReplacement]) -> Result<Vec<u8>> {
-    let content = std::str::from_utf8(original)?;
+fn apply_replacements(replaced: &[u8], replacements: &[SpanReplacement]) -> Result<Vec<u8>> {
+    let content = std::str::from_utf8(replaced)?;
     let mut rope = Rope::from_str(content);
 
     for replacement in replacements {
@@ -887,7 +887,7 @@ fn read_with_hash(path: &Path) -> Result<(Vec<u8>, String)> {
 
 fn rollback_files(files: &[AppliedFile]) {
     for file in files.iter().rev() {
-        if let Err(err) = write_atomic(&file.file, &file.original, "rollback") {
+        if let Err(err) = write_atomic(&file.file, &file.replaced, "rollback") {
             log::error!(
                 "Rollback failed for {}: {}",
                 file.file.display(),
@@ -919,7 +919,7 @@ fn temp_path_for(file_path: &Path, suffix: &str) -> Result<PathBuf> {
 
 struct AppliedFile {
     file: PathBuf,
-    original: Vec<u8>,
+    replaced: Vec<u8>,
     before_hash: String,
     after_hash: String,
 }
@@ -981,14 +981,14 @@ fn compute_preview_report(
     end: usize,
     new_content: &str,
 ) -> Result<PreviewReport> {
-    let original = fs::read(file_path)?;
-    let source = std::str::from_utf8(&original)?;
+    let replaced = fs::read(file_path)?;
+    let source = std::str::from_utf8(&replaced)?;
     let rope = Rope::from_str(source);
 
     let start_line = rope.byte_to_line(start);
     let end_line = if end == start {
         start_line
-    } else if end == original.len() {
+    } else if end == replaced.len() {
         rope.len_lines().saturating_sub(1)
     } else {
         rope.byte_to_line(end)

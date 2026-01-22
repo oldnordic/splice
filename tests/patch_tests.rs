@@ -217,8 +217,8 @@ pub fn valid_function() -> i32 {
         .expect("Failed to resolve function");
 
         // Read original content for comparison
-        let original_content =
-            std::fs::read_to_string(&lib_rs_path).expect("Failed to read original file");
+        let replaced_content =
+            std::fs::read_to_string(&lib_rs_path).expect("Failed to read replaced file");
 
         // Apply patch with syntax error (unclosed brace)
         let invalid_patch = r#"
@@ -256,7 +256,7 @@ pub fn valid_function() -> i32 {
             std::fs::read_to_string(&lib_rs_path).expect("Failed to read current file");
 
         assert_eq!(
-            original_content, current_content,
+            replaced_content, current_content,
             "File should be unchanged after failed patch (atomic rollback)"
         );
     }
@@ -336,8 +336,8 @@ pub fn get_number() -> i32 {
         .expect("Failed to resolve function");
 
         // Read original content for comparison
-        let original_content =
-            std::fs::read_to_string(&lib_rs_path).expect("Failed to read original file");
+        let replaced_content =
+            std::fs::read_to_string(&lib_rs_path).expect("Failed to read replaced file");
 
         // Apply patch that breaks the type signature (returns String instead of i32)
         let type_error_patch = r#"
@@ -376,7 +376,7 @@ pub fn get_number() -> i32 {
             std::fs::read_to_string(&lib_rs_path).expect("Failed to read current file");
 
         assert_eq!(
-            original_content, current_content,
+            replaced_content, current_content,
             "File should be unchanged after failed patch (atomic rollback)"
         );
     }
@@ -484,8 +484,8 @@ pub fn broken() -> i32 {
         });
 
         let batches = vec![SpanBatch::new(replacements)];
-        let original_a = std::fs::read_to_string(&file_a).unwrap();
-        let original_b = std::fs::read_to_string(&file_b).unwrap();
+        let replaced_a = std::fs::read_to_string(&file_a).unwrap();
+        let replaced_b = std::fs::read_to_string(&file_b).unwrap();
 
         let result = apply_batch_with_validation(
             &batches,
@@ -506,12 +506,12 @@ pub fn broken() -> i32 {
         );
 
         assert_eq!(
-            original_a,
+            replaced_a,
             std::fs::read_to_string(&file_a).unwrap(),
             "File a.rs should remain unchanged after batch failure"
         );
         assert_eq!(
-            original_b,
+            replaced_b,
             std::fs::read_to_string(&file_b).unwrap(),
             "File b.rs should remain unchanged after batch failure"
         );

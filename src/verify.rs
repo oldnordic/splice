@@ -546,29 +546,29 @@ pub fn verify_after_patch(
 /// that non-target regions match the original content.
 pub fn verify_localized_change(
     file_path: &Path,
-    original_content: &[u8],
+    replaced_content: &[u8],
     target_span: (usize, usize),
 ) -> Result<bool> {
     let current = std::fs::read(file_path)?;
 
     // Check bytes before target span
-    if target_span.0 > 0 && target_span.0 <= original_content.len() {
-        let before_original = &original_content[..target_span.0];
+    if target_span.0 > 0 && target_span.0 <= replaced_content.len() {
+        let before_replaced = &replaced_content[..target_span.0];
         let before_current = current.get(..target_span.0);
 
-        if before_current != Some(before_original) {
+        if before_current != Some(before_replaced) {
             log::warn!("File modified before target span");
             return Ok(false);
         }
     }
 
     // Check bytes after target span
-    let after_start = target_span.1.min(original_content.len());
-    if after_start < original_content.len() {
-        let after_original = &original_content[after_start..];
+    let after_start = target_span.1.min(replaced_content.len());
+    if after_start < replaced_content.len() {
+        let after_replaced = &replaced_content[after_start..];
         let after_current = current.get(after_start..);
 
-        if after_current != Some(after_original) {
+        if after_current != Some(after_replaced) {
             log::warn!("File modified after target span");
             return Ok(false);
         }
@@ -748,8 +748,8 @@ mod tests {
     fn test_verify_localized_change_pass() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.rs");
-        let original = b"fn test() {\n    let x = 1;\n}";
-        std::fs::write(&file_path, original).unwrap();
+        let replaced = b"fn test() {\n    let x = 1;\n}";
+        std::fs::write(&file_path, replaced).unwrap();
 
         // Modify only within the target span
         let target_span = (10, 20); // Within "let x = 1;"
@@ -758,7 +758,7 @@ mod tests {
 
         // Check should fail because we changed bytes outside target span
         // (we changed the whole file, not just the span)
-        let result = verify_localized_change(&file_path, original, target_span);
+        let result = verify_localized_change(&file_path, replaced, target_span);
         assert!(result.is_ok());
         // This should be false because we changed more than just the span
         assert!(!result.unwrap());
@@ -768,15 +768,15 @@ mod tests {
     fn test_verify_localized_change_fail() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.rs");
-        let original = b"fn test() {\n    let x = 1;\n}";
-        std::fs::write(&file_path, original).unwrap();
+        let replaced = b"fn test() {\n    let x = 1;\n}";
+        std::fs::write(&file_path, replaced).unwrap();
 
         // Modify bytes before target span
         let modified = b"fn modified() {\n    let x = 1;\n}";
         std::fs::write(&file_path, modified).unwrap();
 
         let target_span = (20, 30); // After "fn test() {"
-        let result = verify_localized_change(&file_path, original, target_span);
+        let result = verify_localized_change(&file_path, replaced, target_span);
         assert!(result.is_ok());
         assert!(!result.unwrap()); // Should detect change before span
     }

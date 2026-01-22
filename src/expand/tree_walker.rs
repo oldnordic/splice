@@ -698,14 +698,14 @@ mod tests {
         let value_offset = source_str.find("value").unwrap();
 
         let identifier_node = root.descendant_for_byte_range(value_offset, value_offset + 1).unwrap();
-        let original_start = identifier_node.start_byte();
-        let original_end = identifier_node.end_byte();
+        let replaced_start = identifier_node.start_byte();
+        let replaced_end = identifier_node.end_byte();
 
         // Verify we got the identifier node
         assert_eq!(identifier_node.kind(), "identifier");
-        assert_eq!(original_start, value_offset);
+        assert_eq!(replaced_start, value_offset);
         // end_byte covers the full identifier
-        assert!(original_end > value_offset);
+        assert!(replaced_end > value_offset);
     }
 
     #[test]
@@ -1011,7 +1011,7 @@ mod tests {
         let doc_start = extract_leading_docs(&function_node, source);
 
         // Should return the original node start when no docs found
-        assert_eq!(doc_start, function_node.start_byte(), "Should return original start when no docs");
+        assert_eq!(doc_start, function_node.start_byte(), "Should return replaced start when no docs");
     }
 
     #[test]

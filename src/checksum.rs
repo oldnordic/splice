@@ -249,7 +249,7 @@ mod tests {
     #[test]
     fn test_verify_file_mismatch() {
         let mut file = NamedTempFile::new().unwrap();
-        file.write_all(b"original content").unwrap();
+        file.write_all(b"replaced content").unwrap();
 
         let checksum = checksum_file(file.path()).unwrap();
 

@@ -6,13 +6,13 @@ Splice is a span-safe refactoring tool for 7 programming languages (Rust, Python
 
 ## Milestones
 
-- ✅ **v2.0 Overhaul** - Phases 1-10 (shipped 2026-01-18)
-- 🚧 **v2.2 Unified JSON & LLM Optimization** - Phases 11-17 (in progress)
+- **v2.0 Overhaul** - Phases 1-10 (shipped 2026-01-18)
+- **v2.2 Unified JSON & LLM Optimization** - Phases 11-17 (in progress)
 
 ## Phases
 
 <details>
-<summary>✅ v2.0 Overhaul (Phases 1-10) - SHIPPED 2026-01-18</summary>
+<summary>v2.0 Overhaul (Phases 1-10) - SHIPPED 2026-01-18</summary>
 
 **Milestone Goal:** Comprehensive overhaul for production safety, SQLiteGraph v1.0 upgrade, and structured output
 
@@ -31,7 +31,7 @@ See `.planning/milestones/v2.0-ROADMAP.md` for complete details of phases 1-10.
 
 </details>
 
-### 🚧 v2.2 Unified JSON & LLM Optimization (In Progress)
+### v2.2 Unified JSON & LLM Optimization (In Progress)
 
 **Milestone Goal:** Implement the Unified JSON Schema across all LLM tools with rich span extensions optimized for AI agent consumption and human-friendly CLI improvements.
 
@@ -131,11 +131,11 @@ Plans:
 **Plans**: 5 plans in 5 waves
 
 Plans:
-- [ ] 14-01-PLAN.md — Add -A, -B, -C context flags to Delete, Patch, Query commands
-- [ ] 14-02-PLAN.md — Add -A, -B, -C context flags to Get, ApplyFiles commands
-- [ ] 14-03-PLAN.md — Implement asymmetric context extraction function
-- [ ] 14-04-PLAN.md — Wire context flags through main.rs with grep-style resolution
-- [ ] 14-05-PLAN.md — Complete remaining command integration and add human-readable context display with JSON verification
+- [x] 14-01-PLAN.md — Add -A, -B, -C context flags to Delete, Patch, Query commands
+- [x] 14-02-PLAN.md — Add -A, -B, -C context flags to Get, ApplyFiles commands
+- [x] 14-03-PLAN.md — Implement asymmetric context extraction function
+- [x] 14-04-PLAN.md — Wire context flags through main.rs with grep-style resolution
+- [x] 14-05-PLAN.md — Complete remaining command integration and add human-readable context display with JSON verification
 
 **Note:** CLI-14 (context respects expanded symbol boundaries when used with `--expand` flag) is implemented in Phase 16 since the `--expand` flag itself is implemented there. Testing the interaction requires both features to exist.
 
@@ -155,15 +155,15 @@ Plans:
 6. Compiler errors are parsed to extract native error codes (Rust E0XXX, TypeScript TSXXXX)
 7. User can run `splice explain <code>` to get detailed error documentation
 
-**Plans**: TBD
+**Plans**: 6 plans in 4 waves
 
 Plans:
-- [ ] 15-01: Define SPL-E001+ error code taxonomy and mapping (reuse from Phase 11)
-- [ ] 15-02: Enhance all error types with severity, location, and hint fields
-- [ ] 15-03: Implement Levenshtein distance suggestions for SymbolNotFound
-- [ ] 15-04: Add compiler error code extraction (Rust, TypeScript)
-- [ ] 15-05: Implement `splice explain` command with error documentation
-- [ ] 15-06: Update all error sites to include hints and structured fields
+- [x] 15-01-PLAN.md — Add severity level diversity to SpliceErrorCode enum (CLI-15)
+- [x] 15-02-PLAN.md — Extract line/column information from all errors (CLI-16)
+- [x] 15-03-PLAN.md — Implement fuzzy symbol suggestions using Levenshtein distance (CLI-19)
+- [x] 15-04-PLAN.md — Extract compiler error codes Rust E0XXX, TypeScript TSXXXX (CLI-20)
+- [x] 15-05-PLAN.md — Implement `splice explain` command for error documentation (CLI-21)
+- [x] 15-06-PLAN.md — Integrate all enhanced error features across error sites (CLI-17, CLI-18)
 
 #### Phase 16: Symbol Expansion & Search
 
@@ -185,20 +185,20 @@ Plans:
 10. User can filter search results with `--glob` flag for file patterns
 11. Search results available in JSON format for LLM consumption
 
-**Plans**: TBD
+**Plans**: 11 plans in 5 waves
 
 Plans:
-- [ ] 16-01: Implement AST-aware parent chain walking for symbol expansion
-- [ ] 16-02: Add `--expand` and `--expand-level <N>` flags to get/query commands
-- [ ] 16-03: Implement progressive expansion (name → body → containing block)
-- [ ] 16-04: Include doc comments in expanded output
-- [ ] 16-05: Test expansion across all 7 languages for consistency
-- [ ] 16-06: Test context flags respect expanded boundaries (CLI-14 from Phase 14)
-- [ ] 16-07: Implement `splice search --pattern <text>` command
-- [ ] 16-08: Add file path, line number, and context to search output
-- [ ] 16-09: Implement `--glob` flag for file pattern filtering
-- [ ] 16-10: Add `--apply` flag for atomic find-and-replace with rollback
-- [ ] 16-11: Add JSON output format for search results
+- [ ] 16-01-PLAN.md — Implement AST-aware parent chain walking for symbol expansion
+- [ ] 16-02-PLAN.md — Add `--expand` and `--expand-level <N>` flags to get/query commands
+- [ ] 16-03-PLAN.md — Implement progressive expansion (name → body → containing block)
+- [ ] 16-04-PLAN.md — Include doc comments in expanded output
+- [ ] 16-05-PLAN.md — Test expansion across all 7 languages for consistency
+- [ ] 16-06-PLAN.md — Test context flags respect expanded boundaries (CLI-14 from Phase 14)
+- [ ] 16-07-PLAN.md — Implement `splice search --pattern <text>` command
+- [ ] 16-08-PLAN.md — Add file path, line number, and context to search output
+- [ ] 16-09-PLAN.md — Implement `--glob` flag for file pattern filtering
+- [ ] 16-10-PLAN.md — Add `--apply` flag for atomic find-and-replace with rollback
+- [ ] 16-11-PLAN.md — Add JSON output format for search results
 
 #### Phase 17: Integration & Testing
 
@@ -246,10 +246,10 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17
 | 12. Rich Span Advanced | v2.2 | 8/8 | Complete | 2026-01-22 |
 | 13. Dry-run & Diff | v2.2 | 5/5 | Complete | 2026-01-22 |
 | 14. Context Flags | v2.2 | 5/5 | Complete | 2026-01-22 |
-| 15. Enhanced Errors | v2.2 | 0/6 | Not started | - |
-| 16. Symbol Expansion & Search | v2.2 | 0/11 | Not started | - |
+| 15. Enhanced Errors | v2.2 | 6/6 | Complete | 2026-01-22 |
+| 16. Symbol Expansion & Search | v2.2 | 0/11 | Planning | 2026-01-22 |
 | 17. Integration & Testing | v2.2 | 0/6 | Not started | - |
 
 **Milestone Progress:**
-- v2.0: 31/31 plans complete (100%) ✅
-- v2.2: 45/52 plans complete (87%) 🚧
+- v2.0: 31/31 plans complete (100%)
+- v2.2: 51/69 plans complete (74%)

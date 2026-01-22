@@ -160,8 +160,8 @@ fn test_localized_change_verification() {
     let file_path = workspace.path().join("src/main.rs");
 
     // Read original content
-    let original = fs::read(&file_path).unwrap();
-    let content = String::from_utf8_lossy(&original);
+    let replaced = fs::read(&file_path).unwrap();
+    let content = String::from_utf8_lossy(&replaced);
 
     // Find the span to replace
     let start = content.find("let x = 1;").unwrap();
@@ -188,7 +188,7 @@ fn test_localized_change_verification() {
 
     // Bytes before span should be unchanged
     if start > 0 {
-        assert_eq!(&original[..start], &patched[..start]);
+        assert_eq!(&replaced[..start], &patched[..start]);
     }
 
     // Bytes after span should be unchanged (note: span may have different length)

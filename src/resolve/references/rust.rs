@@ -439,10 +439,10 @@ struct Reexport {
     reexported_name: String,
     /// The original module path being re-exported (e.g., "crate::utils")
     #[allow(dead_code)]
-    original_module: String,
+    replaced_module: String,
     /// The original symbol name being re-exported
     #[allow(dead_code)]
-    original_name: String,
+    replaced_name: String,
 }
 
 /// Build a map of all re-exports in the workspace.
@@ -494,8 +494,8 @@ fn build_reexport_map(
                 let reexport = Reexport {
                     reexporting_module: module_path.clone(),
                     reexported_name: name.clone(),
-                    original_module: imported_module.clone(),
-                    original_name: name.clone(),
+                    replaced_module: imported_module.clone(),
+                    replaced_name: name.clone(),
                 };
 
                 let key = (imported_module.clone(), name.clone());

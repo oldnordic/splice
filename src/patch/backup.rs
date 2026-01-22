@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupEntry {
     /// Original path of the file (relative to workspace root).
-    pub original_path: PathBuf,
+    pub replaced_path: PathBuf,
     /// SHA-256 hash of the original file content.
     pub hash: String,
     /// Byte count of the original file.
@@ -49,9 +49,9 @@ impl BackupManifest {
     }
 
     /// Add a file entry to the manifest.
-    pub fn add_file(&mut self, original_path: PathBuf, hash: String, size: u64) {
+    pub fn add_file(&mut self, replaced_path: PathBuf, hash: String, size: u64) {
         self.files.push(BackupEntry {
-            original_path,
+            replaced_path,
             hash,
             size,
         });
@@ -201,8 +201,8 @@ pub fn restore_from_manifest(manifest_path: &Path, workspace_root: &Path) -> Res
     let mut restored = 0;
 
     for entry in &manifest.files {
-        let original_path = workspace_root.join(&entry.original_path);
-        let backup_path = manifest.backup_dir.join(&entry.original_path);
+        let replaced_path = workspace_root.join(&entry.replaced_path);
+        let backup_path = manifest.backup_dir.join(&entry.replaced_path);
 
         // Verify backup file exists
         if !backup_path.exists() {
@@ -223,14 +223,14 @@ pub fn restore_from_manifest(manifest_path: &Path, workspace_root: &Path) -> Res
         if actual_hash != entry.hash {
             return Err(SpliceError::Other(format!(
                 "Hash mismatch for {}: expected {}, got {}",
-                entry.original_path.display(),
+                entry.replaced_path.display(),
                 entry.hash,
                 actual_hash
             )));
         }
 
         // Create parent directory if needed
-        if let Some(parent) = original_path.parent() {
+        if let Some(parent) = replaced_path.parent() {
             fs::create_dir_all(parent).map_err(|e| SpliceError::Io {
                 path: parent.to_path_buf(),
                 source: e,
@@ -238,8 +238,8 @@ pub fn restore_from_manifest(manifest_path: &Path, workspace_root: &Path) -> Res
         }
 
         // Write to original location
-        fs::write(&original_path, &content).map_err(|e| SpliceError::Io {
-            path: original_path.clone(),
+        fs::write(&replaced_path, &content).map_err(|e| SpliceError::Io {
+            path: replaced_path.clone(),
             source: e,
         })?;
 
@@ -302,7 +302,7 @@ mod tests {
 
         // Create test files
         let test_file = workspace_root.join("test.txt");
-        fs::write(&test_file, b"original content").expect("Failed to write test file");
+        fs::write(&test_file, b"replaced content").expect("Failed to write test file");
 
         // Create backup
         let mut writer = BackupWriter::new(workspace_root, Some("restore-test".to_string()))
@@ -325,7 +325,7 @@ mod tests {
 
         // Verify content was restored
         let content = fs::read_to_string(&test_file).expect("Failed to read file");
-        assert_eq!(content, "original content", "Content should be restored");
+        assert_eq!(content, "replaced content", "Content should be restored");
     }
 
     #[test]
@@ -335,7 +335,7 @@ mod tests {
 
         // Create test file
         let test_file = workspace_root.join("test.txt");
-        fs::write(&test_file, b"original").expect("Failed to write test file");
+        fs::write(&test_file, b"replaced").expect("Failed to write test file");
 
         // Create backup
         let mut writer = BackupWriter::new(workspace_root, Some("hash-test".to_string()))
@@ -429,7 +429,7 @@ mod tests {
 
         assert_eq!(loaded.operation_id, "test-manifest");
         assert_eq!(loaded.files.len(), 1);
-        assert_eq!(loaded.files[0].original_path, PathBuf::from("src/lib.rs"));
+        assert_eq!(loaded.files[0].replaced_path, PathBuf::from("src/lib.rs"));
         assert_eq!(loaded.files[0].hash, "abc123");
         assert_eq!(loaded.files[0].size, 1024);
     }

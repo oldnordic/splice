@@ -1019,8 +1019,8 @@ pub fn broken() -> i32 {
         )
         .expect("write batch.json");
 
-        let original_a = std::fs::read_to_string(&file_a).expect("read original a.rs");
-        let original_b = std::fs::read_to_string(&file_b).expect("read original b.rs");
+        let replaced_a = std::fs::read_to_string(&file_a).expect("read replaced a.rs");
+        let replaced_b = std::fs::read_to_string(&file_b).expect("read replaced b.rs");
 
         let splice_binary = get_splice_binary();
         let output = Command::new(&splice_binary)
@@ -1054,12 +1054,12 @@ pub fn broken() -> i32 {
         );
 
         assert_eq!(
-            original_a,
+            replaced_a,
             std::fs::read_to_string(&file_a).expect("read patched a.rs"),
             "a.rs should remain unchanged when batch fails"
         );
         assert_eq!(
-            original_b,
+            replaced_b,
             std::fs::read_to_string(&file_b).expect("read patched b.rs"),
             "b.rs should remain unchanged when batch fails"
         );
@@ -1359,8 +1359,8 @@ pub fn value() -> i32 {
         )
         .expect("Failed to write patch file");
 
-        let original_content =
-            std::fs::read_to_string(&a_rs_path).expect("Failed to read original file");
+        let replaced_content =
+            std::fs::read_to_string(&a_rs_path).expect("Failed to read replaced file");
 
         let splice_binary = get_splice_binary();
         eprintln!("Using splice binary: {:?}", splice_binary);
@@ -1428,7 +1428,7 @@ pub fn value() -> i32 {
         );
 
         assert_eq!(
-            original_content,
+            replaced_content,
             std::fs::read_to_string(&a_rs_path).expect("file unchanged after preview")
         );
 
@@ -1474,12 +1474,12 @@ path = "src/lib.rs"
         std::fs::create_dir(&src_dir).expect("Failed to create src directory");
 
         let lib_rs_path = src_dir.join("lib.rs");
-        let original_content = r#"
+        let replaced_content = r#"
 pub fn greet(name: &str) -> String {
     format!("Hello, {}!", name)
 }
 "#;
-        std::fs::write(&lib_rs_path, original_content)
+        std::fs::write(&lib_rs_path, replaced_content)
             .expect("Failed to write lib.rs");
 
         let patch_path = workspace_path.join("patch.rs");
@@ -1592,8 +1592,8 @@ pub fn greet(name: &str) -> String {
         let restored_content =
             std::fs::read_to_string(&lib_rs_path).expect("read restored lib.rs");
         assert_eq!(
-            restored_content, original_content,
-            "File should be restored to original content"
+            restored_content, replaced_content,
+            "File should be restored to replaced content"
         );
     }
 

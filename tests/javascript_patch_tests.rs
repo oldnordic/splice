@@ -158,8 +158,8 @@ function validFunction() {
         .expect("Failed to resolve function");
 
         // Read original content for comparison
-        let original_content =
-            std::fs::read_to_string(&js_path).expect("Failed to read original file");
+        let replaced_content =
+            std::fs::read_to_string(&js_path).expect("Failed to read replaced file");
 
         // Apply patch with syntax error (unclosed parenthesis)
         let invalid_patch = r#"
@@ -190,7 +190,7 @@ function validFunction() {
             std::fs::read_to_string(&js_path).expect("Failed to read current file");
 
         assert_eq!(
-            original_content, current_content,
+            replaced_content, current_content,
             "File should be unchanged after failed patch (atomic rollback)"
         );
     }

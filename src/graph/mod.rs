@@ -255,6 +255,32 @@ impl CodeGraph {
             .copied()
     }
 
+    /// Get all unique symbol names from the graph.
+    ///
+    /// Returns a Vec of all symbol names for fuzzy matching and suggestions.
+    /// Used by the suggestions module to provide "did you mean" functionality.
+    ///
+    /// # Returns
+    /// * Vec of unique symbol names (deduplicated)
+    pub fn all_symbol_names(&self) -> Vec<String> {
+        use std::collections::HashSet;
+
+        let mut names = HashSet::new();
+
+        // Collect all symbol names from cache keys
+        for key in self.symbol_cache.keys() {
+            // Cache keys are either "name" or "file_path::name"
+            // Extract just the name part
+            if let Some(name) = key.split("::").last() {
+                names.insert(name.to_string());
+            } else {
+                names.insert(key.clone());
+            }
+        }
+
+        names.into_iter().collect()
+    }
+
     /// Get the byte span for a NodeId.
     ///
     /// Returns (byte_start, byte_end) from the node's properties.

@@ -236,13 +236,13 @@ pub fn caller_function() -> String {
     ///
     /// # Panics
     /// Panics if file content has changed
-    fn assert_file_unchanged(path: &Path, original: &str) {
+    fn assert_file_unchanged(path: &Path, replaced: &str) {
         let actual = fs::read_to_string(path)
             .unwrap_or_else(|e| panic!("Failed to read file {}: {}", path.display(), e));
         assert_eq!(
-            actual, original,
-            "File was modified unexpectedly\nExpected (original):\n{}\n\nActual:\n{}",
-            original, actual
+            actual, replaced,
+            "File was modified unexpectedly\nExpected (replaced):\n{}\n\nActual:\n{}",
+            replaced, actual
         );
     }
 
@@ -410,8 +410,8 @@ pub fn caller_function() -> String {
         let workspace = create_rust_workspace();
         let workspace_path = workspace.path();
 
-        let original_content = fs::read_to_string(workspace_path.join("src/lib.rs"))
-            .expect("Failed to read original lib.rs");
+        let replaced_content = fs::read_to_string(workspace_path.join("src/lib.rs"))
+            .expect("Failed to read replaced lib.rs");
 
         // Create patch file
         let patch_content = r#"pub fn greet(name: &str) -> String {
@@ -449,7 +449,7 @@ pub fn caller_function() -> String {
         let current_content = fs::read_to_string(workspace_path.join("src/lib.rs"))
             .expect("Failed to read current lib.rs");
         assert_eq!(
-            current_content, original_content,
+            current_content, replaced_content,
             "Original file should be unchanged in preview mode"
         );
     }
@@ -460,7 +460,7 @@ pub fn caller_function() -> String {
         let workspace_path = workspace.path();
         let lib_path = workspace_path.join("src/lib.rs");
 
-        let original_content = fs::read_to_string(&lib_path).expect("Failed to read original");
+        let replaced_content = fs::read_to_string(&lib_path).expect("Failed to read replaced");
 
         // Create patch with syntax error (missing closing brace)
         let patch_content = r#"pub fn greet(name: &str) -> String {
@@ -495,7 +495,7 @@ pub fn caller_function() -> String {
         // Verify original file restored
         let current_content = fs::read_to_string(&lib_path).expect("Failed to read current lib.rs");
         assert_eq!(
-            current_content, original_content,
+            current_content, replaced_content,
             "Original file should be restored after syntax error"
         );
     }
@@ -506,7 +506,7 @@ pub fn caller_function() -> String {
         let workspace_path = workspace.path();
         let lib_path = workspace_path.join("src/lib.rs");
 
-        let original_content = fs::read_to_string(&lib_path).expect("Failed to read original");
+        let replaced_content = fs::read_to_string(&lib_path).expect("Failed to read replaced");
 
         // Create patch with type error (returns i32 instead of String)
         let patch_content = r#"pub fn greet(name: &str) -> String {
@@ -541,7 +541,7 @@ pub fn caller_function() -> String {
         // Verify original file restored
         let current_content = fs::read_to_string(&lib_path).expect("Failed to read current lib.rs");
         assert_eq!(
-            current_content, original_content,
+            current_content, replaced_content,
             "Original file should be restored after compile error"
         );
     }
@@ -1106,7 +1106,7 @@ mod tests {
         let workspace_path = workspace.path();
         let lib_path = workspace_path.join("src/lib.rs");
 
-        let original_content = fs::read_to_string(&lib_path).expect("Failed to read original");
+        let replaced_content = fs::read_to_string(&lib_path).expect("Failed to read replaced");
 
         // Create batch with mixed valid/invalid replacements
         let batch_json = r#"{
@@ -1137,7 +1137,7 @@ mod tests {
             // Verify original file restored (atomic rollback)
             let current_content = fs::read_to_string(&lib_path).expect("Failed to read current");
             assert_eq!(
-                current_content, original_content,
+                current_content, replaced_content,
                 "All files should be restored on batch failure (atomic rollback)"
             );
         }
@@ -1337,7 +1337,7 @@ pub fn foo() -> String {
         let workspace_path = workspace.path();
         let lib_path = workspace_path.join("src/lib.rs");
 
-        let original_content = fs::read_to_string(&lib_path).expect("Failed to read original");
+        let replaced_content = fs::read_to_string(&lib_path).expect("Failed to read replaced");
 
         // Run apply-files --preview
         let output = run_splice(
@@ -1365,7 +1365,7 @@ pub fn foo() -> String {
         // Verify no files modified
         let current_content = fs::read_to_string(&lib_path).expect("Failed to read current");
         assert_eq!(
-            current_content, original_content,
+            current_content, replaced_content,
             "Files should be unchanged in preview mode"
         );
 

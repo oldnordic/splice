@@ -167,8 +167,8 @@ def valid_function() -> int:
         .expect("Failed to resolve function");
 
         // Read original content for comparison
-        let original_content =
-            std::fs::read_to_string(&py_path).expect("Failed to read original file");
+        let replaced_content =
+            std::fs::read_to_string(&py_path).expect("Failed to read replaced file");
 
         // Apply patch with syntax error (unclosed parenthesis)
         let invalid_patch = r#"
@@ -196,7 +196,7 @@ def valid_function() -> int:
             std::fs::read_to_string(&py_path).expect("Failed to read current file");
 
         assert_eq!(
-            original_content, current_content,
+            replaced_content, current_content,
             "File should be unchanged after failed patch (atomic rollback)"
         );
     }
@@ -247,8 +247,8 @@ def get_number() -> int:
             .expect("Failed to resolve function");
 
         // Read original content for comparison
-        let original_content =
-            std::fs::read_to_string(&py_path).expect("Failed to read original file");
+        let replaced_content =
+            std::fs::read_to_string(&py_path).expect("Failed to read replaced file");
 
         // Apply patch with invalid Python (non-ASCII identifier in a way that causes issues)
         // Using a return statement outside a function
@@ -282,12 +282,12 @@ x = undefined_variable  # This will cause NameError
         // If it failed, it should be unchanged
         if result.is_ok() {
             assert_ne!(
-                original_content, current_content,
+                replaced_content, current_content,
                 "File should be changed after successful patch"
             );
         } else {
             assert_eq!(
-                original_content, current_content,
+                replaced_content, current_content,
                 "File should be unchanged after failed patch (atomic rollback)"
             );
         }

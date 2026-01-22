@@ -530,7 +530,7 @@ fn test_context_with_expand_java() {
 }
 
 #[test]
-fn test_expansion_larger_than_original_span() {
+fn test_expansion_larger_than_replaced_span() {
     use splice::expand::expand_to_body_with_docs;
     use splice::symbol::Language;
 
@@ -558,9 +558,9 @@ fn test_name() -> i32 {
             "Expanded end should be after name end");
 
     // Calculate sizes
-    let original_size = name_end - name_offset;
+    let replaced_size = name_end - name_offset;
     let expanded_size = expanded_end - expanded_start;
 
-    assert!(expanded_size > original_size,
-            "Expanded span should be larger than original name span");
+    assert!(expanded_size > replaced_size,
+            "Expanded span should be larger than replaced name span");
 }

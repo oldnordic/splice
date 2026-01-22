@@ -35,7 +35,7 @@ fn test_pre_verify_blocks_corrupted_file() {
     let db_path = workspace.join(".splice_graph.db");
 
     // Compute checksum of original file
-    let original_checksum = splice::checksum::checksum_file(&test_file).unwrap();
+    let replaced_checksum = splice::checksum::checksum_file(&test_file).unwrap();
 
     // Modify the file externally
     let mut file = File::create(&test_file).unwrap();
@@ -45,7 +45,7 @@ fn test_pre_verify_blocks_corrupted_file() {
     use splice::verify;
     let results = verify::pre_verify_patch(
         &test_file,
-        Some(&original_checksum),
+        Some(&replaced_checksum),
         workspace,
         &db_path,
         false,

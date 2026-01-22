@@ -164,8 +164,8 @@ fn main() -> ExitCode {
             execute_explain(code, json_output)
         }
 
-        splice::cli::Commands::Search { pattern, path, language, glob, context_after, context_before, context_both, json, apply: _, replace: _ } => {
-            execute_search(&pattern, &path, language, glob, context_before, context_after, context_both, json_output || json)
+        splice::cli::Commands::Search { pattern, path, language, glob, context_after, context_before, context_both, apply, replace, json } => {
+            execute_search(&pattern, &path, language, glob, apply, replace.as_deref(), context_before, context_after, context_both, json_output || json)
         }
     };
 
@@ -375,10 +375,10 @@ fn execute_delete(
     // Step 10: Dry-run mode - preview what would be deleted
     if dry_run {
         // Read original file content
-        let original_content = std::fs::read_to_string(file_path)?;
+        let replaced_content = std::fs::read_to_string(file_path)?;
 
         // Simulate deletion by removing the span using ropey
-        let mut rope = Rope::from_str(&original_content);
+        let mut rope = Rope::from_str(&replaced_content);
         let def = &ref_set.definition;
         let start_char = rope.byte_to_char(def.byte_start);
         let end_char = rope.byte_to_char(def.byte_end);
@@ -387,7 +387,7 @@ fn execute_delete(
 
         // Count lines removed
         let lines_removed = if def.byte_end > def.byte_start {
-            (&original_content[def.byte_start..def.byte_end]).lines().count()
+            (&replaced_content[def.byte_start..def.byte_end]).lines().count()
         } else {
             0
         };
@@ -404,9 +404,9 @@ fn execute_delete(
         // Print unified diff with colors (unless JSON mode)
         let use_color = !json_output && should_use_color();
         let diff_output = if use_color {
-            format_colored_diff(&original_content, &after_content, true)
+            format_colored_diff(&replaced_content, &after_content, true)
         } else {
-            format_unified_diff(&original_content, &after_content, &file_path.to_string_lossy(), unified)
+            format_unified_diff(&replaced_content, &after_content, &file_path.to_string_lossy(), unified)
         };
 
         if !diff_output.is_empty() {

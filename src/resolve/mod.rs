@@ -3,6 +3,7 @@
 //! This module provides file-aware, deterministic symbol resolution.
 //! Name-only resolution is forbidden unless uniquely provable.
 //! Supports multi-language code analysis.
+//! Provides enhanced symbol lookup with "did you mean" functionality.
 
 pub mod cross_file;
 pub mod module_resolver;
@@ -101,7 +102,25 @@ pub fn resolve_symbol(
     let all_matches = graph.find_symbols_by_name(name);
 
     if all_matches.is_empty() {
-        return Err(SpliceError::symbol_not_found(name, None));
+        // Symbol not found - try to provide suggestions
+        let all_symbols = graph.all_symbol_names();
+        let suggestions = crate::suggestions::suggest_similar_symbols(name, &all_symbols, 3);
+
+        let hint = if suggestions.is_empty() {
+            format!(
+                "Symbol '{}' not found. Run `splice ingest` to index the codebase.",
+                name
+            )
+        } else {
+            format!("Did you mean: {}?", suggestions.join(", "))
+        };
+
+        return Err(SpliceError::SymbolNotFound {
+            message: format!("Symbol '{}' not found", name),
+            symbol: name.to_string(),
+            file: None,
+            hint,
+        });
     }
 
     if all_matches.len() > 1 {
@@ -206,9 +225,31 @@ fn resolve_symbol_in_file(
         .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
 
     // Use the cache-based lookup from CodeGraph
-    let node_id = graph
-        .find_symbol_in_file(file_str, name)
-        .ok_or_else(|| SpliceError::symbol_not_found(name, Some(file_path)))?;
+    let node_id = match graph.find_symbol_in_file(file_str, name) {
+        Some(id) => id,
+        None => {
+            // Symbol not found - try to provide suggestions
+            let all_symbols = graph.all_symbol_names();
+            let suggestions = crate::suggestions::suggest_similar_symbols(name, &all_symbols, 3);
+
+            let hint = if suggestions.is_empty() {
+                format!(
+                    "Symbol '{}' not found in {}. Run `splice ingest` to index the codebase.",
+                    name,
+                    file_str
+                )
+            } else {
+                format!("Did you mean: {}?", suggestions.join(", "))
+            };
+
+            return Err(SpliceError::SymbolNotFound {
+                message: format!("Symbol '{}' not found in {}", name, file_str),
+                symbol: name.to_string(),
+                file: Some(file_path.to_path_buf()),
+                hint,
+            });
+        }
+    };
 
     // Get node data from graph
     let node = graph.inner().get_node(node_id.as_i64())?;
@@ -246,7 +287,12 @@ fn resolve_symbol_in_file(
     // Filter by kind if specified
     if let Some(k) = kind {
         if kind_str != k {
-            return Err(SpliceError::symbol_not_found(name, Some(file_path)));
+            return Err(SpliceError::SymbolNotFound {
+                message: format!("Symbol '{}' of kind '{}' not found in {}", name, k, file_str),
+                symbol: name.to_string(),
+                file: Some(file_path.to_path_buf()),
+                hint: format!("Symbol '{}' exists but is a '{}', not '{}'. Try adjusting the --kind flag.", name, kind_str, k),
+            });
         }
     }
 
@@ -313,4 +359,66 @@ pub fn resolve_symbol_with_rust_kind(
 ) -> Result<ResolvedSpan> {
     let kind_str = kind.map(|k| k.as_str().to_string());
     resolve_symbol(graph, file, kind_str.as_deref(), name)
+}
+
+/// Find a symbol, providing suggestions if not found.
+///
+/// This is the preferred method for symbol lookup in user-facing commands
+/// because it provides helpful "did you mean" suggestions when a symbol
+/// name is misspelled or doesn't exist.
+///
+/// # Arguments
+/// * `graph` - The code graph to search
+/// * `name` - The symbol name to find
+/// * `file` - Optional file path to scope the search
+///
+/// # Returns
+/// * `Ok(NodeId)` if symbol is found
+/// * `Err(SpliceError::SymbolNotFound)` with suggestions if not found
+///
+/// # Examples
+/// ```
+/// let node_id = find_symbol_or_suggest(&graph, "my_function", None)?;
+/// ```
+pub fn find_symbol_or_suggest(
+    graph: &CodeGraph,
+    name: &str,
+    file: Option<&Path>,
+) -> Result<NodeId> {
+    // Try to find the symbol in the specified file
+    if let Some(file_path) = file {
+        if let Some(file_str) = file_path.to_str() {
+            if let Some(node_id) = graph.find_symbol_in_file(file_str, name) {
+                return Ok(node_id);
+            }
+        }
+    }
+
+    // Check if symbol exists in any file
+    let all_matches = graph.find_symbols_by_name(name);
+    if !all_matches.is_empty() {
+        if let Some((node_id, _)) = all_matches.first() {
+            return Ok(*node_id);
+        }
+    }
+
+    // Symbol not found - get suggestions
+    let all_symbols = graph.all_symbol_names();
+    let suggestions = crate::suggestions::suggest_similar_symbols(name, &all_symbols, 3);
+
+    let hint = if suggestions.is_empty() {
+        format!(
+            "Symbol '{}' not found. Run `splice ingest` to index the codebase.",
+            name
+        )
+    } else {
+        format!("Did you mean: {}?", suggestions.join(", "))
+    };
+
+    Err(SpliceError::SymbolNotFound {
+        message: format!("Symbol '{}' not found", name),
+        symbol: name.to_string(),
+        file: file.map(|p| p.to_path_buf()),
+        hint,
+    })
 }
