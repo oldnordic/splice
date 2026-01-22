@@ -127,8 +127,10 @@ fn main() -> ExitCode {
             count,
             show_code,
             relationships,
+            expand,
+            expand_level,
         } => {
-            execute_query(&db, &label, context_before, context_after, context_both, list, count, show_code, relationships, json_output)
+            execute_query(&db, &label, context_before, context_after, context_both, list, count, show_code, relationships, expand, expand_level, json_output)
         },
 
         splice::cli::Commands::Get {
@@ -140,8 +142,10 @@ fn main() -> ExitCode {
             context_before,
             context_both,
             relationships,
+            expand,
+            expand_level,
         } => {
-            execute_get(&db, &file, start, end, context_before, context_after, context_both, relationships, json_output)
+            execute_get(&db, &file, start, end, context_before, context_after, context_both, relationships, expand, expand_level, json_output)
         },
 
         splice::cli::Commands::Log {
@@ -1973,6 +1977,8 @@ fn execute_query(
     count: bool,
     show_code: bool,
     relationships: bool,
+    expand: bool,
+    expand_level: usize,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     #![allow(unused_variables)]
@@ -2388,6 +2394,8 @@ fn execute_get(
     context_after: usize,
     context_both: usize,
     relationships: bool,
+    expand: bool,
+    expand_level: usize,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     #![allow(unused_variables)]
@@ -2396,11 +2404,45 @@ fn execute_get(
     // Resolve context counts from -A/-B/-C flags
     let (ctx_before, ctx_after) = splice::resolve_context_counts(context_before, context_after, context_both);
 
+    // Apply expansion if requested
+    let (expanded_start, expanded_end) = if expand && expand_level > 0 {
+        use splice::symbol::Language;
+        use splice::expand::expand_symbol_with_level;
+        use splice::ingest::detect as ingest_detect;
+
+        // Detect language from file path
+        let lang = ingest_detect::detect_language(file_path);
+
+        // Only proceed if language detection succeeded
+        match lang {
+            Some(detected_lang) => {
+                let language = match detected_lang {
+                    ingest_detect::Language::Rust => Language::Rust,
+                    ingest_detect::Language::Python => Language::Python,
+                    ingest_detect::Language::C => Language::C,
+                    ingest_detect::Language::Cpp => Language::Cpp,
+                    ingest_detect::Language::Java => Language::Java,
+                    ingest_detect::Language::JavaScript => Language::JavaScript,
+                    ingest_detect::Language::TypeScript => Language::TypeScript,
+                };
+
+                // Try to expand the symbol
+                match expand_symbol_with_level(file_path, start, language, expand_level) {
+                    Ok((exp_start, exp_end)) => (exp_start, exp_end),
+                    Err(_) => (start, end), // Fall back to original span on error
+                }
+            }
+            None => (start, end), // Language detection failed, use original span
+        }
+    } else {
+        (start, end)
+    };
+
     // Open Magellan integration
     let integration = MagellanIntegration::open(db_path)?;
 
-    // Get code chunk
-    let code = integration.get_code_chunk(file_path, start, end)?;
+    // Get code chunk (use expanded span if expansion was requested and successful)
+    let code = integration.get_code_chunk(file_path, expanded_start, expanded_end)?;
 
     match code {
         Some(content) => {
@@ -2415,15 +2457,17 @@ fn execute_get(
                 use splice::action::{suggest_action, ActionType, Confidence};
 
                 // Create span result with tool_hints and suggested_action
+                // Use expanded span if expansion was requested
+                let (span_start, span_end) = (expanded_start, expanded_end);
                 let mut span = SpanResult::from_byte_span(
                     file_path.to_string_lossy().to_string(),
-                    start,
-                    end,
+                    span_start,
+                    span_end,
                 );
 
-                // Add context if requested
+                // Add context if requested (use expanded span for context extraction)
                 if ctx_before > 0 || ctx_after > 0 {
-                    if let Ok(ctx) = context::extract_context_asymmetric(file_path, start, end, ctx_before, ctx_after) {
+                    if let Ok(ctx) = context::extract_context_asymmetric(file_path, span_start, span_end, ctx_before, ctx_after) {
                         span = span.with_context(ctx);
                     }
                 }
@@ -2455,8 +2499,8 @@ fn execute_get(
                 );
                 span = span.with_suggested_action(action);
 
-                // Add checksums
-                if let Ok(cs) = checksum::checksum_span(file_path, start, end) {
+                // Add checksums (use expanded span for checksum calculation)
+                if let Ok(cs) = checksum::checksum_span(file_path, span_start, span_end) {
                     span = span.with_checksum_before(cs.value);
                 }
                 if let Ok(file_cs) = checksum::checksum_file(file_path) {
