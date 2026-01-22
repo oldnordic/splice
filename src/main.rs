@@ -1771,7 +1771,126 @@ fn execute_query(
         return Ok(splice::cli::CliSuccessPayload::message_only(message));
     }
 
-    // Build response data
+    // Check if JSON output is requested
+    if _json_output {
+        use splice::output::{OperationResult, OperationData, QueryResult, SpanResult};
+        use splice::checksum;
+        use splice::context;
+        use splice::ingest::detect as ingest_detect;
+        use splice::ingest::semantic_kind::SemanticKind;
+        use splice::hints::{derive_tool_hints, ToolHintOperation};
+        use splice::action::{suggest_action, ActionType, Confidence};
+
+        // Build rich span results with tool_hints and suggested_action
+        let mut symbols: Vec<SpanResult> = Vec::new();
+
+        for r in &results {
+            let path = std::path::Path::new(&r.file_path);
+
+            // Create base span result
+            let mut span = SpanResult::from_byte_span(
+                r.file_path.clone(),
+                r.byte_start,
+                r.byte_end,
+            )
+            .with_symbol(r.name.clone(), r.kind.clone());
+
+            // Add context if requested
+            if context_lines > 0 {
+                if let Ok(ctx) = context::extract_context(path, r.byte_start, r.byte_end, context_lines) {
+                    span = span.with_context(ctx);
+                }
+            }
+
+            // Detect language and infer semantic kind from Magellan's kind string
+            let (sem_kind, is_public) = if let Some(lang) = ingest_detect::detect_language(path) {
+                // Map Magellan kind strings to SemanticKind
+                let sem_kind = match r.kind.as_str() {
+                    "fn" | "function" | "method" => SemanticKind::Function,
+                    "struct" | "class" | "type" => SemanticKind::Type,
+                    "trait" | "interface" => SemanticKind::Trait,
+                    "enum" => SemanticKind::Enum,
+                    "module" => SemanticKind::Module,
+                    "const" | "static" => SemanticKind::Constant,
+                    _ => SemanticKind::Unknown,
+                };
+
+                // Infer is_public from semantic kind (default to true for functions, types)
+                let is_public = matches!(sem_kind, SemanticKind::Function | SemanticKind::Type | SemanticKind::Trait | SemanticKind::Enum);
+
+                span = span.with_semantic_info(sem_kind.as_str(), lang.as_str());
+
+                (sem_kind, is_public)
+            } else {
+                (SemanticKind::Unknown, false)
+            };
+
+            // Derive tool hints
+            let hints = derive_tool_hints(sem_kind, is_public, ToolHintOperation::Query);
+            span = span.with_tool_hints(hints);
+
+            // Generate suggested action
+            let action = suggest_action(
+                ActionType::Query,
+                &r.name,
+                &r.kind,
+                &r.file_path,
+                Confidence::High,
+            );
+            span = span.with_suggested_action(action);
+
+            // Add checksums
+            if let Ok(cs) = checksum::checksum_span(path, r.byte_start, r.byte_end) {
+                span = span.with_checksum_before(cs.value);
+            }
+            if let Ok(file_cs) = checksum::checksum_file(path) {
+                span = span.with_file_checksum_before(file_cs.value);
+            }
+
+            symbols.push(span);
+        }
+
+        // Sort spans deterministically
+        symbols.sort();
+
+        // Create query result
+        let query_result = QueryResult {
+            labels: labels.to_vec(),
+            count: symbols.len(),
+            symbols,
+        };
+
+        let results_count = query_result.count;
+
+        // Create operation result
+        let result = OperationResult::new("query".to_string())
+            .success(format!("Found {} symbols", results_count))
+            .with_result(OperationData::Query(query_result));
+
+        // Output structured JSON directly
+        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+
+        // Record execution
+        let duration_ms = start.elapsed().as_millis() as i64;
+        let parameters = serde_json::json!({
+            "db": db_path.to_string_lossy(),
+            "labels": labels,
+            "show_code": show_code,
+            "results_count": results_count,
+        });
+        if let Err(e) = log::record_execution_with_params(
+            &result,
+            duration_ms,
+            Some(command_line),
+            parameters,
+        ) {
+            eprintln!("Failed to record execution: {}", e);
+        }
+
+        return Ok(splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted());
+    }
+
+    // Build response data (for non-JSON output)
     let symbols_data: Vec<serde_json::Value> = results
         .iter()
         .map(|r| {
@@ -1867,7 +1986,81 @@ fn execute_get(
 
     match code {
         Some(content) => {
-            // Print to console
+            // Check if JSON output is requested
+            if _json_output {
+                use splice::output::{OperationResult, OperationData, SpanResult};
+                use splice::checksum;
+                use splice::context;
+                use splice::ingest::detect as ingest_detect;
+                use splice::ingest::semantic_kind::SemanticKind;
+                use splice::hints::{derive_tool_hints, ToolHintOperation};
+                use splice::action::{suggest_action, ActionType, Confidence};
+
+                // Create span result with tool_hints and suggested_action
+                let mut span = SpanResult::from_byte_span(
+                    file_path.to_string_lossy().to_string(),
+                    start,
+                    end,
+                );
+
+                // Add context if requested
+                if context_lines > 0 {
+                    if let Ok(ctx) = context::extract_context(file_path, start, end, context_lines) {
+                        span = span.with_context(ctx);
+                    }
+                }
+
+                // Detect language and infer semantic kind
+                let (sem_kind, is_public) = if let Some(lang) = ingest_detect::detect_language(file_path) {
+                    // Default to Function for get operations (most common case)
+                    let sem_kind = SemanticKind::Function;
+                    let is_public = true; // Default to public for get operations
+
+                    span = span.with_semantic_info(sem_kind.as_str(), lang.as_str());
+
+                    (sem_kind, is_public)
+                } else {
+                    (SemanticKind::Unknown, false)
+                };
+
+                // Derive tool hints
+                let hints = derive_tool_hints(sem_kind, is_public, ToolHintOperation::Get);
+                span = span.with_tool_hints(hints);
+
+                // Generate suggested action
+                let action = suggest_action(
+                    ActionType::Read,
+                    "code_chunk",
+                    "unknown",
+                    &file_path.to_string_lossy(),
+                    Confidence::High,
+                );
+                span = span.with_suggested_action(action);
+
+                // Add checksums
+                if let Ok(cs) = checksum::checksum_span(file_path, start, end) {
+                    span = span.with_checksum_before(cs.value);
+                }
+                if let Ok(file_cs) = checksum::checksum_file(file_path) {
+                    span = span.with_file_checksum_before(file_cs.value);
+                }
+
+                // Create operation result with span as data
+                let result = OperationResult::new("get".to_string())
+                    .success(format!("Retrieved code chunk ({} bytes)", content.len()))
+                    .with_result(OperationData::Query(splice::output::QueryResult {
+                        labels: vec![],
+                        count: 1,
+                        symbols: vec![span],
+                    }));
+
+                // Output structured JSON directly
+                println!("{}", serde_json::to_string_pretty(&result).unwrap());
+
+                return Ok(splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted());
+            }
+
+            // Print to console (non-JSON output)
             write_stdout_bytes(content.as_bytes())?;
             write_stdout_bytes(b"\n")?;
 

@@ -17,6 +17,10 @@ pub enum ToolHintOperation {
     ChangeType,
     /// Replace entire function body
     ReplaceBody,
+    /// Query/search for symbols
+    Query,
+    /// Get/retrieve symbol content
+    Get,
 }
 
 /// Behavioral hints for refactoring operations.

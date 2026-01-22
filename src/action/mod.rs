@@ -18,6 +18,12 @@ pub enum ActionType {
 
     /// Expand a symbol to include additional context.
     Expand,
+
+    /// Query/search for symbols.
+    Query,
+
+    /// Read/retrieve symbol content.
+    Read,
 }
 
 /// Confidence level in the action suggestion.
@@ -137,6 +143,15 @@ fn generate_reason(
                 symbol_name
             )
         }
+        ActionType::Query => {
+            format!("Query for symbols matching specified labels")
+        }
+        ActionType::Read => {
+            format!(
+                "Read symbol '{}' ({}) at {}",
+                symbol_name, symbol_kind, file_path
+            )
+        }
     }
 }
 
@@ -153,6 +168,12 @@ fn generate_params(action_type: ActionType) -> Option<HashMap<String, serde_json
         }
         ActionType::Expand => {
             params.insert("levels".to_string(), serde_json::Value::Number(2.into()));
+        }
+        ActionType::Query => {
+            params.insert("include_context".to_string(), serde_json::Value::Bool(false));
+        }
+        ActionType::Read => {
+            params.insert("include_metadata".to_string(), serde_json::Value::Bool(true));
         }
     }
 
