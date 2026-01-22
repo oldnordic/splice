@@ -117,6 +117,14 @@ pub enum SpliceErrorCode {
     /// File was modified externally (SPL-E034)
     FileExternallyModified,
 
+    // Warning-level errors (SPL-W001 to SPL-W010)
+    /// Symbol exists in multiple files (SPL-W001)
+    AmbiguousSymbolAsWarning,
+    /// File skipped during ingestion (SPL-W002)
+    FileSkipped,
+    /// External modification detected (SPL-W003)
+    FileExternallyModifiedWarning,
+
     // Validation errors (SPL-E041 to SPL-E050)
     /// Pre-verification check failed (SPL-E041)
     PreVerificationFailed,
@@ -174,6 +182,10 @@ impl SpliceErrorCode {
             SpliceErrorCode::FileNotFound => "SPL-E033".to_string(),
             SpliceErrorCode::FileExternallyModified => "SPL-E034".to_string(),
 
+            SpliceErrorCode::AmbiguousSymbolAsWarning => "SPL-W001".to_string(),
+            SpliceErrorCode::FileSkipped => "SPL-W002".to_string(),
+            SpliceErrorCode::FileExternallyModifiedWarning => "SPL-W003".to_string(),
+
             SpliceErrorCode::PreVerificationFailed => "SPL-E041".to_string(),
             SpliceErrorCode::ParseValidationFailed => "SPL-E042".to_string(),
             SpliceErrorCode::CompilerValidationFailed => "SPL-E043".to_string(),
@@ -219,6 +231,10 @@ impl SpliceErrorCode {
             SpliceErrorCode::FileWriteError => "Check disk space, file permissions, and ensure the file is not locked by another process.".to_string(),
             SpliceErrorCode::FileNotFound => "The specified file does not exist. Check the file path.".to_string(),
             SpliceErrorCode::FileExternallyModified => "The file was modified by another process. Re-index the codebase and retry.".to_string(),
+
+            SpliceErrorCode::AmbiguousSymbolAsWarning => "The symbol name is defined in multiple files. Use --file to specify which file to use.".to_string(),
+            SpliceErrorCode::FileSkipped => "File was skipped during ingestion. Check file type and permissions.".to_string(),
+            SpliceErrorCode::FileExternallyModifiedWarning => "The file was modified by another process. Changes may not be reflected.".to_string(),
 
             SpliceErrorCode::PreVerificationFailed => "A pre-verification check failed. Review the check details and fix the reported issue.".to_string(),
             SpliceErrorCode::ParseValidationFailed => "The file failed to parse after modification. Revert the change and fix the syntax error.".to_string(),
