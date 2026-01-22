@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 14 of 17 (Context Flags) — IN PROGRESS 🔄
-Plan: 01 of ? in current phase
-Status: Plan 14-01 complete - Unix-style -A, -B, -C context flags added to CLI
-Last activity: 2026-01-22 — Plan 14-01 complete
+Plan: 02 of ? in current phase
+Status: Plan 14-02 complete - ApplyFiles command updated with -A, -B, -C context flags
+Last activity: 2026-01-22 — Plan 14-02 complete
 
-Progress: [████████░░░░░░░░░░░░░] 77% (62/80 plans)
+Progress: [████████░░░░░░░░░░░░░] 79% (63/80 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 62 (31 v2.0 + 31 v2.2)
+- Total plans completed: 63 (31 v2.0 + 32 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~27.6 hours (24h v2.0 + 3.6h v2.2)
+- Total execution time: ~27.7 hours (24h v2.0 + 3.7h v2.2)
 
 **By Phase:**
 
@@ -30,8 +30,8 @@ Progress: [████████░░░░░░░░░░░░░] 77% 
 |-------|-------|-------|----------|
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
 | 11-13 (v2.2) | 30/30 | 3.2h | ~6 min |
-| 14 (v2.2) | 1/? | 4min | ~4 min |
-| **Total** | **62/80** | **~27.6h** | **~27 min** |
+| 14 (v2.2) | 2/? | 9min | ~5 min |
+| **Total** | **63/80** | **~27.7h** | **~26 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
@@ -102,6 +102,7 @@ Recent decisions affecting current work:
 - [14-01]: Delete command uses 'context' for -C flag; Patch/Query/Get use 'context_both' to avoid naming conflicts
 - [14-01]: CLI computes context_lines as max of all three flags for compatibility with existing extract_context()
 - [14-01]: extract_context_with_before_after() function added for future asymmetric context support
+- [14-02]: ApplyFiles command updated with -A, -B, -C context flags, completing coverage across all 5 context-aware commands
 
 ### Pending Todos
 
@@ -163,8 +164,9 @@ Resume file: None
   - 13-03 (CLI Flags for Dry-Run and Unified Context) ✅ Complete
   - 13-04 (Dry-run Diff Integration) ✅ Complete
   - 13-05 (Dry-run Exit Code Implementation) ✅ Complete
-- Phase 14 in progress: 1 plan (context flags)
+- Phase 14 in progress: 2 plans (context flags)
   - 14-01 (Unix-style Context Flags) ✅ Complete
+  - 14-02 (ApplyFiles Context Flags) ✅ Complete
 - 233 tests passing (including 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests)
 - Error code registry with 26 error variants across 9 categories
 - Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
@@ -180,8 +182,8 @@ Resume file: None
 - Diff functions accessible from splice crate root: format_unified_diff, should_use_color, format_colored_diff, format_diff_summary
 - Dry-run mode integrated with git-style summary header and unified diff output
 - preview_patch_with_content() added to return before/after content for diff generation
-- Unix-style context flags (-A, -B, -C) added to Delete, Patch, Query, Get commands
-- Verification passed: Phase 12 all must-haves verified (27/27), Phase 13 complete, Phase 14 plan 01 complete
+- Unix-style context flags (-A, -B, -C) added to all 5 commands (Delete, Patch, Query, Get, ApplyFiles)
+- Verification passed: Phase 12 all must-haves verified (27/27), Phase 13 complete, Phase 14 plans 01-02 complete
 
 **Gap Closure Summary:**
 
@@ -196,5 +198,5 @@ Resume file: None
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 14-01 (Unix-style Context Flags) - -A, -B, -C flags added to CLI
+Stopped at: Completed 14-02 (ApplyFiles Context Flags) - -A, -B, -C flags added to ApplyFiles command
 Resume file: None
