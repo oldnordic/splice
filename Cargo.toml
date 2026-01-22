@@ -70,4 +70,7 @@ similar = "2.6"        # Unified diff generation using TextDiff::unified_diff()
 nu-ansi-term = "0.50"  # Terminal colors (red for deletions, green for additions)
 is-terminal = "0.4"    # Cross-platform TTY detection
 
+# String similarity for "did you mean" suggestions
+strsim = "0.11"
+
 [dev-dependencies]
