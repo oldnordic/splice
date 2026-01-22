@@ -5,24 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** Phase 14 - Context Flags (IN PROGRESS)
+**Current focus:** Phase 15 - Enhanced Errors (IN PROGRESS)
 
 ## Current Position
 
-Phase: 14 of 17 (Context Flags) — COMPLETE ✅
-Plan: 05 of 5 in current phase
-Status: Plan 14-05 complete - Human-readable context output and comprehensive tests
-Last activity: 2026-01-22 — Plan 14-05 complete
+Phase: 15 of 17 (Enhanced Errors) — IN PROGRESS
+Plan: 01 of 6 in current phase
+Status: Starting Plan 15-01
+Last activity: 2026-01-22 — Plan 15-01 complete
 
-Progress: [█████████░░░░░░░░░░░░] 81% (66/80 plans)
+Progress: [█████████░░░░░░░░░░░░] 84% (67/80 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 66 (31 v2.0 + 35 v2.2)
+- Total plans completed: 67 (31 v2.0 + 36 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~28.1 hours (24h v2.0 + 4.1h v2.2)
+- Total execution time: ~28.2 hours (24h v2.0 + 4.2h v2.2)
 
 **By Phase:**
 
@@ -31,7 +31,8 @@ Progress: [█████████░░░░░░░░░░░░] 81% 
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
 | 11-13 (v2.2) | 30/30 | 3.2h | ~6 min |
 | 14 (v2.2) | 5/5 | 30min | ~6 min |
-| **Total** | **66/80** | **~28.1h** | **~26 min** |
+| 15 (v2.2) | 1/6 | 3min | ~3 min |
+| **Total** | **67/80** | **~28.2h** | **~25 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
@@ -39,6 +40,7 @@ Progress: [█████████░░░░░░░░░░░░] 81% 
 - v2.2 plans executing quickly (~1-14 min each)
 - Phase 13 complete: diff module, CLI flags (-n/--dry-run), unified diff integration, git-style exit codes (5/5 complete)
 - Phase 14 complete: context flags with asymmetric extraction, human-readable output, comprehensive tests (5/5 complete)
+- Phase 15-01 complete: severity level diversity in SpliceErrorCode enum (3 warning variants, proper severity() method)
 - Rich span metadata fully integrated into CLI JSON output
 - Dry-run mode with git-compatible output (unified diff, summary header, colors, exit codes)
 - Context flags (-A/-B/-C) fully integrated across all 5 commands with grep-style resolution
@@ -117,6 +119,10 @@ Recent decisions affecting current work:
 - [14-05]: Human-readable context display added to execute_query and execute_get with "Context (N lines before):" and "Context (N lines after):" labels
 - [14-05]: Comprehensive integration tests created in tests/context_flags_tests.rs (437 lines, 16 tests)
 - [14-05]: Tests cover -A/-B/-C flag combinations, performance, file boundaries, and JSON serialization
+- [15-01]: 3 warning variants added to SpliceErrorCode enum (AmbiguousSymbolAsWarning, FileSkipped, FileExternallyModifiedWarning)
+- [15-01]: severity() method implemented with proper match statement discriminating 22 error-level vs 6 warning-level codes
+- [15-01]: Existing AmbiguousSymbol, AmbiguousReference, FileExternallyModified upgraded to warning severity
+- [15-01]: Comprehensive test coverage added for severity levels (13 tests total, 5 new tests in 15-01)
 
 ### Pending Todos
 
@@ -152,7 +158,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 14-05 (Context Flags Complete) - Human-readable context output and comprehensive tests
+Stopped at: Completed 15-01 (Enhanced Errors) - Severity level diversity in SpliceErrorCode enum
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -161,7 +167,7 @@ Resume file: None
 - 311+ tests passing
 - Comprehensive documentation complete
 
-**v2.2 Status:** PHASE 14 COMPLETE ✅
+**v2.2 Status:** PHASE 15 IN PROGRESS ⏳
 - Phase 11 complete: 11 plans (7 infrastructure + 4 gap closure)
 - Phase 12 complete: 8 plans (all verified)
   - 12-01 (Relationships) ✅ Complete
@@ -184,8 +190,10 @@ Resume file: None
   - 14-03 (Asymmetric Context Extraction) ✅ Complete
   - 14-04 (Main.rs Context Flag Wiring) ✅ Complete
   - 14-05 (Context Flags Complete) ✅ Complete
-- 252 tests passing (including 16 context flag tests, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests)
-- Error code registry with 26 error variants across 9 categories
+- Phase 15 in progress: 1/6 plans (enhanced errors)
+  - 15-01 (Severity Level Diversity) ✅ Complete
+- 257 tests passing (including 16 context flag tests, 13 error_codes tests, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests)
+- Error code registry with 28 error variants across 9 categories (22 error-level, 6 warning-level)
 - Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
 - Rich span types ready: Relationships, ToolHints, SuggestedAction
 - SpanResult extended with 3 new optional fields (relationships, tool_hints, suggested_action)
