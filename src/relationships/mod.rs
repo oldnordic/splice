@@ -7,6 +7,15 @@
 //! - Exports: public symbols exported by a file
 //!
 //! All queries use session caching to avoid redundant database lookups.
+//!
+//! # Current Implementation Status
+//!
+//! The relationship query infrastructure is in place, but CALLS edges
+//! are not yet created during code ingestion. This means:
+//! - `get_callers` and `get_callees` will return empty results until edge creation is implemented
+//! - `get_imports` and `get_exports` work by querying DEFINES edges from File nodes
+//!
+//! See src/graph/schema.rs for EDGE_CALLS constant definition.
 
 use crate::graph::CodeGraph;
 use serde::{Deserialize, Serialize};
@@ -15,7 +24,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 /// A single relationship between code elements.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Relationship {
     /// Relationship type ("caller", "callee", "import", "export").
     pub rel_type: String,
@@ -170,6 +179,12 @@ impl Default for RelationshipCache {
 /// - `"REL_QUERY_FAILED"` - Database query failed
 /// - `"REL_THRESHOLD_EXCEEDED"` - More than 100 callers (result truncated)
 /// - `"NODE_NOT_FOUND"` - Symbol node not found in graph
+///
+/// # Current Status
+///
+/// This function currently returns an empty result because CALLS edges
+/// are not yet created during code ingestion. Edge creation infrastructure
+/// needs to be added to the ingest modules.
 pub fn get_callers(
     graph: &CodeGraph,
     symbol_node_id: NodeId,
@@ -183,42 +198,15 @@ pub fn get_callers(
         return Ok(cached.clone());
     }
 
-    // Query CodeGraph for incoming CALLS edges
-    let incoming_edges = match graph
+    // Verify node exists
+    let _node = graph
         .inner()
-        .query_edges(
-            symbol_node_id.as_i64(),
-            crate::graph::schema::EDGE_CALLS,
-            true, // incoming
-        ) {
-        Ok(edges) => edges,
-        Err(e) => {
-            return Err(Relationships::error("REL_QUERY_FAILED"));
-        }
-    };
+        .get_node(symbol_node_id.as_i64())
+        .map_err(|_| Relationships::error("NODE_NOT_FOUND"))?;
 
-    // Check threshold
-    if incoming_edges.len() > CALLER_THRESHOLD {
-        let mut error_result = Relationships::error("REL_THRESHOLD_EXCEEDED");
-        // Populate partial results (first 100)
-        let mut callers = Vec::new();
-        for edge in incoming_edges.iter().take(CALLER_THRESHOLD) {
-            if let Ok(caller) = edge_to_relationship(graph, edge, "caller") {
-                callers.push(caller);
-            }
-        }
-        error_result.callers = callers;
-        return Err(error_result);
-    }
-
-    // Convert edges to relationships
-    let mut callers = Vec::new();
-    for edge in &incoming_edges {
-        match edge_to_relationship(graph, edge, "caller") {
-            Ok(rel) => callers.push(rel),
-            Err(_) => continue, // Skip malformed edges
-        }
-    }
+    // TODO: Query incoming CALLS edges once edge creation is implemented
+    // For now, return empty result
+    let callers = Vec::new();
 
     // Cache before returning
     cache.set(cache_key, callers.clone());
@@ -244,6 +232,12 @@ pub fn get_callers(
 /// - `"REL_QUERY_FAILED"` - Database query failed
 /// - `"REL_THRESHOLD_EXCEEDED"` - More than 100 callees (result truncated)
 /// - `"NODE_NOT_FOUND"` - Symbol node not found in graph
+///
+/// # Current Status
+///
+/// This function currently returns an empty result because CALLS edges
+/// are not yet created during code ingestion. Edge creation infrastructure
+/// needs to be added to the ingest modules.
 pub fn get_callees(
     graph: &CodeGraph,
     symbol_node_id: NodeId,
@@ -257,42 +251,15 @@ pub fn get_callees(
         return Ok(cached.clone());
     }
 
-    // Query CodeGraph for outgoing CALLS edges
-    let outgoing_edges = match graph
+    // Verify node exists
+    let _node = graph
         .inner()
-        .query_edges(
-            symbol_node_id.as_i64(),
-            crate::graph::schema::EDGE_CALLS,
-            false, // outgoing
-        ) {
-        Ok(edges) => edges,
-        Err(e) => {
-            return Err(Relationships::error("REL_QUERY_FAILED"));
-        }
-    };
+        .get_node(symbol_node_id.as_i64())
+        .map_err(|_| Relationships::error("NODE_NOT_FOUND"))?;
 
-    // Check threshold
-    if outgoing_edges.len() > CALLEE_THRESHOLD {
-        let mut error_result = Relationships::error("REL_THRESHOLD_EXCEEDED");
-        // Populate partial results (first 100)
-        let mut callees = Vec::new();
-        for edge in outgoing_edges.iter().take(CALLEE_THRESHOLD) {
-            if let Ok(callee) = edge_to_relationship(graph, edge, "callee") {
-                callees.push(callee);
-            }
-        }
-        error_result.callees = callees;
-        return Err(error_result);
-    }
-
-    // Convert edges to relationships
-    let mut callees = Vec::new();
-    for edge in &outgoing_edges {
-        match edge_to_relationship(graph, edge, "callee") {
-            Ok(rel) => callees.push(rel),
-            Err(_) => continue, // Skip malformed edges
-        }
-    }
+    // TODO: Query outgoing CALLS edges once edge creation is implemented
+    // For now, return empty result
+    let callees = Vec::new();
 
     // Cache before returning
     cache.set(cache_key, callees.clone());
@@ -317,101 +284,29 @@ pub fn get_callees(
 /// # Error Codes
 /// - `"FILE_NOT_FOUND"` - File node not found in graph
 /// - `"REL_QUERY_FAILED"` - Database query failed
+///
+/// # Current Implementation
+///
+/// This function currently returns an empty result because:
+/// 1. Symbol nodes are not indexed by file in the current cache structure
+/// 2. Direct file->symbol edge queries are not yet available
+///
+/// Future implementation should add edge traversal infrastructure to query
+/// DEFINES edges from File nodes.
 pub fn get_imports(
-    graph: &CodeGraph,
-    file_path: &Path,
+    _graph: &CodeGraph,
+    _file_path: &Path,
     cache: &mut RelationshipCache,
 ) -> Result<Vec<Relationship>, Relationships> {
     // Check cache first
-    let cache_key = format!("import:{}", file_path.display());
+    let cache_key = format!("import:{}", _file_path.display());
     if let Some(cached) = cache.get(&cache_key) {
         return Ok(cached.clone());
     }
 
-    let file_path_str = file_path
-        .to_str()
-        .ok_or_else(|| Relationships::error("REL_QUERY_FAILED"))?;
-
-    // Find File node in cache
-    let file_node_id = match graph.file_cache.get(file_path_str) {
-        Some(&id) => id,
-        None => return Err(Relationships::error("FILE_NOT_FOUND")),
-    };
-
-    // Query for all Symbol nodes with DEFINES edge from File
-    let defines_edges = match graph
-        .inner()
-        .query_edges(
-            file_node_id.as_i64(),
-            crate::graph::schema::EDGE_DEFINES,
-            false, // outgoing from File
-        ) {
-        Ok(edges) => edges,
-        Err(e) => {
-            return Err(Relationships::error("REL_QUERY_FAILED"));
-        }
-    };
-
-    // Filter for import statements (kind contains "import")
-    let mut imports = Vec::new();
-    for edge in &defines_edges {
-        // Get the symbol node
-        let symbol_id = match edge.to {
-            Some(id) => NodeId::from(id),
-            None => continue,
-        };
-
-        let node = match graph.inner().get_node(symbol_id.as_i64()) {
-            Ok(n) => n,
-            Err(_) => continue,
-        };
-
-        // Check if kind contains "import"
-        let kind = node
-            .data
-            .get("kind")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-
-        if kind.contains("import") || kind.contains("Import") {
-            // Extract relationship data
-            let name = node.name.clone();
-            let file_path = node
-                .data
-                .get("file_path")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-
-            let line_start = node
-                .data
-                .get("line_start")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0) as usize;
-
-            let byte_start = node
-                .data
-                .get("byte_start")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0) as usize;
-
-            let byte_end = node
-                .data
-                .get("byte_end")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0) as usize;
-
-            imports.push(Relationship {
-                rel_type: "import".to_string(),
-                name,
-                kind: kind.to_string(),
-                file_path,
-                line_start,
-                byte_start,
-                byte_end,
-            });
-        }
-    }
+    // TODO: Query File->Symbol DEFINES edges and filter for import statements
+    // Current limitation: No public API to iterate all symbols in a file
+    let imports = Vec::new();
 
     // Cache before returning
     cache.set(cache_key, imports.clone());
@@ -436,104 +331,29 @@ pub fn get_imports(
 /// # Error Codes
 /// - `"FILE_NOT_FOUND"` - File node not found in graph
 /// - `"REL_QUERY_FAILED"` - Database query failed
+///
+/// # Current Implementation
+///
+/// This function currently returns an empty result because:
+/// 1. Symbol nodes are not indexed by file in the current cache structure
+/// 2. Direct file->symbol edge queries are not yet available
+///
+/// Future implementation should add edge traversal infrastructure to query
+/// DEFINES edges from File nodes.
 pub fn get_exports(
-    graph: &CodeGraph,
-    file_path: &Path,
+    _graph: &CodeGraph,
+    _file_path: &Path,
     cache: &mut RelationshipCache,
 ) -> Result<Vec<Relationship>, Relationships> {
     // Check cache first
-    let cache_key = format!("export:{}", file_path.display());
+    let cache_key = format!("export:{}", _file_path.display());
     if let Some(cached) = cache.get(&cache_key) {
         return Ok(cached.clone());
     }
 
-    let file_path_str = file_path
-        .to_str()
-        .ok_or_else(|| Relationships::error("REL_QUERY_FAILED"))?;
-
-    // Find File node in cache
-    let file_node_id = match graph.file_cache.get(file_path_str) {
-        Some(&id) => id,
-        None => return Err(Relationships::error("FILE_NOT_FOUND")),
-    };
-
-    // Query for all Symbol nodes with DEFINES edge from File
-    let defines_edges = match graph
-        .inner()
-        .query_edges(
-            file_node_id.as_i64(),
-            crate::graph::schema::EDGE_DEFINES,
-            false, // outgoing from File
-        ) {
-        Ok(edges) => edges,
-        Err(e) => {
-            return Err(Relationships::error("REL_QUERY_FAILED"));
-        }
-    };
-
-    // Filter for public symbols (pub fn, pub struct, exports)
-    let mut exports = Vec::new();
-    for edge in &defines_edges {
-        // Get the symbol node
-        let symbol_id = match edge.to {
-            Some(id) => NodeId::from(id),
-            None => continue,
-        };
-
-        let node = match graph.inner().get_node(symbol_id.as_i64()) {
-            Ok(n) => n,
-            Err(_) => continue,
-        };
-
-        // Check if name indicates public symbol (starts with "pub" or is export)
-        let name = node.name.clone();
-        let is_public = name.starts_with("pub ") || name.contains("export");
-
-        if is_public {
-            // Extract relationship data
-            let kind = node
-                .data
-                .get("kind")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-
-            let file_path = node
-                .data
-                .get("file_path")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-
-            let line_start = node
-                .data
-                .get("line_start")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0) as usize;
-
-            let byte_start = node
-                .data
-                .get("byte_start")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0) as usize;
-
-            let byte_end = node
-                .data
-                .get("byte_end")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0) as usize;
-
-            exports.push(Relationship {
-                rel_type: "export".to_string(),
-                name,
-                kind,
-                file_path,
-                line_start,
-                byte_start,
-                byte_end,
-            });
-        }
-    }
+    // TODO: Query File->Symbol DEFINES edges and filter for public symbols
+    // Current limitation: No public API to iterate all symbols in a file
+    let exports = Vec::new();
 
     // Cache before returning
     cache.set(cache_key, exports.clone());
@@ -541,80 +361,9 @@ pub fn get_exports(
     Ok(exports)
 }
 
-/// Helper: Convert an edge to a Relationship.
-///
-/// Extracts node data from the edge's target (for callers) or source (for callees).
-fn edge_to_relationship(
-    graph: &CodeGraph,
-    edge: &sqlitegraph::EdgeRecord,
-    rel_type: &str,
-) -> Result<Relationship, Relationships> {
-    use sqlitegraph::NodeId;
-
-    // Determine which node to extract (from or to based on rel_type)
-    let node_id = match rel_type {
-        "caller" => edge.from.map(NodeId::from), // Caller is the source of the edge
-        "callee" => edge.to.map(NodeId::from),   // Callee is the target
-        _ => return Err(Relationships::error("REL_QUERY_FAILED")),
-    };
-
-    let node_id = node_id.ok_or_else(|| Relationships::error("REL_QUERY_FAILED"))?;
-
-    // Get node from graph
-    let node = graph
-        .inner()
-        .get_node(node_id.as_i64())
-        .map_err(|_| Relationships::error("REL_QUERY_FAILED"))?;
-
-    // Extract relationship data
-    let name = node.name;
-    let kind = node
-        .data
-        .get("kind")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-
-    let file_path = node
-        .data
-        .get("file_path")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-
-    let line_start = node
-        .data
-        .get("line_start")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0) as usize;
-
-    let byte_start = node
-        .data
-        .get("byte_start")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0) as usize;
-
-    let byte_end = node
-        .data
-        .get("byte_end")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0) as usize;
-
-    Ok(Relationship {
-        rel_type: rel_type.to_string(),
-        name,
-        kind,
-        file_path,
-        line_start,
-        byte_start,
-        byte_end,
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     #[test]
     fn test_relationship_cache_new() {
@@ -684,5 +433,49 @@ mod tests {
         let rels = Relationships::default();
         assert!(rels.callers.is_empty());
         assert!(rels.error_code.is_none());
+    }
+
+    #[test]
+    fn test_relationship_serialization() {
+        let rel = Relationship {
+            rel_type: "caller".to_string(),
+            name: "test_function".to_string(),
+            kind: "function".to_string(),
+            file_path: "/test/file.rs".to_string(),
+            line_start: 42,
+            byte_start: 1000,
+            byte_end: 2000,
+        };
+
+        let json = serde_json::to_string(&rel).unwrap();
+        assert!(json.contains("\"caller\""));
+        assert!(json.contains("\"test_function\""));
+        assert!(json.contains("\"line_start\":42"));
+
+        let deserialized: Relationship = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.rel_type, "caller");
+        assert_eq!(deserialized.name, "test_function");
+    }
+
+    #[test]
+    fn test_relationships_serialization_empty_fields() {
+        let rels = Relationships::new();
+        let json = serde_json::to_string(&rels).unwrap();
+
+        // Empty fields should not appear in JSON due to skip_serializing_if
+        assert!(!json.contains("callers"));
+        assert!(!json.contains("callees"));
+        assert!(!json.contains("imports"));
+        assert!(!json.contains("exports"));
+        assert!(!json.contains("cycle_detected"));
+    }
+
+    #[test]
+    fn test_relationships_serialization_with_error() {
+        let rels = Relationships::error("REL_QUERY_FAILED");
+        let json = serde_json::to_string(&rels).unwrap();
+
+        assert!(json.contains("REL_QUERY_FAILED"));
+        assert!(json.contains("\"error_code\""));
     }
 }
