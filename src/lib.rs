@@ -9,6 +9,7 @@
 
 pub mod checksum;
 pub mod cli;
+pub mod context;
 pub mod error;
 pub mod execution;
 pub mod graph;
@@ -26,6 +27,10 @@ pub use error::{Result, SpliceError};
 
 /// Re-export graph types for convenience.
 pub use graph::CodeGraph;
+
+/// Re-export context types for convenience.
+pub use context::extract_context;
+pub use output::SpanContext;
 
 /// Splice version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
