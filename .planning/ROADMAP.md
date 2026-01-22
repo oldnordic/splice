@@ -81,12 +81,14 @@ Plans:
 **Plans**: 6 plans in 3 waves
 
 Plans:
-- [ ] 12-01-PLAN.md — Create relationships module with Relationship and Relationships structs
-- [ ] 12-02-PLAN.md — Implement relationship queries (get_callers, get_callees, get_imports, get_exports)
-- [ ] 12-03-PLAN.md — Create tool hints module with ToolHints struct and derive_tool_hints function
-- [ ] 12-04-PLAN.md — Create suggested action module with SuggestedAction struct and confidence calculation
-- [ ] 12-05-PLAN.md — Extend SpanResult with relationships, tool_hints, suggested_action fields
-- [ ] 12-06-PLAN.md — Integrate --relationships flag into CLI and wire up advanced fields
+- [x] 12-01-PLAN.md — Create relationships module with Relationship and Relationships structs
+- [x] 12-02-PLAN.md — Implement relationship queries (get_callers, get_callees, get_imports, get_exports)
+- [x] 12-03-PLAN.md — Create tool hints module with ToolHints struct and derive_tool_hints function
+- [x] 12-04-PLAN.md — Create suggested action module with SuggestedAction struct and confidence calculation
+- [x] 12-05-PLAN.md — Extend SpanResult with relationships, tool_hints, suggested_action fields
+- [x] 12-06-PLAN.md — Integrate --relationships flag into CLI and wire up advanced fields
+- [x] 12-07-PLAN.md — Wire relationship queries into CLI commands (Query, Get, Delete, Patch)
+- [x] 12-08-PLAN.md — Wire tool hints and suggested actions into CLI commands
 
 #### Phase 13: Dry-run & Diff
 
@@ -103,14 +105,14 @@ Plans:
 5. Dry-run returns exit code 1 if changes would be made, 0 if no changes
 6. Color output respects `NO_COLOR` environment variable
 
-**Plans**: TBD
+**Plans**: 5 plans in 4 waves
 
 Plans:
-- [ ] 13-01: Add `--dry-run` and `-n` flag aliases to existing preview functionality
-- [ ] 13-02: Implement unified diff format generation with headers and +/- notation
-- [ ] 13-03: Add color support with TTY detection and NO_COLOR respect
-- [ ] 13-04: Implement `--unified <n>` flag for configurable context lines
-- [ ] 13-05: Set proper exit codes (1 if changes pending, 0 if no changes)
+- [ ] 13-01-PLAN.md — Add diff-related dependencies (similar, nu-ansi-term, is-terminal)
+- [ ] 13-02-PLAN.md — Create diff module with unified diff generation and color detection
+- [ ] 13-03-PLAN.md — Add CLI flags for dry-run aliases and unified context configuration
+- [ ] 13-04-PLAN.md — Integrate diff output into patch and delete commands
+- [ ] 13-05-PLAN.md — Implement git-style exit codes for dry-run mode
 
 #### Phase 14: Context Flags
 
@@ -247,4 +249,4 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%) ✅
-- v2.2: 25/51 plans planned (49%) 🚧
+- v2.2: 30/51 plans planned (59%) 🚧
