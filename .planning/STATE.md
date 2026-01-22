@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 16 of 17 (Symbol Expansion and Search) — IN PROGRESS
-Plan: 05B of 6 in current phase
-Status: Plan 16-05B complete
-Last activity: 2026-01-22 — Plan 16-05B complete (Multi-language expansion tests for C/C++, Java, JavaScript, TypeScript)
+Plan: 07 of 6 in current phase
+Status: Plan 16-07 complete
+Last activity: 2026-01-22 — Plan 16-07 complete (AST-aware pattern search command with grep-like functionality)
 
-Progress: [█████████░░░░░░░░░░░] 91% (73/80 plans)
+Progress: [█████████░░░░░░░░░░░] 92% (74/80 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 73 (31 v2.0 + 42 v2.2)
+- Total plans completed: 74 (31 v2.0 + 43 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~30.5 hours (24h v2.0 + 6.5h v2.2)
+- Total execution time: ~30.6 hours (24h v2.0 + 6.6h v2.2)
 
 **By Phase:**
 
@@ -32,8 +32,8 @@ Progress: [█████████░░░░░░░░░░░] 91% (73
 | 11-13 (v2.2) | 30/30 | 3.2h | ~6 min |
 | 14 (v2.2) | 5/5 | 30min | ~6 min |
 | 15 (v2.2) | 6/6 | 17min | ~3 min |
-| 16 (v2.2) | 5/6 | 2.25h | ~27 min |
-| **Total** | **73/80** | **~30.5h** | **~25 min** |
+| 16 (v2.2) | 6/6 | 2.5h | ~25 min |
+| **Total** | **74/80** | **~30.6h** | **~25 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
@@ -183,11 +183,21 @@ Recent decisions affecting current work:
 - [16-05B]: Interface methods may not support level 2 expansion - tests handle both success and failure gracefully
 - [16-05B]: Multi-language expansion tests use minimal source code fixtures focusing on specific expansion behaviors
 - [16-05B]: 25 expansion tests covering all 7 languages with doc styles (///, /**/, """, /**, JSDoc)
+- [16-07]: Search subcommand added with --pattern, --path, --language, --glob flags for AST-aware code pattern search
+- [16-07]: Removed short flag from --path to avoid conflict with --pattern (both would use -p)
+- [16-07]: Context flags (-A/-B/-C) added to Search command for future context display support (16-09)
+- [16-07]: --glob flag allows custom glob patterns (e.g., "src/**/*.rs", "tests/**/*.py") for multi-language searches
+- [16-07]: execute_search function calls find_pattern_in_files() leveraging existing pattern infrastructure
+- [16-07]: Human-readable output format: file:line:column: matched_text
+- [16-07]: JSON output format with file, byte offsets, line, column, matched_text
+- [16-07]: Rust-only glob pattern as stepping stone (multi-language added in 16-09)
+- [16-07]: 4 integration tests verify search functionality across Rust, Python, and multiple files
 
 ### Pending Todos
 
 **Next Phase:**
-- Phase 16-03: Search command implementation
+- Phase 16-08: Context display in search results (show lines before/after matches)
+- Phase 16-09: Multi-language glob patterns for search command
 - Integration testing with real LLM agents consuming JSON output
 - CALLS edge creation implementation during code ingestion to enable real relationship queries
 
@@ -218,7 +228,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 16-05B (Symbol Expansion and Search) - Multi-language expansion tests
+Stopped at: Completed 16-07 (Symbol Expansion and Search) - AST-aware pattern search command
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
