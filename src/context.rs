@@ -8,6 +8,54 @@ use std::path::Path;
 
 use crate::output::SpanContext;
 
+/// Resolve context counts from -A/-B/-C flags following grep convention.
+///
+/// The grep convention is: -C (context both) sets the default for both sides,
+/// but -A (after) and -B (before) can override -C if larger. This allows:
+/// - `-C 3` for 3 lines before and after (default grep behavior)
+/// - `-A 5 -B 2` for 5 lines after, 2 lines before (asymmetric)
+/// - `-C 10 -A 5` for max(10, 5)=10 before, max(10, 0)=10 after
+///
+/// # Arguments
+///
+/// * `context_before` - Value from -B flag (lines before)
+/// * `context_after` - Value from -A flag (lines after)
+/// * `context_both` - Value from -C flag (lines on both sides)
+///
+/// # Returns
+///
+/// * `(before, after)` - Resolved context line counts for before and after
+///
+/// # Examples
+///
+/// ```
+/// use splice::context::resolve_context_counts;
+///
+/// // -C 3 (default grep behavior)
+/// let (before, after) = resolve_context_counts(0, 0, 3);
+/// assert_eq!(before, 3);
+/// assert_eq!(after, 3);
+///
+/// // -A 5 -B 2 (asymmetric)
+/// let (before, after) = resolve_context_counts(2, 5, 0);
+/// assert_eq!(before, 2);
+/// assert_eq!(after, 5);
+///
+/// // -C 10 -A 5 (C overrides A when larger)
+/// let (before, after) = resolve_context_counts(0, 5, 10);
+/// assert_eq!(before, 10);
+/// assert_eq!(after, 10);
+/// ```
+pub fn resolve_context_counts(
+    context_before: usize,
+    context_after: usize,
+    context_both: usize,
+) -> (usize, usize) {
+    let before = context_before.max(context_both);
+    let after = context_after.max(context_both);
+    (before, after)
+}
+
 /// Extract context lines for a byte span with asymmetric before/after counts.
 ///
 /// Given a file path and byte range, extracts lines before, within, and after

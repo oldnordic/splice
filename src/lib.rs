@@ -34,7 +34,7 @@ pub use error::{Result, SpliceError};
 pub use graph::CodeGraph;
 
 /// Re-export context types for convenience.
-pub use context::{extract_context, extract_context_asymmetric, extract_context_with_before_after};
+pub use context::{extract_context, extract_context_asymmetric, extract_context_with_before_after, resolve_context_counts};
 pub use output::SpanContext;
 
 /// Re-export diff utilities for convenience.

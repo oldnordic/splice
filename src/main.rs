@@ -21,12 +21,6 @@ use std::process::ExitCode;
 /// - `-A 5 -B 2`: 5 before, 2 after
 /// - `-C 10 -A 5`: 10 before (from -C), 10 after (max of -C=10 and -A=5)
 /// - No flags: 3 before, 3 after (default -C 3)
-fn resolve_context_counts(context_before: usize, context_after: usize, context_both: usize) -> (usize, usize) {
-    let before = context_before.max(context_both);
-    let after = context_after.max(context_both);
-    (before, after)
-}
-
 fn main() -> ExitCode {
     install_broken_pipe_hook();
 
@@ -268,7 +262,7 @@ fn execute_delete(
     use ropey::Rope;
 
     // Resolve context counts from -A/-B/-C flags
-    let (ctx_before, ctx_after) = resolve_context_counts(context_before, context_after, context);
+    let (ctx_before, ctx_after) = splice::context::resolve_context_counts(context_before, context_after, context);
 
     // Start timing
     let start = std::time::Instant::now();
@@ -942,7 +936,7 @@ fn execute_patch(
     use splice::should_use_color;
 
     // Resolve context counts from -A/-B/-C flags
-    let (ctx_before, ctx_after) = resolve_context_counts(context_before, context_after, context_both);
+    let (ctx_before, ctx_after) = splice::context::resolve_context_counts(context_before, context_after, context_both);
 
     // Start timing
     let start = std::time::Instant::now();
@@ -1982,7 +1976,7 @@ fn execute_query(
     use splice::execution::log;
 
     // Resolve context counts from -A/-B/-C flags
-    let (ctx_before, ctx_after) = resolve_context_counts(context_before, context_after, context_both);
+    let (ctx_before, ctx_after) = splice::context::resolve_context_counts(context_before, context_after, context_both);
 
     // Start timing
     let start = std::time::Instant::now();
@@ -2294,12 +2288,59 @@ fn execute_query(
             result.name, result.kind, result.file_path, result.byte_start, result.byte_end
         ))?;
 
+        // Show context if requested (human-readable format)
+        if !show_code && (ctx_before > 0 || ctx_after > 0) {
+            use splice::context;
+            let path = std::path::Path::new(&result.file_path);
+            if let Ok(ctx) = context::extract_context_asymmetric(path, result.byte_start, result.byte_end, ctx_before, ctx_after) {
+                if !ctx.before.is_empty() {
+                    write_stdout_line(&format!("  Context ({} lines before):", ctx.before.len()))?;
+                    for line in &ctx.before {
+                        write_stdout_line(&format!("    {}", line))?;
+                    }
+                }
+                if !ctx.after.is_empty() {
+                    write_stdout_line(&format!("  Context ({} lines after):", ctx.after.len()))?;
+                    for line in &ctx.after {
+                        write_stdout_line(&format!("    {}", line))?;
+                    }
+                }
+            }
+        }
+
         // Show code chunk if requested
         if show_code {
             let path = std::path::Path::new(&result.file_path);
             if let Ok(Some(code)) = integration.get_code_chunk(path, result.byte_start, result.byte_end) {
+                // Show context before code chunk if context flags are set
+                if ctx_before > 0 || ctx_after > 0 {
+                    use splice::context;
+                    if let Ok(ctx) = context::extract_context_asymmetric(path, result.byte_start, result.byte_end, ctx_before, ctx_after) {
+                        if !ctx.before.is_empty() {
+                            write_stdout_line(&format!("  Context ({} lines before):", ctx.before.len()))?;
+                            for line in &ctx.before {
+                                write_stdout_line(&format!("    {}", line))?;
+                            }
+                        }
+                    }
+                }
+
+                write_stdout_line("  Code:")?;
                 for line in code.lines() {
                     write_stdout_line(&format!("    {}", line))?;
+                }
+
+                // Show context after code chunk if context flags are set
+                if ctx_before > 0 || ctx_after > 0 {
+                    use splice::context;
+                    if let Ok(ctx) = context::extract_context_asymmetric(path, result.byte_start, result.byte_end, ctx_before, ctx_after) {
+                        if !ctx.after.is_empty() {
+                            write_stdout_line(&format!("  Context ({} lines after):", ctx.after.len()))?;
+                            for line in &ctx.after {
+                                write_stdout_line(&format!("    {}", line))?;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -2349,7 +2390,7 @@ fn execute_get(
     use splice::graph::magellan_integration::MagellanIntegration;
 
     // Resolve context counts from -A/-B/-C flags
-    let (ctx_before, ctx_after) = resolve_context_counts(context_before, context_after, context_both);
+    let (ctx_before, ctx_after) = splice::context::resolve_context_counts(context_before, context_after, context_both);
 
     // Open Magellan integration
     let integration = MagellanIntegration::open(db_path)?;
@@ -2455,8 +2496,35 @@ fn execute_get(
             }
 
             // Print to console (non-JSON output)
+            // Show context before if requested
+            if ctx_before > 0 || ctx_after > 0 {
+                use splice::context;
+                if let Ok(ctx) = context::extract_context_asymmetric(file_path, start, end, ctx_before, ctx_after) {
+                    if !ctx.before.is_empty() {
+                        write_stdout_line(&format!("Context ({} lines before):", ctx.before.len()))?;
+                        for line in &ctx.before {
+                            write_stdout_line(&format!("  {}", line))?;
+                        }
+                    }
+                }
+            }
+
+            // Write the actual content
             write_stdout_bytes(content.as_bytes())?;
             write_stdout_bytes(b"\n")?;
+
+            // Show context after if requested
+            if ctx_before > 0 || ctx_after > 0 {
+                use splice::context;
+                if let Ok(ctx) = context::extract_context_asymmetric(file_path, start, end, ctx_before, ctx_after) {
+                    if !ctx.after.is_empty() {
+                        write_stdout_line(&format!("Context ({} lines after):", ctx.after.len()))?;
+                        for line in &ctx.after {
+                            write_stdout_line(&format!("  {}", line))?;
+                        }
+                    }
+                }
+            }
 
             // Return success
             Ok(splice::cli::CliSuccessPayload::with_data(
