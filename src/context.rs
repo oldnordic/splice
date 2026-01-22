@@ -71,6 +71,15 @@ pub fn extract_context(
         });
     }
 
+    // Handle empty file case
+    if file_size == 0 {
+        return Ok(SpanContext {
+            before: vec![],
+            selected: vec![],
+            after: vec![],
+        });
+    }
+
     // Create Rope for efficient line operations (UTF-8 aware)
     let rope = Rope::from_str(std::str::from_utf8(&contents).map_err(|e| {
         SpliceError::InvalidUtf8 {
@@ -81,7 +90,7 @@ pub fn extract_context(
 
     // Convert byte offsets to line numbers (0-based)
     let start_line = rope.byte_to_line(byte_start);
-    let end_line = rope.byte_to_line(byte_end);
+    let end_line = rope.byte_to_line(byte_end.saturating_sub(1));
 
     // Calculate context boundaries
     let context_start = start_line.saturating_sub(context_lines);
@@ -97,9 +106,10 @@ pub fn extract_context(
         .map(|i| rope.line(i).to_string())
         .collect();
 
-    // Extract after lines
+    // Extract after lines (filter out empty trailing line from ropey behavior)
     let after: Vec<String> = (end_line + 1..context_end)
         .map(|i| rope.line(i).to_string())
+        .filter(|line| !line.is_empty())
         .collect();
 
     Ok(SpanContext {
@@ -124,8 +134,10 @@ mod tests {
         writeln!(file, "line 4").unwrap();
         writeln!(file, "line 5").unwrap();
 
-        // Context for lines 2-3 (bytes 8-24 approx)
-        let context = extract_context(file.path(), 8, 24, 1).unwrap();
+        // Context for lines 2-3
+        // "line 1\n" = 7 bytes, "line 2\n" = 7 bytes, "line 3\n" = 7 bytes
+        // Bytes 7-20 covers "line 2\nline 3\n"
+        let context = extract_context(file.path(), 7, 20, 1).unwrap();
 
         assert_eq!(context.before.len(), 1); // "line 1"
         assert_eq!(context.selected.len(), 2); // "line 2", "line 3"
@@ -139,11 +151,8 @@ mod tests {
         writeln!(file, "line 2").unwrap();
         writeln!(file, "line 3").unwrap();
 
-        let contents = std::fs::read(file.path()).unwrap();
-        let line2_start = contents.iter().position(|&b| b == b'2').unwrap();
-        let line2_end = line2_start + 6; // "line 2\n"
-
-        let context = extract_context(file.path(), line2_start, line2_end, 0).unwrap();
+        // "line 1\n" = bytes 0-6, "line 2\n" = bytes 7-13
+        let context = extract_context(file.path(), 7, 13, 0).unwrap();
 
         assert_eq!(context.before.len(), 0);
         assert_eq!(context.selected.len(), 1);
@@ -157,8 +166,8 @@ mod tests {
         writeln!(file, "line 2").unwrap();
         writeln!(file, "line 3").unwrap();
 
-        let contents = std::fs::read(file.path()).unwrap();
-        let context = extract_context(file.path(), 0, 12, 2).unwrap(); // "line 1\nline 2\n"
+        // "line 1\nline 2\n" = bytes 0-13
+        let context = extract_context(file.path(), 0, 13, 2).unwrap();
 
         assert_eq!(context.before.len(), 0); // No lines before start
         assert_eq!(context.selected.len(), 2);
@@ -172,10 +181,8 @@ mod tests {
         writeln!(file, "line 2").unwrap();
         writeln!(file, "line 3").unwrap();
 
-        let contents = std::fs::read(file.path()).unwrap();
-        let line3_start = contents.iter().position(|&b| b == b'3').unwrap();
-
-        let context = extract_context(file.path(), line3_start, contents.len(), 2).unwrap();
+        // "line 1\nline 2\n" = bytes 0-13, "line 3\n" = bytes 14-20
+        let context = extract_context(file.path(), 14, 20, 2).unwrap();
 
         assert_eq!(context.before.len(), 2); // "line 1", "line 2"
         assert_eq!(context.selected.len(), 1); // "line 3"
@@ -191,10 +198,13 @@ mod tests {
         writeln!(file, "line ⭐ 3").unwrap();
 
         let contents = std::fs::read(file.path()).unwrap();
-        let rocket_start = contents.iter().position(|&b| b == 0xF0).unwrap(); // UTF-8 start byte for emoji
+        // Find the start of "line 🚀 2"
+        let rocket_line_start = contents.iter().position(|&b| b == b'2').unwrap();
+        // Find the newline after "line 🚀 2"
+        let rocket_line_end = contents.iter().skip(rocket_line_start).position(|&b| b == b'\n').unwrap() + rocket_line_start;
 
         // Context should still work with multi-byte characters
-        let context = extract_context(file.path(), rocket_start + 6, rocket_start + 10, 1).unwrap();
+        let context = extract_context(file.path(), rocket_line_start, rocket_line_end, 1).unwrap();
 
         assert_eq!(context.selected.len(), 1);
         assert!(context.selected[0].contains("🚀"));
@@ -233,7 +243,7 @@ mod tests {
         writeln!(file, "line 2").unwrap();
         writeln!(file, "line 3").unwrap();
 
-        // Request more context lines than exist
+        // Request more context lines than exist (bytes 7-13 is "line 2\n")
         let context = extract_context(file.path(), 7, 13, 100).unwrap();
 
         // Should saturate at file boundaries
