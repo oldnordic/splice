@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-01-17)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** Phase 10 — Documentation Update
+**Current focus:** Milestone v2.1 — LLM & Human Usability
 
 ## Current Position
 
-Phase: 10 of 10 (Documentation Update)
-Plan: 3 of 3 in current phase
-Status: **Complete** ✅
-Last activity: 2026-01-18 — Completed 10-03-PLAN.md (API documentation update)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v2.1
+Last activity: 2026-01-22 — Milestone v2.1 started
 
 Progress: ██████████ 100% (Phase 1: 3/3 complete, Phase 2: 4/4 complete, Phase 3: 3/3 complete, Phase 4: 3/3 complete, Phase 5: 3/3 complete, Phase 6: 3/3 complete, Phase 7: 3/3 complete, Phase 8: 3/3 complete, Phase 9: 3/3 complete, Phase 10: 3/3 complete)
 

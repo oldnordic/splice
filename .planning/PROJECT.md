@@ -1,4 +1,4 @@
-# Splice Refactoring Tool - v2.0
+# Splice Refactoring Tool - v2.1
 
 ## What This Is
 
@@ -8,7 +8,18 @@ Splice is a span-safe code refactoring tool that provides AST-validated code mod
 
 **Span-safe refactoring with validation** — Every modification is validated at both AST and compiler level before being applied, with automatic backup and rollback capabilities.
 
-## Status: v2.0 COMPLETE ✅
+## Current Milestone: v2.1 - LLM & Human Usability
+
+**Goal:** Make Splice more usable for both AI agents and humans by adding low-risk, high-impact UX improvements.
+
+**Target features:**
+- `--dry-run` / `--diff` mode — Preview exact changes before applying
+- `--context-before` / `--context-after` flags — Show surrounding code (3-5 lines)
+- Better error messages — Expected/actual tokens, parser suggestions, how to fix
+- `--expand` / `--full-block` for symbols — Get full block without reading whole file
+- `splice search` + atomic apply — Pattern search → patch workflow
+
+## Status: v2.0 COMPLETE ✅ | v2.1 IN PROGRESS ◆
 
 **Release Date:** 2026-01-18
 **Version:** 2.0.0
@@ -52,6 +63,14 @@ Splice is a span-safe code refactoring tool that provides AST-validated code mod
 - ✅ Execution logging — operations.db audit trail
 - ✅ Magellan v0.5.3 compatibility — Verified with integration tests
 - ✅ Line/column metadata — Implemented in code graph
+
+#### Active (v2.1)
+
+- [ ] **DRYRUN-01:** Dry-run mode with diff preview — Show exact changes before applying
+- [ ] **CONTEXT-01:** Context flags — `--context-before` / `--context-after` for surrounding lines
+- [ ] **ERRORS-01:** Enhanced error messages — Expected/actual tokens, parser suggestions, fix hints
+- [ ] **EXPAND-01:** Symbol expansion — `--expand` / `--full-block` to get full function body
+- [ ] **SEARCH-01:** Search + patch atomic mode — `splice search` → `splice apply-files` workflow
 
 ### Out of Scope
 
@@ -109,4 +128,4 @@ Potential areas for future development:
 - Parallel batch processing
 
 ---
-*Last updated: 2026-01-18 — v2.0 milestone complete*
+*Last updated: 2026-01-22 — v2.1 milestone started*
