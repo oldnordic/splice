@@ -208,9 +208,17 @@ pub enum Commands {
         #[arg(long, value_name = "LANG")]
         language: Option<Language>,
 
-        /// Number of context lines before/after spans (default: 3).
-        #[arg(long, value_name = "N", default_value = "3")]
-        context_lines: usize,
+        /// Number of context lines after the match.
+        #[arg(short = 'A', long, value_name = "N", default_value = "0")]
+        context_after: usize,
+
+        /// Number of context lines before the match.
+        #[arg(short = 'B', long, value_name = "N", default_value = "0")]
+        context_before: usize,
+
+        /// Number of context lines before and after the match (default: 3).
+        #[arg(short = 'C', long, value_name = "N", default_value = "3")]
+        context_both: usize,
 
         /// Skip validation gates (default: false).
         #[arg(long)]

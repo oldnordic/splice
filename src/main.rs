@@ -95,12 +95,17 @@ fn main() -> ExitCode {
             find,
             replace,
             language,
-            context_lines,
+            context_after,
+            context_before,
+            context_both,
             no_validate,
             create_backup,
             operation_id,
             metadata,
-        } => execute_apply_files(&glob, &find, &replace, language, context_lines, !no_validate, create_backup, operation_id, metadata, json_output),
+        } => {
+            let context_lines = context_after.max(context_before).max(context_both);
+            execute_apply_files(&glob, &find, &replace, language, context_lines, !no_validate, create_backup, operation_id, metadata, json_output)
+        },
 
         splice::cli::Commands::Query {
             db,
