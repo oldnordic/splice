@@ -153,12 +153,12 @@ Recent decisions affecting current work:
 - [16-01]: find_parent_symbol_node() function walks tree-sitter parent chain using language-specific node kind predicates
 - [16-01]: expand_to_containing_block() function finds parent modules/blocks for level 2 expansion
 - [16-01]: SymbolExpander trait with per-language implementations (Rust, Python, C/C++, Java, JavaScript, TypeScript)
-- [16-01]: Comprehensive test coverage (18 tests) for parent chain walking across all 7 languages
-- [16-02]: --expand and --expand-level CLI flags added to Get and Query commands
+- [16-01]: Comprehensive test coverage (21 tests) for parent chain walking across all 7 languages
+- [16-01]: ExpansionLevel enum with explicit values (None=0, Body=1, ContainingBlock=2) for CLI integration
+- [16-01]: Closure-based predicates for node kind matching instead of hardcoded language strings
+- [16-01]: expand_symbol_with_level() convenience wrapper accepts usize for easier CLI integration
 - [16-02]: Default expand-level to 1 (body) when --expand flag is used alone for convenience
-- [16-02]: Allow --expand-level 0 to disable expansion even with --expand set (flexibility for testing)
 - [16-02]: Graceful degradation on errors - fall back to original span if language detection or expansion fails
-- [16-02]: Expanded spans used for all operations: content retrieval, context extraction, checksums
 - [16-02]: Per-result expansion in Query command (each result expanded individually based on its file language)
 
 ### Pending Todos
@@ -195,7 +195,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 16-02 (Symbol Expansion and Search) - CLI expansion flags for Get and Query
+Stopped at: Completed 16-01 (Symbol Expansion and Search) - AST-aware symbol expansion infrastructure
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -272,5 +272,5 @@ Resume file: None
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 16-02 (Symbol Expansion and Search) - CLI expansion flags for Get and Query
+Stopped at: Completed 16-01 (Symbol Expansion and Search) - AST-aware symbol expansion infrastructure
 Resume file: None
