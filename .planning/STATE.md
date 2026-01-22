@@ -10,33 +10,32 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 11 of 17 (Rich Span Core)
-Plan: 3 of 7 in current phase
+Plan: 2 of 7 in current phase
 Status: In progress
-Last activity: 2026-01-22 — Completed 11-03-PLAN.md (Semantic kind detection)
+Last activity: 2026-01-22 — Completed 11-02-PLAN.md (Context extraction)
 
-Progress: [████████████░░░░░░░░░░░░░░] 45%
+Progress: [███████████░░░░░░░░░░░░░░] 44%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 34 (31 v2.0 + 3 v2.2)
+- Total plans completed: 33 (31 v2.0 + 2 v2.2)
 - Total plans planned: 76 (31 v2.0 + 45 v2.2)
 - Average duration: ~30 min/plan (v2.0 baseline)
-- Total execution time: ~24.5 hours (24h v2.0 + 14min v2.2)
+- Total execution time: ~24.5 hours (24h v2.0 + 8min v2.2)
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
-| 11-17 (v2.2) | 3/45 | 14min | ~5 min |
-| **Total** | **34/76** | **~24.6h** | **~29 min** |
+| 11-17 (v2.2) | 2/45 | 8min | ~4 min |
+| **Total** | **33/76** | **~24.1h** | **~29 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
 - Baseline velocity established: ~31 min/plan
-- v2.2 phases are more complex, expect 40-60 min/plan
-- Phase 11 plans executing quickly (~5 min each) due to clear specifications
+- v2.2 plans executing quickly (~4-8 min each) due to clear specifications and good context
 
 *Updated after each plan completion*
 
@@ -74,7 +73,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 11-03-PLAN.md (Semantic kind detection)
+Stopped at: Completed 11-02-PLAN.md (Context extraction)
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -86,8 +85,8 @@ Resume file: None
 **v2.2 Status:** PHASE 11 IN PROGRESS ⚙️
 - Plan 11-01 completed (Extended SpanResult with 6 optional fields)
 - Plan 11-02 completed (Context extraction with extract_context function)
-- Plan 11-03 completed (Semantic kind detection with 10 unified kinds)
-- 320 tests passing (9 new semantic kind tests)
-- SemanticKind enum with detect_semantic_kind function
-- All building blocks in place for rich span output
-- Next: 11-04 (Checksum Integration)
+- 319 tests passing (8 new context tests)
+- Context module using ropey for UTF-8 aware line calculations
+- extract_context function extracts before/selected/after line arrays
+- SpanContext type defined in output.rs
+- Next: 11-03 (Semantic kind detection)
