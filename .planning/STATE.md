@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 15 of 17 (Enhanced Errors) — IN PROGRESS
-Plan: 04 of 6 in current phase
-Status: Plan 15-04 complete
-Last activity: 2026-01-22 — Plan 15-04 complete
+Plan: 03 of 6 in current phase
+Status: Plan 15-03 complete
+Last activity: 2026-01-22 — Plan 15-03 complete (fuzzy symbol suggestions)
 
 Progress: [█████████░░░░░░░░░░░░] 86% (69/80 plans)
 
@@ -42,6 +42,7 @@ Progress: [█████████░░░░░░░░░░░░] 86% 
 - Phase 14 complete: context flags with asymmetric extraction, human-readable output, comprehensive tests (5/5 complete)
 - Phase 15-01 complete: severity level diversity in SpliceErrorCode enum (3 warning variants, proper severity() method)
 - Phase 15-02 complete: SpliceError location extraction with line/column support for CLI-16 precision error reporting
+- Phase 15-03 complete: Fuzzy symbol suggestions using Levenshtein distance with "Did you mean: ...?" hints
 - Phase 15-04 complete: TypeScript error code extraction with parse_typescript_output() function for CLI-20 structured diagnostics
 - Rich span metadata fully integrated into CLI JSON output
 - Dry-run mode with git-compatible output (unified diff, summary header, colors, exit codes)
@@ -132,6 +133,13 @@ Recent decisions affecting current work:
 - [15-02]: byte_offset_to_line_column handles newline boundaries correctly (offset after \n is column 0)
 - [15-02]: CliErrorPayload::from_error() uses location() instead of TODO placeholder (line 578 removed)
 - [15-02]: Comprehensive test coverage for byte_offset_to_line_column with multi-line scenarios
+- [15-03]: strsim dependency added (v0.11) for Levenshtein distance calculation
+- [15-03]: suggest_similar_symbols() function created with prefix filtering for performance
+- [15-03]: Prefix filtering by first character before distance calculation (O(n) instead of O(n*m) for all symbols)
+- [15-03]: Top-5 suggestion limiting and max-distance threshold (3) for relevance
+- [15-03]: symbol_not_found_with_suggestions() constructor adds "Did you mean: ...?" hints
+- [15-03]: Fuzzy matching excludes exact matches (distance 0) from suggestions
+- [15-03]: Comprehensive test coverage (5 unit tests + 4 integration tests)
 - [15-04]: TypeScript error format: file.ts(line,col): error TSXXXX: message
 - [15-04]: parse_typescript_output() function extracts TSXXXX codes using regex pattern
 - [15-04]: remediation_link_for_code() already handles TSXXXX codes (https://www.typescriptlang.org/errors/TSXXXX)
@@ -206,8 +214,9 @@ Resume file: None
 - Phase 15 in progress: 3/6 plans (enhanced errors)
   - 15-01 (Severity Level Diversity) ✅ Complete
   - 15-02 (Error Location Extraction) ✅ Complete
+  - 15-03 (Fuzzy Symbol Suggestions) ✅ Complete
   - 15-04 (TypeScript Error Code Extraction) ✅ Complete
-- 263 tests passing (including 5 compiler error tests, 16 context flag tests, 14 error_codes tests, 1 error location test, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests)
+- 272 tests passing (including 9 suggestions tests, 5 compiler error tests, 16 context flag tests, 14 error_codes tests, 1 error location test, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests)
 - Error code registry with 28 error variants across 9 categories (22 error-level, 6 warning-level)
 - Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
 - Rich span types ready: Relationships, ToolHints, SuggestedAction
@@ -220,6 +229,9 @@ Resume file: None
 - Diff module created: src/diff/mod.rs (392 lines, 5 public functions, 21 tests)
 - Diff dependencies added: similar (2.6), nu-ansi-term (0.50), is-terminal (0.4)
 - Diff functions accessible from splice crate root: format_unified_diff, should_use_color, format_colored_diff, format_diff_summary
+- Suggestions module created: src/suggestions.rs (122 lines, 5 unit tests + 4 integration tests)
+- Suggestions dependency added: strsim (0.11) for Levenshtein distance
+- suggest_similar_symbols() function exported from crate root for fuzzy symbol matching
 - Dry-run mode integrated with git-style summary header and unified diff output
 - preview_patch_with_content() added to return before/after content for diff generation
 - Unix-style context flags (-A, -B, -C) added to all 5 commands (Delete, Patch, Query, Get, ApplyFiles)
@@ -242,5 +254,5 @@ Resume file: None
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 15-04 (TypeScript Error Code Extraction) - parse_typescript_output with regex
+Stopped at: Completed 15-03 (Fuzzy Symbol Suggestions) - Levenshtein distance with "Did you mean" hints
 Resume file: None
