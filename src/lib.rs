@@ -15,6 +15,7 @@ pub mod diff;
 pub mod error;
 pub mod error_codes;
 pub mod execution;
+pub mod expand;
 pub mod graph;
 pub mod hints;
 pub mod ingest;
@@ -55,6 +56,9 @@ pub use action::{SuggestedAction, ActionType, Confidence, suggest_action};
 
 /// Re-export relationship types for convenience.
 pub use relationships::{Relationship, Relationships, RelationshipCache};
+
+/// Re-export expansion API for convenience.
+pub use expand::{expand_symbol, expand_symbol_with_level, ExpansionLevel, SymbolExpander};
 
 /// Splice version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
