@@ -78,15 +78,15 @@ Plans:
 4. Relationship queries are lazy (only executed with `--relationships` flag) and span full codebase via codegraph.db
 5. All advanced fields are optional and don't impact performance when not requested
 
-**Plans**: TBD
+**Plans**: 6 plans in 3 waves
 
 Plans:
-- [ ] 12-01: Implement relationship builder traversing CodeGraph for callers, callees, imports, exports
-- [ ] 12-02: Add lazy evaluation for relationships (only via `--relationships` flag)
-- [ ] 12-03: Implement tool hints module with behavioral flags (requires_full_context, apply_atomically, etc.)
-- [ ] 12-04: Implement suggested action engine with 3 primitives (delete, replace, expand)
-- [ ] 12-05: Integrate all advanced fields into SpanResult with optional serialization
-- [ ] 12-06: Performance test relationship queries on large codebases (>10K LOC)
+- [ ] 12-01-PLAN.md — Create relationships module with Relationship and Relationships structs
+- [ ] 12-02-PLAN.md — Implement relationship queries (get_callers, get_callees, get_imports, get_exports)
+- [ ] 12-03-PLAN.md — Create tool hints module with ToolHints struct and derive_tool_hints function
+- [ ] 12-04-PLAN.md — Create suggested action module with SuggestedAction struct and confidence calculation
+- [ ] 12-05-PLAN.md — Extend SpanResult with relationships, tool_hints, suggested_action fields
+- [ ] 12-06-PLAN.md — Integrate --relationships flag into CLI and wire up advanced fields
 
 #### Phase 13: Dry-run & Diff
 
@@ -238,7 +238,7 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17
 | 9. Integration Testing | v2.0 | 3/3 | Complete | 2026-01-17 |
 | 10. Documentation Update | v2.0 | 3/3 | Complete | 2026-01-18 |
 | 11. Rich Span Core | v2.2 | 7/11 | Gap closure plans created | - |
-| 12. Rich Span Advanced | v2.2 | 0/6 | Not started | - |
+| 12. Rich Span Advanced | v2.2 | 0/6 | Plans created | - |
 | 13. Dry-run & Diff | v2.2 | 0/5 | Not started | - |
 | 14. Context Flags | v2.2 | 0/5 | Not started | - |
 | 15. Enhanced Errors | v2.2 | 0/6 | Not started | - |
@@ -247,5 +247,4 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%) ✅
-- v2.2: 11/45 plans planned (24%) 🚧
-
+- v2.2: 17/51 plans planned (33%) 🚧
