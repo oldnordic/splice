@@ -1,6 +1,26 @@
 //! Structured output types for Splice operations.
 //!
 //! All output types use serde::Serialize for consistent JSON output.
+//!
+//! ## Adding Checksums to SpanResult
+//!
+//! ```no_run
+//! use splice::checksum::{checksum_span, checksum_file};
+//! use splice::output::SpanResult;
+//! use std::path::Path;
+//!
+//! let file_path = Path::new("src/main.rs");
+//! let byte_start = 100;
+//! let byte_end = 200;
+//!
+//! let mut span = SpanResult::from_byte_span(file_path.to_string_lossy().to_string(), byte_start, byte_end);
+//!
+//! // Add checksums for race condition protection
+//! let span_checksum = checksum_span(file_path, byte_start, byte_end)?;
+//! let file_checksum = checksum_file(file_path)?;
+//! span = span.with_both_checksums(span_checksum.as_hex(), file_checksum.as_hex());
+//! # Ok::<(), splice::SpliceError>(())
+//! ```
 
 use serde::{Deserialize, Serialize};
 
