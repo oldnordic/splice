@@ -433,6 +433,9 @@ pub struct CliSuccessPayload {
     /// Whether this payload has already been emitted (for --json mode).
     #[serde(skip)]
     pub already_emitted: bool,
+    /// Whether changes are pending (for dry-run mode exit codes).
+    #[serde(skip)]
+    pub has_pending_changes: bool,
 }
 
 impl CliSuccessPayload {
@@ -443,6 +446,7 @@ impl CliSuccessPayload {
             message,
             data: None,
             already_emitted: false,
+            has_pending_changes: false,
         }
     }
 
@@ -453,12 +457,19 @@ impl CliSuccessPayload {
             message,
             data: Some(data),
             already_emitted: false,
+            has_pending_changes: false,
         }
     }
 
     /// Mark this payload as already emitted (for --json mode).
     pub fn already_emitted(mut self) -> Self {
         self.already_emitted = true;
+        self
+    }
+
+    /// Mark this payload as having pending changes (for dry-run exit codes).
+    pub fn with_pending_changes(mut self) -> Self {
+        self.has_pending_changes = true;
         self
     }
 }

@@ -126,7 +126,14 @@ fn main() -> ExitCode {
     // Handle result
     match result {
         Ok(payload) => match emit_success_payload(&payload, json_output) {
-            Ok(()) => ExitCode::SUCCESS,
+            Ok(()) => {
+                // For dry-run mode, return exit code 1 if changes are pending (git diff convention)
+                if payload.has_pending_changes {
+                    ExitCode::from(1)
+                } else {
+                    ExitCode::SUCCESS
+                }
+            }
             Err(err) => {
                 if matches!(err, splice::SpliceError::BrokenPipe) {
                     ExitCode::SUCCESS
@@ -379,7 +386,13 @@ fn execute_delete(
             eprintln!("Failed to record execution: {}", e);
         }
 
-        return Ok(splice::cli::CliSuccessPayload::message_only(message).already_emitted());
+        // Mark as having pending changes if lines would be removed (git diff exit code convention)
+        let has_changes = lines_removed > 0;
+        let mut payload = splice::cli::CliSuccessPayload::message_only(message).already_emitted();
+        if has_changes {
+            payload = payload.with_pending_changes();
+        }
+        return Ok(payload);
     }
 
     // Step 11: Create backup if requested
@@ -1034,7 +1047,13 @@ fn execute_patch(
             eprintln!("Failed to record execution: {}", e);
         }
 
-        return Ok(splice::cli::CliSuccessPayload::message_only(message).already_emitted());
+        // Mark as having pending changes if lines were added or removed (git diff exit code convention)
+        let has_changes = report.lines_added > 0 || report.lines_removed > 0;
+        let mut payload = splice::cli::CliSuccessPayload::message_only(message).already_emitted();
+        if has_changes {
+            payload = payload.with_pending_changes();
+        }
+        return Ok(payload);
     }
 
     let (before_hash, after_hash) = apply_patch_with_validation(
