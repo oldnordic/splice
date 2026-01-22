@@ -48,6 +48,7 @@ Progress: [█████████░░░░░░░░░░░] 96% (76
 - Phase 16-06 complete: Context flags respect expanded symbol boundaries in execute_get and execute_query (12 integration tests)
 - Phase 16-08 complete: Search command enhanced with grep-style context flags (-A/-B/-C) and context extraction (4 tests)
 - Phase 16-09 complete: --glob flag for file pattern filtering with multi-language support (5 glob filtering tests)
+- Phase 16-10 complete: Search --apply and --replace flags with atomic writes and rollback using tempfile (4 atomic replace tests)
 - Rich span metadata fully integrated into CLI JSON output
 - Dry-run mode with git-compatible output (unified diff, summary header, colors, exit codes)
 - Context flags (-A/-B/-C) fully integrated across all 6 commands (Delete, Patch, Query, Get, ApplyFiles, Search)
@@ -201,6 +202,7 @@ Recent decisions affecting current work:
 - [16-08]: Context in JSON output as context_before, context_selected, context_after arrays
 - [16-08]: pattern module made public (pub mod pattern) to enable find_pattern_in_files() access from execute_search
 - [16-09]: Multi-language glob pattern building from path and language when --glob not specified
+- [16-10]: Atomic find-and-replace using two-phase approach (backup manifest → atomic writes → rollback on error)
 - [16-09]: Language-specific extensions: rs, py, c, cpp, java, js, ts
 - [16-09]: All supported types with brace expansion: {rs,py,c,cpp,h,hpp,cc,cxx,java,js,mjs,cjs,ts,tsx}
 - [16-09]: 5 glob filtering tests verify recursive matching, extension filtering, and empty results
