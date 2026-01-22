@@ -10,26 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 16 of 17 (Symbol Expansion and Search) — IN PROGRESS
-Plan: 05A of 6 in current phase
-Status: Plan 16-05A complete
-Last activity: 2026-01-22 — Plan 16-05A complete (Expansion tests for Rust and Python)
+Plan: 05B of 6 in current phase
+Status: Plan 16-05B complete
+Last activity: 2026-01-22 — Plan 16-05B complete (Multi-language expansion tests for C/C++, Java, JavaScript, TypeScript)
 
-Progress: [█████████░░░░░░░░░░░] 89% (72/80 plans)
-
-Phase: 16 of 17 (Symbol Expansion and Search) — IN PROGRESS
-Plan: 03 of 6 in current phase
-Status: Plan 16-03 complete
-Last activity: 2026-01-22 — Plan 16-03 complete (Progressive expansion with language-agnostic find_containing_block)
-
-Progress: [█████████░░░░░░░░░░░] 89% (71/80 plans)
+Progress: [█████████░░░░░░░░░░░] 91% (73/80 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 71 (31 v2.0 + 40 v2.2)
+- Total plans completed: 73 (31 v2.0 + 42 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~30 hours (24h v2.0 + 6h v2.2)
+- Total execution time: ~30.5 hours (24h v2.0 + 6.5h v2.2)
 
 **By Phase:**
 
@@ -39,22 +32,24 @@ Progress: [█████████░░░░░░░░░░░] 89% (71
 | 11-13 (v2.2) | 30/30 | 3.2h | ~6 min |
 | 14 (v2.2) | 5/5 | 30min | ~6 min |
 | 15 (v2.2) | 6/6 | 17min | ~3 min |
-| 16 (v2.2) | 4/6 | 2h | ~30 min |
-| **Total** | **71/80** | **~30h** | **~25 min** |
+| 16 (v2.2) | 5/6 | 2.25h | ~27 min |
+| **Total** | **73/80** | **~30.5h** | **~25 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
 - Baseline velocity established: ~31 min/plan
-- v2.2 plans executing quickly (~1-14 min each)
+- v2.2 plans executing quickly (~1-27 min each)
 - Phase 13 complete: diff module, CLI flags (-n/--dry-run), unified diff integration, git-style exit codes (5/5 complete)
 - Phase 14 complete: context flags with asymmetric extraction, human-readable output, comprehensive tests (5/5 complete)
 - Phase 15 complete: Enhanced errors with severity levels, location extraction, fuzzy suggestions, TypeScript error codes, explain command (6/6 complete)
 - Phase 16-01 complete: Symbol expansion infrastructure with tree_walker module and parent chain walking (18 tests)
 - Phase 16-02 complete: CLI expansion flags (--expand, --expand-level) for Get and Query commands with fallback on errors
 - Phase 16-04 complete: Leading doc comments in symbol expansion with extract_leading_docs() and expand_to_body_with_docs() (9 tests)
+- Phase 16-06 complete: Context flags respect expanded symbol boundaries in execute_get and execute_query (12 integration tests)
 - Rich span metadata fully integrated into CLI JSON output
 - Dry-run mode with git-compatible output (unified diff, summary header, colors, exit codes)
 - Context flags (-A/-B/-C) fully integrated across all 5 commands with grep-style resolution
+- CLI-14 requirement satisfied: context calculated from expanded symbol boundaries
 
 *Updated after each plan completion*
 
@@ -175,6 +170,19 @@ Recent decisions affecting current work:
 - [16-04]: Only doc-style comments captured (///, /**, //!, /*!, """), not regular comments (//, #)
 - [16-04]: Single blank line allowed between docs and symbol for code readability
 - [16-04]: User-facing expansion uses expand_to_body_with_docs() to include documentation, internal uses expand_to_body() for performance
+- [16-06]: Context extraction always uses expanded boundaries when --expand flag is enabled
+- [16-06]: execute_get and execute_query pre-calculate expanded_start/expanded_end before calling extract_context_asymmetric()
+- [16-06]: JSON output includes both original and expanded spans for transparency and debugging
+- [16-06]: Comprehensive integration tests (12 tests) verify context+expansion interaction across all 7 languages
+- [16-06]: Boundary recalculation pattern established: expand first, then extract context from expanded span
+- [16-05A]: Integration tests in tests/ directory don't require lib.rs module declarations
+- [16-05A]: Search for 'fn symbol_name' pattern instead of just 'symbol_name' to avoid doc comment matches
+- [16-05A]: All Rust/Python expansion tests combined into single file for better organization
+- [16-05B]: Use match_indices().nth(N) pattern to skip doc comment occurrences when finding symbol positions
+- [16-05B]: Store file content in variable before slicing to avoid temporary value errors (E0716)
+- [16-05B]: Interface methods may not support level 2 expansion - tests handle both success and failure gracefully
+- [16-05B]: Multi-language expansion tests use minimal source code fixtures focusing on specific expansion behaviors
+- [16-05B]: 25 expansion tests covering all 7 languages with doc styles (///, /**/, """, /**, JSDoc)
 
 ### Pending Todos
 
@@ -210,7 +218,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 16-04 (Symbol Expansion and Search) - Leading doc comments in symbol expansion
+Stopped at: Completed 16-05B (Symbol Expansion and Search) - Multi-language expansion tests
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -248,9 +256,42 @@ Resume file: None
   - 15-03 (Fuzzy Symbol Suggestions) ✅ Complete
   - 15-04 (TypeScript Error Code Extraction) ✅ Complete
   - 15-05 (Error Code Explain Command) ✅ Complete
-- Phase 16 in progress: 4/6 plans (symbol expansion and search)
+- Phase 16 in progress: 5/6 plans (symbol expansion and search)
   - 16-01 (Symbol Expansion Infrastructure) ✅ Complete
   - 16-02 (CLI Expansion Flags) ✅ Complete
+  - 16-04 (Leading Doc Comments) ✅ Complete
+  - 16-06 (Context+Expansion Integration) ✅ Complete
+  - 16-03 (Search Command) ⏳ Pending
+  - 16-05 (Advanced Search Features) ⏳ Pending
+- 293 tests passing (including 12 context+expansion integration tests, 9 doc extraction tests, 9 suggestions tests, 5 compiler error tests, 16 context flag tests, 14 error_codes tests, 1 error location test, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests, 29 expand tests)
+- Error code registry with 28 error variants across 9 categories (22 error-level, 6 warning-level)
+- Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
+- Rich span types ready: Relationships, ToolHints, SuggestedAction
+- SpanResult extended with 3 new optional fields (relationships, tool_hints, suggested_action)
+- All new fields use skip_serializing_if for backward compatibility
+- CLI --relationships flag added to Delete, Patch, Query, Get commands (lazy evaluation pattern)
+- Relationships integrated into all four CLI commands (Query, Get, Delete, Patch)
+- Tool hints and suggested action integrated into all four CLI commands (Delete, Patch, Query, Get)
+- Performance test suite validates relationship queries scale to 1K symbols (small: <10ms, large: <100ms)
+- Diff module created: src/diff/mod.rs (392 lines, 5 public functions, 21 tests)
+- Diff dependencies added: similar (2.6), nu-ansi-term (0.50), is-terminal (0.4)
+- Diff functions accessible from splice crate root: format_unified_diff, should_use_color, format_colored_diff, format_diff_summary
+- Suggestions module created: src/suggestions.rs (122 lines, 5 unit tests + 4 integration tests)
+- Suggestions dependency added: strsim (0.11) for Levenshtein distance
+- suggest_similar_symbols() function exported from crate root for fuzzy symbol matching
+- Dry-run mode integrated with git-style summary header and unified diff output
+- preview_patch_with_content() added to return before/after content for diff generation
+- Unix-style context flags (-A, -B, -C) added to all 5 commands (Delete, Patch, Query, Get, ApplyFiles)
+- Asymmetric context extraction with extract_context_asymmetric() for separate before/after counts
+- Context flags wired through main.rs with grep-style resolution via resolve_context_counts()
+- Human-readable context display shows "Context (N lines before):" and "Context (N lines after):" in Query and Get commands
+- Comprehensive integration tests for context flags in tests/context_flags_tests.rs (16 tests, 437 lines)
+- Error code explain command with embedded documentation for 22 error codes following rustc --explain pattern
+- Symbol expansion infrastructure: tree_walker module with parent chain walking (21 tests)
+- CLI expansion flags (--expand, --expand-level) for Get and Query commands
+- Leading doc comment extraction with extract_leading_docs() and expand_to_body_with_docs() (9 tests)
+- Context+expansion integration: context flags respect expanded symbol boundaries (12 tests)
+- Verification passed: Phase 12 all must-haves verified (27/27), Phase 13 complete, Phase 14 complete (5/5), Phase 15 complete (6/6), Phase 16-01, 16-02, 16-04, 16-06 complete
   - 16-04 (Leading Doc Comments) ✅ Complete
   - 16-03 (Search Command) ⏳ Pending
   - 16-05 (Advanced Search Features) ⏳ Pending
