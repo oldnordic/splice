@@ -37,13 +37,13 @@ Requirements for Unified JSON Schema implementation with LLM-first UX improvemen
 
 ### CLI Improvements - Dry-run & Diff
 
-- [ ] **CLI-01:** Tool supports `-n, --dry-run` flag as alias to existing `--preview`
-- [ ] **CLI-02:** Dry-run outputs unified diff format with `---`/`+++`, `-`/`+` notation
-- [ ] **CLI-03:** Dry-run shows summary header with files affected and line counts
-- [ ] **CLI-04:** Tool uses red for deletions, green for additions (Git convention)
-- [ ] **CLI-05:** Tool respects `NO_COLOR` environment variable and auto-detects TTY
-- [ ] **CLI-06:** Tool supports `--unified <n>` flag for configurable context in diff
-- [ ] **CLI-07:** Dry-run returns exit code 1 if changes would be made, 0 if no changes
+- [x] **CLI-01:** Tool supports `-n, --dry-run` flag as alias to existing `--preview`
+- [x] **CLI-02:** Dry-run outputs unified diff format with `---`/`+++`, `-`/`+` notation
+- [x] **CLI-03:** Dry-run shows summary header with files affected and line counts
+- [x] **CLI-04:** Tool uses red for deletions, green for additions (Git convention)
+- [x] **CLI-05:** Tool respects `NO_COLOR` environment variable and auto-detects TTY
+- [x] **CLI-06:** Tool supports `--unified <n>` flag for configurable context in diff
+- [x] **CLI-07:** Dry-run returns exit code 1 if changes would be made, 0 if no changes
 
 ### CLI Improvements - Context Flags
 
@@ -129,7 +129,7 @@ Which phases cover which requirements. All v2.2 requirements mapped to roadmap p
 |-------------|-------|--------|-------|
 | RICHSPAN-01 through RICHSPAN-13 | Phase 11 | Complete | 11/11 plans executed |
 | RICHSPAN-14 through RICHSPAN-21 | Phase 12 | Complete | 8/8 plans executed |
-| CLI-01 through CLI-07 | Phase 13 | Pending | |
+| CLI-01 through CLI-07 | Phase 13 | Complete | 5/5 plans executed |
 | CLI-08 through CLI-14 | Phase 14 | Pending | |
 | CLI-15 through CLI-21 | Phase 15 | Pending | |
 | CLI-22 through CLI-33 | Phase 16 | Pending | |

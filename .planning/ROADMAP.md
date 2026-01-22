@@ -108,11 +108,11 @@ Plans:
 **Plans**: 5 plans in 4 waves
 
 Plans:
-- [ ] 13-01-PLAN.md — Add diff-related dependencies (similar, nu-ansi-term, is-terminal)
-- [ ] 13-02-PLAN.md — Create diff module with unified diff generation and color detection
-- [ ] 13-03-PLAN.md — Add CLI flags for dry-run aliases and unified context configuration
-- [ ] 13-04-PLAN.md — Integrate diff output into patch and delete commands
-- [ ] 13-05-PLAN.md — Implement git-style exit codes for dry-run mode
+- [x] 13-01-PLAN.md — Add diff-related dependencies (similar, nu-ansi-term, is-terminal)
+- [x] 13-02-PLAN.md — Create diff module with unified diff generation and color detection
+- [x] 13-03-PLAN.md — Add CLI flags for dry-run aliases and unified context configuration
+- [x] 13-04-PLAN.md — Integrate diff output into patch and delete commands
+- [x] 13-05-PLAN.md — Implement git-style exit codes for dry-run mode
 
 #### Phase 14: Context Flags
 
@@ -241,7 +241,7 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17
 | 10. Documentation Update | v2.0 | 3/3 | Complete | 2026-01-18 |
 | 11. Rich Span Core | v2.2 | 11/11 | Complete | 2026-01-22 |
 | 12. Rich Span Advanced | v2.2 | 8/8 | Complete | 2026-01-22 |
-| 13. Dry-run & Diff | v2.2 | 0/5 | Not started | - |
+| 13. Dry-run & Diff | v2.2 | 5/5 | Complete | 2026-01-22 |
 | 14. Context Flags | v2.2 | 0/5 | Not started | - |
 | 15. Enhanced Errors | v2.2 | 0/6 | Not started | - |
 | 16. Symbol Expansion & Search | v2.2 | 0/10 | Not started | - |
@@ -249,4 +249,4 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%) ✅
-- v2.2: 30/51 plans planned (59%) 🚧
+- v2.2: 35/51 plans planned (69%) 🚧
