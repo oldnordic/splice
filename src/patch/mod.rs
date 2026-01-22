@@ -390,6 +390,87 @@ pub fn preview_patch(
     ))
 }
 
+/// Preview a patch and return before/after content for diff generation.
+///
+/// This extends the `preview_patch()` functionality by also returning the original
+/// and patched file contents, enabling unified diff generation in dry-run mode.
+///
+/// # Arguments
+/// Same parameters as `preview_patch()`:
+/// * `file_path` - Path to the file to preview
+/// * `start` - Start byte offset (inclusive)
+/// * `end` - End byte offset (exclusive)
+/// * `new_content` - Replacement content
+/// * `workspace_root` - Root directory of the workspace
+/// * `language` - Programming language for validation gates
+/// * `analyzer_mode` - rust-analyzer mode (off/path/explicit, Rust only)
+///
+/// # Returns
+/// Result containing a tuple of:
+/// * `FilePatchSummary` - Hash information
+/// * `PreviewReport` - Line/byte change statistics
+/// * `String` - Original file content (before patch)
+/// * `String` - Patched file content (after patch)
+///
+/// # Examples
+/// ```ignore
+/// use splice::patch::preview_patch_with_content;
+///
+/// let (summary, report, before, after) = preview_patch_with_content(
+///     &file_path,
+///     start,
+///     end,
+///     new_content,
+///     &workspace_root,
+///     language,
+///     analyzer_mode,
+/// )?;
+/// ```
+pub fn preview_patch_with_content(
+    file_path: &Path,
+    start: usize,
+    end: usize,
+    new_content: &str,
+    workspace_root: &Path,
+    language: SymbolLanguage,
+    analyzer_mode: AnalyzerMode,
+) -> Result<(FilePatchSummary, PreviewReport, String, String)> {
+    let preview_workspace = clone_workspace_for_preview(workspace_root)?;
+    let relative = file_path
+        .strip_prefix(workspace_root)
+        .map_err(|_| SpliceError::Other("File not under workspace root".to_string()))?;
+    let preview_file = preview_workspace.path().join(relative);
+
+    // Read original file content before patching
+    let before_content = std::fs::read_to_string(&preview_file)?;
+
+    let (before_hash, after_hash) = apply_patch_with_validation(
+        &preview_file,
+        start,
+        end,
+        new_content,
+        preview_workspace.path(),
+        language,
+        analyzer_mode,
+    )?;
+
+    // Read patched file content
+    let after_content = std::fs::read_to_string(&preview_file)?;
+
+    let preview_report = compute_preview_report(file_path, start, end, new_content)?;
+
+    Ok((
+        FilePatchSummary {
+            file: file_path.to_path_buf(),
+            before_hash,
+            after_hash,
+        },
+        preview_report,
+        before_content,
+        after_content,
+    ))
+}
+
 /// Run all validation gates in sequence.
 ///
 /// Gates are executed in order:
