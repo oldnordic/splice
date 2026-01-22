@@ -23,6 +23,7 @@ pub mod patch;
 pub mod plan;
 pub mod relationships;
 pub mod resolve;
+pub mod suggestions;
 pub mod symbol;
 pub mod validate;
 pub mod verify;
