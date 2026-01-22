@@ -1,128 +1,151 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-01-17
+**Analysis Date:** 2026-01-22
 
 ## Naming Patterns
 
 **Files:**
-- snake_case.rs for all module files (e.g., cli.rs, error.rs)
-- mod.rs for directory exports
+- All lowercase: `src/checksum.rs`, `src/error.rs`
+- Modules in subdirectories: `src/ingest/rust.rs`, `src/ingest/imports/python.rs`
+- Descriptive names: `verify.rs`, `magellan_integration.rs`
 
 **Functions:**
-- snake_case for all functions (e.g., extract_symbols, apply_patch)
-- No special prefix for async functions (Rust uses async keyword)
+- Snake_case for functions: `extract_rust_symbols`, `checksum_file`, `resolve_symbol`
+- Verb-first naming: `extract_*`, `find_*`, `store_*`, `resolve_*`
+- Public functions use `pub fn`, private functions use `fn`
 
 **Variables:**
-- snake_case for variables (e.g., byte_start, byte_end)
-- SCREAMING_SNAKE_CASE for constants (e.g., VERSION)
-- No underscore prefix (no private marker in Rust)
+- Snake_case: `file_path`, `source`, `symbols`, `module_path`
+- Descriptive names: `rope` for Rope, `cursor` for tree-sitter cursor
+- Single character only for iterators: `i`, `j`, `c`, `n`
 
 **Types:**
-- PascalCase for structs (e.g., PythonSymbol, CodeGraph)
-- PascalCase for enums (e.g., Language, SpliceError)
-- PascalCase for type aliases (e.g., Result<T>)
+- PascalCase for structs and enums: `CodeGraph`, `RustSymbol`, `Visibility`, `SpliceError`
+- Enum variants: `Public`, `Private`, `Function`, `Struct`
 
 ## Code Style
 
 **Formatting:**
-- Rust 2021 edition defaults
-- 4-space indentation (Rust standard)
-- Double quotes for string literals
-- Semicolons required
-- No explicit config files (rustfmt defaults)
+- Rust Edition 2021
+- No explicit formatter configuration found, using defaults
+- Max line length not enforced
 
 **Linting:**
-- rustc built-in lints
-- clippy for additional lints (not configured in repo)
-- #![warn(missing_docs)] for documentation warnings
-- No lint overrides or allow attributes in production code
+- `#![warn(missing_docs)]` enforces documentation
+- `#![expect(unused_crate_dependencies)]` allows dev dependencies in lib.rs
+- Custom error types with `thiserror`
+- All public APIs documented with `///`
 
 ## Import Organization
 
 **Order:**
-1. std library imports
-2. External crate imports
-3. Internal imports (crate::)
-4. Module declarations (mod)
-
-**Grouping:**
-- Blank lines between groups
-- Alphabetical within each group (convention, not enforced)
+1. Standard library: `use std::...`
+2. External crates: `use sha2::...`, `use ropey::...`
+3. Local modules: `use crate::...`
 
 **Path Aliases:**
-- None (uses crate:: prefix for internal imports)
+- No aliases found, using full paths
+- Re-exports via `pub use` at module level
+
+**Import Groups:**
+- Blank lines separate import groups
+- Related imports grouped together
 
 ## Error Handling
 
 **Patterns:**
-- thiserror for custom error types
-- Result<T> type alias for consistent returns
-- Structured error messages with context
-- Error propagation using ? operator
+```rust
+// Result<T> for fallible operations
+pub fn extract_rust_symbols(path: &Path, source: &[u8]) -> Result<Vec<RustSymbol>> {
+    // Error propagation with ?
+    let tree = parser.parse(source, None)
+        .ok_or_else(|| SpliceError::Parse {
+            file: path.to_path_buf(),
+            message: "Parse failed - no tree returned".to_string(),
+        })?;
+}
 
-**Error Types:**
-- SpliceError enum in `src/error.rs`
-- Variants for each error category
-- Include file paths and line numbers in errors
-- Diagnostic aggregation for batch operations
-
-## Logging
-
-**Framework:**
-- log crate for facade
-- env_logger for implementation in binary
-
-**Patterns:**
-- Structured logging with context
-- Log at service boundaries
-- No console.log in library code
+// Custom enum with thiserror
+#[derive(Error, Debug)]
+pub enum SpliceError {
+    #[error("I/O error for path {path}: {source}")]
+    Io {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+}
+```
 
 ## Comments
 
 **When to Comment:**
-- Module-level documentation with //!
-- Function documentation with ///
-- Explain non-obvious algorithms
-- Note platform-specific behavior
+- Module headers with `//!` for documentation
+- Public function documentation with `///`
+- Complex algorithm explanations
+- TODO items (minimal usage)
 
-**Rustdoc:**
-- Required for public APIs
-- Use /// for item docs
-- Use //! for module docs
-- Include examples where helpful
-
-**TODO Comments:**
-- TODO: for unimplemented features
-- todo!() macro for unimplemented code paths
+**JSDoc/TSDoc:**
+- Rust standard doc comments
+- Examples provided for key functions
+- Documented all error variants
 
 ## Function Design
 
 **Size:**
-- Keep under 300 lines (project standard)
-- Extract helpers for complex logic
-- One level of abstraction per function
+- Max 300 LOC per file (enforced by CLAUDE.md)
+- Average function size: 10-50 lines
+- Large functions broken into smaller helper functions
 
 **Parameters:**
-- Use struct for 3+ parameters
-- Destructure in parameter list where appropriate
+- Limited parameters (typically 3-5)
+- Optional parameters using Option<T>
+- Clear parameter names with type context
 
 **Return Values:**
-- Result<T> for fallible operations
-- Explicit returns
-- Return early for guard clauses
+- Result<T> for fallible functions
+- Vec<T> for multiple results
+- Option<T> for optional results
 
 ## Module Design
 
 **Exports:**
-- pub use for re-exports in lib.rs
-- Private items by default
-- pub for public API
+- Re-exports at module level for convenience
+- Clear module boundaries
+- Minimal public API per module
 
 **Barrel Files:**
-- mod.rs for directory exports
-- Re-export public API from mod.rs
+- Module-level `mod.rs` files organize functionality
+- Re-exports for common types
 
----
+## Logging
 
-*Convention analysis: 2026-01-17*
-*Update when patterns change*
+**Framework:** No logging framework configured
+
+**Patterns:**
+- No debug logging found in codebase
+- Error logging via Result propagation
+- CLI output via clap
+
+## Documentation
+
+**Module Headers:**
+- Every module has `//!` documentation
+- Explains purpose and scope
+
+**Public APIs:**
+- All public functions documented
+- Documented error conditions
+- Examples for complex operations
+
+## Code Organization
+
+**Directory Structure:**
+- Feature-based organization (`ingest/`, `graph/`, `patch/`)
+- Language-specific modules under `ingest/`
+- Clear separation between core and utilities
+
+**File Naming:**
+- Descriptive names
+- Consistent with feature names
+- No abbreviations

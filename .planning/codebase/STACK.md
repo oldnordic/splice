@@ -1,82 +1,131 @@
 # Technology Stack
 
-**Analysis Date:** 2026-01-17
+**Analysis Date:** 2026-01-22
 
 ## Languages
 
 **Primary:**
-- Rust 2021 Edition - All application code
+- Rust 2021 Edition - Main implementation language
+  - Version: 1.70+ (required for building)
+  - Features: Edition 2021 with async support
 
 **Secondary:**
-- Not detected
+- N/A - Pure Rust implementation with no language bindings
 
 ## Runtime
 
 **Environment:**
-- Rust 1.70+ (minimum version per `README.md`)
-- Native binary compilation (no runtime VM required)
+- Rust Native
+  - Version: 1.70+
+  - Binary format: Static linking (no runtime dependencies)
 
 **Package Manager:**
-- Cargo - Rust package manager
-- Lockfile: `Cargo.lock` present
+- Cargo (Rust package manager)
+  - Version: Integrated with Rust toolchain
+  - Lockfile: Cargo.lock (committed to version control)
 
 ## Frameworks
 
 **Core:**
-- tree-sitter 0.21 - AST parsing for multiple languages
-- SQLiteGraph 0.2.11 - Code graph database
-- Magellan 0.5.3 - Multi-language code indexing
+- Native Rust frameworks only
+  - Custom CLI implementation with clap
+  - No external application frameworks
 
 **Testing:**
-- Rust built-in `#[test]` framework - Unit and integration tests
-- `#[cfg(test)]` module pattern - Co-located tests
+- Rust test framework (built-in)
+  - Unit tests integrated into source files
+  - Integration tests in tests/ directory
 
 **Build/Dev:**
-- rustc - Rust compiler
-- cargo build - Build system
-- No external build tools required
+- Cargo Build System
+  - Debug/Release profiles
+  - Target-specific builds
 
 ## Key Dependencies
 
-**Critical:**
-- magellan 0.5.3 - Multi-language symbol indexing and code analysis
-- sqlitegraph 0.2.11 - Code graph persistence and querying
-- tree-sitter (multiple) 0.21 - AST parsing for Rust, Python, C, C++, Java, JavaScript, TypeScript
-- ropey 1.6 - Byte-safe text editing operations
+**Core:**
+- magellan 0.5.3 - Multi-language code indexing and symbol queries
+  - Features: native-v2
+  - Purpose: Code graph construction and label-based queries
+- sqlitegraph 1.0 - SQLiteGraph backend
+  - Features: native-v2
+  - Purpose: In-process graph database for code entities
 
-**Infrastructure:**
-- clap 4.5 - CLI argument parsing
-- serde/serde_json 1.0 - JSON serialization
+**AST Parsing:**
+- tree-sitter 0.22 - Framework for incremental parsing
+  - Grammar-specific packages for each language:
+    - tree-sitter-rust 0.21
+    - tree-sitter-python 0.21
+    - tree-sitter-c 0.21
+    - tree-sitter-cpp 0.21
+    - tree-sitter-javascript 0.21
+    - tree-sitter-typescript 0.21
+    - tree-sitter-java 0.21
+
+**Text Processing:**
+- ropey 1.6 - Safe byte-level text editing
+  - Purpose: Precise code span manipulation
+- glob 0.3 - File pattern matching
+  - Purpose: Multi-file operations
+
+**Serialization:**
+- serde 1.0 - Serialization framework
+  - Features: derive macros
+- serde_json 1.0 - JSON serialization
+  - Purpose: Configuration and structured output
+
+**Error Handling:**
+- thiserror 1.0 - Error type derivation
+  - Purpose: Custom error types for the project
+- rusqlite 0.31 - SQLite wrapper
+  - Features: bundled (static linking)
+  - Purpose: Direct database access for logging
+
+**CLI & Logging:**
+- clap 4.5 - Command line argument parsing
+  - Features: derive macros
+- log 0.4 - Logging framework
+- env_logger 0.11 - Environment-based logging
+- which 6 - Find executables
+- tempfile 3.10 - Temporary file management
+
+**Utilities:**
+- sha2 0.10 - SHA-256 hashing
+  - Purpose: Checksum verification
 - uuid 1.10 - UUID generation
-- chrono 0.4 - Time handling
-- log/env_logger - Logging infrastructure
-- thiserror 1.0 - Error handling
+  - Features: v4 (random UUIDs)
+- chrono 0.4 - Date/time handling
+  - Features: std, clock (reduced featureset)
+- strsim 0.10 - String similarity (for diffing)
 
 ## Configuration
 
 **Environment:**
-- No environment variables required
-- Configuration via CLI arguments only
-- CodeMCP config in `.codemcp/config.toml`
+- No external environment configuration required
+- Language-specific compilers must be available in PATH
 
 **Build:**
-- `Cargo.toml` - Dependency specification and crate metadata
-- Rust 2021 edition defaults
-- No custom build scripts detected
+- Cargo.toml - Main configuration
+- Workspace: Single-crate project
+- Profile-specific optimizations
 
 ## Platform Requirements
 
 **Development:**
-- Linux/macOS/Windows (any platform with Rust toolchain)
-- Rust 1.70+ compiler
-- cargo package manager
+- Rust 1.70+ toolchain
+- Language-specific compilers:
+  - Rust: cargo
+  - Python: python
+  - C/C++: gcc/g++
+  - Java: javac
+  - JavaScript: node
+  - TypeScript: tsc
 
 **Production:**
-- Distributed as cargo package
-- Installed via `cargo install splice`
-- Runs as native binary on user's system
+- Rust runtime (statically linked)
+- No external dependencies at runtime
+- Cross-platform binaries (Linux, macOS, Windows)
 
 ---
 
-*Stack analysis: 2026-01-17*
-*Update after major dependency changes*
+*Stack analysis: 2026-01-22*

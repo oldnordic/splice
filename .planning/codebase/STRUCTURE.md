@@ -1,145 +1,151 @@
-# Codebase Structure
+# Directory Structure
 
-**Analysis Date:** 2026-01-17
+**Analysis Date:** 2026-01-22
 
 ## Directory Layout
 
 ```
 splice/
-├── src/                    # Core library source
-│   ├── cli/                # CLI interface (no logic)
-│   ├── graph/              # Database layer
-│   ├── ingest/             # Symbol extraction service
-│   ├── patch/              # Code modification service
-│   ├── plan/               # Multi-step operations
-│   ├── resolve/            # Symbol resolution
-│   ├── symbol/             # Domain models
-│   ├── validate/           # Validation service
-│   ├── cli.rs              # CLI types
-│   ├── error.rs            # Error types
-│   └── lib.rs              # Library entry
-├── tests/                  # Integration tests
-├── docs/                   # Documentation
-├── .codemcp/               # CodeMCP configuration
-├── Cargo.toml              # Dependencies and metadata
-├── main.rs                 # CLI binary entry
-└── README.md               # User documentation
+├── src/
+│   ├── main.rs                 # CLI entry point (~2140 lines)
+│   ├── lib.rs                  # Library root, module re-exports
+│   ├── cli/                    # Command-line interface
+│   │   └── mod.rs              # Argument parsing with clap
+│   ├── ingest/                 # Language-specific parsing
+│   │   ├── mod.rs              # Module dispatch
+│   │   ├── detect.rs           # Language detection
+│   │   ├── magellan.rs         # Magellan integration
+│   │   ├── rust.rs             # Rust symbol extraction
+│   │   ├── python.rs           # Python symbol extraction
+│   │   ├── java.rs             # Java symbol extraction
+│   │   ├── javascript.rs       # JavaScript symbol extraction
+│   │   ├── typescript.rs       # TypeScript symbol extraction
+│   │   ├── cpp.rs              # C++ symbol extraction
+│   │   └── imports/            # Import extraction submodules
+│   │       ├── mod.rs
+│   │       ├── rust.rs
+│   │       ├── python.rs
+│   │       ├── java.rs
+│   │       ├── javascript.rs
+│   │       └── typescript.rs
+│   ├── graph/                  # Code graph integration
+│   │   ├── mod.rs              # CodeGraph wrapper (~400 lines)
+│   │   ├── schema.rs           # Graph labels and edge types
+│   │   └── magellan_integration.rs  # Magellan API wrapper
+│   ├── resolve/                # Reference resolution
+│   │   ├── mod.rs
+│   │   ├── cross_file.rs       # Cross-file reference logic
+│   │   ├── module_resolver.rs  # Module path resolution
+│   │   └── references/         # Reference extraction
+│   │       ├── mod.rs
+│   │       └── rust.rs         # Rust reference finding (~1395 lines)
+│   ├── patch/                  # Span-safe replacement
+│   │   ├── mod.rs              # Core patch engine
+│   │   ├── backup.rs           # Backup and restore
+│   │   ├── batch_loader.rs     # JSON batch loading
+│   │   └── pattern.rs          # Pattern-based replacement
+│   ├── validate/               # Validation gates
+│   │   ├── mod.rs              # Validation orchestration
+│   │   └── gates.rs            # Individual gate implementations
+│   ├── execution/              # Audit logging
+│   │   ├── mod.rs
+│   │   ├── base.rs             # Execution tracking types
+│   │   ├── query.rs            # Log querying
+│   │   └── log.rs              # Database logging
+│   ├── plan/                   # Multi-step plans
+│   │   └── mod.rs              # Plan execution
+│   ├── checksum.rs             # SHA-256 hashing
+│   ├── verify.rs               # Pre-operation checks
+│   ├── output.rs               # JSON output formatting
+│   ├── error.rs                # Error types
+│   └── symbol/                 # Symbol types
+│       └── mod.rs              # Language and kind enums
+├── tests/                      # Integration tests
+│   ├── cli_tests.rs            # CLI command tests
+│   ├── patch_tests.rs          # Patch operation tests
+│   ├── cross_file_tests.rs     # Cross-file reference tests
+│   ├── cross_language_tests.rs # Multi-language tests
+│   ├── magellan_integration_tests.rs  # Magellan tests
+│   ├── e2e_refactor_tests.rs   # End-to-end refactoring tests
+│   ├── ingest_tests.rs         # Parsing tests
+│   ├── language_detection_tests.rs
+│   ├── module_path_tests.rs
+│   ├── resolve_tests.rs        # Resolution tests
+│   └── [language]_*_tests.rs   # Per-language tests
+├── docs/                       # Documentation
+│   ├── DATABASE_SCHEMA.md      # Database structure
+│   └── DIAGNOSTICS_HUMAN_LLM.md # Diagnostics reference
+├── .planning/                  # Planning artifacts
+│   ├── codebase/               # Codebase analysis (this folder)
+│   └── config.json             # GSD configuration
+├── Cargo.toml                  # Package configuration
+├── README.md                   # User documentation
+├── CLAUDE.md                   # Development rules
+└── CHANGELOG.md                # Version history
 ```
 
-## Directory Purposes
+## Key Locations
 
-**src/**
-- Purpose: Core library source code
-- Contains: Rust modules for all functionality
-- Key files: lib.rs, error.rs, cli.rs
-- Subdirectories:
-  - cli/ - Command definitions only
-  - graph/ - CodeGraph wrapper and database integration
-  - ingest/ - Symbol extraction for all supported languages
-  - patch/ - Code modification and backup logic
-  - plan/ - Multi-step refactoring plans
-  - resolve/ - Symbol resolution and reference finding
-  - symbol/ - Language-agnostic symbol types
-  - validate/ - Compiler/analyzer validation gates
-
-**tests/**
-- Purpose: Integration and unit tests
-- Contains: Test files for various components
-- Key files: cli_tests.rs, patch_tests.rs, integration_refactor.rs
-- Subdirectories: None (flat structure)
-
-**docs/**
-- Purpose: Project documentation
-- Contains: ADRs, plans, TODO tracking
-- Key files: ADR_*.md (architecture decisions), PLAN_*.md (feature plans)
-- Subdirectories: None
-
-**.codemcp/**
-- Purpose: CodeMCP configuration for semantic indexing
-- Contains: config.toml
-- Subdirectories: None
-
-## Key File Locations
-
-**Entry Points:**
-- `main.rs` - CLI binary entry point
-- `src/lib.rs` - Library entry point and module exports
-
-**Configuration:**
-- `Cargo.toml` - Dependencies and crate metadata
-- `.codemcp/config.toml` - CodeMCP configuration
-
-**Core Logic:**
-- `src/graph/mod.rs` - CodeGraph wrapper (database operations)
-- `src/ingest/dispatch.rs` - Language dispatch for symbol extraction
-- `src/resolve/mod.rs` - Symbol resolution logic
-- `src/patch/mod.rs` - Patch application logic
-- `src/validate/gates.rs` - Compiler validation
-
-**Error Handling:**
-- `src/error.rs` - All error types and diagnostics
-
-**Testing:**
-- `tests/` - Integration and unit tests
-
-**Documentation:**
-- `README.md` - User-facing documentation
-- `docs/ADR_*.md` - Architecture decision records
+| Path | Purpose | Key Types |
+|------|---------|-----------|
+| `src/main.rs` | CLI entry point, command execution | `main()`, `execute_*()` functions |
+| `src/graph/mod.rs` | Code graph wrapper | `CodeGraph`, `NodeId` |
+| `src/patch/mod.rs` | Core patching engine | `SpanReplacement`, `SpanBatch` |
+| `src/resolve/references/rust.rs` | Rust reference finding | `ReferenceExtractor` |
+| `src/error.rs` | Error definitions | `SpliceError`, `Result` |
+| `src/symbol/mod.rs` | Symbol type enums | `Language`, `SymbolKind` |
+| `.splice_graph.db` | Code graph database | SQLite (via SQLiteGraph) |
+| `.splice/operations.db` | Audit trail | SQLite tables |
 
 ## Naming Conventions
 
 **Files:**
-- snake_case.rs for modules (e.g., cli.rs, error.rs)
-- mod.rs for module exports within directories
+- `snake_case.rs` for all Rust source files
+- Module directories use `snake_case/`
+- Test files: `{feature}_tests.rs`
 
-**Directories:**
-- snake_case for all directories (e.g., src/ingest/, src/graph/)
+**Modules:**
+- `mod.rs` for module exports in subdirectories
+- Feature-based grouping (e.g., `ingest/`, `resolve/`)
 
-**Special Patterns:**
-- `src/ingest/[language].rs` - Per-language symbol extractors
-- `src/resolve/references/[language].rs` - Per-language reference finders
+**Functions:**
+- `snake_case` for all functions
+- Verb prefixes: `extract_*`, `find_*`, `store_*`, `resolve_*`, `verify_*`
+- Test functions: `test_*` or `test_*_specific_case`
 
-## Where to Add New Code
+**Types:**
+- `PascalCase` for structs and enums: `CodeGraph`, `SpanReplacement`
+- Enum variants: `PascalCase`: `Public`, `Private`, `Function`
 
-**New CLI Command:**
-- Definition: Extend `Commands` enum in `src/cli/mod.rs`
-- Handler: Add handler function in `src/cli/mod.rs`
-- Tests: Add in `tests/cli_tests.rs`
+**Constants:**
+- `SCREAMING_SNAKE_CASE` for constants: `VERSION`, `EDGE_DEFINES`
 
-**New Language Support:**
-- Implementation: `src/ingest/[language].rs` (symbol extraction)
-- References: `src/resolve/references/[language].rs` (reference finding)
-- Tests: `tests/[language]_tests.rs`
+## File Size Guidelines
 
-**New Validation Gate:**
-- Implementation: `src/validate/gates.rs`
-- Tests: `tests/validation_tests.rs`
+Per `CLAUDE.md`:
+- Max 300 LOC per file (600 with justification)
+- Large files that exceed:
+  - `src/main.rs`: 2140 lines (exceeds - needs splitting)
+  - `src/resolve/references/rust.rs`: 1395 lines (exceeds - needs splitting)
 
-**New Operation:**
-- Implementation: Create new module in appropriate service directory
-- Tests: `tests/` with descriptive name
+## Configuration Files
 
-**Utilities:**
-- Implementation: `src/utils.rs` (doesn't exist yet, create if needed)
-- Tests: Co-located in `#[cfg(test)]` modules
+| File | Purpose |
+|------|---------|
+| `Cargo.toml` | Dependencies, package metadata |
+| `.planning/config.json` | GSD workflow configuration |
+| `.splice/operations.db` | Execution audit trail (created at runtime) |
+| `.splice_graph.db` | Code graph (created at runtime) |
 
-## Special Directories
+## Generated Artifacts
 
-**src/ingest/**
-- Purpose: Language-specific symbol extraction
-- Contains: rust.rs, python.rs, javascript.rs, typescript.rs, java.rs, c.rs, cpp.rs
-- Subdirectories: imports/ (import resolution)
-
-**src/resolve/references/**
-- Purpose: Language-specific reference resolution
-- Contains: Per-language reference finding modules
-
-**.codemcp/**
-- Purpose: CodeMCP semantic indexing configuration
-- Source: Manually created configuration
-- Committed: Yes
+| Location | Created By | Purpose |
+|----------|-----------|---------|
+| `.splice_graph.db` | `CodeGraph::open()` | Symbol storage, reference graph |
+| `.splice/operations.db` | `execution::log` | Audit trail |
+| `.splice-backup/*/` | `BackupWriter` | Restore points for undo |
+| `target/` | Cargo build | Compiled binaries |
 
 ---
 
-*Structure analysis: 2026-01-17*
-*Update when directory structure changes*
+*Structure analysis: 2026-01-22*

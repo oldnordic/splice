@@ -1,73 +1,88 @@
 # External Integrations
 
-**Analysis Date:** 2026-01-17
+**Analysis Date:** 2026-01-22
 
 ## APIs & External Services
 
-**External APIs:**
-- None detected - All processing is local
+**Language Compilers:**
+- Rust Compiler (cargo) - Compilation validation
+  - Command: `cargo check`
+  - Purpose: Validate Rust code syntax and semantics
+- Python Compiler (python) - Python compilation validation
+  - Command: `python -m py_compile`
+  - Purpose: Validate Python syntax
+- GCC/G++ - C/C++ compilation validation
+  - Command: `gcc -fsyntax-only` / `g++ -fsyntax-only`
+  - Purpose: Validate C/C++ syntax
+- Java Compiler (javac) - Java compilation validation
+  - Command: `javac`
+  - Purpose: Validate Java syntax
+- Node.js (node) - JavaScript syntax validation
+  - Command: `node --check`
+  - Purpose: Validate JavaScript syntax
+- TypeScript Compiler (tsc) - TypeScript compilation validation
+  - Command: `tsc --noEmit`
+  - Purpose: Validate TypeScript syntax
 
-**External Services:**
-- Ollama - LLM provider for semantic analysis (configured in `.codemcp/config.toml`)
-  - Used for semantic code analysis
-  - Local-only operation
+**File System:**
+- Native file system operations
+  - Operations: Read/write/backup files
+  - Purpose: Source code modification and backup
 
 ## Data Storage
 
 **Databases:**
-- SQLite - Primary data store for multiple purposes
-  - Connection: Local file-based databases
-  - Client: rusqlite (via SQLiteGraph)
-  - Databases:
-    - `magellan.db` - Magellan symbol database
-    - `operations.db` - Operation tracking database
-    - `codegraph.db` - Code graph storage database
-    - `splice_map.db` - Splice-specific mapping database
+- SQLite (embedded)
+  - Connection: Direct file access
+  - Client: rusqlite 0.31
+  - Purpose: Two databases:
+    - `.splice_graph.db` - Code graph storage
+    - `.splice/operations.db` - Execution audit trail
 
 **File Storage:**
 - Local filesystem only
-- Backup files created with `.backup` extension
-- Manifest files for backup tracking
+  - Operations: File reading, writing, patching
+  - Purpose: Source code manipulation
 
 **Caching:**
-- In-memory symbol cache in `src/graph/mod.rs`
-- File caching in CodeGraph
+- None
+  - Operations: All data read fresh from database/filesystem
 
 ## Authentication & Identity
 
 **Auth Provider:**
-- Not applicable - CLI tool with no authentication requirements
+- None
+  - Implementation: Not applicable
 
 ## Monitoring & Observability
 
 **Error Tracking:**
-- None - Uses Rust's built-in error handling
+- Built-in error handling with thiserror
+  - Implementation: Custom error types with detailed context
 
 **Logs:**
-- log crate - Structured logging
-- env_logger - Environment-based logger configuration
+- env_logger with structured logging
+  - Implementation: Log to stdout with timestamps and metadata
+  - Audit trail in SQLite database (.splice/operations.db)
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- crates.io - Rust package distribution
-- Installed via `cargo install splice`
+- Rust Cargo registry (crates.io)
+  - Package name: "splice"
+  - Version: 2.0.0
 
 **CI Pipeline:**
-- Not detected - No GitHub Actions or CI configuration found
+- None (manual builds)
+  - Implementation: Cargo build and test
 
 ## Environment Configuration
 
-**Development:**
-- No required environment variables
-- Configuration via CLI arguments
-- CodeMCP config: `.codemcp/config.toml`
+**Required env vars:**
+- None (all configuration through CLI arguments)
 
-**Staging:**
-- Not applicable - No staging environment
-
-**Production:**
-- Same as development - CLI tool runs locally
+**Secrets location:**
+- None required
 
 ## Webhooks & Callbacks
 
@@ -77,38 +92,35 @@
 **Outgoing:**
 - None
 
-## Language Tool Integration
+## Language-Specific Integrations
 
-**Compiler/Analyzer Integration:**
-Per-language validation using system compilers:
-- Rust: `cargo check`
-- Python: `python -m py_compile`
-- C: `gcc -fsyntax-only`
-- C++: `g++ -fsyntax-only`
-- Java: `javac`
-- JavaScript: `node --check`
-- TypeScript: `tsc --noEmit`
+**Rust:**
+- rust-analyzer integration (optional)
+  - Purpose: LSP-based validation
+  - Location: src/validate/
+- Cross-file reference resolution
+  - Implementation: Custom resolver in src/resolve/
 
-**Location:** `src/validate/gates.rs`
+**Multi-language:**
+- Tree-sitter grammars for 7 languages
+  - Languages: Rust, Python, C, C++, Java, JavaScript, TypeScript
+  - Purpose: AST-based parsing and validation
+- Magellan code indexing
+  - Purpose: Symbol lookup and label-based queries
+  - Integration: src/graph/magellan_integration.rs
 
-## Code Analysis Integration
+## Database Schema
 
-**Magellan v0.5.3:**
-- Integration: `src/ingest/magellan.rs`, `src/graph/magellan_integration.rs`
-- Purpose: Multi-language code indexing and symbol resolution
-- Database: `magellan.db`
+**Code Graph (.splice_graph.db):**
+- graph_entities: Nodes in the code graph
+- graph_edges: Relationships between entities
+- graph_labels: Labels for categorization
+- graph_properties: Additional metadata
 
-**tree-sitter Parsers:**
-- Languages: Rust, Python, C, C++, Java, JavaScript, TypeScript
-- Version: 0.21 across all parsers
-- Purpose: AST parsing for symbol extraction
-
-**SQLiteGraph:**
-- Integration: `src/graph/mod.rs`
-- Purpose: Code relationship storage and querying
-- Database: `codegraph.db`
+**Audit Trail (.splice/operations.db):**
+- Operations table: Execution log with timestamps
+- Metadata: Command-line arguments, workspace, affected files
 
 ---
 
-*Integration audit: 2026-01-17*
-*Update when adding/removing external services*
+*Integration audit: 2026-01-22*

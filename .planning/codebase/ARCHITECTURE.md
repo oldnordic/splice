@@ -1,148 +1,180 @@
 # Architecture
 
-**Analysis Date:** 2026-01-17
+**Analysis Date:** 2026-01-22
 
-## Pattern Overview
+## Design Pattern
 
-**Overall:** Library + CLI Binary
+**Core Pattern:** Interpreter / Pipeline
+- CLI commands are parsed and dispatched to operation handlers
+- Each operation follows: ingest → resolve → validate → patch → log
+- Validation gates form a pipeline with rollback on failure
 
-**Key Characteristics:**
-- CLI as thin shell over core library
-- Layered architecture with clear module boundaries
-- Multi-language support via pluggable extractors
-- Byte-accurate span-safe operations
+**Secondary Patterns:**
+- **Strategy Pattern**: Language-specific ingest modules (`rust.rs`, `python.rs`, etc.)
+- **Repository Pattern**: `CodeGraph` wraps SQLiteGraph backend
+- **Builder Pattern**: `SpanBatch` collects multiple replacements
+- **Command Pattern**: CLI commands execute atomic refactoring operations
 
-## Layers
+## System Layers
 
-**CLI Layer:**
-- Purpose: Command-line interface only, no business logic
-- Contains: Command definitions, argument parsing, JSON I/O
-- Location: `src/cli/mod.rs`
-- Depends on: Service layer for all operations
-- Used by: end users via CLI
-
-**Service Layer:**
-- Purpose: Core refactoring operations
-- Contains:
-  - Ingest (`src/ingest/`) - Symbol extraction and language detection
-  - Resolve (`src/resolve/`) - Symbol resolution and reference finding
-  - Patch (`src/patch/`) - Code modification with validation
-  - Validate (`src/validate/`) - Compiler/analyzer integration
-  - Plan (`src/plan/`) - Multi-step refactoring plans
-- Depends on: Data layer, domain layer
-- Used by: CLI layer
-
-**Data Layer:**
-- Purpose: Code graph storage and querying
-- Contains: CodeGraph wrapper, Magellan integration, schema definitions
-- Location: `src/graph/`
-- Depends on: SQLite databases (magellan.db, codegraph.db)
-- Used by: Service layer
-
-**Domain Layer:**
-- Purpose: Language-agnostic symbol abstraction
-- Contains: Symbol trait, common types
-- Location: `src/symbol/`
-- Depends on: None (foundational types)
-- Used by: All layers
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        CLI Layer (src/main.rs)                   │
+│  Command parsing, JSON output orchestration, error reporting     │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │
+┌─────────────────────────────▼───────────────────────────────────┐
+│                     Command Orchestration (src/cli/)             │
+│  execute_delete, execute_patch, execute_plan, etc.               │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+┌───────▼────────┐   ┌────────▼─────────┐   ┌──────▼──────┐
+│  Ingest Layer  │   │  Graph Layer     │   │  Patch      │
+│  (ingest/)     │   │  (graph/)        │   │  Layer      │
+│  - Parse AST   │   │  - CodeGraph     │   │  (patch/)   │
+│  - Extract     │   │  - SQLiteGraph   │   │  - Replace  │
+│    symbols     │   │  - Magellan      │   │  - Validate │
+└────────────────┘   └──────────────────┘   └─────────────┘
+        │                     │                     │
+        └─────────────────────┼─────────────────────┘
+                              │
+┌─────────────────────────────▼───────────────────────────────────┐
+│                     Core Services                                │
+│  - resolve/ (reference finding)                                 │
+│  - validate/ (syntax & compiler checks)                         │
+│  - checksum/ (SHA-256 verification)                             │
+│  - execution/ (audit logging)                                   │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │
+┌─────────────────────────────▼───────────────────────────────────┐
+│                     Storage Layer                                │
+│  - .splice_graph.db (SQLite code graph)                         │
+│  - .splice/operations.db (audit trail)                          │
+│  - File system (source files)                                   │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ## Data Flow
 
-**CLI Command Execution:**
+**Delete Operation Flow:**
+```
+1. CLI parses: splice delete --file src/lib.rs --symbol foo
+2. Language detected from file extension
+3. Ingest: Parse file with tree-sitter, extract symbols
+4. Resolve: Find all references to symbol (cross-file for Rust)
+5. Validate: Pre-check with compiler (optional)
+6. Patch: Delete definition + all references (atomic batch)
+7. Verify: Reparse, validate syntax, verify checksum
+8. Log: Write operation record to .splice/operations.db
+9. Output: JSON result with spans deleted
+```
 
-1. User runs: `splice <command> <args>`
-2. CLI parses arguments in `src/main.rs` → `src/cli/mod.rs`
-3. Command handler delegates to service function
-4. Service extracts symbols via language dispatch (`src/ingest/dispatch.rs`)
-5. Symbols stored in in-memory graph (`src/graph/mod.rs`)
-6. References resolved using CodeGraph queries
-7. Patches applied with byte-accurate spans
-8. Validation via tree-sitter + compiler checks (`src/validate/gates.rs`)
-9. Results returned as JSON to CLI
-
-**State Management:**
-- SQLite databases for persistent storage
-- In-memory graph for operation duration
-- Automatic backup creation before modifications
-- No global mutable state
+**Patch Operation Flow:**
+```
+1. CLI parses: splice patch --file src/lib.rs --symbol foo --with new.rs
+2. Load replacement content from new.rs
+3. Ingest: Parse file, locate symbol span
+4. Validate: Check span bounds, UTF-8 boundaries
+5. Pre-verify: Run validation gates (tree-sitter + compiler)
+6. Patch: Atomic replace (write temp + fsync + rename)
+7. Post-verify: Validate result, compute new checksum
+8. Rollback: If validation fails, restore from backup
+9. Log: Write operation record
+10. Output: JSON result with span info
+```
 
 ## Key Abstractions
 
-**Symbol:**
-- Purpose: Language-agnostic representation of code symbols
-- Location: `src/symbol/mod.rs:19-49`
-- Pattern: Trait with common properties across all languages
-- Methods: name(), kind(), container(), defining_span()
+**CodeGraph** (`src/graph/mod.rs:20`):
+- Wraps SQLiteGraph backend
+- Provides `store_symbol_with_file_and_language()` for indexing
+- Caches symbol → NodeId mappings
+- Methods: `open()`, `find_symbols_by_name()`, `get_span()`
 
-**CodeGraph:**
-- Purpose: Graph database wrapper for code relationships
-- Location: `src/graph/mod.rs:20-29`
-- Pattern: Wrapper over SQLiteGraph with caching
-- Methods: add_symbol(), find_references(), get_file_symbols()
+**SpanReplacement** (`src/patch/mod.rs:33`):
+- Represents a single byte-range replacement
+- Contains: file path, start/end byte offsets, new content
+- Applied atomically within a `SpanBatch`
 
-**SpliceError:**
-- Purpose: Structured error handling with context
-- Location: `src/error.rs:10-179`
-- Pattern: Enum with variants for each error type
-- Features: Diagnostic aggregation, file locations, hints
+**SpanBatch** (`src/patch/mod.rs:60`):
+- Collection of replacements that succeed/fail together
+- Atomic commit: all or nothing
+- Used for multi-file operations
 
-**Language Extractor:**
-- Purpose: Pluggable per-language symbol extraction
-- Location: `src/ingest/[language].rs`
-- Pattern: Module with extract_symbols() function
-- Supported: Rust, Python, C, C++, Java, JavaScript, TypeScript
+**ValidationGate** (`src/validate/gates.rs`):
+- Enum of validation checks: `Utf8`, `TreeSitter`, `Compiler`, `RustAnalyzer`
+- Each gate returns `Diagnostic` on failure
+- Blocking vs warning distinction
 
 ## Entry Points
 
-**CLI Entry:**
-- Location: `src/main.rs`
-- Triggers: User runs `splice` command
-- Responsibilities: Parse args, delegate to library, format output
+**CLI Entry Point** (`src/main.rs:12`):
+```rust
+fn main() -> ExitCode {
+    let cli = splice::cli::parse_args();
+    // Execute command...
+}
+```
 
-**Library Entry:**
-- Location: `src/lib.rs`
-- Triggers: Used as library by other tools
-- Responsibilities: Export public API, initialize modules
+**Library Entry Point** (`src/lib.rs:1`):
+```rust
+//! Splice: Span-safe refactoring kernel
+pub mod checksum;
+pub mod cli;
+// ... other modules
+```
 
-**Tests:**
-- Location: `tests/` directory
-- Triggers: `cargo test`
-- Responsibilities: Integration and unit tests
+**Command Handlers** (`src/main.rs:25-100`):
+- `execute_delete()` - Handle delete command
+- `execute_single_patch()` - Handle single patch
+- `execute_patch_batch()` - Handle batch patches
+- `execute_plan()` - Handle JSON plan files
+- `execute_apply_files()` - Handle pattern replace
+- `execute_query()` - Handle Magellan queries
+- `execute_get()` - Handle code chunk retrieval
 
-## Error Handling
+## Module Responsibilities
 
-**Strategy:** Structured errors with context, propagate to CLI
-
-**Patterns:**
-- `SpliceError` enum for all error types
-- `Result<T>` type alias for consistent returns
-- `thiserror` for error derivation
-- Diagnostic aggregation for batch operations
-- Rich error messages with file paths and line numbers
+| Module | Responsibility |
+|--------|----------------|
+| `cli/` | Command-line parsing with clap |
+| `ingest/` | Language-specific parsing (Rust, Python, C, C++, Java, JS, TS) |
+| `graph/` | SQLiteGraph integration, symbol indexing |
+| `resolve/` | Reference finding, cross-file resolution |
+| `patch/` | Byte-exact replacement, atomic writes |
+| `validate/` | Syntax and compiler validation gates |
+| `checksum/` | SHA-256 hash computation |
+| `execution/` | Audit trail logging to SQLite |
+| `output/` | Structured JSON output formatting |
+| `error/` | Centralized error types with thiserror |
+| `symbol/` | Language and symbol kind enums |
+| `plan/` | Multi-step plan orchestration |
+| `verify/` | Pre-operation verification checks |
 
 ## Cross-Cutting Concerns
 
+**Error Handling:**
+- `SpliceError` enum in `src/error.rs`
+- All functions return `Result<T>`
+- Diagnostics for validation failures with levels
+
 **Logging:**
-- log crate with env_logger
-- Structured logging with context
-- Configurable via RUST_LOG environment variable
+- `env_logger` for debug output
+- Audit trail in `.splice/operations.db`
+- Execution time tracking
 
 **Validation:**
-- Multi-stage validation: tree-sitter AST + compiler checks
-- Span validation before applying patches
-- Language-specific validation gates
+- Pre-operation checks (optional strict mode)
+- Post-operation verification
+- Atomic rollback on failure
 
-**Language Support:**
-- Pluggable architecture via per-language modules
-- Language dispatch in `src/ingest/dispatch.rs`
-- Trait-based abstraction for language-agnostic operations
-
-**Backup:**
-- Automatic backup creation before modifications
-- Manifest files for tracking
-- Restore capability for rollbacks
+**Multi-Language Support:**
+- Language detection via `ingest/detect.rs`
+- Language-specific tree-sitter parsers
+- Unified symbol model across languages
 
 ---
 
-*Architecture analysis: 2026-01-17*
-*Update when major patterns change*
+*Architecture analysis: 2026-01-22*
