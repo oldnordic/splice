@@ -200,11 +200,11 @@ fn execute_delete(
     context_lines: usize,
     create_backup: bool,
     relationships: bool,
-    _dry_run: bool,
-    _unified: usize,
+    dry_run: bool,
+    unified: usize,
     operation_id: Option<String>,
     metadata: Option<String>,
-    _json_output: bool,
+    json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::CodeGraph;
     use splice::patch::apply_patch_with_validation;
@@ -212,6 +212,11 @@ fn execute_delete(
     use splice::symbol::{Language as SymbolLanguage, Symbol};
     use splice::validate::AnalyzerMode as ValidateAnalyzerMode;
     use splice::execution::log;
+    use splice::format_diff_summary;
+    use splice::format_unified_diff;
+    use splice::format_colored_diff;
+    use splice::should_use_color;
+    use ropey::Rope;
 
     // Start timing
     let start = std::time::Instant::now();
@@ -309,7 +314,75 @@ fn execute_delete(
         refs.sort_by_key(|r| std::cmp::Reverse(r.byte_start));
     }
 
-    // Step 10: Create backup if requested
+    // Step 10: Dry-run mode - preview what would be deleted
+    if dry_run {
+        // Read original file content
+        let original_content = std::fs::read_to_string(file_path)?;
+
+        // Simulate deletion by removing the span using ropey
+        let mut rope = Rope::from_str(&original_content);
+        let def = &ref_set.definition;
+        let start_char = rope.byte_to_char(def.byte_start);
+        let end_char = rope.byte_to_char(def.byte_end);
+        rope.remove(start_char..end_char);
+        let after_content = rope.to_string();
+
+        // Count lines removed
+        let lines_removed = if def.byte_end > def.byte_start {
+            (&original_content[def.byte_start..def.byte_end]).lines().count()
+        } else {
+            0
+        };
+
+        // Print summary header in git-style format
+        let summary_header = format_diff_summary(1, 0, lines_removed);
+        if !summary_header.is_empty() {
+            println!("{}", summary_header);
+        }
+
+        // Print empty line separator
+        println!();
+
+        // Print unified diff with colors (unless JSON mode)
+        let use_color = !json_output && should_use_color();
+        let diff_output = if use_color {
+            format_colored_diff(&original_content, &after_content, true)
+        } else {
+            format_unified_diff(&original_content, &after_content, &file_path.to_string_lossy(), unified)
+        };
+
+        if !diff_output.is_empty() {
+            print!("{}", diff_output);
+        }
+
+        let message = format!(
+            "Previewed deletion of '{}' (dry-run)",
+            symbol_name,
+        );
+
+        // Record execution for dry-run
+        let duration_ms = start.elapsed().as_millis() as i64;
+        let parameters = serde_json::json!({
+            "file": file_path.to_string_lossy(),
+            "symbol": symbol_name,
+            "kind": _kind_str,
+            "create_backup": false,
+            "dry_run": true,
+        });
+        if let Err(e) = log::record_execution_with_params(
+            &splice::output::OperationResult::with_id("delete".to_string(), operation_id.clone())
+                .success(message.clone()),
+            duration_ms,
+            Some(command_line),
+            parameters,
+        ) {
+            eprintln!("Failed to record execution: {}", e);
+        }
+
+        return Ok(splice::cli::CliSuccessPayload::message_only(message).already_emitted());
+    }
+
+    // Step 11: Create backup if requested
     let backup_manifest_path = if create_backup {
         use splice::patch::BackupWriter;
 
@@ -332,7 +405,7 @@ fn execute_delete(
         None
     };
 
-    // Step 11: Delete references from each file
+    // Step 12: Delete references from each file
     let mut deleted_count = 0;
     let mut files_modified = Vec::new();
 
@@ -449,7 +522,7 @@ fn execute_delete(
     }
 
     // Check if JSON output is requested
-    if _json_output {
+    if json_output {
         use splice::output::{OperationResult, OperationData, DeleteResult, SpanResult};
         use splice::resolve::resolve_symbol;
         use splice::checksum;
@@ -748,12 +821,12 @@ fn execute_single_patch(
     language: Option<splice::cli::Language>,
     context_lines: usize,
     preview: bool,
-    _unified: usize,
+    unified: usize,
     create_backup: bool,
     relationships: bool,
     operation_id: Option<String>,
     metadata: Option<String>,
-    _json_output: bool,
+    json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     let file_path = require_patch_arg("--file", file_path)?;
     let symbol_name = require_patch_arg("--symbol", symbol_name)?;
@@ -768,11 +841,12 @@ fn execute_single_patch(
         language,
         context_lines,
         preview,
+        unified,
         create_backup,
         relationships,
         operation_id,
         metadata,
-        _json_output,
+        json_output,
     )
 }
 
@@ -785,18 +859,23 @@ fn execute_patch(
     language: Option<splice::cli::Language>,
     context_lines: usize,
     preview: bool,
+    unified: usize,
     create_backup: bool,
     relationships: bool,
     operation_id: Option<String>,
     metadata: Option<String>,
-    _json_output: bool,
+    json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::CodeGraph;
-    use splice::patch::{apply_patch_with_validation, preview_patch, FilePatchSummary};
+    use splice::patch::{apply_patch_with_validation, preview_patch_with_content, FilePatchSummary};
     use splice::resolve::resolve_symbol;
     use splice::symbol::{Language as SymbolLanguage, Symbol};
     use splice::validate::AnalyzerMode as ValidateAnalyzerMode;
     use splice::execution::log;
+    use splice::format_diff_summary;
+    use splice::format_unified_diff;
+    use splice::format_colored_diff;
+    use splice::should_use_color;
 
     // Start timing
     let start = std::time::Instant::now();
@@ -896,7 +975,8 @@ fn execute_patch(
     };
 
     if preview {
-        let (summary, report) = preview_patch(
+        // Dry-run mode: show unified diff with summary header
+        let (_summary, report, before_content, after_content) = preview_patch_with_content(
             file_path,
             resolved.byte_start,
             resolved.byte_end,
@@ -905,13 +985,33 @@ fn execute_patch(
             symbol_lang,
             analyzer_mode,
         )?;
+
+        // Print summary header in git-style format
+        let summary_header = format_diff_summary(1, report.lines_added, report.lines_removed);
+        if !summary_header.is_empty() {
+            println!("{}", summary_header);
+        }
+
+        // Print empty line separator
+        println!();
+
+        // Print unified diff with colors (unless JSON mode)
+        let use_color = !json_output && should_use_color();
+        let diff_output = if use_color {
+            format_colored_diff(&before_content, &after_content, true)
+        } else {
+            format_unified_diff(&before_content, &after_content, &file_path.to_string_lossy(), unified)
+        };
+
+        if !diff_output.is_empty() {
+            print!("{}", diff_output);
+        }
+
         let message = format!(
-            "Previewed patch '{}' at bytes {}..{} (hash: {} -> {})",
+            "Previewed patch '{}' at bytes {}..{} (dry-run)",
             symbol_name,
             resolved.byte_start,
             resolved.byte_end,
-            summary.before_hash,
-            summary.after_hash
         );
 
         // Record execution for preview
@@ -922,6 +1022,7 @@ fn execute_patch(
             "kind": kind_str,
             "preview": true,
             "create_backup": create_backup,
+            "dry_run": true,
         });
         if let Err(e) = log::record_execution_with_params(
             &splice::output::OperationResult::with_id("patch".to_string(), operation_id.clone())
@@ -933,7 +1034,7 @@ fn execute_patch(
             eprintln!("Failed to record execution: {}", e);
         }
 
-        return Ok(build_success_payload(message, vec![summary], Some(report)));
+        return Ok(splice::cli::CliSuccessPayload::message_only(message).already_emitted());
     }
 
     let (before_hash, after_hash) = apply_patch_with_validation(
@@ -953,7 +1054,7 @@ fn execute_patch(
     };
 
     // Check if JSON output is requested
-    if _json_output {
+    if json_output {
         use splice::output::{OperationResult, OperationData, PatchResult, SpanResult};
         use splice::checksum;
         use splice::context;
