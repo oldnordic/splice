@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 11 of 17 (Rich Span Core)
-Plan: 4 of 7 in current phase
+Plan: 6 of 7 in current phase
 Status: In progress
-Last activity: 2026-01-22 — Completed 11-04-PLAN.md (Language detection integration)
+Last activity: 2026-01-22 — Completed 11-06-PLAN.md (Error code registry with SPL-E### format)
 
-Progress: [██████████████░░░░░░░░░░░] 47%
+Progress: [█████████░░░░░░░░░░░] 48%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 36 (31 v2.0 + 5 v2.2)
+- Total plans completed: 37 (31 v2.0 + 6 v2.2)
 - Total plans planned: 76 (31 v2.0 + 45 v2.2)
 - Average duration: ~30 min/plan (v2.0 baseline)
-- Total execution time: ~24.5 hours (24h v2.0 + 21min v2.2)
+- Total execution time: ~24.6 hours (24h v2.0 + 25min v2.2)
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
-| 11-17 (v2.2) | 5/45 | 21min | ~4 min |
-| **Total** | **36/76** | **~24.3h** | **~29 min** |
+| 11-17 (v2.2) | 6/45 | 25min | ~4 min |
+| **Total** | **37/76** | **~24.4h** | **~28 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
@@ -73,7 +73,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 11-02-PLAN.md (Context extraction)
+Stopped at: Completed 11-06-PLAN.md (Error code registry)
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -86,8 +86,10 @@ Resume file: None
 - Plan 11-01 completed (Extended SpanResult with 6 optional fields)
 - Plan 11-02 completed (Context extraction with extract_context function)
 - Plan 11-05 completed (Checksum integration with documentation and tests)
-- 323 tests passing (4 new checksum integration tests + 13 checksum module tests)
-- Checksum functions use existing SHA-256 implementation
-- Builder methods: with_checksum_before, with_file_checksum_before, with_both_checksums
-- JSON serialization omits None fields (backward compatible)
-- Next: 11-03 (Semantic kind detection) or 11-06 (Error code integration)
+- Plan 11-06 completed (Error code registry with SPL-E### format)
+- 331 tests passing (8 new error code tests)
+- Error code registry with 26 error variants across 9 categories
+- ErrorCode struct with severity, location, and hint fields
+- Automatic SpliceError to SpliceErrorCode conversion
+- Error codes exported from crate root
+- Next: 11-07 (CLI output integration)
