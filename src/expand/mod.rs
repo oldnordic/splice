@@ -34,7 +34,7 @@
 //! ```
 
 use crate::error::{Result, SpliceError};
-use crate::expand::tree_walker::{find_parent_symbol_node, expand_to_containing_block, find_containing_block};
+use crate::expand::tree_walker::find_parent_symbol_node;
 use crate::symbol::Language;
 use std::path::Path;
 
@@ -506,17 +506,8 @@ fn expand_symbol_impl(
                     path.display()
                 )))?;
 
-            // Find the body node for second-level expansion
-            let body_node = root_node
-                .descendant_for_byte_range(body_start, body_end)
-                .ok_or_else(|| SpliceError::Other(format!(
-                    "Could not find expanded body node in {}",
-                    path.display()
-                )))?;
-
-            // Expand to containing block
-            expand_to_containing_block(body_node, &source, &*expander)
-                .map(|n| (n.start_byte() as usize, n.end_byte() as usize))
+            // Find the containing block using language-agnostic function
+            tree_walker::find_containing_block(&root_node, body_start, body_end, &source)
                 .ok_or_else(|| SpliceError::Other(format!(
                     "Could not expand to containing block in {}",
                     path.display()
