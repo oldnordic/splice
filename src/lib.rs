@@ -11,6 +11,7 @@ pub mod checksum;
 pub mod cli;
 pub mod context;
 pub mod error;
+pub mod error_codes;
 pub mod execution;
 pub mod graph;
 pub mod ingest;
@@ -31,6 +32,9 @@ pub use graph::CodeGraph;
 /// Re-export context types for convenience.
 pub use context::extract_context;
 pub use output::SpanContext;
+
+/// Re-export error codes for convenience.
+pub use error_codes::{ErrorCode, ErrorSeverity, SpliceErrorCode};
 
 /// Re-export semantic kind detection for convenience.
 pub use ingest::{detect_semantic_kind, SemanticKind};

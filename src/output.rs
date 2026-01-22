@@ -40,6 +40,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::error_codes::ErrorCode;
+
 /// Schema version for structured output.
 pub const SCHEMA_VERSION: &str = "2.0.0";
 
@@ -275,31 +277,6 @@ pub struct SpanContext {
     pub selected: Vec<String>,
     /// Lines after the span
     pub after: Vec<String>,
-}
-
-/// Error code with severity, location, and hint for diagnostics.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ErrorCode {
-    /// Error code (e.g., "SPL-E001")
-    pub code: String,
-    /// Severity level (error/warning/note)
-    pub severity: String,
-    /// Precise location (file:line:column)
-    pub location: String,
-    /// What to do hint
-    pub hint: String,
-}
-
-impl ErrorCode {
-    /// Create a new error code.
-    pub fn new(code: impl Into<String>, severity: impl Into<String>, location: impl Into<String>, hint: impl Into<String>) -> Self {
-        Self {
-            code: code.into(),
-            severity: severity.into(),
-            location: location.into(),
-            hint: hint.into(),
-        }
-    }
 }
 
 /// Unified span result with byte and line/column information.

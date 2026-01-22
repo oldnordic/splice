@@ -37,6 +37,7 @@ impl ErrorCode {
         let location = match (file, line, column) {
             (Some(f), Some(l), Some(c)) => format!("{}:{}:{}", f, l, c),
             (Some(f), Some(l), None) => format!("{}:{}", f, l),
+            (Some(f), None, Some(c)) => format!("{}:{}", f, c),
             (Some(f), None, None) => f.to_string(),
             (None, _, _) => "<unknown>".to_string(),
         };
@@ -81,47 +82,73 @@ impl ErrorSeverity {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpliceErrorCode {
     // Symbol resolution errors (SPL-E001 to SPL-E010)
+    /// Symbol not found in codebase (SPL-E001)
     SymbolNotFound,
+    /// Symbol name is ambiguous without file context (SPL-E002)
     AmbiguousSymbol,
+    /// Failed to locate symbol references (SPL-E003)
     ReferenceFailed,
+    /// Reference could refer to multiple definitions (SPL-E004)
     AmbiguousReference,
 
     // Parse/AST errors (SPL-E011 to SPL-E020)
+    /// Tree-sitter parsing error (SPL-E011)
     ParseError,
+    /// Invalid UTF-8 encoding (SPL-E012)
     InvalidUtf8,
+    /// Compiler syntax error (SPL-E013)
     InvalidSyntax,
 
     // Span errors (SPL-E021 to SPL-E030)
+    /// Invalid byte span (SPL-E021)
     InvalidSpan,
+    /// Invalid line range (SPL-E022)
     InvalidLineRange,
+    /// Span extends beyond file bounds (SPL-E023)
     SpanOutOfBounds,
 
     // I/O errors (SPL-E031 to SPL-E040)
+    /// Failed to read file (SPL-E031)
     FileReadError,
+    /// Failed to write file (SPL-E032)
     FileWriteError,
+    /// File not found (SPL-E033)
     FileNotFound,
+    /// File was modified externally (SPL-E034)
     FileExternallyModified,
 
     // Validation errors (SPL-E041 to SPL-E050)
+    /// Pre-verification check failed (SPL-E041)
     PreVerificationFailed,
+    /// Parse validation failed after modification (SPL-E042)
     ParseValidationFailed,
+    /// Compiler validation failed (SPL-E043)
     CompilerValidationFailed,
 
     // Plan execution errors (SPL-E051 to SPL-E060)
+    /// Invalid plan JSON schema (SPL-E051)
     InvalidPlanSchema,
+    /// Plan execution failed at step (SPL-E052)
     PlanExecutionFailed,
+    /// Invalid batch JSON schema (SPL-E053)
     InvalidBatchSchema,
 
     // Graph/database errors (SPL-E061 to SPL-E070)
+    /// Code graph database error (SPL-E061)
     GraphError,
+    /// Database operation failed (SPL-E062)
     DatabaseError,
 
     // Execution log errors (SPL-E071 to SPL-E080)
+    /// Execution log database error (SPL-E071)
     ExecutionLogError,
+    /// Execution log entry not found (SPL-E072)
     ExecutionNotFound,
 
     // Validation/analyzer errors (SPL-E081 to SPL-E090)
+    /// Requested analyzer not available (SPL-E081)
     AnalyzerNotAvailable,
+    /// Analyzer reported diagnostics (SPL-E082)
     AnalyzerFailed,
 }
 
