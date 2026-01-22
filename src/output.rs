@@ -21,6 +21,22 @@
 //! span = span.with_both_checksums(span_checksum.as_hex(), file_checksum.as_hex());
 //! # Ok::<(), splice::SpliceError>(())
 //! ```
+//!
+//! ## Adding Language Detection to SpanResult
+//!
+//! ```no_run
+//! use splice::ingest::{detect_language, Language};
+//! use splice::output::SpanResult;
+//! use std::path::Path;
+//!
+//! let file_path = Path::new("src/main.rs");
+//! let mut span = SpanResult::from_byte_span(file_path.to_string_lossy().to_string(), 100, 200);
+//!
+//! // Add language detection from file extension
+//! if let Some(language) = detect_language(file_path) {
+//!     span = span.with_language(language.as_str());
+//! }
+//! ```
 
 use serde::{Deserialize, Serialize};
 
