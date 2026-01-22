@@ -5,39 +5,40 @@
 See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** Phase 11 - Rich Span Core (Complete)
+**Current focus:** Phase 12 - Rich Span Advanced (2 plans complete)
 
 ## Current Position
 
-Phase: 11 of 17 (Rich Span Core)
-Plan: 11 of 11 in current phase (11 completed)
-Status: Phase complete - gap closure executed
-Last activity: 2026-01-22 — Executed 4 gap closure plans to integrate rich span infrastructure into CLI
+Phase: 12 of 17 (Rich Span Advanced)
+Plan: 02 of 08 in current phase (2 completed)
+Status: In progress - tool hints and suggested action modules complete
+Last activity: 2026-01-22 — Completed plan 12-02: Tool hints derivation with behavioral flags
 
-Progress: [██████████░░░░░░░░░░] 54%
+Progress: [███████████░░░░░░░░░] 55%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 42 (31 v2.0 + 11 v2.2)
+- Total plans completed: 44 (31 v2.0 + 13 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~25.3 hours (24h v2.0 + 1.3h v2.2)
+- Total execution time: ~25.5 hours (24h v2.0 + 1.5h v2.2)
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
-| 11-17 (v2.2) | 11/49 | 1.3h | ~7 min |
-| **Total** | **42/80** | **~25.3h** | **~29 min** |
+| 11-17 (v2.2) | 13/49 | 1.5h | ~7 min |
+| **Total** | **44/80** | **~25.5h** | **~29 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
 - Baseline velocity established: ~31 min/plan
 - v2.2 plans executing quickly (~4-7 min each)
-- Phase 11 complete: 7 infrastructure plans + 4 gap closure plans
-- Rich span metadata now integrated into CLI JSON output
+- Phase 12 started: Tool hints and suggested action engines complete
+- Rich span metadata integrated into CLI JSON output
+- Behavioral flag derivation for LLM guidance implemented
 
 *Updated after each plan completion*
 
@@ -54,6 +55,9 @@ Recent decisions affecting current work:
 - [v2.2]: Foundation-first approach (error codes + output schema before features)
 - [v2.2]: Combined milestone — original v2.1 UX improvements merged with Unified JSON Schema work
 - [v2.2 Gap Closure]: Infrastructure-first strategy — build types/functions/tests first, then integrate into CLI
+- [12-02]: Static heuristics for tool hints (may_break_tests, requires_compilation based on visibility and operation type)
+- [12-02]: apply_atomically always true (splice operations are atomic by design)
+- [12-02]: Convenience constructors for common refactoring scenarios (function delete, struct modify, body replace)
 
 ### Pending Todos
 
@@ -72,9 +76,9 @@ Recent decisions affecting current work:
 **All Phase 11 gaps resolved.**
 
 **From Research:**
+- [Phase 12]: Relationship query infrastructure stubbed - get_callers/get_callees return empty results until edge creation is implemented during code ingestion
 - [Phase 12]: Semantic kind mapping coverage — need comprehensive mapping of tree-sitter node types for all 7 languages
 - [Phase 12]: LLM action taxonomy completeness — need survey of real LLM agents to see which JSON fields they use
-- [Phase 12]: Relationship graph schema — need to define edge types for callers/callees/imports/exports
 - [Phase 12]: Performance testing on 10K+ file codebases to validate mitigation strategies
 
 **Mitigation:**
@@ -86,7 +90,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Created 4 gap closure plans (11-08 through 11-11) to integrate rich span infrastructure into CLI
+Stopped at: Completed plan 12-02 (tool hints derivation module)
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -95,13 +99,15 @@ Resume file: None
 - 311+ tests passing
 - Comprehensive documentation complete
 
-**v2.2 Status:** PHASE 11 COMPLETE ✅
-- Plans 11-01 through 11-07 completed (infrastructure and testing)
-- Plans 11-08 through 11-11 executed (gap closure)
-- 340 tests passing (13 new rich span integration tests)
+**v2.2 Status:** PHASE 12 IN PROGRESS (2/8 complete) 🔄
+- Phase 11 complete: 7 infrastructure plans + 4 gap closure plans
+- Phase 12 started: 12-01 (relationships), 12-02 (tool hints) complete
+- 220 tests passing (including hints and relationships tests)
 - Error code registry with 26 error variants across 9 categories
 - Rich span infrastructure complete AND integrated: context, semantic_kind, language, checksums, error_codes
-- Gap closure complete: All rich span fields now populated in CLI JSON output
+- Tool hints module with behavioral flags for LLM guidance
+- Suggested action engine with confidence assessment
+- Relationship query infrastructure (stubbed pending edge creation)
 
 **Gap Closure Summary:**
 
