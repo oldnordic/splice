@@ -57,9 +57,7 @@ fn main() -> ExitCode {
             operation_id,
             metadata,
         } => {
-            // Compute context lines: use max of all flags (follows grep convention)
-            let context_lines = context_after.max(context_before).max(context);
-            execute_delete(&file, &symbol, kind, analyzer, language, context_lines, create_backup, relationships, dry_run, unified, operation_id, metadata, json_output)
+            execute_delete(&file, &symbol, kind, analyzer, language, context_before, context_after, context, create_backup, relationships, dry_run, unified, operation_id, metadata, json_output)
         },
 
         splice::cli::Commands::Patch {
@@ -248,7 +246,9 @@ fn execute_delete(
     kind: Option<splice::cli::SymbolKind>,
     analyzer: Option<splice::cli::AnalyzerMode>,
     language: Option<splice::cli::Language>,
-    context_lines: usize,
+    context_before: usize,
+    context_after: usize,
+    context: usize,
     create_backup: bool,
     relationships: bool,
     dry_run: bool,
@@ -268,6 +268,9 @@ fn execute_delete(
     use splice::format_colored_diff;
     use splice::should_use_color;
     use ropey::Rope;
+
+    // Resolve context counts from -A/-B/-C flags
+    let (ctx_before, ctx_after) = resolve_context_counts(context_before, context_after, context);
 
     // Start timing
     let start = std::time::Instant::now();
@@ -608,7 +611,7 @@ fn execute_delete(
         let mut def_span = SpanResult::from(resolved_def.clone());
 
         // Extract context for definition span
-        if let Ok(ctx) = context::extract_context(file_path, def.byte_start, def.byte_end, context_lines) {
+        if let Ok(ctx) = context::extract_context_asymmetric(file_path, def.byte_start, def.byte_end, ctx_before, ctx_after) {
             def_span = def_span.with_context(ctx);
         }
 
@@ -763,7 +766,7 @@ fn execute_delete(
             );
 
             // Extract context for reference span
-            if let Ok(ctx) = context::extract_context(ref_path, r.byte_start, r.byte_end, context_lines) {
+            if let Ok(ctx) = context::extract_context_asymmetric(ref_path, r.byte_start, r.byte_end, ctx_before, ctx_after) {
                 ref_span = ref_span.with_context(ctx);
             }
 
