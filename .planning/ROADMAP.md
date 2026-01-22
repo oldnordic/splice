@@ -119,7 +119,7 @@ Plans:
 **Goal**: Users can see surrounding code context around matches using standard Unix conventions
 
 **Depends on**: Phase 13
-**Requirements**: CLI-08 through CLI-14
+**Requirements**: CLI-08 through CLI-13 (CLI-14 deferred to Phase 16 since --expand flag is implemented there)
 
 **Success Criteria** (what must be TRUE):
 1. User can use `-A <lines>` flag to show lines after a match
@@ -127,7 +127,6 @@ Plans:
 3. User can use `-C <lines>` flag to show context on both sides (defaults to 3 lines, git diff convention)
 4. Context appears in both human-readable output and JSON output (context_before/context_after keys)
 5. Context flags work across patch, delete, query, and get commands
-6. Context respects expanded symbol boundaries when used with `--expand` flag
 
 **Plans**: 5 plans in 5 waves
 
@@ -136,7 +135,9 @@ Plans:
 - [ ] 14-02-PLAN.md — Add -A, -B, -C context flags to Get, ApplyFiles commands
 - [ ] 14-03-PLAN.md — Implement asymmetric context extraction function
 - [ ] 14-04-PLAN.md — Wire context flags through main.rs with grep-style resolution
-- [ ] 14-05-PLAN.md — Complete remaining command integration and add human-readable context display
+- [ ] 14-05-PLAN.md — Complete remaining command integration and add human-readable context display with JSON verification
+
+**Note:** CLI-14 (context respects expanded symbol boundaries when used with `--expand` flag) is implemented in Phase 16 since the `--expand` flag itself is implemented there. Testing the interaction requires both features to exist.
 
 #### Phase 15: Enhanced Errors
 
@@ -169,7 +170,7 @@ Plans:
 **Goal**: Users can retrieve full symbol bodies and search code patterns with atomic apply workflow
 
 **Depends on**: Phase 15
-**Requirements**: CLI-22 through CLI-33
+**Requirements**: CLI-22 through CLI-33 (plus CLI-14 deferred from Phase 14)
 
 **Success Criteria** (what must be TRUE):
 1. User can use `--expand` flag to get full symbol body
@@ -178,10 +179,11 @@ Plans:
 4. Expansion includes leading doc comments and documentation
 5. User can specify exact expansion level with `--expand-level <N>` flag
 6. Expansion works consistently across all 7 supported languages
-7. User can run `splice search --pattern <text>` to find code patterns
-8. User can use `splice search --apply` for atomic find-and-replace with rollback on failure
-9. User can filter search results with `--glob` flag for file patterns
-10. Search results available in JSON format for LLM consumption
+7. Context flags (-A/-B/-C) respect expanded symbol boundaries when used with `--expand` flag (CLI-14 from Phase 14)
+8. User can run `splice search --pattern <text>` to find code patterns
+9. User can use `splice search --apply` for atomic find-and-replace with rollback on failure
+10. User can filter search results with `--glob` flag for file patterns
+11. Search results available in JSON format for LLM consumption
 
 **Plans**: TBD
 
@@ -191,11 +193,12 @@ Plans:
 - [ ] 16-03: Implement progressive expansion (name → body → containing block)
 - [ ] 16-04: Include doc comments in expanded output
 - [ ] 16-05: Test expansion across all 7 languages for consistency
-- [ ] 16-06: Implement `splice search --pattern <text>` command
-- [ ] 16-07: Add file path, line number, and context to search output
-- [ ] 16-08: Implement `--glob` flag for file pattern filtering
-- [ ] 16-09: Add `--apply` flag for atomic find-and-replace with rollback
-- [ ] 16-10: Add JSON output format for search results
+- [ ] 16-06: Test context flags respect expanded boundaries (CLI-14 from Phase 14)
+- [ ] 16-07: Implement `splice search --pattern <text>` command
+- [ ] 16-08: Add file path, line number, and context to search output
+- [ ] 16-09: Implement `--glob` flag for file pattern filtering
+- [ ] 16-10: Add `--apply` flag for atomic find-and-replace with rollback
+- [ ] 16-11: Add JSON output format for search results
 
 #### Phase 17: Integration & Testing
 
@@ -244,9 +247,9 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17
 | 13. Dry-run & Diff | v2.2 | 5/5 | Complete | 2026-01-22 |
 | 14. Context Flags | v2.2 | 0/5 | Not started | - |
 | 15. Enhanced Errors | v2.2 | 0/6 | Not started | - |
-| 16. Symbol Expansion & Search | v2.2 | 0/10 | Not started | - |
+| 16. Symbol Expansion & Search | v2.2 | 0/11 | Not started | - |
 | 17. Integration & Testing | v2.2 | 0/6 | Not started | - |
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%) ✅
-- v2.2: 40/51 plans planned (78%) 🚧
+- v2.2: 40/52 plans planned (77%) 🚧
