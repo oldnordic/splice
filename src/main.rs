@@ -31,10 +31,10 @@ fn main() -> ExitCode {
             language,
             context_lines,
             create_backup,
-            relationships: _,
+            relationships,
             operation_id,
             metadata,
-        } => execute_delete(&file, &symbol, kind, analyzer, language, context_lines, create_backup, operation_id, metadata, json_output),
+        } => execute_delete(&file, &symbol, kind, analyzer, language, context_lines, create_backup, relationships, operation_id, metadata, json_output),
 
         splice::cli::Commands::Patch {
             file,
@@ -47,7 +47,7 @@ fn main() -> ExitCode {
             context_lines,
             preview,
             create_backup,
-            relationships: _,
+            relationships,
             operation_id,
             metadata,
         } => match batch {
@@ -62,6 +62,7 @@ fn main() -> ExitCode {
                 context_lines,
                 preview,
                 create_backup,
+                relationships,
                 operation_id,
                 metadata,
                 json_output,
@@ -194,6 +195,7 @@ fn execute_delete(
     language: Option<splice::cli::Language>,
     context_lines: usize,
     create_backup: bool,
+    relationships: bool,
     operation_id: Option<String>,
     metadata: Option<String>,
     _json_output: bool,
@@ -589,6 +591,30 @@ fn execute_delete(
             def_span = def_span.with_file_checksum_before(file_cs.value);
         }
 
+        // Query relationships if flag is set
+        if relationships {
+            use splice::relationships::{get_callers, get_callees, get_imports, get_exports, Relationships, RelationshipCache};
+            use sqlitegraph::NodeId;
+
+            let mut cache = RelationshipCache::new();
+            let node_id = NodeId::from(resolved_def.node_id.as_i64());
+
+            let callers = get_callers(&code_graph, node_id, &mut cache).unwrap_or_default();
+            let callees = get_callees(&code_graph, node_id, &mut cache).unwrap_or_default();
+            let imports = get_imports(&code_graph, file_path, &mut cache).unwrap_or_default();
+            let exports = get_exports(&code_graph, file_path, &mut cache).unwrap_or_default();
+
+            let rels = Relationships {
+                callers,
+                callees,
+                imports,
+                exports,
+                cycle_detected: false,
+                error_code: None,
+            };
+            def_span = def_span.with_relationships(rels);
+        }
+
         spans.push(def_span);
 
         // Add reference spans with rich metadata
@@ -717,6 +743,7 @@ fn execute_single_patch(
     context_lines: usize,
     preview: bool,
     create_backup: bool,
+    relationships: bool,
     operation_id: Option<String>,
     metadata: Option<String>,
     _json_output: bool,
@@ -735,6 +762,7 @@ fn execute_single_patch(
         context_lines,
         preview,
         create_backup,
+        relationships,
         operation_id,
         metadata,
         _json_output,
@@ -751,6 +779,7 @@ fn execute_patch(
     context_lines: usize,
     preview: bool,
     create_backup: bool,
+    relationships: bool,
     operation_id: Option<String>,
     metadata: Option<String>,
     _json_output: bool,
@@ -1063,6 +1092,30 @@ fn execute_patch(
         // Add checksum_before and file_checksum_before
         if let Ok(file_cs) = checksum::checksum_file(file_path) {
             span = span.with_both_checksums(span_checksum_before, file_cs.value);
+        }
+
+        // Query relationships if flag is set
+        if relationships {
+            use splice::relationships::{get_callers, get_callees, get_imports, get_exports, Relationships, RelationshipCache};
+            use sqlitegraph::NodeId;
+
+            let mut cache = RelationshipCache::new();
+            let node_id = NodeId::from(resolved.node_id.as_i64());
+
+            let callers = get_callers(&code_graph, node_id, &mut cache).unwrap_or_default();
+            let callees = get_callees(&code_graph, node_id, &mut cache).unwrap_or_default();
+            let imports = get_imports(&code_graph, file_path, &mut cache).unwrap_or_default();
+            let exports = get_exports(&code_graph, file_path, &mut cache).unwrap_or_default();
+
+            let rels = Relationships {
+                callers,
+                callees,
+                imports,
+                exports,
+                cycle_detected: false,
+                error_code: None,
+            };
+            span = span.with_relationships(rels);
         }
 
         // Create patch result
