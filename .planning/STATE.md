@@ -5,39 +5,39 @@
 See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** Phase 12 - Rich Span Advanced (3 plans complete)
+**Current focus:** Phase 12 - Rich Span Advanced (4 plans complete)
 
 ## Current Position
 
 Phase: 12 of 17 (Rich Span Advanced)
-Plan: 01 of 08 in current phase (1 completed)
-Status: In progress - relationship query module complete
-Last activity: 2026-01-22 — Completed plan 12-01: Relationship builder with caching and error codes
+Plan: 04 of 08 in current phase (4 completed)
+Status: In progress - SpanResult extended with rich span fields
+Last activity: 2026-01-22 — Completed plan 12-04: SpanResult extension with relationships, tool_hints, suggested_action
 
-Progress: [██████████░░░░░░░░░░] 56%
+Progress: [███████████░░░░░░░░░] 59%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 43 (31 v2.0 + 12 v2.2)
+- Total plans completed: 47 (31 v2.0 + 16 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~25.4 hours (24h v2.0 + 1.4h v2.2)
+- Total execution time: ~25.6 hours (24h v2.0 + 1.6h v2.2)
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
-| 11-17 (v2.2) | 12/49 | 1.4h | ~7 min |
-| **Total** | **43/80** | **~25.4h** | **~29 min** |
+| 11-17 (v2.2) | 16/49 | 1.6h | ~6 min |
+| **Total** | **47/80** | **~25.6h** | **~29 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
 - Baseline velocity established: ~31 min/plan
-- v2.2 plans executing quickly (~4-7 min each)
-- Phase 12 started: relationship query infrastructure complete
-- Rich span metadata integrated into CLI JSON output
+- v2.2 plans executing quickly (~2-7 min each)
+- Phase 12 progressing: relationships, tool hints, suggested actions, SpanResult extension complete
+- Rich span metadata types ready for CLI integration (plans 12-05 through 12-08)
 
 *Updated after each plan completion*
 
@@ -57,12 +57,15 @@ Recent decisions affecting current work:
 - [12-01]: Relationship query infrastructure stubbed - get_callers/get_callees return empty results until edge creation is implemented during code ingestion
 - [12-01]: Session-based caching with RelationshipCache (HashMap key format: {rel_type}:{node_id_or_path})
 - [12-01]: Phase 11 error code integration in Relationships struct (REL_QUERY_FAILED, NODE_NOT_FOUND, FILE_NOT_FOUND)
+- [12-04]: SpanResult extended with 3 new optional fields (relationships, tool_hints, suggested_action) - all use skip_serializing_if for backward compatibility
+- [12-04]: ToolHints enhanced with Deserialize derive to support full serde serialization/deserialization
+- [12-04]: Builder methods added for all 3 new fields following existing pattern (with_*, mut self, return Self)
 
 ### Pending Todos
 
 **Next Phase:**
-- Continue executing Phase 12 plans (12-04 through 12-08)
-- Integrate suggested actions into CLI JSON output schema
+- Continue executing Phase 12 plans (12-05 through 12-08)
+- Integrate rich span fields into CLI JSON output
 
 ### Blockers/Concerns
 
@@ -88,7 +91,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed plan 12-01 (relationship builder)
+Stopped at: Completed plan 12-04 (SpanResult extension)
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -97,13 +100,19 @@ Resume file: None
 - 311+ tests passing
 - Comprehensive documentation complete
 
-**v2.2 Status:** PHASE 12 IN PROGRESS (1/8 complete) 🔄
+**v2.2 Status:** PHASE 12 IN PROGRESS (4/8 complete) 🔄
 - Phase 11 complete: 7 infrastructure plans + 4 gap closure plans
-- Phase 12 started: 12-01 (relationship builder) complete
-- 220 tests passing (including 9 relationship tests)
+- Phase 12 progressing:
+  - 12-01 (Relationships) ✅ Complete
+  - 12-02 (Tool Hints) ✅ Complete
+  - 12-03 (Suggested Action) ✅ Complete
+  - 12-04 (SpanResult extension) ✅ Complete
+- 220 tests passing (including 9 relationship tests, 7 tool hints tests, 7 suggested action tests)
 - Error code registry with 26 error variants across 9 categories
-- Rich span infrastructure complete AND integrated: context, semantic_kind, language, checksums, error_codes
-- Relationship query infrastructure with session caching and Phase 11 error code integration (stubbed pending edge creation)
+- Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes
+- Rich span types ready: Relationships, ToolHints, SuggestedAction
+- SpanResult extended with 3 new optional fields (relationships, tool_hints, suggested_action)
+- All new fields use skip_serializing_if for backward compatibility
 
 **Gap Closure Summary:**
 
