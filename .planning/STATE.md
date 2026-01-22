@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 13 of 17 (Dry-run & Diff) — IN PROGRESS 🔄
-Plan: 04 of ? in current phase
-Status: 4 plans complete, unified diff output integrated into dry-run mode
-Last activity: 2026-01-22 — Completed 13-04 (Dry-run Diff Integration)
+Plan: 05 of ? in current phase
+Status: 5 plans complete, git-style exit codes implemented for dry-run mode
+Last activity: 2026-01-22 — Completed 13-05 (Dry-Run Exit Code Implementation)
 
-Progress: [█████████████░░░░░░░] 75.00% (60/80 plans complete)
+Progress: [█████████████░░░░░░░] 76.25% (61/80 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 60 (31 v2.0 + 29 v2.2)
+- Total plans completed: 61 (31 v2.0 + 30 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~27.3 hours (24h v2.0 + 3.3h v2.2)
+- Total execution time: ~27.5 hours (24h v2.0 + 3.5h v2.2)
 
 **By Phase:**
 
@@ -30,15 +30,15 @@ Progress: [█████████████░░░░░░░] 75.00% 
 |-------|-------|-------|----------|
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
 | 11-12 (v2.2) | 25/25 | 2.6h | ~6 min |
-| 13 (v2.2) | 4/? | ~14 min | ~4 min |
-| **Total** | **60/80** | **~27.3h** | **~27 min** |
+| 13 (v2.2) | 5/? | ~28 min | ~6 min |
+| **Total** | **61/80** | **~27.5h** | **~27 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
 - Baseline velocity established: ~31 min/plan
-- v2.2 plans executing quickly (~1-11 min each)
+- v2.2 plans executing quickly (~1-14 min each)
 - Phase 12 complete: relationships, tool hints, suggested actions, SpanResult extension, CLI integration, performance tests (8/8 complete)
-- Phase 13 in progress: diff module, CLI flags, unified diff integration (4/4 plans complete)
+- Phase 13 in progress: diff module, CLI flags, unified diff integration, exit codes (5/5 plans complete)
 - Rich span metadata fully integrated into CLI JSON output
 - Performance test suite validates relationship queries scale to 1K symbols
 
@@ -95,6 +95,10 @@ Recent decisions affecting current work:
 - [13-04]: preview_patch_with_content() extends preview_patch() to return before/after content for diff generation
 - [13-04]: Ropey used for deletion simulation (maintains byte-level precision consistent with patch logic)
 - [13-04]: Backward compatibility preserved - original preview_patch() unchanged
+- [13-05]: Exit code convention follows git diff --exit-code pattern (1=changes pending, 0=no changes)
+- [13-05]: has_pending_changes field added to CliSuccessPayload to carry exit code info (#[serde(skip)])
+- [13-05]: Dry-run mode returns exit code 1 when lines_added > 0 || lines_removed > 0
+- [13-05]: Normal mode keeps standard exit codes (0=success, 1=error) for backward compatibility
 
 ### Pending Todos
 
@@ -181,5 +185,5 @@ Resume file: None
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 13-04 (Dry-run Diff Integration) - git-style summary header and unified diff output integrated
+Stopped at: Completed 13-05 (Dry-Run Exit Code Implementation) - git-style exit codes for dry-run mode
 Resume file: None
