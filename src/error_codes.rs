@@ -443,4 +443,113 @@ mod tests {
         assert_eq!(ErrorSeverity::Warning.as_str(), "warning");
         assert_eq!(ErrorSeverity::Note.as_str(), "note");
     }
+
+    #[test]
+    fn test_error_code_severity_error() {
+        // Test that error-level codes return "error"
+        assert_eq!(SpliceErrorCode::SymbolNotFound.severity(), "error");
+        assert_eq!(SpliceErrorCode::ReferenceFailed.severity(), "error");
+        assert_eq!(SpliceErrorCode::ParseError.severity(), "error");
+        assert_eq!(SpliceErrorCode::InvalidUtf8.severity(), "error");
+        assert_eq!(SpliceErrorCode::InvalidSyntax.severity(), "error");
+        assert_eq!(SpliceErrorCode::InvalidSpan.severity(), "error");
+        assert_eq!(SpliceErrorCode::InvalidLineRange.severity(), "error");
+        assert_eq!(SpliceErrorCode::SpanOutOfBounds.severity(), "error");
+        assert_eq!(SpliceErrorCode::FileReadError.severity(), "error");
+        assert_eq!(SpliceErrorCode::FileWriteError.severity(), "error");
+        assert_eq!(SpliceErrorCode::FileNotFound.severity(), "error");
+        assert_eq!(SpliceErrorCode::PreVerificationFailed.severity(), "error");
+        assert_eq!(SpliceErrorCode::ParseValidationFailed.severity(), "error");
+        assert_eq!(SpliceErrorCode::CompilerValidationFailed.severity(), "error");
+        assert_eq!(SpliceErrorCode::InvalidPlanSchema.severity(), "error");
+        assert_eq!(SpliceErrorCode::PlanExecutionFailed.severity(), "error");
+        assert_eq!(SpliceErrorCode::InvalidBatchSchema.severity(), "error");
+        assert_eq!(SpliceErrorCode::GraphError.severity(), "error");
+        assert_eq!(SpliceErrorCode::DatabaseError.severity(), "error");
+        assert_eq!(SpliceErrorCode::ExecutionLogError.severity(), "error");
+        assert_eq!(SpliceErrorCode::ExecutionNotFound.severity(), "error");
+        assert_eq!(SpliceErrorCode::AnalyzerNotAvailable.severity(), "error");
+        assert_eq!(SpliceErrorCode::AnalyzerFailed.severity(), "error");
+    }
+
+    #[test]
+    fn test_error_code_severity_warning() {
+        // Test that warning-level codes return "warning"
+        assert_eq!(SpliceErrorCode::AmbiguousSymbol.severity(), "warning");
+        assert_eq!(SpliceErrorCode::AmbiguousReference.severity(), "warning");
+        assert_eq!(SpliceErrorCode::FileExternallyModified.severity(), "warning");
+        assert_eq!(SpliceErrorCode::AmbiguousSymbolAsWarning.severity(), "warning");
+        assert_eq!(SpliceErrorCode::FileSkipped.severity(), "warning");
+        assert_eq!(SpliceErrorCode::FileExternallyModifiedWarning.severity(), "warning");
+    }
+
+    #[test]
+    fn test_error_code_all_have_severity() {
+        // Test that all SpliceErrorCode variants have valid severity
+        let all_codes = [
+            SpliceErrorCode::SymbolNotFound,
+            SpliceErrorCode::AmbiguousSymbol,
+            SpliceErrorCode::ReferenceFailed,
+            SpliceErrorCode::AmbiguousReference,
+            SpliceErrorCode::ParseError,
+            SpliceErrorCode::InvalidUtf8,
+            SpliceErrorCode::InvalidSyntax,
+            SpliceErrorCode::InvalidSpan,
+            SpliceErrorCode::InvalidLineRange,
+            SpliceErrorCode::SpanOutOfBounds,
+            SpliceErrorCode::FileReadError,
+            SpliceErrorCode::FileWriteError,
+            SpliceErrorCode::FileNotFound,
+            SpliceErrorCode::FileExternallyModified,
+            SpliceErrorCode::AmbiguousSymbolAsWarning,
+            SpliceErrorCode::FileSkipped,
+            SpliceErrorCode::FileExternallyModifiedWarning,
+            SpliceErrorCode::PreVerificationFailed,
+            SpliceErrorCode::ParseValidationFailed,
+            SpliceErrorCode::CompilerValidationFailed,
+            SpliceErrorCode::InvalidPlanSchema,
+            SpliceErrorCode::PlanExecutionFailed,
+            SpliceErrorCode::InvalidBatchSchema,
+            SpliceErrorCode::GraphError,
+            SpliceErrorCode::DatabaseError,
+            SpliceErrorCode::ExecutionLogError,
+            SpliceErrorCode::ExecutionNotFound,
+            SpliceErrorCode::AnalyzerNotAvailable,
+            SpliceErrorCode::AnalyzerFailed,
+        ];
+
+        for code in all_codes.iter() {
+            let severity = code.severity();
+            assert!(
+                severity == "error" || severity == "warning" || severity == "note",
+                "Code {:?} has invalid severity: {}",
+                code,
+                severity
+            );
+        }
+    }
+
+    #[test]
+    fn test_warning_code_format() {
+        // Test that warning codes use SPL-W### format
+        assert_eq!(SpliceErrorCode::AmbiguousSymbolAsWarning.code(), "SPL-W001");
+        assert_eq!(SpliceErrorCode::FileSkipped.code(), "SPL-W002");
+        assert_eq!(SpliceErrorCode::FileExternallyModifiedWarning.code(), "SPL-W003");
+    }
+
+    #[test]
+    fn test_warning_code_from_splice_code() {
+        // Test that warning codes produce proper ErrorCode with warning severity
+        let warning_code = ErrorCode::from_splice_code(
+            SpliceErrorCode::AmbiguousSymbolAsWarning,
+            Some("src/main.rs"),
+            Some(10),
+            Some(5),
+        );
+
+        assert_eq!(warning_code.code, "SPL-W001");
+        assert_eq!(warning_code.severity, "warning");
+        assert_eq!(warning_code.location, "src/main.rs:10:5");
+        assert!(!warning_code.hint.is_empty());
+    }
 }
