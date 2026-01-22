@@ -141,6 +141,44 @@ pub fn format_colored_diff(old: &str, new: &str, use_color: bool) -> String {
     result
 }
 
+/// Generates a git-style summary header for a diff.
+///
+/// This function creates a summary header similar to git's diff output,
+/// showing the file path and change statistics.
+///
+/// # Arguments
+/// * `path` - The file path that was changed
+/// * `additions` - Number of lines added
+/// * `deletions` - Number of lines removed
+///
+/// # Returns
+/// A String containing the formatted summary header.
+///
+/// # Examples
+/// ```
+/// use splice::format_diff_summary;
+///
+/// let summary = format_diff_summary("src/main.rs", 5, 2);
+/// // Output: "src/main.rs | 5 insertions(+), 2 deletions(-)"
+/// ```
+///
+/// # Note
+/// This is a placeholder implementation. Full functionality will be added in plan 13-04.
+pub fn format_diff_summary(path: &str, additions: usize, deletions: usize) -> String {
+    if additions == 0 && deletions == 0 {
+        format!("{} | no changes", path)
+    } else {
+        let mut parts = Vec::new();
+        if additions > 0 {
+            parts.push(format!("{} insertion(s)", additions));
+        }
+        if deletions > 0 {
+            parts.push(format!("{} deletion(s)", deletions));
+        }
+        format!("{} | {}", path, parts.join(", "))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -266,5 +304,36 @@ mod tests {
         assert!(diff.contains("+++ b/src/main.rs"));
         assert!(diff.contains("-    println!(\"Hello\");"));
         assert!(diff.contains("+    println!(\"Hello, World!\");"));
+    }
+
+    #[test]
+    fn test_format_diff_summary_with_changes() {
+        let summary = format_diff_summary("src/main.rs", 5, 2);
+        assert!(summary.contains("src/main.rs"));
+        assert!(summary.contains("5 insertion(s)"));
+        assert!(summary.contains("2 deletion(s)"));
+    }
+
+    #[test]
+    fn test_format_diff_summary_only_additions() {
+        let summary = format_diff_summary("test.txt", 3, 0);
+        assert!(summary.contains("test.txt"));
+        assert!(summary.contains("3 insertion(s)"));
+        assert!(!summary.contains("deletion"));
+    }
+
+    #[test]
+    fn test_format_diff_summary_only_deletions() {
+        let summary = format_diff_summary("test.txt", 0, 3);
+        assert!(summary.contains("test.txt"));
+        assert!(summary.contains("3 deletion(s)"));
+        assert!(!summary.contains("insertion"));
+    }
+
+    #[test]
+    fn test_format_diff_summary_no_changes() {
+        let summary = format_diff_summary("test.txt", 0, 0);
+        assert!(summary.contains("test.txt"));
+        assert!(summary.contains("no changes"));
     }
 }

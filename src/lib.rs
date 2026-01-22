@@ -11,6 +11,7 @@ pub mod action;
 pub mod checksum;
 pub mod cli;
 pub mod context;
+pub mod diff;
 pub mod error;
 pub mod error_codes;
 pub mod execution;
@@ -35,6 +36,9 @@ pub use graph::CodeGraph;
 /// Re-export context types for convenience.
 pub use context::extract_context;
 pub use output::SpanContext;
+
+/// Re-export diff utilities for convenience.
+pub use diff::{format_unified_diff, should_use_color, format_colored_diff, format_diff_summary};
 
 /// Re-export error codes for convenience.
 pub use error_codes::{ErrorCode, ErrorSeverity, SpliceErrorCode};
