@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 11 of 17 (Rich Span Core)
-Plan: 2 of 7 in current phase
+Plan: 5 of 7 in current phase
 Status: In progress
-Last activity: 2026-01-22 — Completed 11-02-PLAN.md (Context extraction)
+Last activity: 2026-01-22 — Completed 11-05-PLAN.md (Checksum integration)
 
-Progress: [███████████░░░░░░░░░░░░░░] 44%
+Progress: [███████████████░░░░░░░░░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 33 (31 v2.0 + 2 v2.2)
+- Total plans completed: 36 (31 v2.0 + 5 v2.2)
 - Total plans planned: 76 (31 v2.0 + 45 v2.2)
 - Average duration: ~30 min/plan (v2.0 baseline)
-- Total execution time: ~24.5 hours (24h v2.0 + 8min v2.2)
+- Total execution time: ~24.5 hours (24h v2.0 + 21min v2.2)
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
-| 11-17 (v2.2) | 2/45 | 8min | ~4 min |
-| **Total** | **33/76** | **~24.1h** | **~29 min** |
+| 11-17 (v2.2) | 5/45 | 21min | ~4 min |
+| **Total** | **36/76** | **~24.3h** | **~29 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
@@ -85,8 +85,9 @@ Resume file: None
 **v2.2 Status:** PHASE 11 IN PROGRESS ⚙️
 - Plan 11-01 completed (Extended SpanResult with 6 optional fields)
 - Plan 11-02 completed (Context extraction with extract_context function)
-- 319 tests passing (8 new context tests)
-- Context module using ropey for UTF-8 aware line calculations
-- extract_context function extracts before/selected/after line arrays
-- SpanContext type defined in output.rs
-- Next: 11-03 (Semantic kind detection)
+- Plan 11-05 completed (Checksum integration with documentation and tests)
+- 323 tests passing (4 new checksum integration tests + 13 checksum module tests)
+- Checksum functions use existing SHA-256 implementation
+- Builder methods: with_checksum_before, with_file_checksum_before, with_both_checksums
+- JSON serialization omits None fields (backward compatible)
+- Next: 11-03 (Semantic kind detection) or 11-06 (Error code integration)
