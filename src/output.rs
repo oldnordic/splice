@@ -306,6 +306,24 @@ pub struct SpanResult {
     /// Checksum of span content after modification (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub span_checksum_after: Option<String>,
+    /// Context lines before/selected/after (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<SpanContext>,
+    /// Standardized semantic kind (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub semantic_kind: Option<String>,
+    /// Programming language (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+    /// Checksum of span content before modification (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub checksum_before: Option<String>,
+    /// Checksum of entire file before modification (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_checksum_before: Option<String>,
+    /// Error code with severity, location, hint (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<ErrorCode>,
 }
 
 impl SpanResult {
