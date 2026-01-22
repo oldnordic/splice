@@ -78,7 +78,6 @@ fn main() -> ExitCode {
             operation_id,
             metadata,
         } => {
-            let context_lines = context_after.max(context_before).max(context_both);
             match batch {
                 Some(batch_path) => execute_patch_batch(&batch_path, analyzer, language, create_backup, operation_id, metadata, json_output),
                 None => execute_single_patch(
@@ -88,7 +87,9 @@ fn main() -> ExitCode {
                     analyzer,
                     replacement_file,
                     language,
-                    context_lines,
+                    context_before,
+                    context_after,
+                    context_both,
                     preview,
                     unified,
                     create_backup,
@@ -879,7 +880,9 @@ fn execute_single_patch(
     analyzer: Option<splice::cli::AnalyzerMode>,
     replacement_file: Option<PathBuf>,
     language: Option<splice::cli::Language>,
-    context_lines: usize,
+    context_before: usize,
+    context_after: usize,
+    context_both: usize,
     preview: bool,
     unified: usize,
     create_backup: bool,
@@ -899,7 +902,9 @@ fn execute_single_patch(
         analyzer,
         &replacement_file,
         language,
-        context_lines,
+        context_before,
+        context_after,
+        context_both,
         preview,
         unified,
         create_backup,
@@ -917,7 +922,9 @@ fn execute_patch(
     analyzer: Option<splice::cli::AnalyzerMode>,
     replacement_file: &Path,
     language: Option<splice::cli::Language>,
-    context_lines: usize,
+    context_before: usize,
+    context_after: usize,
+    context_both: usize,
     preview: bool,
     unified: usize,
     create_backup: bool,
@@ -936,6 +943,9 @@ fn execute_patch(
     use splice::format_unified_diff;
     use splice::format_colored_diff;
     use splice::should_use_color;
+
+    // Resolve context counts from -A/-B/-C flags
+    let (ctx_before, ctx_after) = resolve_context_counts(context_before, context_after, context_both);
 
     // Start timing
     let start = std::time::Instant::now();
@@ -1156,7 +1166,7 @@ fn execute_patch(
             .with_span_checksums(span_checksum_before.clone(), span_checksum_after);
 
         // Extract context for the span
-        if let Ok(ctx) = context::extract_context(file_path, resolved.byte_start, resolved.byte_end, context_lines) {
+        if let Ok(ctx) = context::extract_context_asymmetric(file_path, resolved.byte_start, resolved.byte_end, ctx_before, ctx_after) {
             span = span.with_context(ctx);
         }
 
