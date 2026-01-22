@@ -120,8 +120,7 @@ fn main() -> ExitCode {
             operation_id,
             metadata,
         } => {
-            let context_lines = context_after.max(context_before).max(context_both);
-            execute_apply_files(&glob, &find, &replace, language, context_lines, !no_validate, create_backup, operation_id, metadata, json_output)
+            execute_apply_files(&glob, &find, &replace, language, context_before, context_after, context_both, !no_validate, create_backup, operation_id, metadata, json_output)
         },
 
         splice::cli::Commands::Query {
@@ -135,8 +134,7 @@ fn main() -> ExitCode {
             show_code,
             relationships,
         } => {
-            let context_lines = context_after.max(context_before).max(context_both);
-            execute_query(&db, &label, context_lines, list, count, show_code, relationships, json_output)
+            execute_query(&db, &label, context_before, context_after, context_both, list, count, show_code, relationships, json_output)
         },
 
         splice::cli::Commands::Get {
@@ -149,8 +147,7 @@ fn main() -> ExitCode {
             context_both,
             relationships,
         } => {
-            let context_lines = context_after.max(context_before).max(context_both);
-            execute_get(&db, &file, start, end, context_lines, relationships, json_output)
+            execute_get(&db, &file, start, end, context_before, context_after, context_both, relationships, json_output)
         },
 
         splice::cli::Commands::Log {
@@ -1855,7 +1852,9 @@ fn execute_apply_files(
     find_pattern: &str,
     replace_pattern: &str,
     language: Option<splice::cli::Language>,
-    context_lines: usize,
+    context_before: usize,
+    context_after: usize,
+    context_both: usize,
     validate: bool,
     create_backup: bool,
     operation_id: Option<String>,
@@ -1969,7 +1968,9 @@ fn execute_apply_files(
 fn execute_query(
     db_path: &Path,
     labels: &[String],
-    context_lines: usize,
+    context_before: usize,
+    context_after: usize,
+    context_both: usize,
     list: bool,
     count: bool,
     show_code: bool,
@@ -1979,6 +1980,9 @@ fn execute_query(
     #![allow(unused_variables)]
     use splice::graph::magellan_integration::MagellanIntegration;
     use splice::execution::log;
+
+    // Resolve context counts from -A/-B/-C flags
+    let (ctx_before, ctx_after) = resolve_context_counts(context_before, context_after, context_both);
 
     // Start timing
     let start = std::time::Instant::now();
@@ -2133,8 +2137,8 @@ fn execute_query(
             .with_symbol(r.name.clone(), r.kind.clone());
 
             // Add context if requested
-            if context_lines > 0 {
-                if let Ok(ctx) = context::extract_context(path, r.byte_start, r.byte_end, context_lines) {
+            if ctx_before > 0 || ctx_after > 0 {
+                if let Ok(ctx) = context::extract_context_asymmetric(path, r.byte_start, r.byte_end, ctx_before, ctx_after) {
                     span = span.with_context(ctx);
                 }
             }
@@ -2335,12 +2339,17 @@ fn execute_get(
     file_path: &Path,
     start: usize,
     end: usize,
-    context_lines: usize,
+    context_before: usize,
+    context_after: usize,
+    context_both: usize,
     relationships: bool,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     #![allow(unused_variables)]
     use splice::graph::magellan_integration::MagellanIntegration;
+
+    // Resolve context counts from -A/-B/-C flags
+    let (ctx_before, ctx_after) = resolve_context_counts(context_before, context_after, context_both);
 
     // Open Magellan integration
     let integration = MagellanIntegration::open(db_path)?;
@@ -2368,8 +2377,8 @@ fn execute_get(
                 );
 
                 // Add context if requested
-                if context_lines > 0 {
-                    if let Ok(ctx) = context::extract_context(file_path, start, end, context_lines) {
+                if ctx_before > 0 || ctx_after > 0 {
+                    if let Ok(ctx) = context::extract_context_asymmetric(file_path, start, end, ctx_before, ctx_after) {
                         span = span.with_context(ctx);
                     }
                 }
