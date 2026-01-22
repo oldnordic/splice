@@ -3025,7 +3025,16 @@ fn execute_search(
             })
             .collect();
 
-        let payload = serde_json::to_string_pretty(&results)
+        // Wrap results in structured output for LLM consumption
+        let output = json!({
+            "status": "ok",
+            "message": format!("Found {} occurrence(s) of '{}'", results.len(), pattern),
+            "matches": results,
+            "pattern": pattern,
+            "count": results.len(),
+        });
+
+        let payload = serde_json::to_string_pretty(&output)
             .map_err(|e| splice::SpliceError::Other(format!("Failed to serialize JSON: {}", e)))?;
         println!("{}", payload);
 

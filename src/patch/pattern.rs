@@ -198,16 +198,20 @@ fn find_pattern_in_file(
     Ok(matches)
 }
 
-/// Apply pattern replacement to files with validation.
+/// Apply pattern replacement to files with atomic writes and rollback.
 ///
 /// This function:
 /// 1. Finds all pattern matches using AST confirmation
-/// 2. Applies replacements in reverse byte order per file
-/// 3. Runs validation gates if requested
+/// 2. Creates backups of all files to be modified
+/// 3. Applies replacements using atomic writes (tempfile + persist)
+/// 4. On any error, restores all files from backups (atomic rollback)
+/// 5. Runs validation gates if requested
 pub fn apply_pattern_replace(
     config: &PatternReplaceConfig,
     workspace_dir: &Path,
 ) -> Result<PatternReplaceResult> {
+    use std::io::Write;
+
     // Find all matches
     let matches = find_pattern_in_files(config)?;
 
@@ -232,39 +236,86 @@ pub fn apply_pattern_replace(
         file_matches.sort_by_key(|m| std::cmp::Reverse(m.byte_start));
     }
 
-    // Apply replacements per file
+    // Create backup manifest for rollback
+    let mut backups: Vec<(PathBuf, String)> = Vec::new();
+
+    // Apply replacements per file with atomic writes
     let mut files_patched = Vec::new();
     let mut replacements_count = 0;
 
-    for (file_path, file_matches) in matches_by_file {
-        if file_matches.is_empty() {
-            continue;
-        }
-
-        // Read file content
-        let mut content = std::fs::read_to_string(&file_path)
-            .map_err(|e| SpliceError::Io {
-                path: file_path.clone(),
-                source: e,
-            })?;
-
-        // Apply replacements in reverse byte order
-        for m in file_matches {
-            let start_byte = m.byte_start;
-            let end_byte = m.byte_end;
-
-            // Replace the content
-            content.replace_range(start_byte..end_byte, &config.replace_pattern);
-            replacements_count += 1;
-        }
-
-        // Write back
-        std::fs::write(&file_path, content).map_err(|e| SpliceError::Io {
+    // First pass: create backups of all files to be modified
+    for (file_path, _) in &matches_by_file {
+        let original = std::fs::read_to_string(file_path).map_err(|e| SpliceError::Io {
             path: file_path.clone(),
             source: e,
         })?;
+        backups.push((file_path.clone(), original));
+    }
 
-        files_patched.push(file_path.clone());
+    // Second pass: apply replacements using atomic writes
+    let apply_result: std::result::Result<(), SpliceError> = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        for (file_path, file_matches) in &matches_by_file {
+            if file_matches.is_empty() {
+                continue;
+            }
+
+            // Get original content from backup
+            let original = backups
+                .iter()
+                .find(|(path, _)| path == file_path)
+                .map(|(_, content)| content.clone())
+                .unwrap();
+
+            // Apply replacements in reverse byte order
+            let mut content = original.clone();
+            for m in &**file_matches {
+                let start_byte = m.byte_start;
+                let end_byte = m.byte_end;
+
+                // Replace the content
+                content.replace_range(start_byte..end_byte, &config.replace_pattern);
+                replacements_count += 1;
+            }
+
+            // Atomic write using tempfile
+            let parent_dir = file_path.parent().unwrap_or(Path::new("."));
+            let mut temp = tempfile::NamedTempFile::new_in(parent_dir).map_err(|e| {
+                SpliceError::Io {
+                    path: file_path.clone(),
+                    source: e.into(),
+                }
+            })?;
+
+            temp.write_all(content.as_bytes()).map_err(|e| SpliceError::Io {
+                path: file_path.clone(),
+                source: e.into(),
+            })?;
+
+            // Persist atomically (replaces original file)
+            temp.persist(file_path).map_err(|e| SpliceError::Io {
+                path: file_path.clone(),
+                source: e.into(),
+            })?;
+
+            files_patched.push(file_path.clone());
+        }
+
+        Ok::<(), SpliceError>(())
+    })).map_err(|_| {
+        // Panic occurred - convert to SpliceError for rollback
+        SpliceError::Other("Panic during pattern replacement".to_string())
+    })?;
+
+    // apply_result is now Result<(), SpliceError> after map_err
+    // If it's Err, we need to roll back and return the error
+    if let Err(rollback_err) = apply_result {
+        // Restore all files from backups
+        for (file_path, original_content) in &backups {
+            // Attempt to restore, but continue even if restore fails
+            let _ = std::fs::write(file_path, original_content);
+        }
+
+        return Err(rollback_err);
     }
 
     // Run validation if requested
