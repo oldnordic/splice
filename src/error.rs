@@ -736,3 +736,67 @@ impl SpliceError {
         SpliceError::Other(msg.into())
     }
 }
+
+/// Convert byte offset to line/column position.
+///
+/// Line is 1-based (first line is 1), column is 0-based (first column is 0).
+/// This matches compiler conventions (rustc, clang, tsc).
+///
+/// # Arguments
+/// * `source` - Full source text
+/// * `byte_offset` - Byte offset within source
+///
+/// # Returns
+/// * (line, column) where line is 1-based and column is 0-based
+pub fn byte_offset_to_line_column(source: &str, byte_offset: usize) -> (usize, usize) {
+    let text = &source[..byte_offset.min(source.len())];
+
+    // Count newlines to get line number (1-based)
+    let line = text.matches('\n').count() + 1;
+
+    // Get column: if we end on a newline, column is 0 (start of next line)
+    // Otherwise, count characters in the current line
+    let column = if text.ends_with('\n') {
+        0
+    } else {
+        text.lines().last().map(|l| l.chars().count()).unwrap_or(0)
+    };
+
+    (line, column)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_byte_offset_to_line_column() {
+        let source = "fn main() {\n    println!(\"hello\");\n}";
+
+        // Offset 0: start of file, line 1, column 0
+        assert_eq!(byte_offset_to_line_column(source, 0), (1, 0));
+
+        // Offset 10: after '{' character, still on line 1, column 10
+        assert_eq!(byte_offset_to_line_column(source, 10), (1, 10));
+
+        // Offset 11: before '\n' (still on line 1), at position of '{'
+        assert_eq!(byte_offset_to_line_column(source, 11), (1, 11));
+
+        // Offset 12: after '\n' (on line 2), column 0
+        assert_eq!(byte_offset_to_line_column(source, 12), (2, 0));
+
+        // Offset 13: first space on line 2, line 2, column 1
+        assert_eq!(byte_offset_to_line_column(source, 13), (2, 1));
+
+        // Offset 16: first 'p' of "println" (after 4 spaces), line 2, column 4
+        assert_eq!(byte_offset_to_line_column(source, 16), (2, 4));
+
+        // Test multi-line behavior
+        let multi_line = "line 1\nline 2\nline 3\n";
+        assert_eq!(byte_offset_to_line_column(multi_line, 0), (1, 0));
+        assert_eq!(byte_offset_to_line_column(multi_line, 6), (1, 6)); // before first \n
+        assert_eq!(byte_offset_to_line_column(multi_line, 7), (2, 0)); // after first \n
+        assert_eq!(byte_offset_to_line_column(multi_line, 13), (2, 6)); // before second \n
+        assert_eq!(byte_offset_to_line_column(multi_line, 14), (3, 0)); // after second \n
+    }
+}
