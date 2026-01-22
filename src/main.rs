@@ -102,8 +102,8 @@ fn main() -> ExitCode {
             start,
             end,
             context_lines,
-            relationships: _,
-        } => execute_get(&db, &file, start, end, context_lines, json_output),
+            relationships,
+        } => execute_get(&db, &file, start, end, context_lines, relationships, json_output),
 
         splice::cli::Commands::Log {
             operation_type,
@@ -1874,6 +1874,13 @@ fn execute_query(
         use splice::hints::{derive_tool_hints, ToolHintOperation};
         use splice::action::{suggest_action, ActionType, Confidence};
 
+        // Open CodeGraph for relationship queries if flag is set
+        let code_graph = if relationships {
+            Some(splice::graph::CodeGraph::open(db_path)?)
+        } else {
+            None
+        };
+
         // Build rich span results with tool_hints and suggested_action
         let mut symbols: Vec<SpanResult> = Vec::new();
 
@@ -1938,6 +1945,32 @@ fn execute_query(
             }
             if let Ok(file_cs) = checksum::checksum_file(path) {
                 span = span.with_file_checksum_before(file_cs.value);
+            }
+
+            // Query relationships if flag is set
+            if relationships {
+                if let Some(ref graph) = code_graph {
+                    use splice::relationships::{get_callers, get_callees, get_imports, get_exports, Relationships, RelationshipCache};
+                    use sqlitegraph::NodeId;
+
+                    let mut cache = RelationshipCache::new();
+                    let node_id = NodeId::from(r.entity_id as i64);
+
+                    let callers = get_callers(graph, node_id, &mut cache).unwrap_or_default();
+                    let callees = get_callees(graph, node_id, &mut cache).unwrap_or_default();
+                    let imports = get_imports(graph, path, &mut cache).unwrap_or_default();
+                    let exports = get_exports(graph, path, &mut cache).unwrap_or_default();
+
+                    let rels = Relationships {
+                        callers,
+                        callees,
+                        imports,
+                        exports,
+                        cycle_detected: false,
+                        error_code: None,
+                    };
+                    span = span.with_relationships(rels);
+                }
             }
 
             symbols.push(span);
@@ -2066,6 +2099,7 @@ fn execute_get(
     start: usize,
     end: usize,
     context_lines: usize,
+    relationships: bool,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     #![allow(unused_variables)]
@@ -2136,6 +2170,27 @@ fn execute_get(
                 }
                 if let Ok(file_cs) = checksum::checksum_file(file_path) {
                     span = span.with_file_checksum_before(file_cs.value);
+                }
+
+                // Query relationships if flag is set
+                if relationships {
+                    use splice::relationships::{get_imports, get_exports, Relationships, RelationshipCache};
+
+                    let code_graph = splice::graph::CodeGraph::open(db_path)?;
+                    let mut cache = RelationshipCache::new();
+
+                    let imports = get_imports(&code_graph, file_path, &mut cache).unwrap_or_default();
+                    let exports = get_exports(&code_graph, file_path, &mut cache).unwrap_or_default();
+
+                    let rels = Relationships {
+                        callers: vec![],
+                        callees: vec![],
+                        imports,
+                        exports,
+                        cycle_detected: false,
+                        error_code: None,
+                    };
+                    span = span.with_relationships(rels);
                 }
 
                 // Create operation result with span as data
