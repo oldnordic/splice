@@ -373,6 +373,42 @@ pub enum Commands {
         #[arg(short, long, value_name = "CODE")]
         code: String,
     },
+
+    /// Search for code patterns in files.
+    Search {
+        /// Text pattern to search for.
+        #[arg(short, long)]
+        pattern: String,
+
+        /// Files or directories to search (defaults to current directory).
+        #[arg(short, long, value_name = "PATH", default_value = ".")]
+        path: std::path::PathBuf,
+
+        /// Optional language filter (auto-detect if not specified).
+        #[arg(long, value_name = "LANG")]
+        language: Option<Language>,
+
+        /// Glob pattern for file filtering (e.g., "src/**/*.rs", "tests/**/*.py").
+        /// If not specified, searches all supported file types in path.
+        #[arg(short = 'g', long, value_name = "GLOB")]
+        glob: Option<String>,
+
+        /// Number of context lines after the match.
+        #[arg(short = 'A', long, value_name = "N", default_value = "0")]
+        context_after: usize,
+
+        /// Number of context lines before the match.
+        #[arg(short = 'B', long, value_name = "N", default_value = "0")]
+        context_before: usize,
+
+        /// Number of context lines before and after the match (default: 2).
+        #[arg(short = 'C', long, value_name = "N", default_value = "2")]
+        context_both: usize,
+
+        /// Output results as JSON.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Symbol kind for filtering.
