@@ -5,22 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** Phase 16 - Symbol Expansion and Search (IN PROGRESS)
+**Current focus:** Phase 16 complete, ready for Phase 17 (Integration & Testing)
 
 ## Current Position
 
-Phase: 16 of 17 (Symbol Expansion and Search) — IN PROGRESS
-Plan: 09 of 6 in current phase
-Status: Plan 16-09 complete
-Last activity: 2026-01-22 — Plan 16-09 complete (--glob flag for file pattern filtering in search)
+Phase: 16 of 17 (Symbol Expansion and Search) — COMPLETE ✓
+All 11 plans executed
+Last activity: 2026-01-22 — Phase 16 complete with 11/11 plans verified
 
-Progress: [█████████░░░░░░░░░░░] 96% (76/80 plans)
+Progress: [██████████░░░░░░░░░░] 90% (62/69 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 76 (31 v2.0 + 45 v2.2)
-- Total plans planned: 80 (31 v2.0 + 49 v2.2)
+- Total plans completed: 62 (31 v2.0 + 31 v2.2)
+- Total plans planned: 69 (31 v2.0 + 38 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
 - Total execution time: ~31 hours (24h v2.0 + 7h v2.2)
 
@@ -42,13 +41,18 @@ Progress: [█████████░░░░░░░░░░░] 96% (76
 - Phase 13 complete: diff module, CLI flags (-n/--dry-run), unified diff integration, git-style exit codes (5/5 complete)
 - Phase 14 complete: context flags with asymmetric extraction, human-readable output, comprehensive tests (5/5 complete)
 - Phase 15 complete: Enhanced errors with severity levels, location extraction, fuzzy suggestions, TypeScript error codes, explain command (6/6 complete)
-- Phase 16-01 complete: Symbol expansion infrastructure with tree_walker module and parent chain walking (18 tests)
-- Phase 16-02 complete: CLI expansion flags (--expand, --expand-level) for Get and Query commands with fallback on errors
-- Phase 16-04 complete: Leading doc comments in symbol expansion with extract_leading_docs() and expand_to_body_with_docs() (9 tests)
-- Phase 16-06 complete: Context flags respect expanded symbol boundaries in execute_get and execute_query (12 integration tests)
-- Phase 16-08 complete: Search command enhanced with grep-style context flags (-A/-B/-C) and context extraction (4 tests)
-- Phase 16-09 complete: --glob flag for file pattern filtering with multi-language support (5 glob filtering tests)
-- Phase 16-10 complete: Search --apply and --replace flags with atomic writes and rollback using tempfile (4 atomic replace tests)
+- Phase 16 complete: Symbol Expansion & Search with 11/11 plans verified
+  - 16-01: Symbol expansion infrastructure with tree_walker module (21 tests)
+  - 16-02: CLI expansion flags (--expand, --expand-level) for Get and Query commands
+  - 16-03: Progressive expansion (name → body → containing block) with level 2 expansion
+  - 16-04: Leading doc comments with extract_leading_docs() and expand_to_body_with_docs() (9 tests)
+  - 16-05A/05B: Cross-language expansion tests for all 7 languages (25 tests)
+  - 16-06: Context flags respect expanded symbol boundaries (12 integration tests)
+  - 16-07: Search command with pattern matching and JSON/human output
+  - 16-08: Search with context flags (-A/-B/-C) and context extraction
+  - 16-09: --glob flag for file pattern filtering with multi-language support
+  - 16-10: Search --apply and --replace flags with atomic writes and rollback
+  - 16-11: JSON output format optimized for LLM consumption
 - Rich span metadata fully integrated into CLI JSON output
 - Dry-run mode with git-compatible output (unified diff, summary header, colors, exit codes)
 - Context flags (-A/-B/-C) fully integrated across all 6 commands (Delete, Patch, Query, Get, ApplyFiles, Search)
@@ -219,11 +223,13 @@ Recent decisions affecting current work:
 ### Pending Todos
 
 **Next Phase:**
-- Phase 17: Final phase (project completion)
+- Phase 17: Integration & Testing - Final phase before project completion
 - Integration testing with real LLM agents consuming JSON output
 - CALLS edge creation implementation during code ingestion to enable real relationship queries
 
 ### Blockers/Concerns
+
+**All Phase 16 gaps resolved.**
 
 **From Gap Closure (2026-01-22):**
 - ✅ [Phase 11] Context infrastructure now integrated into CLI — --context-lines flag added, extract_context() called
