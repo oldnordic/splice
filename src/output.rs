@@ -41,6 +41,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::error_codes::ErrorCode;
+use crate::relationships::Relationships;
+use crate::hints::ToolHints;
+use crate::action::SuggestedAction;
 
 /// Schema version for structured output.
 pub const SCHEMA_VERSION: &str = "2.0.0";
