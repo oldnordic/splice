@@ -275,6 +275,14 @@ pub enum Commands {
         /// Include relationship information in output.
         #[arg(long)]
         relationships: bool,
+
+        /// Expand symbol to full body.
+        #[arg(long)]
+        expand: bool,
+
+        /// Expansion level (0=none, 1=body, 2=containing block).
+        #[arg(long = "expand-level", value_name = "N", default_value = "1")]
+        expand_level: usize,
     },
 
     /// Get code chunks from the database (uses Magellan integration).
@@ -310,6 +318,14 @@ pub enum Commands {
         /// Include relationship information in output.
         #[arg(long)]
         relationships: bool,
+
+        /// Expand symbol to full body.
+        #[arg(long)]
+        expand: bool,
+
+        /// Expansion level (0=none, 1=body, 2=containing block).
+        #[arg(long = "expand-level", value_name = "N", default_value = "1")]
+        expand_level: usize,
     },
 
     /// Query execution log.
