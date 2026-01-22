@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** Phase 12 - Rich Span Advanced (COMPLETE) → Phase 13: Dry-run & Diff
+**Current focus:** Phase 13 - Dry-run & Diff (IN PROGRESS)
 
 ## Current Position
 
-Phase: 12 of 17 (Rich Span Advanced) — COMPLETE ✅
-Plan: 08 of 08 in current phase (all complete)
-Status: Complete - All 8 plans executed with verification passed (27/27 must-haves)
-Last activity: 2026-01-22 — Phase 12 verified and complete
+Phase: 13 of 17 (Dry-run & Diff) — IN PROGRESS 🔄
+Plan: 01 of ? in current phase
+Status: 1 plan complete, dependencies added for diff output
+Last activity: 2026-01-22 — Completed 13-01 (Diff Dependencies)
 
-Progress: [████████████████████] 100%
+Progress: [████████████░░░░░░░░] 70% (56/80 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 56 (31 v2.0 + 25 v2.2)
+- Total plans completed: 57 (31 v2.0 + 26 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
 - Total execution time: ~26.6 hours (24h v2.0 + 2.6h v2.2)
@@ -30,13 +30,15 @@ Progress: [████████████████████] 100%
 |-------|-------|-------|----------|
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
 | 11-12 (v2.2) | 25/25 | 2.6h | ~6 min |
-| **Total** | **56/80** | **~26.6h** | **~29 min** |
+| 13 (v2.2) | 1/? | ~1 min | ~1 min |
+| **Total** | **57/80** | **~26.6h** | **~28 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
 - Baseline velocity established: ~31 min/plan
 - v2.2 plans executing quickly (~1-11 min each)
 - Phase 12 complete: relationships, tool hints, suggested actions, SpanResult extension, CLI integration, performance tests (8/8 complete)
+- Phase 13 started: diff dependencies added (similar, nu-ansi-term, is-terminal)
 - Rich span metadata fully integrated into CLI JSON output
 - Performance test suite validates relationship queries scale to 1K symbols
 
@@ -77,11 +79,13 @@ Recent decisions affecting current work:
 - [12-08]: ActionType extended with Query and Read variants for full command coverage
 - [12-08]: derive_tool_hints() called with appropriate ToolHintOperation per command (DeleteBody, ReplaceBody, Query, Get)
 - [12-08]: suggest_action() called with appropriate ActionType per command (Delete, Replace, Query, Read)
+- [13-01]: Diff output dependencies added - similar (2.6) for unified diff, nu-ansi-term (0.50) for terminal colors, is-terminal (0.4) for TTY detection
+- [13-01]: Successor crate selection - nu-ansi-term replaces deprecated ansi_term, is-terminal replaces unmaintained atty
 
 ### Pending Todos
 
 **Next Phase:**
-- Phase 13 planning needed (Dry-run & Diff)
+- Phase 13 planning continues (Dry-run & Diff) - 1/1 plans complete
 - Integration testing with real LLM agents consuming JSON output
 - CALLS edge creation implementation during code ingestion to enable real relationship queries
 
@@ -109,7 +113,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Phase 12 complete, all 8 plans executed with verification passed (27/27 must-haves)
+Stopped at: Completed 13-01 (Diff Dependencies) - dependencies added for unified diff generation
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -118,7 +122,7 @@ Resume file: None
 - 311+ tests passing
 - Comprehensive documentation complete
 
-**v2.2 Status:** PHASE 12 COMPLETE ✅
+**v2.2 Status:** PHASE 13 IN PROGRESS 🔄
 - Phase 11 complete: 11 plans (7 infrastructure + 4 gap closure)
 - Phase 12 complete: 8 plans (all verified)
   - 12-01 (Relationships) ✅ Complete
@@ -129,6 +133,8 @@ Resume file: None
   - 12-07 (Relationships integration) ✅ Complete
   - 12-06 (Performance tests) ✅ Complete
   - 12-08 (Tool hints/action integration) ✅ Complete
+- Phase 13 in progress: 1 plan (dry-run & diff)
+  - 13-01 (Diff Dependencies) ✅ Complete
 - 235 tests passing (including 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests)
 - Error code registry with 26 error variants across 9 categories
 - Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
@@ -139,6 +145,7 @@ Resume file: None
 - Relationships integrated into all four CLI commands (Query, Get, Delete, Patch)
 - Tool hints and suggested action integrated into all four CLI commands (Delete, Patch, Query, Get)
 - Performance test suite validates relationship queries scale to 1K symbols (small: <10ms, large: <100ms)
+- Diff dependencies added: similar (2.6), nu-ansi-term (0.50), is-terminal (0.4)
 - Verification passed: 27/27 must-haves verified against actual codebase
 
 **Gap Closure Summary:**
