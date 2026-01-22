@@ -520,6 +520,45 @@ impl SpliceError {
         }
     }
 
+    /// Extract location (file, line, column) from error if available.
+    ///
+    /// Returns (Option<&str>, Option<usize>, Option<usize>) for (file, line, column).
+    /// Line is 1-based, column is 0-based (matching compiler conventions).
+    pub fn location(&self) -> (Option<&str>, Option<usize>, Option<usize>) {
+        match self {
+            // Errors with explicit line/column
+            SpliceError::AmbiguousReference { file, line, col, .. } => {
+                (Some(file.as_str()), Some(*line), Some(*col))
+            }
+
+            // Errors with file but no line/column (use None for now)
+            SpliceError::Parse { file, .. }
+            | SpliceError::InvalidSpan { file, .. }
+            | SpliceError::InvalidLineRange { file, .. }
+            | SpliceError::InvalidUtf8 { file, .. }
+            | SpliceError::ParseValidationFailed { file, .. }
+            | SpliceError::CompilerValidationFailed { file, .. } => {
+                (Some(file.to_str().unwrap_or("<invalid>")), None, None)
+            }
+
+            // SymbolNotFound with optional file
+            SpliceError::SymbolNotFound { file, .. } => {
+                file.as_ref()
+                    .and_then(|f| f.to_str())
+                    .map(|f| (Some(f), None, None))
+                    .unwrap_or((None, None, None))
+            }
+
+            // Errors with path context
+            SpliceError::FileExternallyModified { file } => {
+                (Some(file.as_str()), None, None)
+            }
+
+            // No location available
+            _ => (None, None, None),
+        }
+    }
+
     /// Structured diagnostics emitted by this error, if available.
     pub fn diagnostics(&self) -> Vec<Diagnostic> {
         match self {
