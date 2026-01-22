@@ -8,6 +8,7 @@ use crate::error::{Result, SpliceError};
 use crate::symbol::Language;
 use crate::validate::AnalyzerMode;
 use glob::glob;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -27,7 +28,7 @@ pub struct PatternReplaceConfig {
 }
 
 /// A match found during pattern search.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PatternMatch {
     /// File where the match was found.
     pub file: PathBuf,
@@ -41,6 +42,15 @@ pub struct PatternMatch {
     pub column: usize,
     /// The matched text.
     pub matched_text: String,
+
+    // Optional: Context fields (populated when requested)
+    /// Context lines before the match.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_before: Option<Vec<String>>,
+
+    /// Context lines after the match.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_after: Option<Vec<String>>,
 }
 
 /// Result of a pattern replacement operation.
@@ -176,6 +186,8 @@ fn find_pattern_in_file(
                     line,
                     column,
                     matched_text: pattern.to_string(),
+                    context_before: None,
+                    context_after: None,
                 });
             }
         }

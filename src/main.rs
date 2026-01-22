@@ -164,7 +164,7 @@ fn main() -> ExitCode {
             execute_explain(code, json_output)
         }
 
-        splice::cli::Commands::Search { pattern, path, language, glob, context_after, context_before, context_both, json } => {
+        splice::cli::Commands::Search { pattern, path, language, glob, context_after, context_before, context_both, json, apply: _, replace: _ } => {
             execute_search(&pattern, &path, language, glob, context_before, context_after, context_both, json_output || json)
         }
     };
