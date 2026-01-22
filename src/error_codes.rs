@@ -207,8 +207,40 @@ impl SpliceErrorCode {
 
     /// Get the severity level string.
     pub fn severity(&self) -> String {
-        // All current codes are errors
-        "error".to_string()
+        match self {
+            // Error-level codes
+            SpliceErrorCode::SymbolNotFound
+            | SpliceErrorCode::ReferenceFailed
+            | SpliceErrorCode::ParseError
+            | SpliceErrorCode::InvalidUtf8
+            | SpliceErrorCode::InvalidSyntax
+            | SpliceErrorCode::InvalidSpan
+            | SpliceErrorCode::InvalidLineRange
+            | SpliceErrorCode::SpanOutOfBounds
+            | SpliceErrorCode::FileReadError
+            | SpliceErrorCode::FileWriteError
+            | SpliceErrorCode::FileNotFound
+            | SpliceErrorCode::PreVerificationFailed
+            | SpliceErrorCode::ParseValidationFailed
+            | SpliceErrorCode::CompilerValidationFailed
+            | SpliceErrorCode::InvalidPlanSchema
+            | SpliceErrorCode::PlanExecutionFailed
+            | SpliceErrorCode::InvalidBatchSchema
+            | SpliceErrorCode::GraphError
+            | SpliceErrorCode::DatabaseError
+            | SpliceErrorCode::ExecutionLogError
+            | SpliceErrorCode::ExecutionNotFound
+            | SpliceErrorCode::AnalyzerNotAvailable
+            | SpliceErrorCode::AnalyzerFailed => "error".to_string(),
+
+            // Warning-level codes
+            SpliceErrorCode::AmbiguousSymbol => "warning".to_string(),
+            SpliceErrorCode::AmbiguousReference => "warning".to_string(),
+            SpliceErrorCode::FileExternallyModified => "warning".to_string(),
+            SpliceErrorCode::AmbiguousSymbolAsWarning
+            | SpliceErrorCode::FileSkipped
+            | SpliceErrorCode::FileExternallyModifiedWarning => "warning".to_string(),
+        }
     }
 
     /// Get the hint message for this error code.
