@@ -2579,10 +2579,10 @@ fn execute_get(
             }
 
             // Print to console (non-JSON output)
-            // Show context before if requested
+            // Show context before if requested (use expanded span for context extraction)
             if ctx_before > 0 || ctx_after > 0 {
                 use splice::context;
-                if let Ok(ctx) = context::extract_context_asymmetric(file_path, start, end, ctx_before, ctx_after) {
+                if let Ok(ctx) = context::extract_context_asymmetric(file_path, expanded_start, expanded_end, ctx_before, ctx_after) {
                     if !ctx.before.is_empty() {
                         write_stdout_line(&format!("Context ({} lines before):", ctx.before.len()))?;
                         for line in &ctx.before {
@@ -2596,10 +2596,10 @@ fn execute_get(
             write_stdout_bytes(content.as_bytes())?;
             write_stdout_bytes(b"\n")?;
 
-            // Show context after if requested
+            // Show context after if requested (use expanded span for context extraction)
             if ctx_before > 0 || ctx_after > 0 {
                 use splice::context;
-                if let Ok(ctx) = context::extract_context_asymmetric(file_path, start, end, ctx_before, ctx_after) {
+                if let Ok(ctx) = context::extract_context_asymmetric(file_path, expanded_start, expanded_end, ctx_before, ctx_after) {
                     if !ctx.after.is_empty() {
                         write_stdout_line(&format!("Context ({} lines after):", ctx.after.len()))?;
                         for line in &ctx.after {
@@ -2609,15 +2609,23 @@ fn execute_get(
                 }
             }
 
-            // Return success
+            // Return success with both original and expanded spans in response data
+            let mut response_data = json!({
+                "file": file_path.to_string_lossy(),
+                "byte_start": start,
+                "byte_end": end,
+                "content_length": content.len(),
+            });
+
+            // Include expanded span info if expansion was performed
+            if expand && expand_level > 0 && (expanded_start != start || expanded_end != end) {
+                response_data["expanded_byte_start"] = json!(expanded_start);
+                response_data["expanded_byte_end"] = json!(expanded_end);
+            }
+
             Ok(splice::cli::CliSuccessPayload::with_data(
                 format!("Retrieved code chunk ({} bytes)", content.len()),
-                json!({
-                    "file": file_path.to_string_lossy(),
-                    "byte_start": start,
-                    "byte_end": end,
-                    "content_length": content.len(),
-                }),
+                response_data,
             ))
         }
         None => Ok(splice::cli::CliSuccessPayload::message_only(format!(
