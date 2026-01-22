@@ -5,39 +5,39 @@
 See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** Phase 12 - Rich Span Advanced (8 plans complete)
+**Current focus:** Phase 12 - Rich Span Advanced (7 plans complete)
 
 ## Current Position
 
 Phase: 12 of 17 (Rich Span Advanced)
-Plan: 08 of 08 in current phase (8 completed)
-Status: Phase 12 complete
-Last activity: 2026-01-22 — Completed plan 12-08: Tool hints and suggested action CLI integration
+Plan: 07 of 08 in current phase (7 completed)
+Status: In progress - Relationships integration complete
+Last activity: 2026-01-22 — Completed plan 12-07: Relationships CLI integration
 
-Progress: [████████████████████] 75%
+Progress: [████████████████░░░] 73%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 56 (31 v2.0 + 25 v2.2)
+- Total plans completed: 55 (31 v2.0 + 24 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~27 hours (24h v2.0 + 3h v2.2)
+- Total execution time: ~26.5 hours (24h v2.0 + 2.5h v2.2)
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
-| 11-12 (v2.2) | 25/49 | 3h | ~7 min |
-| **Total** | **56/80** | **~27h** | **~29 min** |
+| 11-12 (v2.2) | 24/49 | 2.5h | ~6 min |
+| **Total** | **55/80** | **~26.5h** | **~29 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
 - Baseline velocity established: ~31 min/plan
-- v2.2 plans executing quickly (~1-7 min each)
-- Phase 12 complete: relationships, tool hints, suggested actions, SpanResult extension, CLI integration
-- All rich span metadata now integrated into CLI JSON output
+- v2.2 plans executing quickly (~1-11 min each)
+- Phase 12 in progress: relationships, tool hints, suggested actions, SpanResult extension, CLI integration (7/8 complete)
+- Rich span metadata mostly integrated into CLI JSON output
 
 *Updated after each plan completion*
 
@@ -65,17 +65,17 @@ Recent decisions affecting current work:
 - [12-04]: ToolHints enhanced with Deserialize derive to support full serde serialization/deserialization
 - [12-04]: Builder methods added for all 3 new fields following existing pattern (with_*, mut self, return Self)
 - [12-05]: CLI --relationships flag added to Delete, Patch, Query, Get commands - uses #[arg(long)] pattern with bool type, defaults to false for lazy evaluation
-- [12-08]: Tool hints and suggested action integrated into all CLI commands (Query, Get, Delete, Patch)
-- [12-08]: ToolHintOperation extended with Query and Get variants
-- [12-08]: ActionType extended with Query and Read variants
-- [12-08]: Delete command includes caller-aware safety information in suggested_action
-- [12-08]: Confidence varies by operation: High for unique/read-only, Medium for potentially unsafe (delete with callers)
+- [12-07]: Relationships integrated into all four CLI commands (Query, Get, Delete, Patch) with lazy evaluation
+- [12-07]: Get command only queries imports/exports (file-level) because it retrieves code chunks by byte range, not symbol entity
+- [12-07]: Query/Delete/Patch query all four relationship types (callers, callees, imports, exports) using entity_id/node_id conversion
+- [12-07]: cycle_detected field set to false since RelationshipCache has no has_cycle() method - to be implemented with edge creation
 
 ### Pending Todos
 
 **Next Phase:**
-- Phase 13 planning needed
+- Complete plan 12-08 (Tool hints and suggested action CLI integration)
 - Performance testing (plan 12-06) to validate rich span metadata doesn't impact performance
+- Phase 13 planning needed
 - Integration testing with real LLM agents consuming JSON output
 
 ### Blockers/Concerns
@@ -102,7 +102,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed plan 12-08 (Tool hints and suggested action CLI integration)
+Stopped at: Completed plan 12-07 (Relationships CLI integration)
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -111,15 +111,17 @@ Resume file: None
 - 311+ tests passing
 - Comprehensive documentation complete
 
-**v2.2 Status:** PHASE 12 COMPLETE ✅
+**v2.2 Status:** PHASE 12 IN PROGRESS (7/8 complete) 🔄
 - Phase 11 complete: 7 infrastructure plans + 4 gap closure plans
-- Phase 12 complete: 8 plans (relationships, tool hints, suggested action, CLI integration)
+- Phase 12 progressing:
   - 12-01 (Relationships) ✅ Complete
   - 12-02 (Tool Hints) ✅ Complete
   - 12-03 (Suggested Action) ✅ Complete
   - 12-04 (SpanResult extension) ✅ Complete
   - 12-05 (CLI --relationships flag) ✅ Complete
-  - 12-08 (Tool hints/action CLI integration) ✅ Complete
+  - 12-07 (Relationships integration) ✅ Complete
+  - 12-08 (Tool hints/action integration) → Pending
+  - 12-06 (Performance tests) → Pending
 - 220 tests passing (including 9 relationship tests, 7 tool hints tests, 7 suggested action tests)
 - Error code registry with 26 error variants across 9 categories
 - Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
@@ -127,7 +129,8 @@ Resume file: None
 - SpanResult extended with 3 new optional fields (relationships, tool_hints, suggested_action)
 - All new fields use skip_serializing_if for backward compatibility
 - CLI --relationships flag added to Delete, Patch, Query, Get commands (lazy evaluation pattern)
-- Tool hints and suggested action integrated into all CLI commands (Query, Get, Delete, Patch)
+- Relationships now integrated into all four CLI commands (Query, Get, Delete, Patch)
+- Tool hints and suggested action infrastructure ready (not yet integrated into CLI)
 
 **Gap Closure Summary:**
 
