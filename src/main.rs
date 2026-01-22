@@ -155,6 +155,10 @@ fn main() -> ExitCode {
             json,
             stats,
         } => execute_log(operation_type, status, after, before, limit, offset, execution_id, json, stats, json_output),
+
+        splice::cli::Commands::Explain { code } => {
+            execute_explain(code, json_output)
+        }
     };
 
     // Handle result
@@ -2712,6 +2716,47 @@ fn execute_log(
             format!("Retrieved {} executions", logs.len()),
         ))
     }
+}
+
+/// Execute the `splice explain` command.
+///
+/// Prints detailed documentation for the specified error code.
+fn execute_explain(code: String, json_output: bool) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    if json_output {
+        // In JSON mode, return structured output
+        let explanation = splice::get_error_explanation(&code)
+            .unwrap_or("Unknown error code")
+            .to_string();
+
+        let payload = splice::cli::CliSuccessPayload::with_data(
+            format!("Error code explanation: {}", code),
+            serde_json::json!({
+                "code": code,
+                "explanation": explanation,
+            }),
+        );
+        return Ok(payload);
+    }
+
+    // Human-readable output
+    match splice::get_error_explanation(&code) {
+        Some(explanation) => {
+            println!("{}", explanation.trim());
+        }
+        None => {
+            eprintln!("Unknown error code: {}", code);
+            eprintln!();
+            eprintln!("Error codes follow the format SPL-E### (e.g., SPL-E001).");
+            eprintln!("Run `splice explain --list` to see all error codes.");
+            eprintln!();
+            eprintln!("For compiler error codes, see:");
+            eprintln!("  Rust: https://doc.rust-lang.org/error-index.html");
+            eprintln!("  TypeScript: https://www.typescriptlang.org/errors/");
+            return Err(splice::SpliceError::Other(format!("Unknown error code: {}", code)));
+        }
+    }
+
+    Ok(splice::cli::CliSuccessPayload::message_only(format!("Explained {}", code)))
 }
 
 /// Parse date string to Unix timestamp.

@@ -42,7 +42,7 @@ pub use output::SpanContext;
 pub use diff::{format_unified_diff, should_use_color, format_colored_diff, format_diff_summary};
 
 /// Re-export error codes for convenience.
-pub use error_codes::{ErrorCode, ErrorSeverity, SpliceErrorCode};
+pub use error_codes::{ErrorCode, ErrorSeverity, SpliceErrorCode, get_error_explanation};
 
 /// Re-export semantic kind detection for convenience.
 pub use ingest::{detect_semantic_kind, SemanticKind};

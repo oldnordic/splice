@@ -350,6 +350,13 @@ pub enum Commands {
         #[arg(long)]
         stats: bool,
     },
+
+    /// Explain an error code with detailed documentation.
+    Explain {
+        /// Error code to explain (e.g., SPL-E001, SPL-E002)
+        #[arg(short, long, value_name = "CODE")]
+        code: String,
+    },
 }
 
 /// Symbol kind for filtering.
