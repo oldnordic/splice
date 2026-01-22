@@ -262,7 +262,7 @@ fn execute_delete(
     use ropey::Rope;
 
     // Resolve context counts from -A/-B/-C flags
-    let (ctx_before, ctx_after) = splice::context::resolve_context_counts(context_before, context_after, context);
+    let (ctx_before, ctx_after) = splice::resolve_context_counts(context_before, context_after, context);
 
     // Start timing
     let start = std::time::Instant::now();
@@ -936,7 +936,7 @@ fn execute_patch(
     use splice::should_use_color;
 
     // Resolve context counts from -A/-B/-C flags
-    let (ctx_before, ctx_after) = splice::context::resolve_context_counts(context_before, context_after, context_both);
+    let (ctx_before, ctx_after) = splice::resolve_context_counts(context_before, context_after, context_both);
 
     // Start timing
     let start = std::time::Instant::now();
@@ -1976,7 +1976,7 @@ fn execute_query(
     use splice::execution::log;
 
     // Resolve context counts from -A/-B/-C flags
-    let (ctx_before, ctx_after) = splice::context::resolve_context_counts(context_before, context_after, context_both);
+    let (ctx_before, ctx_after) = splice::resolve_context_counts(context_before, context_after, context_both);
 
     // Start timing
     let start = std::time::Instant::now();
@@ -2390,7 +2390,7 @@ fn execute_get(
     use splice::graph::magellan_integration::MagellanIntegration;
 
     // Resolve context counts from -A/-B/-C flags
-    let (ctx_before, ctx_after) = splice::context::resolve_context_counts(context_before, context_after, context_both);
+    let (ctx_before, ctx_after) = splice::resolve_context_counts(context_before, context_after, context_both);
 
     // Open Magellan integration
     let integration = MagellanIntegration::open(db_path)?;

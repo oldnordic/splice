@@ -1,6 +1,6 @@
 //! Integration tests for -A, -B, -C context flags.
 
-use std::fs::{self, File};
+use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -11,28 +11,6 @@ fn create_test_file(dir: &TempDir, name: &str, content: &str) -> PathBuf {
     let mut file = File::create(&path).unwrap();
     writeln!(file, "{}", content).unwrap();
     path
-}
-
-/// Helper to create a simple database with a Rust file.
-fn create_test_db_with_content(dir: &TempDir, file_name: &str, content: &str) -> PathBuf {
-    use std::process::Command;
-
-    let db_path = dir.path().join("test.db");
-
-    // Create the test file
-    create_test_file(dir, file_name, content);
-
-    // Index it with Magellan via splice
-    let output = Command::new(env!("CARGO_BIN_EXE_splice"))
-        .arg("ingest")
-        .arg("--file")
-        .arg(dir.path().join(file_name))
-        .arg("--db")
-        .arg(&db_path)
-        .output();
-
-    // Ignore ingest errors for context testing - we'll test with files directly
-    db_path
 }
 
 #[test]
@@ -339,7 +317,7 @@ fn test_context_span_context_serialization() {
 #[test]
 fn test_resolve_context_counts() {
     // Test the resolve_context_counts helper function
-    use splice::context::resolve_context_counts;
+    use splice::resolve_context_counts;
 
     // Test case 1: Only context_both (simulating -C 3)
     let (before, after) = resolve_context_counts(0, 0, 3);
