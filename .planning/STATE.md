@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 16 of 17 (Symbol Expansion and Search) — IN PROGRESS
-Plan: 07 of 6 in current phase
-Status: Plan 16-07 complete
-Last activity: 2026-01-22 — Plan 16-07 complete (AST-aware pattern search command with grep-like functionality)
+Plan: 09 of 6 in current phase
+Status: Plan 16-09 complete
+Last activity: 2026-01-22 — Plan 16-09 complete (--glob flag for file pattern filtering in search)
 
-Progress: [█████████░░░░░░░░░░░] 92% (74/80 plans)
+Progress: [█████████░░░░░░░░░░░] 96% (76/80 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 74 (31 v2.0 + 43 v2.2)
+- Total plans completed: 75 (31 v2.0 + 44 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~30.6 hours (24h v2.0 + 6.6h v2.2)
+- Total execution time: ~30.8 hours (24h v2.0 + 6.8h v2.2)
 
 **By Phase:**
 
@@ -32,8 +32,8 @@ Progress: [█████████░░░░░░░░░░░] 92% (74
 | 11-13 (v2.2) | 30/30 | 3.2h | ~6 min |
 | 14 (v2.2) | 5/5 | 30min | ~6 min |
 | 15 (v2.2) | 6/6 | 17min | ~3 min |
-| 16 (v2.2) | 6/6 | 2.5h | ~25 min |
-| **Total** | **74/80** | **~30.6h** | **~25 min** |
+| 16 (v2.2) | 7/6 | 2.75h | ~24 min |
+| **Total** | **75/80** | **~30.8h** | **~25 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
@@ -46,9 +46,10 @@ Progress: [█████████░░░░░░░░░░░] 92% (74
 - Phase 16-02 complete: CLI expansion flags (--expand, --expand-level) for Get and Query commands with fallback on errors
 - Phase 16-04 complete: Leading doc comments in symbol expansion with extract_leading_docs() and expand_to_body_with_docs() (9 tests)
 - Phase 16-06 complete: Context flags respect expanded symbol boundaries in execute_get and execute_query (12 integration tests)
+- Phase 16-08 complete: Search command enhanced with grep-style context flags (-A/-B/-C) and context extraction (4 tests)
 - Rich span metadata fully integrated into CLI JSON output
 - Dry-run mode with git-compatible output (unified diff, summary header, colors, exit codes)
-- Context flags (-A/-B/-C) fully integrated across all 5 commands with grep-style resolution
+- Context flags (-A/-B/-C) fully integrated across all 6 commands (Delete, Patch, Query, Get, ApplyFiles, Search)
 - CLI-14 requirement satisfied: context calculated from expanded symbol boundaries
 
 *Updated after each plan completion*
@@ -175,6 +176,9 @@ Recent decisions affecting current work:
 - [16-06]: JSON output includes both original and expanded spans for transparency and debugging
 - [16-06]: Comprehensive integration tests (12 tests) verify context+expansion interaction across all 7 languages
 - [16-06]: Boundary recalculation pattern established: expand first, then extract context from expanded span
+- [16-08]: Default context_both to 2 lines for Search command (quick context view without overwhelming output)
+- [16-08]: Context extraction uses splice::context::extract_context_asymmetric() for consistency across all commands
+- [16-08]: Multi-language glob patterns in Search command use extension mapping (rs→Rust, py→Python, etc.)
 - [16-05A]: Integration tests in tests/ directory don't require lib.rs module declarations
 - [16-05A]: Search for 'fn symbol_name' pattern instead of just 'symbol_name' to avoid doc comment matches
 - [16-05A]: All Rust/Python expansion tests combined into single file for better organization
@@ -228,7 +232,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 16-07 (Symbol Expansion and Search) - AST-aware pattern search command
+Stopped at: Completed 16-08 (Symbol Expansion and Search) - Search command with context flags
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -343,5 +347,5 @@ Resume file: None
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 16-04 (Symbol Expansion and Search) - Leading doc comments in symbol expansion
+Stopped at: Completed 16-08 (Symbol Expansion and Search) - Search command with context flags
 Resume file: None
