@@ -9,20 +9,20 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 
 ## Current Position
 
-Phase: 14 of 17 (Context Flags) — IN PROGRESS 🔄
-Plan: 04 of ? in current phase
-Status: Plan 14-04 complete - Main.rs context flag wiring with grep-style resolution
-Last activity: 2026-01-22 — Plan 14-04 complete
+Phase: 14 of 17 (Context Flags) — COMPLETE ✅
+Plan: 05 of 5 in current phase
+Status: Plan 14-05 complete - Human-readable context output and comprehensive tests
+Last activity: 2026-01-22 — Plan 14-05 complete
 
-Progress: [█████████░░░░░░░░░░░░] 81% (65/80 plans)
+Progress: [█████████░░░░░░░░░░░░] 81% (66/80 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 65 (31 v2.0 + 34 v2.2)
+- Total plans completed: 66 (31 v2.0 + 35 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~27.9 hours (24h v2.0 + 3.9h v2.2)
+- Total execution time: ~28.1 hours (24h v2.0 + 4.1h v2.2)
 
 **By Phase:**
 
@@ -30,17 +30,18 @@ Progress: [█████████░░░░░░░░░░░░] 81% 
 |-------|-------|-------|----------|
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
 | 11-13 (v2.2) | 30/30 | 3.2h | ~6 min |
-| 14 (v2.2) | 4/? | 16min | ~4 min |
-| **Total** | **65/80** | **~27.9h** | **~26 min** |
+| 14 (v2.2) | 5/5 | 30min | ~6 min |
+| **Total** | **66/80** | **~28.1h** | **~26 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
 - Baseline velocity established: ~31 min/plan
 - v2.2 plans executing quickly (~1-14 min each)
 - Phase 13 complete: diff module, CLI flags (-n/--dry-run), unified diff integration, git-style exit codes (5/5 complete)
-- Phase 14 in progress: context flags with asymmetric extraction support (3/3 complete so far)
+- Phase 14 complete: context flags with asymmetric extraction, human-readable output, comprehensive tests (5/5 complete)
 - Rich span metadata fully integrated into CLI JSON output
 - Dry-run mode with git-compatible output (unified diff, summary header, colors, exit codes)
+- Context flags (-A/-B/-C) fully integrated across all 5 commands with grep-style resolution
 
 *Updated after each plan completion*
 
@@ -112,11 +113,15 @@ Recent decisions affecting current work:
 - [14-04]: All 5 execute_* functions updated with three context parameters (context_before, context_after, context/context_both)
 - [14-04]: Context resolution moved from main() match arms into individual execute_* function bodies
 - [14-04]: All extract_context calls updated to use extract_context_asymmetric with resolved before/after counts
+- [14-05]: resolve_context_counts moved from main.rs to context.rs for testability and exported from lib.rs
+- [14-05]: Human-readable context display added to execute_query and execute_get with "Context (N lines before):" and "Context (N lines after):" labels
+- [14-05]: Comprehensive integration tests created in tests/context_flags_tests.rs (437 lines, 16 tests)
+- [14-05]: Tests cover -A/-B/-C flag combinations, performance, file boundaries, and JSON serialization
 
 ### Pending Todos
 
 **Next Phase:**
-- Phase 13 planning continues (Dry-run & Diff) - 4/? plans complete
+- Phase 15 planning needed (next phase in roadmap)
 - Integration testing with real LLM agents consuming JSON output
 - CALLS edge creation implementation during code ingestion to enable real relationship queries
 
@@ -147,7 +152,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 13-03 (CLI Flags for Dry-Run and Unified Context) - dry-run aliases and unified flag added to Patch and Delete commands
+Stopped at: Completed 14-05 (Context Flags Complete) - Human-readable context output and comprehensive tests
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -156,7 +161,7 @@ Resume file: None
 - 311+ tests passing
 - Comprehensive documentation complete
 
-**v2.2 Status:** PHASE 14 IN PROGRESS 🔄
+**v2.2 Status:** PHASE 14 COMPLETE ✅
 - Phase 11 complete: 11 plans (7 infrastructure + 4 gap closure)
 - Phase 12 complete: 8 plans (all verified)
   - 12-01 (Relationships) ✅ Complete
@@ -173,12 +178,13 @@ Resume file: None
   - 13-03 (CLI Flags for Dry-Run and Unified Context) ✅ Complete
   - 13-04 (Dry-run Diff Integration) ✅ Complete
   - 13-05 (Dry-run Exit Code Implementation) ✅ Complete
-- Phase 14 in progress: 4 plans (context flags)
+- Phase 14 complete: 5 plans (context flags)
   - 14-01 (Unix-style Context Flags) ✅ Complete
   - 14-02 (ApplyFiles Context Flags) ✅ Complete
   - 14-03 (Asymmetric Context Extraction) ✅ Complete
   - 14-04 (Main.rs Context Flag Wiring) ✅ Complete
-- 236 tests passing (including 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context tests)
+  - 14-05 (Context Flags Complete) ✅ Complete
+- 252 tests passing (including 16 context flag tests, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests)
 - Error code registry with 26 error variants across 9 categories
 - Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
 - Rich span types ready: Relationships, ToolHints, SuggestedAction
@@ -196,7 +202,9 @@ Resume file: None
 - Unix-style context flags (-A, -B, -C) added to all 5 commands (Delete, Patch, Query, Get, ApplyFiles)
 - Asymmetric context extraction with extract_context_asymmetric() for separate before/after counts
 - Context flags wired through main.rs with grep-style resolution via resolve_context_counts()
-- Verification passed: Phase 12 all must-haves verified (27/27), Phase 13 complete, Phase 14 plans 01-04 complete
+- Human-readable context display shows "Context (N lines before):" and "Context (N lines after):" in Query and Get commands
+- Comprehensive integration tests for context flags in tests/context_flags_tests.rs (16 tests, 437 lines)
+- Verification passed: Phase 12 all must-haves verified (27/27), Phase 13 complete, Phase 14 complete (5/5)
 
 **Gap Closure Summary:**
 
@@ -211,5 +219,5 @@ Resume file: None
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 14-04 (Main.rs Context Flag Wiring) - resolve_context_counts helper and all execute_* functions updated
+Stopped at: Completed 14-05 (Context Flags Complete) - Human-readable context output and comprehensive tests
 Resume file: None
