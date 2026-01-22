@@ -468,6 +468,24 @@ impl SpanResult {
         self.file_checksum_before = Some(file_checksum_before.into());
         self
     }
+
+    /// Add relationships.
+    pub fn with_relationships(mut self, relationships: Relationships) -> Self {
+        self.relationships = Some(relationships);
+        self
+    }
+
+    /// Add tool hints.
+    pub fn with_tool_hints(mut self, hints: ToolHints) -> Self {
+        self.tool_hints = Some(hints);
+        self
+    }
+
+    /// Add suggested action.
+    pub fn with_suggested_action(mut self, action: SuggestedAction) -> Self {
+        self.suggested_action = Some(action);
+        self
+    }
 }
 
 // Implement Ord for SpanResult - sorts by file_path, then byte_start, then byte_end
