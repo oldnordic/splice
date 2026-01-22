@@ -207,6 +207,68 @@ pub fn parse_rust_analyzer_output(output: &str) -> Vec<CompilerError> {
     parse_rust_style_output(output)
 }
 
+/// Parse TypeScript compiler (tsc) output into CompilerError structs.
+///
+/// TypeScript error format:
+///   file.ts(line,col): error TSXXXX: message
+///   file.ts(line,col): warning TSXXXX: message
+///
+/// # Examples
+/// ```text
+/// test.ts(2,5): error TS1002: Unterminated string literal
+/// another.ts(10,12): warning TS2304: Cannot find name 'foo'
+/// ```
+///
+/// This function is public for testing purposes.
+pub fn parse_typescript_output(output: &str) -> Vec<CompilerError> {
+    use regex::Regex;
+
+    // TypeScript format: file(line,col): error/warning TSXXXX: message
+    // Example: test.ts(2,5): error TS1002: Unterminated string
+    let re = match Regex::new(
+        r"^(.+?)\((\d+),(\d+)\): (error|warning) (TS\d+): (.+)$"
+    ) {
+        Ok(re) => re,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut errors = Vec::new();
+
+    for line in output.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        if let Some(caps) = re.captures(trimmed) {
+            let file = caps.get(1).map(|m| m.as_str().to_string()).unwrap_or_default();
+            let line_num = caps.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(1);
+            let column = caps.get(3).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+            let level_str = caps.get(4).map(|m| m.as_str()).unwrap_or("error");
+            let code = caps.get(5).map(|m| m.as_str().to_string());
+            let message = caps.get(6).map(|m| m.as_str().to_string()).unwrap_or_default();
+
+            let level = match level_str {
+                "error" => ErrorLevel::Error,
+                "warning" => ErrorLevel::Warning,
+                _ => ErrorLevel::Error,
+            };
+
+            errors.push(CompilerError {
+                level,
+                file,
+                line: line_num,
+                column,
+                code,
+                message,
+                note: None,
+            });
+        }
+    }
+
+    errors
+}
+
 fn parse_rust_style_output(output: &str) -> Vec<CompilerError> {
     let mut errors = Vec::new();
     let mut pending_error: Option<PendingDiagnostic> = None;
