@@ -71,6 +71,47 @@ impl ToolHints {
         self.requires_compilation = value;
         self
     }
+
+    /// Convenience constructor for function deletion.
+    ///
+    /// # Arguments
+    ///
+    /// * `is_public` - Whether the function is publicly visible
+    pub fn for_function_delete(is_public: bool) -> Self {
+        Self {
+            requires_full_context: false,
+            apply_atomically: true,
+            may_break_tests: is_public,
+            requires_compilation: true,
+        }
+    }
+
+    /// Convenience constructor for struct modification.
+    ///
+    /// # Arguments
+    ///
+    /// * `is_public` - Whether the struct is publicly visible
+    pub fn for_struct_modify(is_public: bool) -> Self {
+        Self {
+            requires_full_context: false,
+            apply_atomically: true,
+            may_break_tests: is_public,
+            requires_compilation: true,
+        }
+    }
+
+    /// Convenience constructor for body replacement.
+    ///
+    /// Body replacements are generally safe - they don't change signatures
+    /// or types, so they won't break tests and don't require full context.
+    pub fn for_body_replace() -> Self {
+        Self {
+            requires_full_context: false,
+            apply_atomically: true,
+            may_break_tests: false,
+            requires_compilation: false,
+        }
+    }
 }
 
 /// Derive tool hints from symbol metadata and operation type.
@@ -166,5 +207,38 @@ mod tests {
         assert!(json.contains("\"requires_full_context\":true"));
         assert!(json.contains("\"apply_atomically\":true"));
         assert!(json.contains("\"may_break_tests\":false"));
+    }
+
+    #[test]
+    fn test_for_function_delete() {
+        let hints = ToolHints::for_function_delete(true);
+        assert_eq!(hints.requires_full_context, false);
+        assert_eq!(hints.apply_atomically, true);
+        assert_eq!(hints.may_break_tests, true);  // public function
+        assert_eq!(hints.requires_compilation, true);
+
+        let hints_private = ToolHints::for_function_delete(false);
+        assert_eq!(hints_private.may_break_tests, false);  // private function
+    }
+
+    #[test]
+    fn test_for_struct_modify() {
+        let hints = ToolHints::for_struct_modify(true);
+        assert_eq!(hints.requires_full_context, false);
+        assert_eq!(hints.apply_atomically, true);
+        assert_eq!(hints.may_break_tests, true);  // public struct
+        assert_eq!(hints.requires_compilation, true);
+
+        let hints_private = ToolHints::for_struct_modify(false);
+        assert_eq!(hints_private.may_break_tests, false);  // private struct
+    }
+
+    #[test]
+    fn test_for_body_replace() {
+        let hints = ToolHints::for_body_replace();
+        assert_eq!(hints.requires_full_context, false);
+        assert_eq!(hints.apply_atomically, true);
+        assert_eq!(hints.may_break_tests, false);  // body changes don't break tests
+        assert_eq!(hints.requires_compilation, false);  // no signature/type change
     }
 }
