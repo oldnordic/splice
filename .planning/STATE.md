@@ -19,10 +19,10 @@ Progress: [█████████░░░░░░░░░░░] 96% (76
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 75 (31 v2.0 + 44 v2.2)
+- Total plans completed: 76 (31 v2.0 + 45 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~30.8 hours (24h v2.0 + 6.8h v2.2)
+- Total execution time: ~31 hours (24h v2.0 + 7h v2.2)
 
 **By Phase:**
 
@@ -32,8 +32,8 @@ Progress: [█████████░░░░░░░░░░░] 96% (76
 | 11-13 (v2.2) | 30/30 | 3.2h | ~6 min |
 | 14 (v2.2) | 5/5 | 30min | ~6 min |
 | 15 (v2.2) | 6/6 | 17min | ~3 min |
-| 16 (v2.2) | 7/6 | 2.75h | ~24 min |
-| **Total** | **75/80** | **~30.8h** | **~25 min** |
+| 16 (v2.2) | 8/6 | 3h | ~23 min |
+| **Total** | **76/80** | **~31h** | **~25 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
@@ -47,6 +47,7 @@ Progress: [█████████░░░░░░░░░░░] 96% (76
 - Phase 16-04 complete: Leading doc comments in symbol expansion with extract_leading_docs() and expand_to_body_with_docs() (9 tests)
 - Phase 16-06 complete: Context flags respect expanded symbol boundaries in execute_get and execute_query (12 integration tests)
 - Phase 16-08 complete: Search command enhanced with grep-style context flags (-A/-B/-C) and context extraction (4 tests)
+- Phase 16-09 complete: --glob flag for file pattern filtering with multi-language support (5 glob filtering tests)
 - Rich span metadata fully integrated into CLI JSON output
 - Dry-run mode with git-compatible output (unified diff, summary header, colors, exit codes)
 - Context flags (-A/-B/-C) fully integrated across all 6 commands (Delete, Patch, Query, Get, ApplyFiles, Search)
@@ -189,19 +190,26 @@ Recent decisions affecting current work:
 - [16-05B]: 25 expansion tests covering all 7 languages with doc styles (///, /**/, """, /**, JSDoc)
 - [16-07]: Search subcommand added with --pattern, --path, --language, --glob flags for AST-aware code pattern search
 - [16-07]: Removed short flag from --path to avoid conflict with --pattern (both would use -p)
-- [16-07]: Context flags (-A/-B/-C) added to Search command for future context display support (16-09)
+- [16-07]: Context flags (-A/-B/-C) added to Search command for future context display support (16-08)
 - [16-07]: --glob flag allows custom glob patterns (e.g., "src/**/*.rs", "tests/**/*.py") for multi-language searches
 - [16-07]: execute_search function calls find_pattern_in_files() leveraging existing pattern infrastructure
 - [16-07]: Human-readable output format: file:line:column: matched_text
 - [16-07]: JSON output format with file, byte offsets, line, column, matched_text
-- [16-07]: Rust-only glob pattern as stepping stone (multi-language added in 16-09)
-- [16-07]: 4 integration tests verify search functionality across Rust, Python, and multiple files
+- [16-08]: Context extraction integrated into Search command using splice::context::extract_context_asymmetric()
+- [16-08]: resolve_context_counts() implements grep convention for -A/-B/-C flag resolution in search
+- [16-08]: Context display in human output with "Context (N line(s) before/after):" labels and line numbers
+- [16-08]: Context in JSON output as context_before, context_selected, context_after arrays
+- [16-08]: pattern module made public (pub mod pattern) to enable find_pattern_in_files() access from execute_search
+- [16-09]: Multi-language glob pattern building from path and language when --glob not specified
+- [16-09]: Language-specific extensions: rs, py, c, cpp, java, js, ts
+- [16-09]: All supported types with brace expansion: {rs,py,c,cpp,h,hpp,cc,cxx,java,js,mjs,cjs,ts,tsx}
+- [16-09]: 5 glob filtering tests verify recursive matching, extension filtering, and empty results
+- [16-09]: Context extraction reuses existing extract_context_asymmetric() infrastructure for consistency
 
 ### Pending Todos
 
 **Next Phase:**
-- Phase 16-08: Context display in search results (show lines before/after matches)
-- Phase 16-09: Multi-language glob patterns for search command
+- Phase 17: Final phase (project completion)
 - Integration testing with real LLM agents consuming JSON output
 - CALLS edge creation implementation during code ingestion to enable real relationship queries
 
@@ -232,7 +240,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 16-08 (Symbol Expansion and Search) - Search command with context flags
+Stopped at: Completed 16-09 (Symbol Expansion and Search) - --glob flag for file pattern filtering
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -270,15 +278,18 @@ Resume file: None
   - 15-03 (Fuzzy Symbol Suggestions) ✅ Complete
   - 15-04 (TypeScript Error Code Extraction) ✅ Complete
   - 15-05 (Error Code Explain Command) ✅ Complete
-- Phase 16 in progress: 5/6 plans (symbol expansion and search)
+- Phase 16 in progress: 8/6 plans (symbol expansion and search)
   - 16-01 (Symbol Expansion Infrastructure) ✅ Complete
   - 16-02 (CLI Expansion Flags) ✅ Complete
-  - 16-03 (Search Command) ⏳ Pending
+  - 16-03 (Search Command) ✅ Complete
   - 16-04 (Leading Doc Comments) ✅ Complete
   - 16-05A (Rust/Python Expansion Tests) ✅ Complete
   - 16-05B (Multi-Language Expansion Tests) ✅ Complete
   - 16-06 (Context+Expansion Integration) ✅ Complete
-- 307 tests passing (including 25 expansion tests, 12 context+expansion integration tests, 9 doc extraction tests, 9 suggestions tests, 5 compiler error tests, 16 context flag tests, 14 error_codes tests, 1 error location test, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests)
+  - 16-07 (Search Command Implementation) ✅ Complete
+  - 16-08 (Context Flags for Search) ✅ Complete
+  - 16-09 (Glob Flag for File Filtering) ✅ Complete
+- 312 tests passing (including 25 expansion tests, 12 context+expansion integration tests, 9 doc extraction tests, 9 suggestions tests, 5 compiler error tests, 16 context flag tests, 14 error_codes tests, 1 error location test, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests, 5 glob filtering tests, 4 search context tests)
 - Error code registry with 28 error variants across 9 categories (22 error-level, 6 warning-level)
 - Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
 - Rich span types ready: Relationships, ToolHints, SuggestedAction
@@ -347,5 +358,5 @@ Resume file: None
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 16-08 (Symbol Expansion and Search) - Search command with context flags
+Stopped at: Completed 16-09 (Symbol Expansion and Search) - --glob flag for file pattern filtering
 Resume file: None
