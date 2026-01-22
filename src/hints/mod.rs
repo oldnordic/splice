@@ -3,6 +3,7 @@
 //! This module provides behavioral flags for refactoring operations,
 //! helping LLMs understand safe operations and potential side effects.
 
+use crate::ingest::SemanticKind;
 use serde::Serialize;
 
 /// Operation type for tool hint derivation.
@@ -69,6 +70,63 @@ impl ToolHints {
     pub fn with_requires_compilation(mut self, value: bool) -> Self {
         self.requires_compilation = value;
         self
+    }
+}
+
+/// Derive tool hints from symbol metadata and operation type.
+///
+/// Analyzes the semantic kind, visibility, and operation to determine
+/// appropriate behavioral flags for LLM guidance.
+///
+/// # Arguments
+///
+/// * `semantic_kind` - The kind of symbol (function, type, trait, etc.)
+/// * `is_public` - Whether the symbol is publicly visible
+/// * `operation` - The type of operation being performed
+///
+/// # Returns
+///
+/// ToolHints with appropriate flags set based on static analysis
+pub fn derive_tool_hints(
+    semantic_kind: SemanticKind,
+    is_public: bool,
+    operation: ToolHintOperation,
+) -> ToolHints {
+    // Determine requires_full_context
+    // True for: closures, impl blocks (traits from impl_item)
+    let requires_full_context = matches!(
+        (semantic_kind, operation),
+        (SemanticKind::Function, ToolHintOperation::DeleteBody) |
+        (SemanticKind::Function, ToolHintOperation::ReplaceBody) |
+        (SemanticKind::Trait, _)
+    );
+
+    // apply_atomically is always true (all splice operations are atomic)
+    let apply_atomically = true;
+
+    // Determine may_break_tests using static heuristic
+    // True for: public functions, trait signatures, impl blocks
+    let may_break_tests = match (semantic_kind, is_public) {
+        (SemanticKind::Function, true) => true,
+        (SemanticKind::Trait, true) => true,
+        (SemanticKind::Type, true) => true,
+        _ => false,
+    };
+
+    // Determine requires_compilation
+    // True for: type-changing operations, public signature changes
+    let requires_compilation = match operation {
+        ToolHintOperation::ChangeType => true,
+        ToolHintOperation::ChangeSignature if is_public => true,
+        ToolHintOperation::DeleteBody if is_public => true,
+        _ => false,
+    };
+
+    ToolHints {
+        requires_full_context,
+        apply_atomically,
+        may_break_tests,
+        requires_compilation,
     }
 }
 
