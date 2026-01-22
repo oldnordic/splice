@@ -237,8 +237,8 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17
 | 8. Execution Logging | v2.0 | 3/3 | Complete | 2026-01-17 |
 | 9. Integration Testing | v2.0 | 3/3 | Complete | 2026-01-17 |
 | 10. Documentation Update | v2.0 | 3/3 | Complete | 2026-01-18 |
-| 11. Rich Span Core | v2.2 | 7/11 | Gap closure plans created | - |
-| 12. Rich Span Advanced | v2.2 | 0/6 | Plans created | - |
+| 11. Rich Span Core | v2.2 | 11/11 | Complete | 2026-01-22 |
+| 12. Rich Span Advanced | v2.2 | 8/8 | Complete | 2026-01-22 |
 | 13. Dry-run & Diff | v2.2 | 0/5 | Not started | - |
 | 14. Context Flags | v2.2 | 0/5 | Not started | - |
 | 15. Enhanced Errors | v2.2 | 0/6 | Not started | - |
@@ -247,4 +247,4 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%) ✅
-- v2.2: 17/51 plans planned (33%) 🚧
+- v2.2: 25/51 plans planned (49%) 🚧

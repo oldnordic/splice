@@ -10,30 +10,30 @@ Requirements for Unified JSON Schema implementation with LLM-first UX improvemen
 
 ### Rich Span Extensions - Core
 
-- [ ] **RICHSPAN-01:** Spans include `context` field with `before`, `selected`, `after` arrays
-- [ ] **RICHSPAN-02:** Default context is 3 lines (configurable via `--context-lines`)
-- [ ] **RICHSPAN-03:** Context uses UTF-8 byte offsets consistent with span coordinates
-- [ ] **RICHSPAN-04:** Spans include `semantic_kind` field (function, variable, parameter, etc.)
-- [ ] **RICHSPAN-05:** Spans include `language` field detected from file extension/tree-sitter
-- [ ] **RICHSPAN-06:** Semantic kind mappings cover all 7 supported languages
-- [ ] **RICHSPAN-07:** Spans include `checksum_before` for race condition protection
-- [ ] **RICHSPAN-08:** Spans include `file_checksum_before` for file-level verification
-- [ ] **RICHSPAN-09:** Checksums use SHA-256 consistent with existing v2.0 implementation
-- [ ] **RICHSPAN-10:** Spans include `error_code` field with `SPL-E001` format for errors
-- [ ] **RICHSPAN-11:** Error codes include severity level (error/warning/note)
-- [ ] **RICHSPAN-12:** Error codes include precise location (file:line:column)
-- [ ] **RICHSPAN-13:** Error codes include "what to do" hint or suggestion
+- [x] **RICHSPAN-01:** Spans include `context` field with `before`, `selected`, `after` arrays
+- [x] **RICHSPAN-02:** Default context is 3 lines (configurable via `--context-lines`)
+- [x] **RICHSPAN-03:** Context uses UTF-8 byte offsets consistent with span coordinates
+- [x] **RICHSPAN-04:** Spans include `semantic_kind` field (function, variable, parameter, etc.)
+- [x] **RICHSPAN-05:** Spans include `language` field detected from file extension/tree-sitter
+- [x] **RICHSPAN-06:** Semantic kind mappings cover all 7 supported languages
+- [x] **RICHSPAN-07:** Spans include `checksum_before` for race condition protection
+- [x] **RICHSPAN-08:** Spans include `file_checksum_before` for file-level verification
+- [x] **RICHSPAN-09:** Checksums use SHA-256 consistent with existing v2.0 implementation
+- [x] **RICHSPAN-10:** Spans include `error_code` field with `SPL-E001` format for errors
+- [x] **RICHSPAN-11:** Error codes include severity level (error/warning/note)
+- [x] **RICHSPAN-12:** Error codes include precise location (file:line:column)
+- [x] **RICHSPAN-13:** Error codes include "what to do" hint or suggestion
 
 ### Rich Span Extensions - Advanced
 
-- [ ] **RICHSPAN-14:** Spans include `relationships` object with `callers`, `callees`, `imports`, `exports`
-- [ ] **RICHSPAN-15:** Relationships span full codebase (cross-file queries via codegraph.db)
-- [ ] **RICHSPAN-16:** Relationship queries are lazy (only with `--relationships` flag)
-- [ ] **RICHSPAN-17:** Spans include `tool_hints` object with `requires_full_context`, `apply_atomically`
-- [ ] **RICHSPAN-18:** Tool hints include `may_break_tests`, `requires_compilation` flags
-- [ ] **RICHSPAN-19:** Spans include `suggested_action` object with `action_type` and `params`
-- [ ] **RICHSPAN-20:** Suggested actions support primitives: delete, replace, expand
-- [ ] **RICHSPAN-21:** All rich span fields are optional (use `#[serde(skip_serializing_if = "Option::is_none")]`)
+- [x] **RICHSPAN-14:** Spans include `relationships` object with `callers`, `callees`, `imports`, `exports`
+- [x] **RICHSPAN-15:** Relationships span full codebase (cross-file queries via codegraph.db)
+- [x] **RICHSPAN-16:** Relationship queries are lazy (only with `--relationships` flag)
+- [x] **RICHSPAN-17:** Spans include `tool_hints` object with `requires_full_context`, `apply_atomically`
+- [x] **RICHSPAN-18:** Tool hints include `may_break_tests`, `requires_compilation` flags
+- [x] **RICHSPAN-19:** Spans include `suggested_action` object with `action_type` and `params`
+- [x] **RICHSPAN-20:** Suggested actions support primitives: delete, replace, expand
+- [x] **RICHSPAN-21:** All rich span fields are optional (use `#[serde(skip_serializing_if = "Option::is_none")]`)
 
 ### CLI Improvements - Dry-run & Diff
 
@@ -127,8 +127,8 @@ Which phases cover which requirements. All v2.2 requirements mapped to roadmap p
 
 | Requirement | Phase | Status | Notes |
 |-------------|-------|--------|-------|
-| RICHSPAN-01 through RICHSPAN-13 | Phase 11 | In Progress | 7/11 plans executed, 4 gap closure plans created |
-| RICHSPAN-14 through RICHSPAN-21 | Phase 12 | Pending | |
+| RICHSPAN-01 through RICHSPAN-13 | Phase 11 | Complete | 11/11 plans executed |
+| RICHSPAN-14 through RICHSPAN-21 | Phase 12 | Complete | 8/8 plans executed |
 | CLI-01 through CLI-07 | Phase 13 | Pending | |
 | CLI-08 through CLI-14 | Phase 14 | Pending | |
 | CLI-15 through CLI-21 | Phase 15 | Pending | |
@@ -141,34 +141,13 @@ Which phases cover which requirements. All v2.2 requirements mapped to roadmap p
 - Unmapped: 0
 
 **Phase Distribution:**
-- Phase 11 (Rich Span Core): 13 requirements (RICHSPAN-01 to RICHSPAN-13)
-  - Infrastructure complete (plans 11-01 through 11-07)
-  - Gap closure plans created (11-08 through 11-11)
-  - Status: 7/11 plans executed, 4 gap closure plans pending execution
-- Phase 12 (Rich Span Advanced): 8 requirements (RICHSPAN-14 to RICHSPAN-21)
-- Phase 13 (Dry-run & Diff): 7 requirements (CLI-01 to CLI-07)
-- Phase 14 (Context Flags): 7 requirements (CLI-08 to CLI-14)
-- Phase 15 (Enhanced Errors): 7 requirements (CLI-15 to CLI-21)
-- Phase 16 (Symbol Expansion + Search): 12 requirements (CLI-22 to CLI-33)
-- Phase 17 (Integration & Testing): 6 requirements (TEST-01 to TEST-06)
-
-**Gap Status (Phase 11):**
-
-| Requirement | Infrastructure | CLI Integration | Plan |
-|-------------|---------------|-----------------|------|
-| RICHSPAN-01: Context field | ✅ Complete | ❌ Not integrated | 11-08 |
-| RICHSPAN-02: --context-lines flag | ❌ Missing | ❌ Missing | 11-08 |
-| RICHSPAN-03: UTF-8 byte offsets | ✅ Complete | ✅ Verified | N/A |
-| RICHSPAN-04: semantic_kind field | ✅ Complete | ❌ Not integrated | 11-09 |
-| RICHSPAN-05: language field | ✅ Complete | ❌ Not integrated | 11-09 |
-| RICHSPAN-06: All 7 languages mapped | ✅ Complete | ✅ Verified | N/A |
-| RICHSPAN-07: checksum_before field | ✅ Complete | ❌ Not integrated | 11-10 |
-| RICHSPAN-08: file_checksum_before field | ✅ Complete | ❌ Not integrated | 11-10 |
-| RICHSPAN-09: SHA-256 checksums | ✅ Complete | ✅ Verified | N/A |
-| RICHSPAN-10: error_code field | ✅ Complete | ❌ Not integrated | 11-11 |
-| RICHSPAN-11: Severity levels | ✅ Complete | ✅ Verified | N/A |
-| RICHSPAN-12: Precise location | ✅ Complete | ✅ Verified | N/A |
-| RICHSPAN-13: What-to-do hints | ✅ Complete | ✅ Verified | N/A |
+- Phase 11 (Rich Span Core): 13 requirements (RICHSPAN-01 to RICHSPAN-13) — Complete ✅
+- Phase 12 (Rich Span Advanced): 8 requirements (RICHSPAN-14 to RICHSPAN-21) — Complete ✅
+- Phase 13 (Dry-run & Diff): 7 requirements (CLI-01 to CLI-07) — Pending
+- Phase 14 (Context Flags): 7 requirements (CLI-08 to CLI-14) — Pending
+- Phase 15 (Enhanced Errors): 7 requirements (CLI-15 to CLI-21) — Pending
+- Phase 16 (Symbol Expansion + Search): 12 requirements (CLI-22 to CLI-33) — Pending
+- Phase 17 (Integration & Testing): 6 requirements (TEST-01 to TEST-06) — Pending
 
 ---
 *Requirements defined: 2026-01-22*

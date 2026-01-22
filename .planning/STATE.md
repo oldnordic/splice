@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** Phase 12 - Rich Span Advanced (7 plans complete)
+**Current focus:** Phase 12 - Rich Span Advanced (COMPLETE) → Phase 13: Dry-run & Diff
 
 ## Current Position
 
-Phase: 12 of 17 (Rich Span Advanced)
-Plan: 06 of 08 in current phase (7 complete, 1 pending - 12-08 skipped for now)
-Status: In progress - Performance tests complete
-Last activity: 2026-01-22 — Completed plan 12-06: Performance tests
+Phase: 12 of 17 (Rich Span Advanced) — COMPLETE ✅
+Plan: 08 of 08 in current phase (all complete)
+Status: Complete - All 8 plans executed with verification passed (27/27 must-haves)
+Last activity: 2026-01-22 — Phase 12 verified and complete
 
-Progress: [██████████████████░░] 88%
+Progress: [████████████████████] 100%
 
 ## Performance Metrics
 
@@ -29,15 +29,15 @@ Progress: [██████████████████░░] 88%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
-| 11-12 (v2.2) | 25/49 | 2.6h | ~6 min |
+| 11-12 (v2.2) | 25/25 | 2.6h | ~6 min |
 | **Total** | **56/80** | **~26.6h** | **~29 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
 - Baseline velocity established: ~31 min/plan
 - v2.2 plans executing quickly (~1-11 min each)
-- Phase 12 in progress: relationships, tool hints, suggested actions, SpanResult extension, CLI integration, performance tests (7/8 complete)
-- Rich span metadata mostly integrated into CLI JSON output
+- Phase 12 complete: relationships, tool hints, suggested actions, SpanResult extension, CLI integration, performance tests (8/8 complete)
+- Rich span metadata fully integrated into CLI JSON output
 - Performance test suite validates relationship queries scale to 1K symbols
 
 *Updated after each plan completion*
@@ -73,12 +73,15 @@ Recent decisions affecting current work:
 - [12-06]: Performance tests use 1K symbol graphs (scaled from 10K) due to SQLiteGraph node region overflow - still provides meaningful validation
 - [12-06]: TestGraphBuilder pattern for creating test graphs with configurable sizes (small: 50, medium: 200, large: 1000 symbols)
 - [12-06]: Performance bounds validated: small graphs < 10ms, large graphs < 100ms for relationship queries
+- [12-08]: Tool hints and suggested action integrated into all four CLI commands (Delete, Patch, Query, Get)
+- [12-08]: ActionType extended with Query and Read variants for full command coverage
+- [12-08]: derive_tool_hints() called with appropriate ToolHintOperation per command (DeleteBody, ReplaceBody, Query, Get)
+- [12-08]: suggest_action() called with appropriate ActionType per command (Delete, Replace, Query, Read)
 
 ### Pending Todos
 
 **Next Phase:**
-- Complete plan 12-08 (Tool hints and suggested action CLI integration)
-- Phase 13 planning needed
+- Phase 13 planning needed (Dry-run & Diff)
 - Integration testing with real LLM agents consuming JSON output
 - CALLS edge creation implementation during code ingestion to enable real relationship queries
 
@@ -106,7 +109,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed plan 12-06 (Performance tests)
+Stopped at: Phase 12 complete, all 8 plans executed with verification passed (27/27 must-haves)
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -115,9 +118,9 @@ Resume file: None
 - 311+ tests passing
 - Comprehensive documentation complete
 
-**v2.2 Status:** PHASE 12 IN PROGRESS (7/8 complete) 🔄
-- Phase 11 complete: 7 infrastructure plans + 4 gap closure plans
-- Phase 12 progressing:
+**v2.2 Status:** PHASE 12 COMPLETE ✅
+- Phase 11 complete: 11 plans (7 infrastructure + 4 gap closure)
+- Phase 12 complete: 8 plans (all verified)
   - 12-01 (Relationships) ✅ Complete
   - 12-02 (Tool Hints) ✅ Complete
   - 12-03 (Suggested Action) ✅ Complete
@@ -125,7 +128,7 @@ Resume file: None
   - 12-05 (CLI --relationships flag) ✅ Complete
   - 12-07 (Relationships integration) ✅ Complete
   - 12-06 (Performance tests) ✅ Complete
-  - 12-08 (Tool hints/action integration) → Pending
+  - 12-08 (Tool hints/action integration) ✅ Complete
 - 235 tests passing (including 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests)
 - Error code registry with 26 error variants across 9 categories
 - Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
@@ -133,9 +136,10 @@ Resume file: None
 - SpanResult extended with 3 new optional fields (relationships, tool_hints, suggested_action)
 - All new fields use skip_serializing_if for backward compatibility
 - CLI --relationships flag added to Delete, Patch, Query, Get commands (lazy evaluation pattern)
-- Relationships now integrated into all four CLI commands (Query, Get, Delete, Patch)
+- Relationships integrated into all four CLI commands (Query, Get, Delete, Patch)
+- Tool hints and suggested action integrated into all four CLI commands (Delete, Patch, Query, Get)
 - Performance test suite validates relationship queries scale to 1K symbols (small: <10ms, large: <100ms)
-- Tool hints and suggested action infrastructure ready (not yet integrated into CLI)
+- Verification passed: 27/27 must-haves verified against actual codebase
 
 **Gap Closure Summary:**
 
