@@ -59,6 +59,10 @@ pub enum Commands {
         #[arg(long, value_name = "LANG")]
         language: Option<Language>,
 
+        /// Number of context lines before/after spans (default: 3).
+        #[arg(long, value_name = "N", default_value = "3")]
+        context_lines: usize,
+
         /// Create a backup before deleting.
         #[arg(long)]
         create_backup: bool,
@@ -106,6 +110,10 @@ pub enum Commands {
         /// JSON file describing batch replacements.
         #[arg(long, value_name = "FILE")]
         batch: Option<std::path::PathBuf>,
+
+        /// Number of context lines before/after spans (default: 3).
+        #[arg(long, value_name = "N", default_value = "3")]
+        context_lines: usize,
 
         /// Run in preview mode without mutating the workspace.
         #[arg(long, conflicts_with = "batch")]
@@ -164,6 +172,10 @@ pub enum Commands {
         #[arg(long, value_name = "LANG")]
         language: Option<Language>,
 
+        /// Number of context lines before/after spans (default: 3).
+        #[arg(long, value_name = "N", default_value = "3")]
+        context_lines: usize,
+
         /// Skip validation gates (default: false).
         #[arg(long)]
         no_validate: bool,
@@ -191,6 +203,10 @@ pub enum Commands {
         /// Examples: rust, python, fn, struct, class, method, etc.
         #[arg(short, long)]
         label: Vec<String>,
+
+        /// Number of context lines before/after spans (default: 3).
+        #[arg(long, value_name = "N", default_value = "3")]
+        context_lines: usize,
 
         /// List all available labels.
         #[arg(long)]
@@ -222,6 +238,10 @@ pub enum Commands {
         /// End byte offset.
         #[arg(long)]
         end: usize,
+
+        /// Number of context lines before/after spans (default: 3).
+        #[arg(long, value_name = "N", default_value = "3")]
+        context_lines: usize,
     },
 
     /// Query execution log.
@@ -443,6 +463,9 @@ pub struct ErrorDetails {
     /// Optional diagnostics emitted by validation gates.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub diagnostics: Option<Vec<DiagnosticPayload>>,
+    /// Optional structured error code (SPL-E### format).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<crate::ErrorCode>,
 }
 
 impl CliErrorPayload {
@@ -467,6 +490,24 @@ impl CliErrorPayload {
             }
         };
 
+        // Try to create structured error code from SpliceError
+        let error_code = crate::error_codes::SpliceErrorCode::from_splice_error(error)
+            .map(|splice_code| {
+                // Extract line and column from error if available
+                let (_line, _column) = if error.file_path().is_some() {
+                    // Try to get line/column from error context
+                    (None, None) // TODO: Extract from error when available
+                } else {
+                    (None, None)
+                };
+                crate::ErrorCode::from_splice_code(
+                    splice_code,
+                    file.as_deref(),
+                    _line,
+                    _column,
+                )
+            });
+
         CliErrorPayload {
             status: "error",
             error: ErrorDetails {
@@ -476,6 +517,7 @@ impl CliErrorPayload {
                 file,
                 hint,
                 diagnostics,
+                error_code,
             },
         }
     }

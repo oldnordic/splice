@@ -29,10 +29,11 @@ fn main() -> ExitCode {
             kind,
             analyzer,
             language,
+            context_lines,
             create_backup,
             operation_id,
             metadata,
-        } => execute_delete(&file, &symbol, kind, analyzer, language, create_backup, operation_id, metadata, json_output),
+        } => execute_delete(&file, &symbol, kind, analyzer, language, context_lines, create_backup, operation_id, metadata, json_output),
 
         splice::cli::Commands::Patch {
             file,
@@ -42,6 +43,7 @@ fn main() -> ExitCode {
             with_: replacement_file,
             language,
             batch,
+            context_lines,
             preview,
             create_backup,
             operation_id,
@@ -55,6 +57,7 @@ fn main() -> ExitCode {
                 analyzer,
                 replacement_file,
                 language,
+                context_lines,
                 preview,
                 create_backup,
                 operation_id,
@@ -74,26 +77,29 @@ fn main() -> ExitCode {
             find,
             replace,
             language,
+            context_lines,
             no_validate,
             create_backup,
             operation_id,
             metadata,
-        } => execute_apply_files(&glob, &find, &replace, language, !no_validate, create_backup, operation_id, metadata, json_output),
+        } => execute_apply_files(&glob, &find, &replace, language, context_lines, !no_validate, create_backup, operation_id, metadata, json_output),
 
         splice::cli::Commands::Query {
             db,
             label,
+            context_lines,
             list,
             count,
             show_code,
-        } => execute_query(&db, &label, list, count, show_code, json_output),
+        } => execute_query(&db, &label, context_lines, list, count, show_code, json_output),
 
         splice::cli::Commands::Get {
             db,
             file,
             start,
             end,
-        } => execute_get(&db, &file, start, end, json_output),
+            context_lines,
+        } => execute_get(&db, &file, start, end, context_lines, json_output),
 
         splice::cli::Commands::Log {
             operation_type,
@@ -182,6 +188,7 @@ fn execute_delete(
     kind: Option<splice::cli::SymbolKind>,
     analyzer: Option<splice::cli::AnalyzerMode>,
     language: Option<splice::cli::Language>,
+    context_lines: usize,
     create_backup: bool,
     operation_id: Option<String>,
     metadata: Option<String>,
@@ -434,24 +441,133 @@ fn execute_delete(
         use splice::output::{OperationResult, OperationData, DeleteResult, SpanResult};
         use splice::resolve::resolve_symbol;
         use splice::checksum;
+        use splice::context;
+        use splice::ingest::{detect as ingest_detect, dispatch};
+        use splice::symbol::AnySymbol;
         use std::path::Path;
 
         // Resolve the definition to get match_id
         let resolved_def = resolve_symbol(&code_graph, Some(file_path), _kind_str, symbol_name)?;
 
-        // Create span results for all deleted spans
+        // Detect language for semantic kind detection
+        let detected_language = ingest_detect::detect_language(file_path);
+
+        // Read file for semantic kind detection
+        let file_contents = std::fs::read(file_path).unwrap_or_default();
+
+        // Create span results for all deleted spans with rich metadata
         let mut spans: Vec<SpanResult> = Vec::new();
 
-        // Add definition span with match_id
-        spans.push(SpanResult::from(resolved_def.clone()));
+        // Add definition span with rich metadata
+        let mut def_span = SpanResult::from(resolved_def.clone());
 
-        // Add reference spans (no match_id)
+        // Extract context for definition span
+        if let Ok(ctx) = context::extract_context(file_path, def.byte_start, def.byte_end, context_lines) {
+            def_span = def_span.with_context(ctx);
+        }
+
+        // Add semantic kind and language if available
+        if let Some(lang) = detected_language {
+            // Try to detect semantic kind from tree-sitter parse
+            let sem_kind_str = if let Ok(symbols) = dispatch::extract_symbols(file_path, &file_contents) {
+                // Find the symbol that matches our definition
+                symbols.iter()
+                    .find(|s| s.byte_start() == def.byte_start && s.byte_end() == def.byte_end)
+                    .map(|s| {
+                        // Map symbol kind to semantic kind string
+                        match s {
+                            AnySymbol::Rust(rust_sym) => match rust_sym.kind {
+                                splice::ingest::rust::RustSymbolKind::Function => "function",
+                                splice::ingest::rust::RustSymbolKind::Struct => "type",
+                                splice::ingest::rust::RustSymbolKind::Enum => "enum",
+                                splice::ingest::rust::RustSymbolKind::Trait => "trait",
+                                splice::ingest::rust::RustSymbolKind::Impl => "trait",
+                                splice::ingest::rust::RustSymbolKind::Module => "module",
+                                splice::ingest::rust::RustSymbolKind::TypeAlias => "type_alias",
+                                _ => "unknown",
+                            },
+                            AnySymbol::Python(py_sym) => match py_sym.kind {
+                                splice::ingest::python::PythonSymbolKind::Function => "function",
+                                splice::ingest::python::PythonSymbolKind::Class => "type",
+                                splice::ingest::python::PythonSymbolKind::Method => "function",
+                                _ => "unknown",
+                            },
+                            AnySymbol::Java(java_sym) => match java_sym.kind {
+                                splice::ingest::java::JavaSymbolKind::Class => "type",
+                                splice::ingest::java::JavaSymbolKind::Method => "function",
+                                splice::ingest::java::JavaSymbolKind::Interface => "trait",
+                                splice::ingest::java::JavaSymbolKind::Enum => "enum",
+                                _ => "unknown",
+                            },
+                            AnySymbol::JavaScript(js_sym) => match js_sym.kind {
+                                splice::ingest::javascript::JavaScriptSymbolKind::Function => "function",
+                                splice::ingest::javascript::JavaScriptSymbolKind::Class => "type",
+                                splice::ingest::javascript::JavaScriptSymbolKind::Method => "function",
+                                _ => "unknown",
+                            },
+                            AnySymbol::TypeScript(ts_sym) => match ts_sym.kind {
+                                splice::ingest::typescript::TypeScriptSymbolKind::Function => "function",
+                                splice::ingest::typescript::TypeScriptSymbolKind::Class => "type",
+                                splice::ingest::typescript::TypeScriptSymbolKind::Method => "function",
+                                splice::ingest::typescript::TypeScriptSymbolKind::Interface => "trait",
+                                _ => "unknown",
+                            },
+                            AnySymbol::Cpp(cpp_sym) => match cpp_sym.kind {
+                                splice::ingest::cpp::CppSymbolKind::Class => "type",
+                                splice::ingest::cpp::CppSymbolKind::Struct => "type",
+                                splice::ingest::cpp::CppSymbolKind::Function => "function",
+                                splice::ingest::cpp::CppSymbolKind::Method => "function",
+                                _ => "unknown",
+                            },
+                        }
+                    })
+                    .unwrap_or("unknown")
+            } else {
+                "unknown"
+            };
+
+            def_span = def_span.with_semantic_info(sem_kind_str, lang.as_str());
+        }
+
+        // Add checksums for definition span
+        if let Ok(cs) = checksum::checksum_span(file_path, def.byte_start, def.byte_end) {
+            def_span = def_span.with_checksum_before(cs.value);
+        }
+        if let Ok(file_cs) = checksum::checksum_file(file_path) {
+            def_span = def_span.with_file_checksum_before(file_cs.value);
+        }
+
+        spans.push(def_span);
+
+        // Add reference spans with rich metadata
         for r in &ref_set.references {
-            spans.push(SpanResult::from_byte_span(
+            let ref_path = Path::new(&r.file_path);
+            let mut ref_span = SpanResult::from_byte_span(
                 r.file_path.clone(),
                 r.byte_start,
                 r.byte_end,
-            ));
+            );
+
+            // Extract context for reference span
+            if let Ok(ctx) = context::extract_context(ref_path, r.byte_start, r.byte_end, context_lines) {
+                ref_span = ref_span.with_context(ctx);
+            }
+
+            // Detect language and semantic kind for reference
+            if let Some(ref_lang) = ingest_detect::detect_language(ref_path) {
+                // For references, we use a generic semantic kind
+                ref_span = ref_span.with_semantic_info("reference", ref_lang.as_str());
+            }
+
+            // Add checksums for reference span
+            if let Ok(cs) = checksum::checksum_span(ref_path, r.byte_start, r.byte_end) {
+                ref_span = ref_span.with_checksum_before(cs.value);
+            }
+            if let Ok(file_cs) = checksum::checksum_file(ref_path) {
+                ref_span = ref_span.with_file_checksum_before(file_cs.value);
+            }
+
+            spans.push(ref_span);
         }
 
         // Sort spans deterministically by file_path, then byte_start
@@ -467,7 +583,7 @@ fn execute_delete(
             .map(|cs| cs.value)
             .unwrap_or_else(|_| "checksum-failed".to_string());
 
-        // Compute checksums for each removed span
+        // Compute checksums for each removed span (for legacy field)
         let mut span_checksums: Vec<String> = Vec::new();
 
         // Add definition span checksum
@@ -546,6 +662,7 @@ fn execute_single_patch(
     analyzer: Option<splice::cli::AnalyzerMode>,
     replacement_file: Option<PathBuf>,
     language: Option<splice::cli::Language>,
+    context_lines: usize,
     preview: bool,
     create_backup: bool,
     operation_id: Option<String>,
@@ -563,6 +680,7 @@ fn execute_single_patch(
         analyzer,
         &replacement_file,
         language,
+        context_lines,
         preview,
         create_backup,
         operation_id,
@@ -578,6 +696,7 @@ fn execute_patch(
     analyzer: Option<splice::cli::AnalyzerMode>,
     replacement_file: &Path,
     language: Option<splice::cli::Language>,
+    context_lines: usize,
     preview: bool,
     create_backup: bool,
     operation_id: Option<String>,
@@ -749,6 +868,15 @@ fn execute_patch(
     if _json_output {
         use splice::output::{OperationResult, OperationData, PatchResult, SpanResult};
         use splice::checksum;
+        use splice::context;
+        use splice::ingest::{detect as ingest_detect, dispatch};
+        use splice::symbol::AnySymbol;
+
+        // Detect language for semantic kind detection
+        let detected_language = ingest_detect::detect_language(file_path);
+
+        // Read file for semantic kind detection
+        let file_contents = std::fs::read(file_path).unwrap_or_default();
 
         // Compute span checksums before and after
         let span_checksum_before = checksum::checksum_span(file_path, resolved.byte_start, resolved.byte_end)
@@ -763,10 +891,83 @@ fn execute_patch(
             "checksum-failed".to_string()
         };
 
-        // Create span result from resolved span (includes match_id and checksums)
-        let span = SpanResult::from(resolved.clone())
+        // Create span result with rich metadata
+        let mut span = SpanResult::from(resolved.clone())
             .with_hashes(summary.before_hash.clone(), summary.after_hash.clone())
-            .with_span_checksums(span_checksum_before, span_checksum_after);
+            .with_span_checksums(span_checksum_before.clone(), span_checksum_after);
+
+        // Extract context for the span
+        if let Ok(ctx) = context::extract_context(file_path, resolved.byte_start, resolved.byte_end, context_lines) {
+            span = span.with_context(ctx);
+        }
+
+        // Add semantic kind and language if available
+        if let Some(lang) = detected_language {
+            // Try to detect semantic kind from tree-sitter parse
+            let sem_kind_str = if let Ok(symbols) = dispatch::extract_symbols(file_path, &file_contents) {
+                // Find the symbol that matches our definition
+                symbols.iter()
+                    .find(|s| s.byte_start() == resolved.byte_start && s.byte_end() == resolved.byte_end)
+                    .map(|s| {
+                        // Map symbol kind to semantic kind string
+                        match s {
+                            AnySymbol::Rust(rust_sym) => match rust_sym.kind {
+                                splice::ingest::rust::RustSymbolKind::Function => "function",
+                                splice::ingest::rust::RustSymbolKind::Struct => "type",
+                                splice::ingest::rust::RustSymbolKind::Enum => "enum",
+                                splice::ingest::rust::RustSymbolKind::Trait => "trait",
+                                splice::ingest::rust::RustSymbolKind::Impl => "trait",
+                                splice::ingest::rust::RustSymbolKind::Module => "module",
+                                splice::ingest::rust::RustSymbolKind::TypeAlias => "type_alias",
+                                _ => "unknown",
+                            },
+                            AnySymbol::Python(py_sym) => match py_sym.kind {
+                                splice::ingest::python::PythonSymbolKind::Function => "function",
+                                splice::ingest::python::PythonSymbolKind::Class => "type",
+                                splice::ingest::python::PythonSymbolKind::Method => "function",
+                                _ => "unknown",
+                            },
+                            AnySymbol::Java(java_sym) => match java_sym.kind {
+                                splice::ingest::java::JavaSymbolKind::Class => "type",
+                                splice::ingest::java::JavaSymbolKind::Method => "function",
+                                splice::ingest::java::JavaSymbolKind::Interface => "trait",
+                                splice::ingest::java::JavaSymbolKind::Enum => "enum",
+                                _ => "unknown",
+                            },
+                            AnySymbol::JavaScript(js_sym) => match js_sym.kind {
+                                splice::ingest::javascript::JavaScriptSymbolKind::Function => "function",
+                                splice::ingest::javascript::JavaScriptSymbolKind::Class => "type",
+                                splice::ingest::javascript::JavaScriptSymbolKind::Method => "function",
+                                _ => "unknown",
+                            },
+                            AnySymbol::TypeScript(ts_sym) => match ts_sym.kind {
+                                splice::ingest::typescript::TypeScriptSymbolKind::Function => "function",
+                                splice::ingest::typescript::TypeScriptSymbolKind::Class => "type",
+                                splice::ingest::typescript::TypeScriptSymbolKind::Method => "function",
+                                splice::ingest::typescript::TypeScriptSymbolKind::Interface => "trait",
+                                _ => "unknown",
+                            },
+                            AnySymbol::Cpp(cpp_sym) => match cpp_sym.kind {
+                                splice::ingest::cpp::CppSymbolKind::Class => "type",
+                                splice::ingest::cpp::CppSymbolKind::Struct => "type",
+                                splice::ingest::cpp::CppSymbolKind::Function => "function",
+                                splice::ingest::cpp::CppSymbolKind::Method => "function",
+                                _ => "unknown",
+                            },
+                        }
+                    })
+                    .unwrap_or("unknown")
+            } else {
+                "unknown"
+            };
+
+            span = span.with_semantic_info(sem_kind_str, lang.as_str());
+        }
+
+        // Add checksum_before and file_checksum_before
+        if let Ok(file_cs) = checksum::checksum_file(file_path) {
+            span = span.with_both_checksums(span_checksum_before, file_cs.value);
+        }
 
         // Create patch result
         let patch_result = PatchResult {
@@ -1321,12 +1522,14 @@ fn execute_apply_files(
     find_pattern: &str,
     replace_pattern: &str,
     language: Option<splice::cli::Language>,
+    context_lines: usize,
     validate: bool,
     create_backup: bool,
     operation_id: Option<String>,
     metadata: Option<String>,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    #![allow(unused_variables)]
     use splice::patch::{apply_pattern_replace, find_pattern_in_files, BackupWriter, PatternReplaceConfig};
     use splice::execution::log;
 
@@ -1433,11 +1636,13 @@ fn execute_apply_files(
 fn execute_query(
     db_path: &Path,
     labels: &[String],
+    context_lines: usize,
     list: bool,
     count: bool,
     show_code: bool,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    #![allow(unused_variables)]
     use splice::graph::magellan_integration::MagellanIntegration;
     use splice::execution::log;
 
@@ -1644,8 +1849,10 @@ fn execute_get(
     file_path: &Path,
     start: usize,
     end: usize,
+    context_lines: usize,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    #![allow(unused_variables)]
     use splice::graph::magellan_integration::MagellanIntegration;
 
     // Open Magellan integration
