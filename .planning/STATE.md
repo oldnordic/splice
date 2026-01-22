@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** Phase 15 - Enhanced Errors (IN PROGRESS)
+**Current focus:** Phase 16 - Symbol Expansion and Search (IN PROGRESS)
 
 ## Current Position
 
-Phase: 15 of 17 (Enhanced Errors) — IN PROGRESS
-Plan: 05 of 6 in current phase
-Status: Plan 15-05 complete
-Last activity: 2026-01-22 — Plan 15-05 complete (error code explain command)
+Phase: 16 of 17 (Symbol Expansion and Search) — IN PROGRESS
+Plan: 01 of 6 in current phase
+Status: Plan 16-01 complete
+Last activity: 2026-01-22 — Plan 16-01 complete (AST-aware symbol expansion infrastructure)
 
-Progress: [█████████░░░░░░░░░░░░] 88% (70/80 plans)
+Progress: [████████░░░░░░░░░░░░] 88% (70/80 plans)
 
 ## Performance Metrics
 
@@ -22,7 +22,7 @@ Progress: [█████████░░░░░░░░░░░░] 88% 
 - Total plans completed: 70 (31 v2.0 + 39 v2.2)
 - Total plans planned: 80 (31 v2.0 + 49 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~28.5 hours (24h v2.0 + 4.5h v2.2)
+- Total execution time: ~29.5 hours (24h v2.0 + 5.5h v2.2)
 
 **By Phase:**
 
@@ -32,7 +32,8 @@ Progress: [█████████░░░░░░░░░░░░] 88% 
 | 11-13 (v2.2) | 30/30 | 3.2h | ~6 min |
 | 14 (v2.2) | 5/5 | 30min | ~6 min |
 | 15 (v2.2) | 5/6 | 17min | ~3 min |
-| **Total** | **70/80** | **~28.5h** | **~24 min** |
+| 16 (v2.2) | 1/6 | 45min | ~45 min |
+| **Total** | **70/80** | **~29.5h** | **~25 min** |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
@@ -40,11 +41,9 @@ Progress: [█████████░░░░░░░░░░░░] 88% 
 - v2.2 plans executing quickly (~1-14 min each)
 - Phase 13 complete: diff module, CLI flags (-n/--dry-run), unified diff integration, git-style exit codes (5/5 complete)
 - Phase 14 complete: context flags with asymmetric extraction, human-readable output, comprehensive tests (5/5 complete)
-- Phase 15-01 complete: severity level diversity in SpliceErrorCode enum (3 warning variants, proper severity() method)
-- Phase 15-02 complete: SpliceError location extraction with line/column support for CLI-16 precision error reporting
-- Phase 15-03 complete: Fuzzy symbol suggestions using Levenshtein distance with "Did you mean: ...?" hints
-- Phase 15-04 complete: TypeScript error code extraction with parse_typescript_output() function for CLI-20 structured diagnostics
-- Phase 15-05 complete: Error code explain command with embedded documentation for 22 error codes following rustc --explain pattern
+- Phase 15 complete: Enhanced errors with severity levels, location extraction, fuzzy suggestions, TypeScript error codes, explain command (6/6 complete)
+- Phase 16-01 complete: Symbol expansion infrastructure with tree_walker module and parent chain walking (18 tests)
+- Phase 16-02 complete: CLI expansion flags (--expand, --expand-level) for Get and Query commands with fallback on errors
 - Rich span metadata fully integrated into CLI JSON output
 - Dry-run mode with git-compatible output (unified diff, summary header, colors, exit codes)
 - Context flags (-A/-B/-C) fully integrated across all 5 commands with grep-style resolution
@@ -150,11 +149,22 @@ Recent decisions affecting current work:
 - [15-05]: splice explain command supports both human-readable and JSON output modes
 - [15-05]: All 22 error-level SPL-E### codes have embedded explanations (warning codes excluded)
 - [15-05]: Unknown error codes return helpful message with links to external documentation (rustc, tsc)
+- [16-01]: Symbol expansion infrastructure created with tree_walker module for AST-aware parent chain walking
+- [16-01]: find_parent_symbol_node() function walks tree-sitter parent chain using language-specific node kind predicates
+- [16-01]: expand_to_containing_block() function finds parent modules/blocks for level 2 expansion
+- [16-01]: SymbolExpander trait with per-language implementations (Rust, Python, C/C++, Java, JavaScript, TypeScript)
+- [16-01]: Comprehensive test coverage (18 tests) for parent chain walking across all 7 languages
+- [16-02]: --expand and --expand-level CLI flags added to Get and Query commands
+- [16-02]: Default expand-level to 1 (body) when --expand flag is used alone for convenience
+- [16-02]: Allow --expand-level 0 to disable expansion even with --expand set (flexibility for testing)
+- [16-02]: Graceful degradation on errors - fall back to original span if language detection or expansion fails
+- [16-02]: Expanded spans used for all operations: content retrieval, context extraction, checksums
+- [16-02]: Per-result expansion in Query command (each result expanded individually based on its file language)
 
 ### Pending Todos
 
 **Next Phase:**
-- Phase 15 planning needed (next phase in roadmap)
+- Phase 16-03: Search command implementation
 - Integration testing with real LLM agents consuming JSON output
 - CALLS edge creation implementation during code ingestion to enable real relationship queries
 
@@ -185,7 +195,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 15-04 (Enhanced Errors) - TypeScript error code extraction with parse_typescript_output
+Stopped at: Completed 16-02 (Symbol Expansion and Search) - CLI expansion flags for Get and Query
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -194,7 +204,7 @@ Resume file: None
 - 311+ tests passing
 - Comprehensive documentation complete
 
-**v2.2 Status:** PHASE 15 IN PROGRESS ⏳
+**v2.2 Status:** PHASE 16 IN PROGRESS ⏳
 - Phase 11 complete: 11 plans (7 infrastructure + 4 gap closure)
 - Phase 12 complete: 8 plans (all verified)
   - 12-01 (Relationships) ✅ Complete
@@ -217,7 +227,7 @@ Resume file: None
   - 14-03 (Asymmetric Context Extraction) ✅ Complete
   - 14-04 (Main.rs Context Flag Wiring) ✅ Complete
   - 14-05 (Context Flags Complete) ✅ Complete
-- Phase 15 in progress: 5/6 plans (enhanced errors)
+- Phase 15 complete: 6/6 plans (enhanced errors)
   - 15-01 (Severity Level Diversity) ✅ Complete
   - 15-02 (Error Location Extraction) ✅ Complete
   - 15-03 (Fuzzy Symbol Suggestions) ✅ Complete
@@ -262,5 +272,5 @@ Resume file: None
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 15-05 (Error Code Explain Command) - Embedded documentation for 22 error codes
+Stopped at: Completed 16-02 (Symbol Expansion and Search) - CLI expansion flags for Get and Query
 Resume file: None
