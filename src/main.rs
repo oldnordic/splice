@@ -922,6 +922,10 @@ fn execute_patch(
         use splice::checksum;
         use splice::context;
         use splice::ingest::{detect as ingest_detect, dispatch};
+        use splice::ingest::semantic_kind::SemanticKind;
+        use splice::hints::{derive_tool_hints, ToolHintOperation};
+        use splice::action::{ActionType, Confidence};
+        use splice::action::SuggestedAction;
         use splice::symbol::AnySymbol;
 
         // Detect language for semantic kind detection
@@ -1014,6 +1018,46 @@ fn execute_patch(
             };
 
             span = span.with_semantic_info(sem_kind_str, lang.as_str());
+
+            // Infer SemanticKind from the semantic kind string
+            let sem_kind = match sem_kind_str {
+                "function" => SemanticKind::Function,
+                "type" => SemanticKind::Type,
+                "trait" => SemanticKind::Trait,
+                "enum" => SemanticKind::Enum,
+                "module" => SemanticKind::Module,
+                "type_alias" => SemanticKind::TypeAlias,
+                "constant" => SemanticKind::Constant,
+                _ => SemanticKind::Unknown,
+            };
+
+            // Infer is_public from semantic kind (default to true for functions, types, traits, enums)
+            let is_public = matches!(sem_kind, SemanticKind::Function | SemanticKind::Type | SemanticKind::Trait | SemanticKind::Enum);
+
+            // Derive tool hints for replace operation
+            let hints = derive_tool_hints(sem_kind, is_public, ToolHintOperation::ReplaceBody);
+            span = span.with_tool_hints(hints);
+
+            // Determine confidence (High for unique symbols resolved successfully)
+            let confidence = Confidence::High;
+
+            // Generate suggested action for replace
+            let reason = format!(
+                "Replace symbol '{}' ({}) at {} with provided content",
+                symbol_name, sem_kind_str, file_path.to_string_lossy()
+            );
+
+            let action = SuggestedAction {
+                action_type: ActionType::Replace,
+                confidence,
+                reason,
+                params: {
+                    let mut p = std::collections::HashMap::new();
+                    p.insert("preserve_signature".to_string(), serde_json::Value::Bool(true));
+                    Some(p)
+                },
+            };
+            span = span.with_suggested_action(action);
         }
 
         // Add checksum_before and file_checksum_before
