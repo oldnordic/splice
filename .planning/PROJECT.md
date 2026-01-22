@@ -1,4 +1,4 @@
-# Splice Refactoring Tool - v2.1
+# Splice Refactoring Tool - v2.2
 
 ## What This Is
 
@@ -8,18 +8,19 @@ Splice is a span-safe code refactoring tool that provides AST-validated code mod
 
 **Span-safe refactoring with validation** — Every modification is validated at both AST and compiler level before being applied, with automatic backup and rollback capabilities.
 
-## Current Milestone: v2.1 - LLM & Human Usability
+## Current Milestone: v2.2 - Unified JSON & LLM Optimization
 
-**Goal:** Make Splice more usable for both AI agents and humans by adding low-risk, high-impact UX improvements.
+**Goal:** Implement the Unified JSON Schema across all LLM tools (Splice, Magellan, llmtransform, llmsearch, llmastsearch) with LLM-first UX improvements.
 
 **Target features:**
-- `--dry-run` / `--diff` mode — Preview exact changes before applying
-- `--context-before` / `--context-after` flags — Show surrounding code (3-5 lines)
-- Better error messages — Expected/actual tokens, parser suggestions, how to fix
-- `--expand` / `--full-block` for symbols — Get full block without reading whole file
-- `splice search` + atomic apply — Pattern search → patch workflow
+- Rich span extensions — Context, semantic kind, relationships, checksums, suggested actions, tool hints
+- Full-codebase relationships — Callers/callees/imports/exports across entire project
+- CLI conventions — `-n` dry-run, `-A`/`-B`/`-C` context, unified diff format
+- Enhanced error messages — Severity levels, error codes (SPL-E001), actionable hints
+- Symbol expansion — AST-aware expansion with doc comments
+- Search & patch workflow — Pattern search with atomic apply
 
-## Status: v2.0 COMPLETE ✅ | v2.1 IN PROGRESS ◆
+## Status: v2.0 COMPLETE ✅ | v2.2 PLANNING ◆
 
 **Release Date:** 2026-01-18
 **Version:** 2.0.0
@@ -64,13 +65,20 @@ Splice is a span-safe code refactoring tool that provides AST-validated code mod
 - ✅ Magellan v0.5.3 compatibility — Verified with integration tests
 - ✅ Line/column metadata — Implemented in code graph
 
-#### Active (v2.1)
+#### Active (v2.2)
 
-- [ ] **DRYRUN-01:** Dry-run mode with diff preview — Show exact changes before applying
-- [ ] **CONTEXT-01:** Context flags — `--context-before` / `--context-after` for surrounding lines
-- [ ] **ERRORS-01:** Enhanced error messages — Expected/actual tokens, parser suggestions, fix hints
-- [ ] **EXPAND-01:** Symbol expansion — `--expand` / `--full-block` to get full function body
-- [ ] **SEARCH-01:** Search + patch atomic mode — `splice search` → `splice apply-files` workflow
+- [ ] **RICHSPAN-01:** Context field — `before`/`selected`/`after` lines in span output
+- [ ] **RICHSPAN-02:** Semantic kind — `function`, `variable`, `parameter` + `language` detection
+- [ ] **RICHSPAN-03:** Relationships — Full-codebase callers/callees/imports/exports
+- [ ] **RICHSPAN-04:** Checksums — `checksum_before`, `file_checksum_before` for race protection
+- [ ] **RICHSPAN-05:** Suggested action — `action_type` + `params` for LLM guidance
+- [ ] **RICHSPAN-06:** Tool hints — `requires_full_context`, `apply_atomically`, etc.
+- [ ] **RICHSPAN-07:** Unified error codes — `SPL-E001` format with taxonomy
+- [ ] **CLI-01:** Dry-run mode — `-n`/`--dry-run` with unified diff format
+- [ ] **CLI-02:** Context flags — `-A`/`-B`/`-C` following Unix conventions
+- [ ] **CLI-03:** Enhanced errors — Severity, location, hints, `explain` command
+- [ ] **CLI-04:** Symbol expansion — AST-aware `--expand` with doc comments
+- [ ] **CLI-05:** Search & patch — Pattern search with atomic apply workflow
 
 ### Out of Scope
 
@@ -128,4 +136,4 @@ Potential areas for future development:
 - Parallel batch processing
 
 ---
-*Last updated: 2026-01-22 — v2.1 milestone started*
+*Last updated: 2026-01-22 — v2.2 milestone started*
