@@ -572,18 +572,13 @@ impl CliErrorPayload {
         // Try to create structured error code from SpliceError
         let error_code = crate::error_codes::SpliceErrorCode::from_splice_error(error)
             .map(|splice_code| {
-                // Extract line and column from error if available
-                let (_line, _column) = if error.file_path().is_some() {
-                    // Try to get line/column from error context
-                    (None, None) // TODO: Extract from error when available
-                } else {
-                    (None, None)
-                };
+                // Extract line and column from error using location() helper
+                let (file, line, column) = error.location();
                 crate::ErrorCode::from_splice_code(
                     splice_code,
-                    file.as_deref(),
-                    _line,
-                    _column,
+                    file,
+                    line,
+                    column,
                 )
             });
 
