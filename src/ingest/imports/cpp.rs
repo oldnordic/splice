@@ -81,9 +81,11 @@ fn extract_preproc_include(node: tree_sitter::Node, source: &[u8]) -> Option<sup
                 // <stdio.h>
                 is_system = true;
                 if let Ok(text) = child.utf8_text(source) {
-                    // Extract content between < and >
-                    if text.len() > 2 {
-                        path = text[1..text.len() - 1].to_string();
+                    // Extract content between < and > (UTF-8 safe)
+                    // Strip first and last characters by using char-based iteration
+                    let chars: Vec<char> = text.chars().collect();
+                    if chars.len() > 2 {
+                        path = chars[1..chars.len() - 1].iter().collect();
                     }
                 }
             }
@@ -91,9 +93,11 @@ fn extract_preproc_include(node: tree_sitter::Node, source: &[u8]) -> Option<sup
                 // "myheader.h"
                 is_system = false;
                 if let Ok(text) = child.utf8_text(source) {
-                    // Extract content between quotes
-                    if text.len() > 2 {
-                        path = text[1..text.len() - 1].to_string();
+                    // Extract content between quotes (UTF-8 safe)
+                    // Strip first and last characters by using char-based iteration
+                    let chars: Vec<char> = text.chars().collect();
+                    if chars.len() > 2 {
+                        path = chars[1..chars.len() - 1].iter().collect();
                     }
                 }
             }
