@@ -304,13 +304,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_extract_simple_import_basic() {
+    fn test_extract_simple_import_basic() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"import os\n";
         let path = Path::new("test.py");
-        let result = extract_python_imports(path, source);
-        assert!(result.is_ok());
-        let imports = result.unwrap();
-        assert_eq!(imports.len(), 1);
-        assert_eq!(imports[0].import_kind, ImportKind::PythonImport);
+        let result = extract_python_imports(path, source)?;
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].import_kind, ImportKind::PythonImport);
+        Ok(())
     }
 }
