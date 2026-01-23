@@ -2,6 +2,18 @@
 //!
 //! This module provides a non-blocking logging interface for recording
 //! Splice operations to the execution log database.
+//!
+//! # Error Handling
+//!
+//! Execution logging functions return `Result<()>` to allow callers
+//! to handle errors appropriately. For production use, logging failures
+//! are non-fatal - callers should use `if let Err(e)` patterns to log
+//! warnings without failing the primary operation.
+//!
+//! This design ensures:
+//! - Logging failures don't break the primary operation
+//! - Errors are visible in logs for debugging
+//! - Callers can choose their error handling strategy
 
 use crate::error::{Result, SpliceError};
 use crate::execution::{

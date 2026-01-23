@@ -365,7 +365,7 @@ mod tests {
         // Create a temporary graph database
         let temp_dir = std::env::temp_dir();
         let db_path = temp_dir.join(format!("test_graph_{}.db", uuid::Uuid::new_v4()));
-        let mut code_graph = CodeGraph::open(&db_path).expect("Failed to open graph");
+        let mut code_graph = CodeGraph::open(&db_path).expect("Failed to open test graph database");
 
         // Store a symbol with specific line/col values
         let file_path = PathBuf::from("/test/path.rs");
@@ -382,7 +382,7 @@ mod tests {
                 12,  // col_start
                 45,  // col_end
             )
-            .expect("Failed to store symbol");
+            .expect("Failed to store symbol with line/col");
 
         // Retrieve the node and verify line/col were stored
         let node = code_graph
@@ -410,7 +410,7 @@ mod tests {
         // Verify that storing with 0 placeholders works (backward compatibility)
         let temp_dir = std::env::temp_dir();
         let db_path = temp_dir.join(format!("test_graph_{}.db", uuid::Uuid::new_v4()));
-        let mut code_graph = CodeGraph::open(&db_path).expect("Failed to open graph");
+        let mut code_graph = CodeGraph::open(&db_path).expect("Failed to open test graph database");
 
         let file_path = PathBuf::from("/test/path.rs");
         let node_id = code_graph
@@ -426,7 +426,7 @@ mod tests {
                 0,
                 0, // All line/col zeros (placeholders)
             )
-            .expect("Failed to store symbol");
+            .expect("Failed to store symbol with zeros");
 
         let node = code_graph
             .inner()
@@ -451,12 +451,12 @@ mod tests {
         // Verify the deprecated store_symbol_with_file passes zeros
         let temp_dir = std::env::temp_dir();
         let db_path = temp_dir.join(format!("test_graph_{}.db", uuid::Uuid::new_v4()));
-        let mut code_graph = CodeGraph::open(&db_path).expect("Failed to open graph");
+        let mut code_graph = CodeGraph::open(&db_path).expect("Failed to open test graph database");
 
         let file_path = PathBuf::from("/test/path.rs");
         let node_id = code_graph
             .store_symbol_with_file(&file_path, "dep_function", "function", 10, 20)
-            .expect("Failed to store symbol");
+            .expect("Failed to store symbol via deprecated method");
 
         let node = code_graph
             .inner()
