@@ -144,14 +144,15 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_local_include() {
+    fn test_extract_local_include() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"#include \"myheader.h\"\n";
         let path = Path::new("test.c");
         let result = extract_cpp_imports(path, source);
         assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = result?;
         assert_eq!(imports.len(), 1);
         assert_eq!(imports[0].import_kind, ImportKind::CppLocalInclude);
         assert_eq!(imports[0].path, vec!["myheader.h"]);
+        Ok(())
     }
 }
