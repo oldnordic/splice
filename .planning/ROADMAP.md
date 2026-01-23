@@ -73,14 +73,14 @@ See `.planning/milestones/v2.2-ROADMAP.md` for complete details of phases 11-18.
 4. Boundary checks added for all slice operations
 5. Disk space calculation improved
 
-**Plans**:
-- [ ] 19-01-PLAN.md — Fix unwrap() on first()/last() in python.rs
-- [ ] 19-02-PLAN.md — Replace unwrap() calls in cpp.rs test code
-- [ ] 19-03-PLAN.md — Replace unwrap() calls in javascript.rs test code
-- [ ] 19-04-PLAN.md — Replace unwrap() calls in java.rs test code
-- [ ] 19-05-PLAN.md — Replace unwrap() calls in typescript.rs test code
-- [ ] 19-06-PLAN.md — Fix UTF-8 string slicing in cpp.rs, javascript.rs, typescript.rs
-- [ ] 19-07-PLAN.md — Add boundary checks and improve disk space calculation
+**Plans**: 7 plans in 2 waves
+- [ ] 19-01-PLAN.md — Fix unwrap() on first()/last() in python.rs (wave 1)
+- [ ] 19-02-PLAN.md — Replace unwrap() calls in cpp.rs test code (wave 1)
+- [ ] 19-03-PLAN.md — Replace unwrap() calls in javascript.rs test code (wave 1)
+- [ ] 19-04-PLAN.md — Replace unwrap() calls in java.rs test code (wave 1)
+- [ ] 19-05-PLAN.md — Replace unwrap() calls in typescript.rs test code (wave 1)
+- [ ] 19-06-PLAN.md — Fix UTF-8 string slicing across all import modules (wave 2)
+- [ ] 19-07-PLAN.md — Add boundary checks and improve disk space calculation (wave 2)
 
 ---
 
