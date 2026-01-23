@@ -197,13 +197,17 @@ pub fn verify_workspace_resources(
     // Check 2: Workspace is writable
     // Try to create a temp file to test write permissions
     let test_file = workspace_root.join(".splice_write_test");
+
+    // Clean up any stale test file first (from previous crashed runs)
+    let _ = std::fs::remove_file(&test_file);
+
     if let Err(e) = std::fs::write(&test_file, b"test") {
         return PreVerificationResult::blocking(
             "workspace_writable",
             format!("Workspace is not writable: {}", e),
         );
     }
-    // Clean up test file
+    // Clean up test file (only if write succeeded above)
     let _ = std::fs::remove_file(&test_file);
 
     // Check 3: Sufficient disk space with improved heuristic

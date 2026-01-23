@@ -241,6 +241,22 @@ mod tests {
     use std::sync::{Mutex, OnceLock};
     use tempfile::TempDir;
 
+    /// Get a lock for synchronizing environment variable access in tests.
+    ///
+    /// The SPLICE_EXECUTION_LOG environment variable is process-global state.
+    /// Tests that modify this variable must hold this lock for their entire
+    /// duration to prevent race conditions with parallel test execution.
+    ///
+    /// # Example
+    /// ```ignore
+    /// #[test]
+    /// fn test_something() {
+    ///     let _guard = env_lock().lock().unwrap();
+    ///     std::env::set_var(EXECUTION_LOG_ENV, "false");
+    ///     // ... test code ...
+    ///     // _guard dropped here, after test completes
+    /// }
+    /// ```
     fn env_lock() -> &'static Mutex<()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
         LOCK.get_or_init(|| Mutex::new(()))
