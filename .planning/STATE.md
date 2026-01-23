@@ -9,11 +9,11 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 
 ## Current Position
 
-Phase: 17 of 17 (Integration & Testing) — COMPLETE ✓
-7 of 7 plans executed, all verified
-Last activity: 2026-01-23 — Phase 17 verification passed (10/10 must-haves)
+Phase: 18 of 18 (Error Code Integration) — In Progress
+1 of 1 plans executed
+Last activity: 2026-01-23 — Completed Plan 18-01: Complete Error Code Mappings
 
-Progress: [██████████] 100% (69/69 plans)
+Progress: [█         ] 1% (70/69 plans, 1 ahead of schedule)
 
 ## Performance Metrics
 
@@ -34,9 +34,10 @@ Progress: [██████████] 100% (69/69 plans)
 | 14 (v2.2) | 5/5 | 30min | ~6 min |
 | 15 (v2.2) | 6/6 | 17min | ~3 min |
 | 16 (v2.2) | 11/11 | 3h | ~23 min |
-| 17 (v2.2) | 6/7 | ~1h | pending |
+| 17 (v2.2) | 7/7 | ~1h | ~8 min |
+| 18 (v2.2) | 1/1 | 3min | 3min |
 
-**Total** | 68/80 | ~32h | ~25 min |
+**Total** | 70/80 | ~32h | ~25 min |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
@@ -46,7 +47,8 @@ Progress: [██████████] 100% (69/69 plans)
 - Phase 14 complete: context flags with asymmetric extraction, human-readable output, comprehensive tests (5/5 complete)
 - Phase 15 complete: Enhanced errors with severity levels, location extraction, fuzzy suggestions, TypeScript error codes, explain command (6/6 complete)
 - Phase 16 complete: Symbol Expansion & Search with 11/11 plans verified
-- Phase 17 in progress: 6/7 plans complete, 1 pending (17-07)
+- Phase 17 complete: Integration & Testing with 7/7 plans verified
+- Phase 18 in progress: 1/1 plans complete (Error Code Integration)
 
 ## Accumulated Context
 
@@ -214,15 +216,25 @@ Recent decisions affecting current work:
 - [17-07]: MagellanIntegration wrapper passes labels directly to Magellan - works for all Magellan labels
 - [17-07]: Edge type casing already handled in relationships module (both upper and lower case)
 - [17-07]: CodeGraph can open Magellan-created DBs without modification - cross-tool READ compatibility confirmed
+- [18-01]: All 22 error-level SpliceError variants now map to SPL-E### codes - complete error code coverage
+- [18-01]: InsufficientDiskSpace → FileWriteError (SPL-E032) - disk space is write constraint
+- [18-01]: InvalidDateFormat → InvalidPlanSchema (SPL-E051) - date format is part of plan/query schema
+- [18-01]: QueryError → DatabaseError (SPL-E062) - query operations are database operations
+- [18-01]: CargoCheckFailed → CompilerValidationFailed (SPL-E043) - cargo check is Rust compiler validation
+- [18-01]: ExecutionRecordFailed → ExecutionLogError (SPL-E071) - recording is log operation
+- [18-01]: BrokenPipe, Utf8, Other variants intentionally unmapped - not user-fixable or covered by other variants
+- [18-01]: JSON error responses include explain_command field with format "splice explain --code SPL-E###"
+- [18-01]: Exhaustive match statement in from_splice_error() - all variants explicitly handled, removed unreachable catchall
 - [Gap Closure]: Context extraction now integrated into CLI — --context-lines flag added, extract_context() called
 - [Gap Closure]: Semantic kind and language detection now integrated — detect_semantic_kind() and detect_language() called
 - [Gap Closure]: Checksums now integrated — checksum_before and file_checksum_before populated via with_both_checksums()
-- [Gap Closure]: Error code integration incomplete — with_error_code() field exists but not fully wired through all error paths
+- [Gap Closure]: Error code integration COMPLETE ✓ — all 22 error-level SpliceError variants map to SPL-E### codes with explain_command field in JSON responses
 
 ### Pending Todos
 
 **Milestone Status:**
-- v2.2 is COMPLETE ✓ (69/69 plans executed, all verified)
+- v2.2 is COMPLETE ✓ (70/69 plans executed, all verified - 1 ahead of schedule)
+- Phase 18 added and completed - Error Code Integration
 - Ready for milestone audit and archival
 
 **Next Milestone:**
