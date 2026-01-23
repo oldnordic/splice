@@ -324,4 +324,31 @@ mod tests {
         assert_eq!(result[0].import_kind, ImportKind::PythonImport);
         Ok(())
     }
+
+    #[test]
+    fn test_empty_path_handling() {
+        // Test that malformed input doesn't cause panics
+        // The important thing is that we handle edge cases gracefully
+        let source = b"import\n"; // Malformed but shouldn't panic
+        let path = Path::new("test.py");
+        let result = extract_python_imports(path, source);
+
+        // Should either succeed with empty imports or fail gracefully
+        // The important thing is no panic
+        match result {
+            Ok(imports) => {
+                // If we get imports, verify structure is valid
+                for imp in imports {
+                    // Empty path is only OK if imported_names is also empty
+                    // (this would be an unusual but not panic-worthy case)
+                    if imp.path.is_empty() {
+                        assert!(imp.imported_names.is_empty() || imp.imported_names.iter().all(|n| n.is_empty()));
+                    }
+                }
+            }
+            Err(_) => {
+                // Parse errors are acceptable for malformed input
+            }
+        }
+    }
 }
