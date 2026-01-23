@@ -53,44 +53,44 @@ Requirements for Unified JSON Schema implementation with LLM-first UX improvemen
 - [x] **CLI-11:** Default context when `-C` specified is 3 lines (git diff convention)
 - [x] **CLI-12:** Context lines included in JSON output under `context_before` and `context_after` keys
 - [x] **CLI-13:** Context flags work with patch, delete, query, and get commands
-- [ ] **CLI-14:** Context respects expanded symbol boundaries when used with `--expand`
+- [x] **CLI-14:** Context respects expanded symbol boundaries when used with `--expand`
 
 ### CLI Improvements - Enhanced Errors
 
-- [ ] **CLI-15:** Every error includes severity level (error/warning/note)
-- [ ] **CLI-16:** Every error includes precise location (file:line:column)
-- [ ] **CLI-17:** Every error includes stable error code (SPL-E001 format)
-- [ ] **CLI-18:** Every error includes "what to do" hint or suggestion
-- [ ] **CLI-19:** SymbolNotFound errors include Levenshtein distance suggestions
-- [ ] **CLI-20:** Tool extracts error codes from compiler output (Rust E0XXX, TypeScript TSXXXX)
-- [ ] **CLI-21:** Tool provides `splice explain <code>` command for detailed error documentation
+- [x] **CLI-15:** Every error includes severity level (error/warning/note)
+- [x] **CLI-16:** Every error includes precise location (file:line:column)
+- [x] **CLI-17:** Every error includes stable error code (SPL-E001 format)
+- [x] **CLI-18:** Every error includes "what to do" hint or suggestion
+- [x] **CLI-19:** SymbolNotFound errors include Levenshtein distance suggestions
+- [x] **CLI-20:** Tool extracts error codes from compiler output (Rust E0XXX, TypeScript TSXXXX)
+- [x] **CLI-21:** Tool provides `splice explain <code>` command for detailed error documentation
 
 ### CLI Improvements - Symbol Expansion
 
-- [ ] **CLI-22:** Tool supports `--expand` flag to get full symbol body
-- [ ] **CLI-23:** Expansion uses AST-aware tree-sitter parent chain walking
-- [ ] **CLI-24:** First expansion gets name, second gets full body, third gets containing block
-- [ ] **CLI-25:** Expansion includes leading doc comments
-- [ ] **CLI-26:** Tool supports `--expand-level <N>` flag for multi-level expansion
-- [ ] **CLI-27:** Expansion works across all 7 supported languages
+- [x] **CLI-22:** Tool supports `--expand` flag to get full symbol body
+- [x] **CLI-23:** Expansion uses AST-aware tree-sitter parent chain walking
+- [x] **CLI-24:** First expansion gets name, second gets full body, third gets containing block
+- [x] **CLI-25:** Expansion includes leading doc comments
+- [x] **CLI-26:** Tool supports `--expand-level <N>` flag for multi-level expansion
+- [x] **CLI-27:** Expansion works across all 7 supported languages
 
 ### CLI Improvements - Search & Patch
 
-- [ ] **CLI-28:** Tool provides `splice search --pattern <text>` command
-- [ ] **CLI-29:** Search shows matches with file paths, line numbers, and context
-- [ ] **CLI-30:** Tool supports `splice search --apply` for atomic find-and-replace
-- [ ] **CLI-31:** Tool supports `--glob` flag for file pattern filtering in search
-- [ ] **CLI-32:** Search + apply workflow supports rollback on partial failure
-- [ ] **CLI-33:** Search results available in JSON format for LLM consumption
+- [x] **CLI-28:** Tool provides `splice search --pattern <text>` command
+- [x] **CLI-29:** Search shows matches with file paths, line numbers, and context
+- [x] **CLI-30:** Tool supports `splice search --apply` for atomic find-and-replace
+- [x] **CLI-31:** Tool supports `--glob` flag for file pattern filtering in search
+- [x] **CLI-32:** Search + apply workflow supports rollback on partial failure
+- [x] **CLI-33:** Search results available in JSON format for LLM consumption
 
 ### Integration & Testing
 
-- [ ] **TEST-01:** All 334+ existing tests pass with new JSON schema
-- [ ] **TEST-02:** New tests for rich span extensions across all 7 languages
-- [ ] **TEST-03:** Performance tests for context extraction on large files (>32KB)
-- [ ] **TEST-04:** Performance tests for relationship queries on large codebases (>10K LOC)
-- [ ] **TEST-05:** Cross-tool alignment tests with Magellan format compatibility
-- [ ] **TEST-06:** LLM consumption tests verify JSON fields are properly used by agents
+- [x] **TEST-01:** All 334+ existing tests pass with new JSON schema
+- [x] **TEST-02:** New tests for rich span extensions across all 7 languages
+- [x] **TEST-03:** Performance tests for context extraction on large files (>32KB)
+- [x] **TEST-04:** Performance tests for relationship queries on large codebases (>10K LOC)
+- [x] **TEST-05:** Cross-tool alignment tests with Magellan format compatibility
+- [x] **TEST-06:** LLM consumption tests verify JSON fields are properly used by agents
 
 ## v2.3+ Requirements
 
@@ -131,7 +131,7 @@ Which phases cover which requirements. All v2.2 requirements mapped to roadmap p
 | RICHSPAN-14 through RICHSPAN-21 | Phase 12 | Complete | 8/8 plans executed |
 | CLI-01 through CLI-07 | Phase 13 | Complete | 5/5 plans executed |
 | CLI-08 through CLI-14 | Phase 14 | Complete | 6/7 requirements met (CLI-14 deferred to Phase 16) |
-| CLI-15 through CLI-21 | Phase 15 | Complete | 7/7 requirements met |
+| CLI-15 through CLI-21 | Phase 15 + 18 | Complete | 7/7 requirements met (error codes completed in Phase 18) |
 | CLI-22 through CLI-33 | Phase 16 | Complete | 12/12 requirements met |
 | TEST-01 through TEST-06 | Phase 17 | Complete | 6/6 requirements met |
 
@@ -144,11 +144,13 @@ Which phases cover which requirements. All v2.2 requirements mapped to roadmap p
 - Phase 11 (Rich Span Core): 13 requirements (RICHSPAN-01 to RICHSPAN-13) — Complete ✅
 - Phase 12 (Rich Span Advanced): 8 requirements (RICHSPAN-14 to RICHSPAN-21) — Complete ✅
 - Phase 13 (Dry-run & Diff): 7 requirements (CLI-01 to CLI-07) — Complete ✅
-- Phase 14 (Context Flags): 7 requirements (CLI-08 to CLI-14) — Complete ✅ (CLI-14 deferred to Phase 16)
-- Phase 15 (Enhanced Errors): 7 requirements (CLI-15 to CLI-21) — Pending
-- Phase 16 (Symbol Expansion + Search): 12 requirements (CLI-22 to CLI-33) — Pending
-- Phase 17 (Integration & Testing): 6 requirements (TEST-01 to TEST-06) — Pending
+- Phase 14 (Context Flags): 7 requirements (CLI-08 to CLI-14) — Complete ✅
+- Phase 15 (Enhanced Errors): 7 requirements (CLI-15 to CLI-21) — Complete ✅ (completed with Phase 18)
+- Phase 16 (Symbol Expansion + Search): 12 requirements (CLI-22 to CLI-33) — Complete ✅
+- Phase 17 (Integration & Testing): 6 requirements (TEST-01 to TEST-06) — Complete ✅
+- Phase 18 (Error Code Integration): Completes CLI-15 through CLI-21 requirements — Complete ✅
 
 ---
 *Requirements defined: 2026-01-22*
-*Traceability updated: 2026-01-22*
+*Traceability updated: 2026-01-23*
+*Milestone v2.2: COMPLETE ✓*
