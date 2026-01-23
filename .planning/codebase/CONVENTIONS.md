@@ -5,171 +5,190 @@
 ## Naming Patterns
 
 **Files:**
-- snake_case for all files (e.g., `mod.rs`, `error_codes.rs`, `checksum.rs`)
-- Module directories use the module name (e.g., `src/ingest/`, `src/resolve/`)
-- Test files use `*_tests.rs` or `test_*.rs` naming
+- All lowercase with underscores: `snake_case`
+- Modules: `mod.rs` for module files, named after directory
+- Test files: `*_tests.rs` pattern
+- Main source: `src/lib.rs` as library entry point
 
 **Functions:**
-- snake_case for all functions (e.g., `extract_rust_symbols`, `apply_patch_with_validation`)
-- Public functions have descriptive names indicating action and target
+- Public functions: `pub fn descriptive_name()` (snake_case)
+- Private functions: `fn private_function()` (snake_case)
+- Constructor functions: `new()` or `from_*()`
+- Builder methods: `with_*()` for chaining
 
 **Variables:**
-- snake_case for local variables and parameters (e.g., `file_path`, `byte_start`, `context_before`)
-- Field names in structs use snake_case (e.g., `before_hash`, `after_hash`, `line_start`)
+- All lowercase snake_case: `let variable_name`
+- Constants: `SCREAMING_SNAKE_CASE`
+- Parameters: `parameter_name` (descriptive)
+- References: `&ref` or `ref_mut`
 
 **Types:**
-- UpperCamelCase for all types (structs, enums, traits) (e.g., `SpanReplacement`, `SpliceError`, `RustSymbol`)
-- Enum variants use UpperCamelCase (e.g., `Visibility::Public`, `DiagnosticLevel::Error`)
-
-**Modules:**
-- snake_case for module names (e.g., `mod ingest`, `mod patch`)
-- Use `mod.rs` files for directory modules
+- Structs: `PascalCase` (e.g., `SpanBatch`, `CodeGraph`)
+- Enums: `PascalCase` (e.g., `Language`, `AnalyzerMode`)
+- Traits: `PascalCase` (e.g., `Symbol`)
+- Error Types: `SpliceError` as main enum
 
 ## Code Style
 
 **Formatting:**
-- Four-space indentation (no tabs)
-- Rust 2021 edition defaults
-- No explicit formatting config found (uses rustfmt defaults)
+- Tool: Rustfmt (standard Rust formatter)
+- Line length: ~100 characters (some exceptions for long spans)
+- Indentation: 4 spaces (no tabs)
+- Trailing commas: Always in multi-line structures
+- Braces: K&R style (opening brace on same line)
 
 **Linting:**
-- `#[warn(missing_docs)]` at `src/lib.rs` level enforces documentation
-- `#[expect(unused_crate_dependencies)]` suppresses unused dependency warnings
-- Uses Clippy with strict mode (as per AGENTS.md: `cargo clippy --all-targets --all-features -D warnings`)
-- No explicit `.clippy.toml` configuration file
+- Tool: Rust compiler warnings + Clippy
+- Key rules enforced:
+  - `#![warn(missing_docs)]` - All public items must have docs
+  - `#![expect(unused_crate_dependencies)]` - Unused dependencies OK
+  - `dead_code` warnings allowed selectively
+  - `clippy::pedantic` enabled
 
 ## Import Organization
 
 **Order:**
-1. Standard library imports (`std::path`, `std::fs`, `std::io`)
-2. External crate imports (`ropey::Rope`, `tree_sitter`, `thiserror::Error`)
-3. Internal module imports (`crate::error`, `crate::ingest`, `crate::validate`)
+1. Standard library imports: `use std::...`
+2. External crate imports: `use crate::...` (ordered alphabetically)
+3. Local module imports: `use self::...` or `use super::...`
+4. Re-exports grouped by module
 
 **Path Aliases:**
-- No path aliases configured
-- Uses full module paths or `use crate::*` style
-
-**Re-exports:**
-- Library-level re-exports in `src/lib.rs` using `pub use` pattern
-- Example: `pub use error::{Result, SpliceError};`
-- Commonly re-exported: error types, graph types, context functions, diff utilities
+- `crate::` prefix for intra-crate references
+- No `use` pollution - import only what's needed
+- Re-exports in `lib.rs` for public API
 
 ## Error Handling
 
 **Patterns:**
-- Uses `thiserror` crate for typed errors with `#[derive(Error)]`
-- `Result<T>` type alias: `pub type Result<T> = std::result::Result<T, SpliceError>;`
-- Error variants include structured context: file paths, line/column info, hints
-- NO `unwrap()` in production code (per AGENTS.md)
-- Early returns with `?` operator for error propagation
-- Context can be added via `.with_context()` helper method on `SpliceError`
+- Main error type: `SpliceError` enum with variants
+- Result type: `pub type Result<T> = std::result::Result<T, SpliceError>`
+- Error context: Use `.with_context()` for chainable context
+- Location metadata: `.with_path()` for file-specific errors
+- Structured diagnostics: `Diagnostic` type with location, level, message
 
-**Error Variant Structure:**
+**Error Creation:**
 ```rust
-#[error("Message with {placeholder}")]
-VariantName {
-    field: Type,
-    #[source]
-    source: UnderlyingError,
-}
+// Standard error with context
+let err = SpliceError::SymbolNotFound { ... }.with_context("while resolving symbol");
+
+// I/O error with path
+let err = SpliceError::io_with_path(path, source);
+
+// Parse error with file
+let err = SpliceError::parse_with_file(file, message);
 ```
 
-**Helper Methods:**
-- `SpliceError::symbol_not_found()` - for symbol lookup failures
-- `SpliceError::symbol_not_found_with_suggestions()` - with fuzzy matching
-- `SpliceError::parse_with_file()` - parse errors with context
-- `SpliceError::with_context()` - chainable context addition
-- `SpliceError::with_path()` - attach path information
+**Error Handling in Functions:**
+- Early returns with `?` operator
+- Map errors with additional context
+- Preserve original error sources with `#[source]`
+- Provide actionable hints for CLI users
 
 ## Logging
 
-**Framework:** `log` crate with `env_logger` for CLI
-
+**Framework:** `log` crate + `env_logger` for CLI binary
 **Patterns:**
-- `log::info!()` for informational messages
-- `log::warn!()` for warnings that don't block execution
-- `log::error!()` for errors requiring attention
-- `log::debug!()` for debugging output (verbose mode)
-- Context-rich messages with format strings: `log::info!("Post-verification: syntax={}, compiler={}", syntax_ok, compiler_ok)`
+- Debug logging for detailed tracing
+- Error logging only for user-facing errors
+- Structured error logging with kind() and location()
+- No logging in pure library code (CLI handles display)
+
+**When to Log:**
+- External tool execution (cargo check, rust-analyzer)
+- File operations with meaningful context
+- Performance-critical operations (minimal logging)
 
 ## Comments
 
 **When to Comment:**
-- Module-level documentation explaining purpose (at top of every file)
-- Function documentation explaining arguments, returns, and behavior
-- Inline comments for non-obvious logic
-- TODO comments for planned work (found in `src/ingest/mod.rs:55,63`)
+- Complex algorithm logic (multi-step operations)
+- Non-obvious error handling decisions
+- Performance optimization reasoning
+- TODO items with clear next steps
 
-**Documentation Style:**
-- Module docs: `//! Module description.` at file top
-- Function docs: `/// Brief description.` on function/struct definitions
-- Comprehensive doc examples using `///` blocks with `# Examples`, `# Arguments`, `# Returns` sections
-- Rustdoc-compliant examples (marked with `/// ```no_run` or `/// ````)
-
-**Example:**
-```rust
-//! Context extraction for span surroundings.
-//!
-//! Provides line-based context extraction using ropey for efficient
-//! UTF-8 aware line/column calculations.
-
-/// Extract context lines for a byte span with asymmetric before/after counts.
-///
-/// Given a file path and byte range, extracts lines before, within, and after
-/// span. Allows different amounts of context before vs after the match.
-///
-/// # Arguments
-///
-/// * `path` - File path to read
-/// * `byte_start` - Start byte offset (must be <= byte_end)
-/// * `byte_end` - End byte offset (must be <= file size)
-///
-/// # Returns
-///
-/// * `Ok(SpanContext)` - Extracted context with before/selected/after arrays
-/// * `Err(SpliceError)` - If file cannot be read or span is invalid
-pub fn extract_context_asymmetric(...) -> Result<SpanContext>
-```
+**JSDoc/TSDoc:**
+- All public functions have documentation
+- Examples in Rust doc format: `/// # Examples`
+- Argument descriptions with `///` prefix
+- Return value documentation
+- Error conditions documented
 
 ## Function Design
 
-**Size:** Functions typically 20-50 lines, up to 100 lines for complex operations
-- Large files: `src/main.rs` (3668 lines) is the CLI entry point (expected to be large)
-- `src/error.rs` (854 lines) contains error definitions and helpers
+**Size:** Generally under 50 lines, some exceptions up to 100
+- Small functions (5-20 lines): Focus on single responsibility
+- Medium functions (20-50 lines): Clear logical flow
+- Large functions (50-100 lines): Well-documented multi-step process
 
 **Parameters:**
-- Pass paths as `&Path` or `PathBuf` for ownership control
-- Pass strings as `&str` when ownership not needed
-- Use `Option<T>` for optional parameters
-- Config parameters grouped into structs (e.g., `SpanReplacement`, `SpanBatch`)
+- 3-5 parameters ideal
+- Use structs for complex parameter sets
+- Optional parameters with `Option<T>`
+- Builder pattern for optional parameters
 
 **Return Values:**
-- `Result<T>` from `crate::error` for all fallible operations
-- `Option<T>` for lookup operations that may not find results
-- Tuple returns for multiple values (e.g., `(before_hash, after_hash)`)
+- Use `Result<T, SpliceError>` for fallible operations
+- Return tuples for multiple related values
+- Use `Option<T>` for nullable values
+- Structured output types for complex results
 
 ## Module Design
 
 **Exports:**
-- `mod.rs` files re-export public items with `pub use`
-- Library `src/lib.rs` re-exports commonly used items for convenience
-- Pattern: `pub use module::{TypeA, TypeB, function_c};`
+- Public API re-exports in `lib.rs`
+- Clear module boundaries with `pub mod`
+- Private implementation details not exposed
+- Wrapper types for external dependencies
 
 **Barrel Files:**
-- Every directory has `mod.rs` that declares submodules
-- `mod.rs` files aggregate exports from submodules
-- Example: `src/ingest/mod.rs` declares `mod rust;`, `mod python;`, etc. and re-exports
+- No barrel files (avoid unnecessary indirection)
+- Direct imports preferred for clarity
+- Re-exports only in top-level `lib.rs`
 
-**Module Organization:**
-- `cli/` - Command-line interface (thin adapter only, no logic)
-- `ingest/` - Tree-sitter parsing per language
-- `resolve/` - Reference finding across files
-- `patch/` - Span replacement with validation gates
-- `validate/` - Compiler and analyzer integration
-- `graph/` - SQLiteGraph integration and schema
-- `error/` - Error types and Result alias
-- `context/` - Context extraction utilities
-- `output/` - Diff formatting and display
+**Structure:**
+- Feature-based module organization
+- Each module has clear responsibility
+- Cross-cutting concerns in dedicated modules
+- Hierarchical organization from core to specific
+
+## Special Conventions
+
+**Spans and Byte Offsets:**
+- All spans use byte offsets (not line/column for core logic)
+- Line numbers 1-based, columns 0-based (compiler convention)
+- Context extraction uses UTF-8 aware line counting
+
+**Validation Gates:**
+- Atomic operations with rollback on failure
+- Hash validation before/after operations
+- Multi-language validation (tree-sitter + compiler)
+- Optional rust-analyzer for additional safety
+
+**Database Operations:**
+- SQLite through Magellan wrapper
+- Transaction-based operations
+- Prepared statements for repeated queries
+- Connection pooling where appropriate
+
+**Async Patterns:**
+- Minimal async usage (mostly CLI, not core library)
+- File operations blocking but efficient
+- Tree-sitter parsing uses owned data, not references
+
+## Testing Conventions
+
+**Test Organization:**
+- Integration tests in `tests/` directory
+- Unit tests alongside production code
+- E2E tests via CLI invocation
+- Mock external tools in tests
+
+**Test Data:**
+- Temporary files for workspace creation
+- Checksums for deterministic validation
+- Fixed examples for predictable test behavior
+- Performance tests with meaningful datasets
 
 ---
 
