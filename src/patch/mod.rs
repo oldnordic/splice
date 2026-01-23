@@ -115,7 +115,7 @@ pub struct PreviewReport {
     pub bytes_removed: usize,
 }
 
-/// Apply a patch with full validation gates.
+/// Apply a patch with comprehensive validation and automatic rollback.
 ///
 /// This function:
 /// 1. Pre-verification (file state, workspace resources, graph sync)
@@ -126,6 +126,19 @@ pub struct PreviewReport {
 /// 6. Runs compiler validation gate (language-specific)
 /// 7. Runs rust-analyzer gate (if enabled and Rust)
 /// 8. On any failure, rolls back atomically
+///
+/// # Rollback Behavior
+///
+/// If any validation gate fails after patching, the original content
+/// is restored atomically. The rope mutation (remove + insert) happens
+/// in memory first, then the result is written to a temp file. If
+/// validation fails, we restore the original content.
+///
+/// # State Tracking
+///
+/// - `before_hash`: Content hash before patching
+/// - `replaced`: Original bytes for rollback
+/// - `after_hash`: Content hash after patching (for verification)
 ///
 /// # Arguments
 /// * `file_path` - Path to the file to patch
@@ -197,10 +210,13 @@ pub fn apply_patch_with_validation(
     })?;
 
     // Step 4: Apply byte-exact replacement using ropey
+    // Note: rope.remove() and rope.insert() are in-memory operations.
+    // If validation fails (Step 7), we rollback by restoring the original content.
     let mut rope = Rope::from_str(std::str::from_utf8(&replaced)?);
     let start_char = rope.byte_to_char(start);
     let end_char = rope.byte_to_char(end);
 
+    // Mutate rope: remove old content, insert new content
     rope.remove(start_char..end_char);
     rope.insert(start_char, new_content);
 
