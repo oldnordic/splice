@@ -7,6 +7,22 @@ use crate::error::{Result, SpliceError};
 use crate::ingest::imports::ImportKind;
 use std::path::Path;
 
+/// Strip surrounding quotes from a string.
+/// Character-safe for UTF-8: works with char indices, not byte offsets.
+fn strip_quotes(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    if chars.len() >= 2 {
+        match (chars.first(), chars.last()) {
+            (Some('"'), Some('"')) | (Some('\''), Some('\'')) => {
+                chars[1..chars.len() - 1].iter().collect()
+            }
+            _ => text.to_string(),
+        }
+    } else {
+        text.to_string()
+    }
+}
+
 /// Extract import statements from a TypeScript source file.
 ///
 /// Uses tree-sitter-typescript to parse the file and extract:
@@ -261,11 +277,7 @@ fn extract_require_call(node: tree_sitter::Node, source: &[u8]) -> Option<super:
                     for arg in sub_child.children(&mut sub_child.walk()) {
                         if arg.kind() == "string" {
                             if let Ok(text) = arg.utf8_text(source) {
-                                // Remove quotes from the string (character-safe for UTF-8)
-                                let chars: Vec<char> = text.chars().collect();
-                                if chars.len() > 2 {
-                                    source_path = chars[1..chars.len() - 1].iter().collect();
-                                }
+                                source_path = strip_quotes(text);
                             }
                         }
                     }
