@@ -623,7 +623,7 @@ impl CliErrorPayload {
         let symbol = error.symbol().map(|s| s.to_string());
         let file = error
             .file_path()
-            .map(|path| path.to_string_lossy().to_string());
+            .and_then(|p| p.to_str().map(|s| s.to_string()));
         let hint = error.hint().map(|h| h.to_string());
         let diagnostics = {
             let diagnostics = error.diagnostics();
