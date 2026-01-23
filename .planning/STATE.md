@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 ## Current Position
 
 Phase: 20 of 21 (Lifetime & Resource Safety)
-Plan: 03 of 7
+Plan: 01 of 7
 Status: In progress
-Last activity: 2026-01-24 — Completed Plan 20-03: Replace to_string_lossy() in pattern.rs
+Last activity: 2026-01-24 — Completed Plan 20-01: Safe parent() access and test error messages
 
 Progress: [███░░░░░░] 14% (94/106 plans total: 31 v2.0 + 55 v2.2 + 7 v2.2.1)
 
@@ -99,6 +99,8 @@ All blockers from v2.2 were resolved during gap closure:
 
 | Plan | Decision |
 |------|----------|
+| 20-01 | Use if-let pattern instead of unwrap() on Path::parent() to handle None case safely |
+| 20-01 | Add descriptive messages to test expect() calls for better failure debugging |
 | 20-03 | Use to_str().expect() for glob patterns in test code (TempDir paths always valid UTF-8) |
 | 20-03 | Use and_then/to_str with unwrap_or_default() for file name extraction |
 | 20-03 | Use to_str().unwrap_or("<invalid-utf-8>") for JSON serialization of file paths |
@@ -106,7 +108,7 @@ All blockers from v2.2 were resolved during gap closure:
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed Plan 20-03: Replace to_string_lossy() in pattern.rs
+Stopped at: Completed Plan 20-01: Safe parent() access and test error messages
 Resume file: None
 
 ---
