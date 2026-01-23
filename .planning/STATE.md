@@ -5,15 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** Phase 17 complete, awaiting human verification checkpoint
+**Current focus:** v2.2 COMPLETE ✓ — Milestone shipped 2026-01-23
 
 ## Current Position
 
-Phase: 17 of 17 (Integration & Testing) — CHECKPOINT
-7 of 7 plans executed, awaiting human verification (17-07)
-Last activity: 2026-01-23 — Plan 17-07 tasks completed, checkpoint reached
+Phase: 17 of 17 (Integration & Testing) — COMPLETE ✓
+7 of 7 plans executed, all verified
+Last activity: 2026-01-23 — Phase 17 verification passed (10/10 must-haves)
 
-Progress: [██████████░] 99% (68/69 plans, 1 pending checkpoint approval)
+Progress: [██████████] 100% (69/69 plans)
 
 ## Performance Metrics
 
@@ -221,11 +221,12 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-**Next Phase:**
-- None - Phase 17 is the final planned phase
+**Milestone Status:**
+- v2.2 is COMPLETE ✓ (69/69 plans executed, all verified)
+- Ready for milestone audit and archival
 
-**Incomplete Plan:**
-- 17-07: Magellan READ Alignment - Awaiting human verification checkpoint (tasks complete, tests passing)
+**Next Milestone:**
+- TBD — awaiting user direction for v2.3 or other work
 
 ### Blockers/Concerns
 
@@ -243,21 +244,13 @@ Recent decisions affecting current work:
 - [Phase 12]: LLM action taxonomy completeness — need survey of real LLM agents to see which JSON fields they use
 - [Phase 12]: Performance testing on 10K+ file codebases to validate mitigation strategies
 
-**Critical Gap - Magellan READ Integration:**
-- **Current State:** Splice errors when opening Magellan databases due to schema version and label/edge mismatches
-- **Issues:**
-  - Schema version gate: Splice expects v2, Magellan uses v3
-  - Label mismatch: Magellan uses (`rust`, `fn`), Splice uses (`symbol_function`, etc.)
-  - Edge casing: Magellan uses `DEFINES`, Splice uses `defines`
-  - Node kind mismatch: Magellan stores all symbols as `Symbol`, Splice uses specific kinds
-- **Expected Behavior:** Splice should open and query Magellan DBs without errors, accepting Magellan's conventions
-- **Impact:** Without 17-07 implementation, users cannot use Splice to query Magellan-indexed codebases
-
-**Mitigation:**
-- Use `/gsd:execute-phase 17-07` to implement READ alignment
-- Accept Magellan sqlitegraph schema v3 when opening databases
-- Handle Magellan label conventions (`rust`, `fn`, etc.) in queries
-- Accept both `DEFINES` and `defines` edge casing
+**Magellan READ Integration - RESOLVED ✓:**
+- **Completed:** Plan 17-07 implemented Magellan DB READ alignment
+- **Solution:**
+  - No schema version gate needed — both tools use sqlitegraph v1.0
+  - MagellanIntegration wrapper passes labels directly — works for all Magellan labels
+  - Edge type casing already handled in relationships module (checks both upper/lower case)
+- **Verification:** 25 Magellan alignment tests pass, including `test_magellan_db_read_compatibility`
 
 ## Session Continuity
 
@@ -366,17 +359,16 @@ Resume file: None
 - 311+ tests passing
 - Comprehensive documentation complete
 
-**v2.2 Status:** PHASE 17 IN PROGRESS ⏳
+**v2.2 Status:** COMPLETE ✅ SHIPPED 2026-01-23
 - Phase 11 complete: 11/11 plans (7 infrastructure + 4 gap closure)
 - Phase 12 complete: 8/8 plans (all verified)
 - Phase 13 complete: 5/5 plans (dry-run & diff)
 - Phase 14 complete: 5/5 plans (context flags)
 - Phase 15 complete: 6/6 plans (enhanced errors)
 - Phase 16 complete: 11/11 plans (symbol expansion & search)
-- Phase 17 in progress: 6/7 plans (integration & testing)
-  - 17-01 through 17-06: Complete ✅
-  - 17-07: Pending 📋 (Magellan write integration not started)
-- 312 tests passing (including 25 expansion tests, 12 context+expansion integration tests, 9 doc extraction tests, 9 suggestions tests, 5 compiler error tests, 16 context flag tests, 14 error_codes tests, 1 error location test, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests, 5 glob filtering tests, 4 search context tests)
+- Phase 17 complete: 7/7 plans (integration & testing, all verified)
+  - 17-01 through 17-07: Complete ✅
+- 340 tests passing (including 25 expansion tests, 12 context+expansion integration tests, 9 doc extraction tests, 9 suggestions tests, 5 compiler error tests, 16 context flag tests, 14 error_codes tests, 1 error location test, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests, 5 glob filtering tests, 4 search context tests, 25 Magellan alignment tests)
 - Error code registry with 28 error variants across 9 categories (22 error-level, 6 warning-level)
 - Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
 - Rich span types ready: Relationships, ToolHints, SuggestedAction

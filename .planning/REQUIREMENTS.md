@@ -131,9 +131,9 @@ Which phases cover which requirements. All v2.2 requirements mapped to roadmap p
 | RICHSPAN-14 through RICHSPAN-21 | Phase 12 | Complete | 8/8 plans executed |
 | CLI-01 through CLI-07 | Phase 13 | Complete | 5/5 plans executed |
 | CLI-08 through CLI-14 | Phase 14 | Complete | 6/7 requirements met (CLI-14 deferred to Phase 16) |
-| CLI-15 through CLI-21 | Phase 15 | Pending | |
-| CLI-22 through CLI-33 | Phase 16 | Pending | |
-| TEST-01 through TEST-06 | Phase 17 | Pending | |
+| CLI-15 through CLI-21 | Phase 15 | Complete | 7/7 requirements met |
+| CLI-22 through CLI-33 | Phase 16 | Complete | 12/12 requirements met |
+| TEST-01 through TEST-06 | Phase 17 | Complete | 6/6 requirements met |
 
 **Coverage:**
 - v2.2 requirements: 45 total
