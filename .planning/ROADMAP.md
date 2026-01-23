@@ -7,7 +7,7 @@ Splice is a span-safe refactoring tool for 7 programming languages (Rust, Python
 ## Milestones
 
 - **v2.0 Overhaul** - Phases 1-10 (shipped 2026-01-18)
-- **v2.2 Unified JSON & LLM Optimization** - Phases 11-17 (shipped 2026-01-22)
+- **v2.2 Unified JSON & LLM Optimization** - Phases 11-18 (in progress)
 
 ## Phases
 
@@ -31,11 +31,11 @@ See `.planning/milestones/v2.0-ROADMAP.md` for complete details of phases 1-10.
 
 </details>
 
-### v2.2 Unified JSON & LLM Optimization (SHIPPED 2026-01-23)
+### v2.2 Unified JSON & LLM Optimization (IN PROGRESS)
 
-**Milestone Goal:** ✅ Implemented the Unified JSON Schema across all LLM tools with rich span extensions optimized for AI agent consumption and human-friendly CLI improvements.
+**Milestone Goal:** Implement the Unified JSON Schema across all LLM tools with rich span extensions optimized for AI agent consumption and human-friendly CLI improvements.
 
-**Summary:** All 7 phases (11-17) completed with 69/69 plans. Added 115 new tests in Phase 17 alone, bringing total test count to 340 (339 passing, 1 pre-existing gap).
+**Summary:** 69/69 plans complete for phases 11-17. Phase 18 planning in progress.
 
 #### Phase 11: Rich Span Core
 
@@ -53,12 +53,6 @@ See `.planning/milestones/v2.0-ROADMAP.md` for complete details of phases 1-10.
 
 **Plans**: 11 plans in 8 waves (7 original + 4 gap closure)
 
-- [x] 17-01-PLAN.md — Run all 334+ existing tests and update golden files for new JSON schema
-- [x] 17-02-PLAN.md — Add integration tests for rich span extensions across all 7 languages
-- [x] 17-03-PLAN.md — Add performance tests for context extraction on large files (>32KB)
-- [x] 17-04-PLAN.md — Add performance tests for relationship queries on large codebases (>1K symbols)
-- [x] 17-05-PLAN.md — Add cross-tool alignment tests with Magellan format compatibility
-- [x] 17-06-PLAN.md — Add LLM consumption tests verifying JSON fields are properly used by agents
 Plans:
 - [x] 11-01-PLAN.md — Extend SpanResult structure with rich metadata fields (context, semantic_kind, language, checksums, error_code)
 - [x] 11-02-PLAN.md — Implement context extraction module using ropey for efficient line calculations
@@ -88,12 +82,6 @@ Plans:
 
 **Plans**: 8 plans in 3 waves
 
-- [x] 17-01-PLAN.md — Run all 334+ existing tests and update golden files for new JSON schema
-- [x] 17-02-PLAN.md — Add integration tests for rich span extensions across all 7 languages
-- [x] 17-03-PLAN.md — Add performance tests for context extraction on large files (>32KB)
-- [x] 17-04-PLAN.md — Add performance tests for relationship queries on large codebases (>1K symbols)
-- [x] 17-05-PLAN.md — Add cross-tool alignment tests with Magellan format compatibility
-- [x] 17-06-PLAN.md — Add LLM consumption tests verifying JSON fields are properly used by agents
 Plans:
 - [x] 12-01-PLAN.md — Create relationships module with Relationship and Relationships structs
 - [x] 12-02-PLAN.md — Implement relationship queries (get_callers, get_callees, get_imports, get_exports)
@@ -121,12 +109,6 @@ Plans:
 
 **Plans**: 5 plans in 4 waves
 
-- [x] 17-01-PLAN.md — Run all 334+ existing tests and update golden files for new JSON schema
-- [x] 17-02-PLAN.md — Add integration tests for rich span extensions across all 7 languages
-- [x] 17-03-PLAN.md — Add performance tests for context extraction on large files (>32KB)
-- [x] 17-04-PLAN.md — Add performance tests for relationship queries on large codebases (>1K symbols)
-- [x] 17-05-PLAN.md — Add cross-tool alignment tests with Magellan format compatibility
-- [x] 17-06-PLAN.md — Add LLM consumption tests verifying JSON fields are properly used by agents
 Plans:
 - [x] 13-01-PLAN.md — Add diff-related dependencies (similar, nu-ansi-term, is-terminal)
 - [x] 13-02-PLAN.md — Create diff module with unified diff generation and color detection
@@ -150,12 +132,6 @@ Plans:
 
 **Plans**: 5 plans in 5 waves
 
-- [x] 17-01-PLAN.md — Run all 334+ existing tests and update golden files for new JSON schema
-- [x] 17-02-PLAN.md — Add integration tests for rich span extensions across all 7 languages
-- [x] 17-03-PLAN.md — Add performance tests for context extraction on large files (>32KB)
-- [x] 17-04-PLAN.md — Add performance tests for relationship queries on large codebases (>1K symbols)
-- [x] 17-05-PLAN.md — Add cross-tool alignment tests with Magellan format compatibility
-- [x] 17-06-PLAN.md — Add LLM consumption tests verifying JSON fields are properly used by agents
 Plans:
 - [x] 14-01-PLAN.md — Add -A, -B, -C context flags to Delete, Patch, Query commands
 - [x] 14-02-PLAN.md — Add -A, -B, -C context flags to Get, ApplyFiles commands
@@ -261,13 +237,16 @@ Plans:
 **Gap Closure**: Closes audit gap for error codes not being fully wired
 
 **Success Criteria** (what must be TRUE):
-1. All CLI error paths call `with_error_code()` to attach SPL-E### codes
-2. JSON error output includes `error_code` field with code, severity, and remediation
-3. All 28 error variants are properly categorized and return appropriate codes
+1. All CLI error paths produce structured error codes in JSON output
+2. JSON error output includes `explain_command` field with format "splice explain SPL-E###"
+3. All 22 error-level SPL-E### variants are covered by SpliceError mappings
 4. Error codes are consistent across all 7 language operations
 5. `splice explain <code>` command returns detailed documentation for all errors
 
-**Plans**: TBD (to be planned by `/gsd:plan-phase 18`)
+**Plans**: 1 plan in 1 wave
+
+Plans:
+- [ ] 18-01-PLAN.md — Map remaining SpliceError variants to error codes and add explain_command field
 
 ## Progress
 
@@ -293,8 +272,8 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17 �
 | 15. Enhanced Errors | v2.2 | 6/6 | Complete | 2026-01-22 |
 | 16. Symbol Expansion & Search | v2.2 | 11/11 | Complete | 2026-01-22 |
 | 17. Integration & Testing | v2.2 | 7/7 | Complete | 2026-01-23 |
-| 18. Error Code Integration | v2.2 | 0/TBD | Planning | - |
+| 18. Error Code Integration | v2.2 | 0/1 | Planning | - |
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%)
-- v2.2: 69/69 plans complete (100%) ✓
+- v2.2: 69/70 plans (99%)
