@@ -124,5 +124,18 @@ Potential areas for future development:
 - Online error documentation (splice.dev/errors/)
 
 ---
-*Last updated: 2026-01-23 — v2.2 milestone complete*
+## Current Milestone: v2.2.1 - Code Quality & Bug Fixes
+
+**Goal:** Fix all 67 issues identified in bug analysis report, improving code reliability and safety
+
+**Target fixes:**
+- Error-Handling Amnesia — Replace unsafe unwrap/expect with proper error handling
+- Data Lifetime Issues — Fix UTF-8 slicing and lifetime assumptions
+- Boundary Bugs — Add proper bounds checking
+- API Consolidation — Remove duplicate functions
+- Concurrency Safety — Fix test environment race conditions
+- Resource Management — Improve cleanup patterns
+
+---
+*Last updated: 2026-01-23 — v2.2.1 milestone started*
 *See .planning/milestones/ for detailed milestone archives*
