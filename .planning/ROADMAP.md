@@ -7,7 +7,7 @@ Splice is a span-safe refactoring tool for 7 programming languages (Rust, Python
 ## Milestones
 
 - **v2.0 Overhaul** - Phases 1-10 (shipped 2026-01-18)
-- **v2.2 Unified JSON & LLM Optimization** - Phases 11-18 (in progress)
+- **v2.2 Unified JSON & LLM Optimization** - Phases 11-18 (shipped 2026-01-23)
 
 ## Phases
 
@@ -31,11 +31,11 @@ See `.planning/milestones/v2.0-ROADMAP.md` for complete details of phases 1-10.
 
 </details>
 
-### v2.2 Unified JSON & LLM Optimization (IN PROGRESS)
+### v2.2 Unified JSON & LLM Optimization (SHIPPED 2026-01-23)
 
-**Milestone Goal:** Implement the Unified JSON Schema across all LLM tools with rich span extensions optimized for AI agent consumption and human-friendly CLI improvements.
+**Milestone Goal:** ✅ Implemented the Unified JSON Schema across all LLM tools with rich span extensions optimized for AI agent consumption and human-friendly CLI improvements.
 
-**Summary:** 69/69 plans complete for phases 11-17. Phase 18 planning in progress.
+**Summary:** All 8 phases (11-18) completed with 70/70 plans. Added comprehensive error code integration with explain_command field and full SPL-E### coverage.
 
 #### Phase 11: Rich Span Core
 
@@ -246,7 +246,7 @@ Plans:
 **Plans**: 1 plan in 1 wave
 
 Plans:
-- [ ] 18-01-PLAN.md — Map remaining SpliceError variants to error codes and add explain_command field
+- [x] 18-01-PLAN.md — Map remaining SpliceError variants to error codes and add explain_command field
 
 ## Progress
 
@@ -272,8 +272,8 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17 �
 | 15. Enhanced Errors | v2.2 | 6/6 | Complete | 2026-01-22 |
 | 16. Symbol Expansion & Search | v2.2 | 11/11 | Complete | 2026-01-22 |
 | 17. Integration & Testing | v2.2 | 7/7 | Complete | 2026-01-23 |
-| 18. Error Code Integration | v2.2 | 0/1 | Planning | - |
+| 18. Error Code Integration | v2.2 | 1/1 | Complete | 2026-01-23 |
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%)
-- v2.2: 69/70 plans (99%)
+- v2.2: 70/70 plans complete (100%) ✓
