@@ -5,34 +5,38 @@
 See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** Phase 16 complete, ready for Phase 17 (Integration & Testing)
+**Current focus:** Phase 17 incomplete, 17-07 (Magellan write integration) pending
 
 ## Current Position
 
-Phase: 16 of 17 (Symbol Expansion and Search) — COMPLETE ✓
-All 11 plans executed
-Last activity: 2026-01-22 — Phase 16 complete with 11/11 plans verified
+Phase: 17 of 17 (Integration & Testing) — ⚠️ PARTIAL ✓
+6 of 7 plans executed, 1 plan pending (17-07)
+Last activity: 2026-01-23 — Phase 17 investigation completed
 
-Progress: [██████████░░░░░░░░░░] 90% (62/69 plans)
+Progress: [██████████░] 99% (68/69 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 62 (31 v2.0 + 31 v2.2)
+- Total plans completed: 68 (31 v2.0 + 37 v2.2)
 - Total plans planned: 69 (31 v2.0 + 38 v2.2)
 - Average duration: ~29 min/plan (v2.0 baseline)
-- Total execution time: ~31 hours (24h v2.0 + 7h v2.2)
+- Total execution time: ~32 hours (24h v2.0 + 8h v2.2)
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1-10 (v2.0) | 31 | ~24h | ~31 min |
-| 11-13 (v2.2) | 30/30 | 3.2h | ~6 min |
+| 11 (v2.2) | 11/11 | ~2h | ~6 min |
+| 12 (v2.2) | 8/8 | 3.2h | ~6 min |
+| 13 (v2.2) | 5/5 | 30min | ~6 min |
 | 14 (v2.2) | 5/5 | 30min | ~6 min |
 | 15 (v2.2) | 6/6 | 17min | ~3 min |
-| 16 (v2.2) | 8/6 | 3h | ~23 min |
-| **Total** | **76/80** | **~31h** | **~25 min** |
+| 16 (v2.2) | 11/11 | 3h | ~23 min |
+| 17 (v2.2) | 6/7 | ~1h | pending |
+
+**Total** | 68/80 | ~32h | ~25 min |
 
 **Recent Trend:**
 - v2.0 completed in ~2 days
@@ -42,23 +46,7 @@ Progress: [██████████░░░░░░░░░░] 90% (62
 - Phase 14 complete: context flags with asymmetric extraction, human-readable output, comprehensive tests (5/5 complete)
 - Phase 15 complete: Enhanced errors with severity levels, location extraction, fuzzy suggestions, TypeScript error codes, explain command (6/6 complete)
 - Phase 16 complete: Symbol Expansion & Search with 11/11 plans verified
-  - 16-01: Symbol expansion infrastructure with tree_walker module (21 tests)
-  - 16-02: CLI expansion flags (--expand, --expand-level) for Get and Query commands
-  - 16-03: Progressive expansion (name → body → containing block) with level 2 expansion
-  - 16-04: Leading doc comments with extract_leading_docs() and expand_to_body_with_docs() (9 tests)
-  - 16-05A/05B: Cross-language expansion tests for all 7 languages (25 tests)
-  - 16-06: Context flags respect expanded symbol boundaries (12 integration tests)
-  - 16-07: Search command with pattern matching and JSON/human output
-  - 16-08: Search with context flags (-A/-B/-C) and context extraction
-  - 16-09: --glob flag for file pattern filtering with multi-language support
-  - 16-10: Search --apply and --replace flags with atomic writes and rollback
-  - 16-11: JSON output format optimized for LLM consumption
-- Rich span metadata fully integrated into CLI JSON output
-- Dry-run mode with git-compatible output (unified diff, summary header, colors, exit codes)
-- Context flags (-A/-B/-C) fully integrated across all 6 commands (Delete, Patch, Query, Get, ApplyFiles, Search)
-- CLI-14 requirement satisfied: context calculated from expanded symbol boundaries
-
-*Updated after each plan completion*
+- Phase 17 in progress: 6/7 plans complete, 1 pending (17-07)
 
 ## Accumulated Context
 
@@ -126,7 +114,7 @@ Recent decisions affecting current work:
 - [14-03]: extract_context_asymmetric exported from crate root via lib.rs
 - [14-04]: resolve_context_counts() helper function implements grep convention for -A/-B/-C resolution
 - [14-04]: All 5 execute_* functions updated with three context parameters (context_before, context_after, context/context_both)
-- [14-04]: Context resolution moved from main() match arms into individual execute_* function bodies
+- [14-04]: Context resolution moved from main.rs match arms into individual execute_* function bodies
 - [14-04]: All extract_context calls updated to use extract_context_asymmetric with resolved before/after counts
 - [14-05]: resolve_context_counts moved from main.rs to context.rs for testability and exported from lib.rs
 - [14-05]: Human-readable context display added to execute_query and execute_get with "Context (N lines before):" and "Context (N lines after):" labels
@@ -138,7 +126,6 @@ Recent decisions affecting current work:
 - [15-01]: Comprehensive test coverage added for severity levels (13 tests total, 5 new tests in 15-01)
 - [15-02]: SpliceError::location() method extracts (file, line, column) from all error variants
 - [15-02]: Location extraction returns (Option<&str>, Option<usize>, Option<usize>) for optional file/line/column
-- [15-02]: Compiler conventions established - 1-based line numbers, 0-based column numbers (rustc, clang, tsc compatible)
 - [15-02]: byte_offset_to_line_column() helper converts tree-sitter byte offsets to line/column positions
 - [15-02]: byte_offset_to_line_column handles newline boundaries correctly (offset after \n is column 0)
 - [15-02]: CliErrorPayload::from_error() uses location() instead of TODO placeholder (line 578 removed)
@@ -159,6 +146,7 @@ Recent decisions affecting current work:
 - [15-05]: splice explain command supports both human-readable and JSON output modes
 - [15-05]: All 22 error-level SPL-E### codes have embedded explanations (warning codes excluded)
 - [15-05]: Unknown error codes return helpful message with links to external documentation (rustc, tsc)
+- [15-06]: Integrated all enhanced error features across error sites (CLI-17, CLI-18)
 - [16-01]: Symbol expansion infrastructure created with tree_walker module for AST-aware parent chain walking
 - [16-01]: find_parent_symbol_node() function walks tree-sitter parent chain using language-specific node kind predicates
 - [16-01]: expand_to_containing_block() function finds parent modules/blocks for level 2 expansion
@@ -182,9 +170,6 @@ Recent decisions affecting current work:
 - [16-06]: JSON output includes both original and expanded spans for transparency and debugging
 - [16-06]: Comprehensive integration tests (12 tests) verify context+expansion interaction across all 7 languages
 - [16-06]: Boundary recalculation pattern established: expand first, then extract context from expanded span
-- [16-08]: Default context_both to 2 lines for Search command (quick context view without overwhelming output)
-- [16-08]: Context extraction uses splice::context::extract_context_asymmetric() for consistency across all commands
-- [16-08]: Multi-language glob patterns in Search command use extension mapping (rs→Rust, py→Python, etc.)
 - [16-05A]: Integration tests in tests/ directory don't require lib.rs module declarations
 - [16-05A]: Search for 'fn symbol_name' pattern instead of just 'symbol_name' to avoid doc comment matches
 - [16-05A]: All Rust/Python expansion tests combined into single file for better organization
@@ -206,38 +191,45 @@ Recent decisions affecting current work:
 - [16-08]: Context in JSON output as context_before, context_selected, context_after arrays
 - [16-08]: pattern module made public (pub mod pattern) to enable find_pattern_in_files() access from execute_search
 - [16-09]: Multi-language glob pattern building from path and language when --glob not specified
-- [16-10]: Atomic find-and-replace using two-phase approach (backup manifest → atomic writes → rollback on error)
-- [16-09]: Language-specific extensions: rs, py, c, cpp, java, js, ts
+- [16-09]: Multi-language glob pattern building from path and language when --glob not specified
 - [16-09]: All supported types with brace expansion: {rs,py,c,cpp,h,hpp,cc,cxx,java,js,mjs,cjs,ts,tsx}
 - [16-09]: 5 glob filtering tests verify recursive matching, extension filtering, and empty results
-- [16-10]: Search --apply and --replace flags enable atomic pattern replacement across files with rollback on failure
+- [16-10]: Search --apply and --replace flags enable atomic find-and-replace with rollback on failure
 - [16-10]: Atomic writes use tempfile crate with persist() for atomic file replacement
 - [16-10]: Rollback mechanism creates backups before any writes and restores on error or panic
 - [16-10]: catch_unwind catches panics during replacement for rollback, converting Box<dyn Any> to SpliceError
+- [16-10]: Context extraction reuses existing extract_context_asymmetric() infrastructure for consistency
 - [16-11]: PatternMatch derives Serialize with optional context_before/context_after fields using serde(skip_serializing_if)
 - [16-11]: JSON output format structured with status, message, matches, pattern, count for LLM consumption
 - [16-11]: Context populated inline during JSON serialization for performance (avoids PatternMatch cloning)
 - [16-11]: 5 JSON tests validate schema, context handling, serialization, and metadata completeness
 - [16-09]: Context extraction reuses existing extract_context_asymmetric() infrastructure for consistency
+- [17-01]: Run all 334+ existing tests and update golden files for new JSON schema
+- [17-02]: Add integration tests for rich span extensions across all 7 languages
+- [17-03]: Add performance tests for context extraction on large files (>32KB)
+- [17-04]: Add performance tests for relationship queries on large codebases (>1K symbols)
+- [17-05]: Add cross-tool alignment tests with Magellan format compatibility
+- [17-06]: Add LLM consumption tests verifying JSON fields are properly used by agents
+- [Gap Closure]: Context extraction now integrated into CLI — --context-lines flag added, extract_context() called
+- [Gap Closure]: Semantic kind and language detection now integrated — detect_semantic_kind() and detect_language() called
+- [Gap Closure]: Checksums now integrated — checksum_before and file_checksum_before populated via with_both_checksums()
+- [Gap Closure]: Error code integration incomplete — with_error_code() field exists but not fully wired through all error paths
 
 ### Pending Todos
 
 **Next Phase:**
-- Phase 17: Integration & Testing - Final phase before project completion
-- Integration testing with real LLM agents consuming JSON output
-- CALLS edge creation implementation during code ingestion to enable real relationship queries
+- None - Phase 17 is the final planned phase
+
+**Incomplete Plan:**
+- 17-07: Magellan Write Integration - Add --db flag to patch/delete/search commands to enable editing based on Magellan database
 
 ### Blockers/Concerns
 
-**All Phase 16 gaps resolved.**
-
-**From Gap Closure (2026-01-22):**
+**Phase 16 Gaps Resolved:**
 - ✅ [Phase 11] Context infrastructure now integrated into CLI — --context-lines flag added, extract_context() called
 - ✅ [Phase 11] Semantic kind infrastructure now integrated into CLI — fields populated via AnySymbol matching
 - ✅ [Phase 11] Checksum infrastructure now integrated — checksum_before and file_checksum_before populated
-- ✅ [Phase 11] Error code infrastructure now integrated — SpliceErrorCode converted to ErrorCode in CliErrorPayload
-
-**All Phase 11 gaps resolved.**
+- ✅ [Phase 11] Context flags respect expanded symbol boundaries when used with --expand flag (CLI-14)
 
 **From Phase 13:**
 - [Known Issue] test_cli_patch_preview fails with exit code 1 - Test expects exit code 0 for dry-run mode, but implementation returns exit code 1 when changes are pending (git diff --exit-code convention). Test should be updated to expect exit code 1 or use different assertion. Not caused by Phase 14 changes - pre-existing from Phase 13-05.
@@ -247,16 +239,23 @@ Recent decisions affecting current work:
 - [Phase 12]: LLM action taxonomy completeness — need survey of real LLM agents to see which JSON fields they use
 - [Phase 12]: Performance testing on 10K+ file codebases to validate mitigation strategies
 
+**Critical Gap - Magellan Integration:**
+- **Current State:** Splice can READ from Magellan database (query/get commands) but CANNOT WRITE using Magellan database
+- **Missing Feature:** patch/delete/search commands lack --db flag to enable Magellan-based editing
+- **Workflow:** Users must manually copy file_path:byte_start:byte_end from Magellan find output, then run splice patch/delete with --file flag (tree-sitter based, not database-based)
+- **Expected Workflow:** User runs magellan watch to index codebase → runs splice patch --db codegraph.db --symbol X → Splice reads from database and edits
+- **Impact:** Without 17-07 implementation, Splice+Magellan integration is READ-ONLY, not full alignment
+
 **Mitigation:**
-- Use `/gsd:research-phase` before Phase 12 implementation
-- Start with minimal semantic kind taxonomy, extend based on actual usage
-- Prototype relationship indexing early in Phase 12
-- Action composition for complex operations (avoid over-engineering)
+- Use `/gsd:plan-phase` before implementing Phase 17-07
+- Start with minimal implementation: add --db flag to patch/delete/search commands
+- Implement database lookup in execute_* functions when --db is provided
+- Keep tree-sitter path as fallback when --db not provided
 
 ## Session Continuity
 
-Last session: 2026-01-22
-Stopped at: Completed 16-11 (Symbol Expansion and Search) - JSON output format for search results
+Last session: 2026-01-23
+Stopped at: Investigation complete, 17-07 (Magellan write integration) plan not executed
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -265,46 +264,16 @@ Resume file: None
 - 311+ tests passing
 - Comprehensive documentation complete
 
-**v2.2 Status:** PHASE 16 IN PROGRESS ⏳
-- Phase 11 complete: 11 plans (7 infrastructure + 4 gap closure)
-- Phase 12 complete: 8 plans (all verified)
-  - 12-01 (Relationships) ✅ Complete
-  - 12-02 (Tool Hints) ✅ Complete
-  - 12-03 (Suggested Action) ✅ Complete
-  - 12-04 (SpanResult extension) ✅ Complete
-  - 12-05 (CLI --relationships flag) ✅ Complete
-  - 12-07 (Relationships integration) ✅ Complete
-  - 12-06 (Performance tests) ✅ Complete
-  - 12-08 (Tool hints/action integration) ✅ Complete
-- Phase 13 complete: 5 plans (dry-run & diff)
-  - 13-01 (Diff Dependencies) ✅ Complete
-  - 13-02 (Unified Diff Module) ✅ Complete
-  - 13-03 (CLI Flags for Dry-Run and Unified Context) ✅ Complete
-  - 13-04 (Dry-run Diff Integration) ✅ Complete
-  - 13-05 (Dry-run Exit Code Implementation) ✅ Complete
-- Phase 14 complete: 5 plans (context flags)
-  - 14-01 (Unix-style Context Flags) ✅ Complete
-  - 14-02 (ApplyFiles Context Flags) ✅ Complete
-  - 14-03 (Asymmetric Context Extraction) ✅ Complete
-  - 14-04 (Main.rs Context Flag Wiring) ✅ Complete
-  - 14-05 (Context Flags Complete) ✅ Complete
+**v2.2 Status:** PHASE 17 IN PROGRESS ⏳
+- Phase 11 complete: 11/11 plans (7 infrastructure + 4 gap closure)
+- Phase 12 complete: 8/8 plans (all verified)
+- Phase 13 complete: 5/5 plans (dry-run & diff)
+- Phase 14 complete: 5/5 plans (context flags)
 - Phase 15 complete: 6/6 plans (enhanced errors)
-  - 15-01 (Severity Level Diversity) ✅ Complete
-  - 15-02 (Error Location Extraction) ✅ Complete
-  - 15-03 (Fuzzy Symbol Suggestions) ✅ Complete
-  - 15-04 (TypeScript Error Code Extraction) ✅ Complete
-  - 15-05 (Error Code Explain Command) ✅ Complete
-- Phase 16 in progress: 8/6 plans (symbol expansion and search)
-  - 16-01 (Symbol Expansion Infrastructure) ✅ Complete
-  - 16-02 (CLI Expansion Flags) ✅ Complete
-  - 16-03 (Search Command) ✅ Complete
-  - 16-04 (Leading Doc Comments) ✅ Complete
-  - 16-05A (Rust/Python Expansion Tests) ✅ Complete
-  - 16-05B (Multi-Language Expansion Tests) ✅ Complete
-  - 16-06 (Context+Expansion Integration) ✅ Complete
-  - 16-07 (Search Command Implementation) ✅ Complete
-  - 16-08 (Context Flags for Search) ✅ Complete
-  - 16-09 (Glob Flag for File Filtering) ✅ Complete
+- Phase 16 complete: 11/11 plans (symbol expansion & search)
+- Phase 17 in progress: 6/7 plans (integration & testing)
+  - 17-01 through 17-06: Complete ✅
+  - 17-07: Pending 📋 (Magellan write integration not started)
 - 312 tests passing (including 25 expansion tests, 12 context+expansion integration tests, 9 doc extraction tests, 9 suggestions tests, 5 compiler error tests, 16 context flag tests, 14 error_codes tests, 1 error location test, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests, 5 glob filtering tests, 4 search context tests)
 - Error code registry with 28 error variants across 9 categories (22 error-level, 6 warning-level)
 - Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
@@ -346,7 +315,7 @@ Resume file: None
 - Tool hints and suggested action integrated into all four CLI commands (Delete, Patch, Query, Get)
 - Performance test suite validates relationship queries scale to 1K symbols (small: <10ms, large: <100ms)
 - Diff module created: src/diff/mod.rs (392 lines, 5 public functions, 21 tests)
-- Diff dependencies added: similar (2.6), nu-ansi-term (0.50), is-terminal (0.4)
+- Diff dependencies added: similar (2.6), nu-ansi-term (0.50), is-terminal (0.4), is-terminal (0.4)
 - Diff functions accessible from splice crate root: format_unified_diff, should_use_color, format_colored_diff, format_diff_summary
 - Suggestions module created: src/suggestions.rs (122 lines, 5 unit tests + 4 integration tests)
 - Suggestions dependency added: strsim (0.11) for Levenshtein distance
@@ -359,20 +328,67 @@ Resume file: None
 - Human-readable context display shows "Context (N lines before):" and "Context (N lines after):" in Query and Get commands
 - Comprehensive integration tests for context flags in tests/context_flags_tests.rs (16 tests, 437 lines)
 - Error code explain command with embedded documentation for 22 error codes following rustc --explain pattern
-- Verification passed: Phase 12 all must-haves verified (27/27), Phase 13 complete, Phase 14 complete (5/5), Phase 15-05 complete
+- Verification passed: Phase 12 all must-haves verified (27/27), Phase 13 complete, Phase 14 complete, Phase 15-05 complete
+- Verification passed: Phase 16 all must-haves verified (33/33), Phase 11 all must-haves verified (9/9)
+- Verification passed: Phase 17-01 through 17-06 all must-haves verified (per their summaries)
 
 **Gap Closure Summary:**
 
 | Gap | Integration Status | Commit |
 |-----|-------------------|--------|
-| Context extraction | ✅ Complete - --context-lines flag added, extract_context() called in delete/patch JSON output | 11e5b70 |
-| Semantic kind detection | ✅ Complete - detect_semantic_kind() and detect_language() called in JSON output | 11e5b70 |
+| Context extraction | ✅ Complete - --context-lines flag added, extract_context() called | 11e5b70 |
+| Semantic kind detection | ✅ Complete - detect_semantic_kind() and detect_language() integrated | 11e5b70 |
 | Language detection | ✅ Complete - detect_language() integrated via semantic kind detection | 11e5b70 |
 | Checksum fields | ✅ Complete - checksum_before and file_checksum_before populated via with_both_checksums() | 11e5b70 |
-| Error codes | ✅ Complete - ErrorCode added to CliErrorPayload, SpliceErrorCode conversion integrated | 11e5b70 |
+| Error codes | ⚠️ Partial - infrastructure exists but not fully wired through all error paths | Partial implementation |
+
+**All Phase 11 gaps resolved.**
 
 ## Session Continuity
 
-Last session: 2026-01-22
-Stopped at: Completed 16-11 (Symbol Expansion and Search) - JSON output format for search results
+Last session: 2026-01-23
+Stopped at: Investigation complete, 17-07 (Magellan write integration) plan pending
 Resume file: None
+
+**v2.0 Status:** COMPLETE ✅
+- All 10 phases, 31 plans executed
+- Shipped 2026-01-18
+- 311+ tests passing
+- Comprehensive documentation complete
+
+**v2.2 Status:** PHASE 17 IN PROGRESS ⏳
+- Phase 11 complete: 11/11 plans (7 infrastructure + 4 gap closure)
+- Phase 12 complete: 8/8 plans (all verified)
+- Phase 13 complete: 5/5 plans (dry-run & diff)
+- Phase 14 complete: 5/5 plans (context flags)
+- Phase 15 complete: 6/6 plans (enhanced errors)
+- Phase 16 complete: 11/11 plans (symbol expansion & search)
+- Phase 17 in progress: 6/7 plans (integration & testing)
+  - 17-01 through 17-06: Complete ✅
+  - 17-07: Pending 📋 (Magellan write integration not started)
+- 312 tests passing (including 25 expansion tests, 12 context+expansion integration tests, 9 doc extraction tests, 9 suggestions tests, 5 compiler error tests, 16 context flag tests, 14 error_codes tests, 1 error location test, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests, 5 glob filtering tests, 4 search context tests)
+- Error code registry with 28 error variants across 9 categories (22 error-level, 6 warning-level)
+- Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
+- Rich span types ready: Relationships, ToolHints, SuggestedAction
+- SpanResult extended with 3 new optional fields (relationships, tool_hints, suggested_action)
+- All new fields use skip_serializing_if for backward compatibility
+- CLI --relationships flag added to Delete, Patch, Query, Get commands (lazy evaluation pattern)
+- Relationships integrated into all four CLI commands (Query, Get, Delete, Patch)
+- Tool hints and suggested action integrated into all four CLI commands (Delete, Patch, Query, Get)
+- Performance test suite validates relationship queries scale to 1K symbols (small: <10ms, large: <100ms)
+- Diff module created: src/diff/mod.rs (392 lines, 5 public functions, 21 tests)
+- Diff dependencies added: similar (2.6), nu-ansi-term (0.50), is-terminal (0.4), is-terminal (0.4)
+- Diff functions accessible from splice crate root: format_unified_diff, should_use_color, format_colored_diff, format_diff_summary
+- Suggestions module created: src/suggestions.rs (122 lines, 5 unit tests + 4 integration tests)
+- Suggestions dependency added: strsim (0.11) for Levenshtein distance
+- suggest_similar_symbols() function exported from crate root for fuzzy symbol matching
+- Dry-run mode integrated with git-style summary header and unified diff output
+- preview_patch_with_content() added to return before/after content for diff generation
+- Unix-style context flags (-A, -B, -C) added to all 5 commands (Delete, Patch, Query, Get, ApplyFiles)
+- Asymmetric context extraction with extract_context_asymmetric() for separate before/after counts
+- Context flags wired through main.rs with grep-style resolution via resolve_context_counts()
+- Human-readable context display shows "Context (N lines before):" and "Context (N lines after):" in Query and Get commands
+- Comprehensive integration tests for context flags in tests/context_flags_tests.rs (16 tests, 437 lines)
+- Error code explain command with embedded documentation for 22 error codes following rustc --explain pattern
+- Verification passed: Phase 12 all must-haves verified (27/27), Phase 13 complete, Phase 14 complete, Phase 15 complete, Phase 16 complete
+- Verification passed: Phase 17-01 through 17-06 all must-haves verified (per their summaries)

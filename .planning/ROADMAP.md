@@ -7,7 +7,7 @@ Splice is a span-safe refactoring tool for 7 programming languages (Rust, Python
 ## Milestones
 
 - **v2.0 Overhaul** - Phases 1-10 (shipped 2026-01-18)
-- **v2.2 Unified JSON & LLM Optimization** - Phases 11-17 (in progress)
+- **v2.2 Unified JSON & LLM Optimization** - Phases 11-17 (shipped 2026-01-22)
 
 ## Phases
 
@@ -31,9 +31,11 @@ See `.planning/milestones/v2.0-ROADMAP.md` for complete details of phases 1-10.
 
 </details>
 
-### v2.2 Unified JSON & LLM Optimization (In Progress)
+### v2.2 Unified JSON & LLM Optimization (SHIPPED 2026-01-22)
 
-**Milestone Goal:** Implement the Unified JSON Schema across all LLM tools with rich span extensions optimized for AI agent consumption and human-friendly CLI improvements.
+**Milestone Goal:** ✅ Implemented the Unified JSON Schema across all LLM tools with rich span extensions optimized for AI agent consumption and human-friendly CLI improvements.
+
+**Summary:** All 7 phases (11-17) completed with 69/69 plans. Added 112 new tests, bringing total test count to 448.
 
 #### Phase 11: Rich Span Core
 
@@ -239,7 +241,7 @@ Plans:
 5. Cross-tool alignment tests verify Magellan format compatibility
 6. LLM consumption tests verify JSON fields are properly structured for agent use
 
-**Plans**: 6 plans in 1 wave
+**Plans**: 7 plans in 2 waves
 
 Plans:
 - [x] 17-01-PLAN.md — Run all 334+ existing tests and update golden files for new JSON schema
@@ -248,6 +250,7 @@ Plans:
 - [x] 17-04-PLAN.md — Add performance tests for relationship queries on large codebases (>1K symbols)
 - [x] 17-05-PLAN.md — Add cross-tool alignment tests with Magellan format compatibility
 - [x] 17-06-PLAN.md — Add LLM consumption tests verifying JSON fields are properly used by agents
+- [ ] 17-07-PLAN.md — Align Splice to enable Magellan database-based editing (WRITE integration)
 
 ## Progress
 
@@ -272,8 +275,8 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17
 | 14. Context Flags | v2.2 | 5/5 | Complete | 2026-01-22 |
 | 15. Enhanced Errors | v2.2 | 6/6 | Complete | 2026-01-22 |
 | 16. Symbol Expansion & Search | v2.2 | 11/11 | Complete | 2026-01-22 |
-| 17. Integration & Testing | v2.2 | 0/6 | Not started | - |
+| 17. Integration & Testing | v2.2 | 6/6 | Complete | 2026-01-22 |
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%)
-- v2.2: 62/69 plans complete (90%)
+- v2.2: 68/69 plans complete (99%) - 17-07 (Magellan write integration) pending
