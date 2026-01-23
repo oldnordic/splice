@@ -76,6 +76,11 @@ fn extract_import_statements(
 /// Extract from import_statement: import os
 /// Or: import os, sys (returns multiple)
 /// Or: import os as operating_system
+///
+/// # Safety Invariants
+/// - All collection access (first/last) is guarded by is_empty() checks
+/// - All Option unwrapping uses ? or or_else patterns
+/// - No unwrap() or expect() in production code paths
 fn extract_import_statement(
     node: tree_sitter::Node,
     source: &[u8],
@@ -265,6 +270,10 @@ fn extract_alias_name(node: tree_sitter::Node, source: &[u8]) -> Option<String> 
 }
 
 /// Extract an aliased_import as a complete ImportFact.
+///
+/// # Safety Invariants
+/// - children.len() >= 3 check guards index access to children[2]
+/// - unwrap_or_default provides safe fallback when path is empty
 fn extract_aliased_import(
     node: tree_sitter::Node,
     source: &[u8],
@@ -283,9 +292,12 @@ fn extract_aliased_import(
 
     // Third child is the alias identifier
     let imported_name = if children.len() >= 3 {
+        // Safe: children.len() >= 3 ensures index 2 is valid
         children[2].utf8_text(source).ok()?.to_string()
     } else {
-        path.first()?.clone()
+        // Safe: unwrap_or_default provides empty string fallback if path is empty
+        // instead of returning None and failing the entire extraction
+        path.first().cloned().unwrap_or_default()
     };
 
     Some(super::ImportFact {
