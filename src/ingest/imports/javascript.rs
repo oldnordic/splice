@@ -274,16 +274,17 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_namespace_import() {
+    fn test_extract_namespace_import() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"import * as utils from './utils';\n";
         let path = Path::new("test.js");
         let result = extract_javascript_imports(path, source);
         assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = result?;
         assert_eq!(imports.len(), 1);
         assert_eq!(imports[0].import_kind, ImportKind::JsNamespaceImport);
         assert!(imports[0].is_glob);
         assert_eq!(imports[0].imported_names, vec!["utils"]);
+        Ok(())
     }
 
     #[test]

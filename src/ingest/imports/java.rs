@@ -174,15 +174,16 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_static_wildcard_import() {
+    fn test_extract_static_wildcard_import() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"import static java.lang.Math.*;\n";
         let path = Path::new("test.java");
         let result = extract_java_imports(path, source);
         assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = result?;
         assert_eq!(imports.len(), 1);
         assert_eq!(imports[0].import_kind, ImportKind::JavaStaticImport);
         assert!(imports[0].is_glob);
+        Ok(())
     }
 
     #[test]

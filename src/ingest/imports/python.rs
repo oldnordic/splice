@@ -198,7 +198,9 @@ fn extract_import_from_statement(
                     // For dotted names, use the last component as the imported name
                     // e.g., `from os.path import join` -> "join"
                     // SAFE: Guarded by is_empty() check above - continue ensures name_path has at least one element
-                    imported_names.push(name_path.last().unwrap().clone());
+                    if let Some(name) = name_path.last().cloned() {
+                        imported_names.push(name);
+                    }
                 }
             }
             "aliased_import" => {
