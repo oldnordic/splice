@@ -355,9 +355,31 @@ impl SpliceErrorCode {
             crate::SpliceError::Io { .. } | crate::SpliceError::IoContext { .. } => {
                 Some(SpliceErrorCode::FileReadError)
             }
+            crate::SpliceError::InsufficientDiskSpace { .. } => {
+                Some(SpliceErrorCode::FileWriteError)
+            }
 
-            // Other errors - no specific code
-            _ => None,
+            // Query and log errors
+            crate::SpliceError::QueryError { .. } => Some(SpliceErrorCode::DatabaseError),
+            crate::SpliceError::ExecutionRecordFailed { .. } => {
+                Some(SpliceErrorCode::ExecutionLogError)
+            }
+
+            // Date format and plan errors
+            crate::SpliceError::InvalidDateFormat { .. } => {
+                Some(SpliceErrorCode::InvalidPlanSchema)
+            }
+
+            // Rust-specific compiler validation
+            crate::SpliceError::CargoCheckFailed { .. } => {
+                Some(SpliceErrorCode::CompilerValidationFailed)
+            }
+
+            // Intentionally unmapped errors:
+            // - BrokenPipe: terminal state, not user-fixable
+            // - Utf8: covered by InvalidUtf8 variant
+            // - Other: generic catchall, no specific code applicable
+            crate::SpliceError::BrokenPipe | crate::SpliceError::Utf8(_) | crate::SpliceError::Other(_) => None,
         }
     }
 }
@@ -1008,6 +1030,248 @@ mod tests {
         };
         let code = SpliceErrorCode::from_splice_error(&ambiguous_error);
         assert_eq!(code, Some(SpliceErrorCode::AmbiguousSymbol));
+    }
+
+    #[test]
+    fn test_error_code_coverage() {
+        use crate::SpliceError;
+        use std::path::PathBuf;
+
+        // Test all error-level SpliceError variants produce error codes
+        let mut mapped_count = 0;
+
+        // Symbol resolution errors
+        let error = SpliceError::symbol_not_found("test", None);
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        let error = SpliceError::AmbiguousSymbol {
+            name: "foo".to_string(),
+            files: vec!["a.rs".to_string()],
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        let error = SpliceError::ReferenceFailed {
+            name: "foo".to_string(),
+            reason: "test".to_string(),
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        let error = SpliceError::AmbiguousReference {
+            name: "foo".to_string(),
+            file: "test.rs".to_string(),
+            line: 1,
+            col: 1,
+            candidates: vec!["a::foo".to_string()],
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        // Parse/AST errors
+        let error = SpliceError::Parse {
+            file: PathBuf::from("test.rs"),
+            message: "test error".to_string(),
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        // InvalidUtf8 - create by converting invalid bytes
+        let invalid_utf8 = std::str::from_utf8(b"\xff\xfe").unwrap_err();
+        let error = SpliceError::InvalidUtf8 {
+            file: PathBuf::from("test.rs"),
+            source: invalid_utf8,
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        let error = SpliceError::CompilerError("syntax error".to_string());
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        // Span errors
+        let error = SpliceError::InvalidSpan {
+            file: PathBuf::from("test.rs"),
+            start: 0,
+            end: 10,
+            file_size: 100,
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        let error = SpliceError::InvalidLineRange {
+            file: PathBuf::from("test.rs"),
+            line_start: 1,
+            line_end: 10,
+            total_lines: 20,
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        let error = SpliceError::FileExternallyModified {
+            file: "test.rs".to_string(),
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        // I/O errors
+        let error = SpliceError::Io {
+            path: PathBuf::from("test.rs"),
+            source: std::io::Error::new(std::io::ErrorKind::NotFound, "test"),
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        let error = SpliceError::IoContext {
+            context: "test context".to_string(),
+            source: std::io::Error::new(std::io::ErrorKind::PermissionDenied, "test"),
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        let error = SpliceError::InsufficientDiskSpace {
+            needed: 1000,
+            available: 100,
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        // Validation errors
+        let error = SpliceError::PreVerificationFailed {
+            check: "test check".to_string(),
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        let error = SpliceError::ParseValidationFailed {
+            file: PathBuf::from("test.rs"),
+            message: "validation failed".to_string(),
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        let error = SpliceError::CompilerValidationFailed {
+            file: PathBuf::from("test.rs"),
+            language: "rust".to_string(),
+            diagnostics: vec![],
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        // Plan execution errors
+        let error = SpliceError::InvalidPlanSchema {
+            message: "invalid schema".to_string(),
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        let error = SpliceError::PlanExecutionFailed {
+            step: 1,
+            error: "failed".to_string(),
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        let error = SpliceError::InvalidBatchSchema {
+            message: "invalid batch".to_string(),
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        // Graph/database errors
+        let error = SpliceError::Graph(sqlitegraph::SqliteGraphError::connection("test error"));
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        // Execution log errors
+        let error = SpliceError::ExecutionLogError {
+            message: "log error".to_string(),
+            source: None,
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        let error = SpliceError::ExecutionNotFound {
+            execution_id: "test-id".to_string(),
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        let error = SpliceError::ExecutionRecordFailed {
+            execution_id: "test-id".to_string(),
+            source: None,
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        // Analyzer errors
+        let error = SpliceError::AnalyzerNotAvailable {
+            mode: "path".to_string(),
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        let error = SpliceError::AnalyzerFailed {
+            output: "failed".to_string(),
+            diagnostics: vec![],
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        // Query errors
+        let error = SpliceError::QueryError {
+            message: "query failed".to_string(),
+            source: None,
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        // Date format errors
+        let error = SpliceError::InvalidDateFormat {
+            input: "invalid".to_string(),
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        // Cargo check failed (Rust-specific compiler validation)
+        let error = SpliceError::CargoCheckFailed {
+            workspace: PathBuf::from("/workspace"),
+            output: "check failed".to_string(),
+            diagnostics: vec![],
+        };
+        assert!(SpliceErrorCode::from_splice_error(&error).is_some());
+        mapped_count += 1;
+
+        // Intentionally unmapped errors
+        let error = SpliceError::BrokenPipe;
+        assert!(
+            SpliceErrorCode::from_splice_error(&error).is_none(),
+            "BrokenPipe should not have an error code (terminal state)"
+        );
+
+        // Utf8 variant - intentionally unmapped
+        let invalid_utf8 = std::str::from_utf8(b"\xff\xfe").unwrap_err();
+        let error = SpliceError::Utf8(invalid_utf8);
+        assert!(
+            SpliceErrorCode::from_splice_error(&error).is_none(),
+            "Utf8 variant should not have an error code (covered by InvalidUtf8)"
+        );
+
+        let error = SpliceError::Other("generic error".to_string());
+        assert!(
+            SpliceErrorCode::from_splice_error(&error).is_none(),
+            "Other variant should not have an error code (generic catchall)"
+        );
+
+        // Verify we have at least 22 error-level variants mapped
+        assert!(
+            mapped_count >= 22,
+            "Expected at least 22 error-level variants to be mapped, got {}",
+            mapped_count
+        );
+
+        println!("Total error-level variants mapped: {}", mapped_count);
     }
 
     #[test]
