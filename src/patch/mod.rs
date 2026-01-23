@@ -923,8 +923,18 @@ struct AppliedFile {
     after_hash: String,
 }
 
+/// Clone workspace to a temporary directory for preview operations.
+///
+/// Creates a temporary directory and recursively copies the workspace.
+/// If copying fails, the temp directory is automatically cleaned up by Drop.
+///
+/// # Returns
+///
+/// Returns `Ok(TempDir)` which will be cleaned up when dropped.
 fn clone_workspace_for_preview(workspace_root: &Path) -> Result<TempDir> {
     let preview_dir = TempDir::new()?;
+    // Note: If copy_dir_recursive fails, preview_dir is dropped here
+    // and automatically cleans up the temp directory
     copy_dir_recursive(workspace_root, preview_dir.path())?;
     Ok(preview_dir)
 }
