@@ -5,15 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** Phase 17 incomplete, 17-07 (Magellan write integration) pending
+**Current focus:** Phase 17 complete, awaiting human verification checkpoint
 
 ## Current Position
 
-Phase: 17 of 17 (Integration & Testing) — ⚠️ PARTIAL ✓
-6 of 7 plans executed, 1 plan pending (17-07)
-Last activity: 2026-01-23 — Phase 17 investigation completed
+Phase: 17 of 17 (Integration & Testing) — CHECKPOINT
+7 of 7 plans executed, awaiting human verification (17-07)
+Last activity: 2026-01-23 — Plan 17-07 tasks completed, checkpoint reached
 
-Progress: [██████████░] 99% (68/69 plans)
+Progress: [██████████░] 99% (68/69 plans, 1 pending checkpoint approval)
 
 ## Performance Metrics
 
@@ -210,6 +210,10 @@ Recent decisions affecting current work:
 - [17-04]: Add performance tests for relationship queries on large codebases (>1K symbols)
 - [17-05]: Add cross-tool alignment tests with Magellan format compatibility
 - [17-06]: Add LLM consumption tests verifying JSON fields are properly used by agents
+- [17-07]: Magellan DB read alignment - No schema version gate needed (both tools use sqlitegraph v1.0)
+- [17-07]: MagellanIntegration wrapper passes labels directly to Magellan - works for all Magellan labels
+- [17-07]: Edge type casing already handled in relationships module (both upper and lower case)
+- [17-07]: CodeGraph can open Magellan-created DBs without modification - cross-tool READ compatibility confirmed
 - [Gap Closure]: Context extraction now integrated into CLI — --context-lines flag added, extract_context() called
 - [Gap Closure]: Semantic kind and language detection now integrated — detect_semantic_kind() and detect_language() called
 - [Gap Closure]: Checksums now integrated — checksum_before and file_checksum_before populated via with_both_checksums()
@@ -221,7 +225,7 @@ Recent decisions affecting current work:
 - None - Phase 17 is the final planned phase
 
 **Incomplete Plan:**
-- 17-07: Magellan READ Alignment - Fix Splice to properly read Magellan databases (accept schema v3, handle Magellan labels/edge casing)
+- 17-07: Magellan READ Alignment - Awaiting human verification checkpoint (tasks complete, tests passing)
 
 ### Blockers/Concerns
 
@@ -258,7 +262,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Investigation complete, 17-07 (Magellan write integration) plan not executed
+Stopped at: Plan 17-07 tasks complete, awaiting human verification checkpoint
 Resume file: None
 
 **v2.0 Status:** COMPLETE ✅
@@ -267,16 +271,19 @@ Resume file: None
 - 311+ tests passing
 - Comprehensive documentation complete
 
-**v2.2 Status:** PHASE 17 IN PROGRESS ⏳
+**v2.2 Status:** PHASE 17 CHECKPOINT ⏸️
 - Phase 11 complete: 11/11 plans (7 infrastructure + 4 gap closure)
 - Phase 12 complete: 8/8 plans (all verified)
 - Phase 13 complete: 5/5 plans (dry-run & diff)
 - Phase 14 complete: 5/5 plans (context flags)
 - Phase 15 complete: 6/6 plans (enhanced errors)
 - Phase 16 complete: 11/11 plans (symbol expansion & search)
-- Phase 17 in progress: 6/7 plans (integration & testing)
+- Phase 17 in progress: 7/7 plans executed, awaiting checkpoint approval
   - 17-01 through 17-06: Complete ✅
-  - 17-07: Pending 📋 (Magellan write integration not started)
+  - 17-07: Checkpoint reached 🔄 (Magellan DB read alignment)
+    - Splice can open Magellan-created databases
+    - Magellan labels (rust, fn, struct) work for queries
+    - Edge type casing (DEFINES/defines) handled in relationships
 - 312 tests passing (including 25 expansion tests, 12 context+expansion integration tests, 9 doc extraction tests, 9 suggestions tests, 5 compiler error tests, 16 context flag tests, 14 error_codes tests, 1 error location test, 13 diff tests, 15 performance tests, 9 relationship tests, 7 tool hints tests, 7 suggested action tests, 7 dry-run tests, 11 context module tests, 5 glob filtering tests, 4 search context tests)
 - Error code registry with 28 error variants across 9 categories (22 error-level, 6 warning-level)
 - Rich span infrastructure complete: context, semantic_kind, language, checksums, error_codes, relationships, tool_hints, suggested_action
