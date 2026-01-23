@@ -92,7 +92,7 @@ fn extract_import_statement(
                 let path = extract_dotted_name_path(child, source);
                 if !path.is_empty() {
                     // SAFE: Guarded by is_empty() check above - path has at least one element
-                    let imported_name = path.first().unwrap().clone();
+                    let imported_name = path.first().cloned().expect("path confirmed non-empty by is_empty() check");
                     result.push(super::ImportFact {
                         file_path: std::path::PathBuf::new(),
                         import_kind: ImportKind::PythonImport,

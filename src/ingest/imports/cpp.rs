@@ -131,15 +131,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_extract_system_include() {
+    fn test_extract_system_include() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"#include <stdio.h>\n";
         let path = Path::new("test.c");
         let result = extract_cpp_imports(path, source);
         assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = result?;
         assert_eq!(imports.len(), 1);
         assert_eq!(imports[0].import_kind, ImportKind::CppSystemInclude);
         assert_eq!(imports[0].path, vec!["stdio.h"]);
+        Ok(())
     }
 
     #[test]

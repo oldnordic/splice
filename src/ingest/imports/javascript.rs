@@ -247,28 +247,30 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_extract_named_import() {
+    fn test_extract_named_import() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"import { foo } from 'bar';\n";
         let path = Path::new("test.js");
         let result = extract_javascript_imports(path, source);
         assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = result?;
         assert_eq!(imports.len(), 1);
         assert_eq!(imports[0].import_kind, ImportKind::JsImport);
         assert_eq!(imports[0].path, vec!["bar"]);
         assert_eq!(imports[0].imported_names, vec!["foo"]);
+        Ok(())
     }
 
     #[test]
-    fn test_extract_default_import() {
+    fn test_extract_default_import() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"import baz from 'module';\n";
         let path = Path::new("test.js");
         let result = extract_javascript_imports(path, source);
         assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = result?;
         assert_eq!(imports.len(), 1);
         assert_eq!(imports[0].import_kind, ImportKind::JsDefaultImport);
         assert_eq!(imports[0].imported_names, vec!["baz"]);
+        Ok(())
     }
 
     #[test]
@@ -285,48 +287,52 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_side_effect_import() {
+    fn test_extract_side_effect_import() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"import 'polyfills';\n";
         let path = Path::new("test.js");
         let result = extract_javascript_imports(path, source);
         assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = result?;
         assert_eq!(imports.len(), 1);
         assert_eq!(imports[0].import_kind, ImportKind::JsSideEffectImport);
         assert_eq!(imports[0].path, vec!["polyfills"]);
+        Ok(())
     }
 
     #[test]
-    fn test_extract_require_call() {
+    fn test_extract_require_call() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"const fs = require('fs');\n";
         let path = Path::new("test.js");
         let result = extract_javascript_imports(path, source);
         assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = result?;
         assert_eq!(imports.len(), 1);
         assert_eq!(imports[0].import_kind, ImportKind::JsRequire);
         assert_eq!(imports[0].path, vec!["fs"]);
         assert_eq!(imports[0].imported_names, vec!["fs"]);
+        Ok(())
     }
 
     #[test]
-    fn test_extract_multiple_imports() {
+    fn test_extract_multiple_imports() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"import { foo, bar } from 'baz';\nimport qux from 'module';\n";
         let path = Path::new("test.js");
         let result = extract_javascript_imports(path, source);
         assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = result?;
         assert_eq!(imports.len(), 2);
+        Ok(())
     }
 
     #[test]
-    fn test_extract_nested_path_import() {
+    fn test_extract_nested_path_import() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"import { Component } from '@react/core';\n";
         let path = Path::new("test.js");
         let result = extract_javascript_imports(path, source);
         assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = result?;
         assert_eq!(imports.len(), 1);
         assert_eq!(imports[0].path, vec!["@react", "core"]);
+        Ok(())
     }
 }

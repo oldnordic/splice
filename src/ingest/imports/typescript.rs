@@ -295,28 +295,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_extract_named_import() {
+    fn test_extract_named_import() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"import { Component } from 'react';\n";
         let path = Path::new("test.ts");
-        let result = extract_typescript_imports(path, source);
-        assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = extract_typescript_imports(path, source)?;
         assert_eq!(imports.len(), 1);
         assert_eq!(imports[0].import_kind, ImportKind::JsImport);
         assert_eq!(imports[0].path, vec!["react"]);
         assert_eq!(imports[0].imported_names, vec!["Component"]);
+        Ok(())
     }
 
     #[test]
-    fn test_extract_default_import() {
+    fn test_extract_default_import() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"import React from 'react';\n";
         let path = Path::new("test.ts");
-        let result = extract_typescript_imports(path, source);
-        assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = extract_typescript_imports(path, source)?;
         assert_eq!(imports.len(), 1);
         assert_eq!(imports[0].import_kind, ImportKind::JsDefaultImport);
         assert_eq!(imports[0].imported_names, vec!["React"]);
+        Ok(())
     }
 
     #[test]
