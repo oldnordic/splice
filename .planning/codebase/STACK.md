@@ -1,131 +1,91 @@
 # Technology Stack
 
-**Analysis Date:** 2026-01-22
+**Analysis Date:** 2026-01-23
 
 ## Languages
 
 **Primary:**
-- Rust 2021 Edition - Main implementation language
-  - Version: 1.70+ (required for building)
-  - Features: Edition 2021 with async support
+- Rust 2021 - Core implementation language (entire project)
 
 **Secondary:**
-- N/A - Pure Rust implementation with no language bindings
+- Python - For test fixtures and cross-language validation
+- JavaScript/TypeScript - Code generation targets (via tree-sitter)
+- C/C++ - Code generation targets (via tree-sitter)
+- Java - Code generation targets (via tree-sitter)
 
 ## Runtime
 
 **Environment:**
-- Rust Native
-  - Version: 1.70+
-  - Binary format: Static linking (no runtime dependencies)
+- Rust 1.70+ (minimum for building)
+- Target: Linux, macOS, Windows (via std)
 
 **Package Manager:**
-- Cargo (Rust package manager)
-  - Version: Integrated with Rust toolchain
-  - Lockfile: Cargo.lock (committed to version control)
+- Cargo - Rust package manager
+- Lockfile: `Cargo.lock` (present)
 
 ## Frameworks
 
 **Core:**
-- Native Rust frameworks only
-  - Custom CLI implementation with clap
-  - No external application frameworks
+- tree-sitter 0.22 - AST parsing for all supported languages
+- SQLiteGraph 1.0 - Code graph storage backend (native-v2 features)
+- Magellan 0.5.3 - Code indexing and label-based symbol discovery
 
 **Testing:**
-- Rust test framework (built-in)
-  - Unit tests integrated into source files
-  - Integration tests in tests/ directory
+- Rust built-in test framework - Unit and integration testing
+- tempfile 3.10 - Test file management
 
 **Build/Dev:**
-- Cargo Build System
-  - Debug/Release profiles
-  - Target-specific builds
+- clap 4.5 (derive) - CLI argument parsing
+- ropey 1.6 - Safe byte-level text editing
 
 ## Key Dependencies
 
-**Core:**
-- magellan 0.5.3 - Multi-language code indexing and symbol queries
-  - Features: native-v2
-  - Purpose: Code graph construction and label-based queries
-- sqlitegraph 1.0 - SQLiteGraph backend
-  - Features: native-v2
-  - Purpose: In-process graph database for code entities
+**Critical:**
+- sqlitegraph 1.0 - Code graph database backend, required for symbol storage and queries
+- magellan 0.5.3 - Multi-language code indexing, required for symbol discovery
+- rusqlite 0.31 (bundled) - Direct SQLite access for execution logging
 
-**AST Parsing:**
-- tree-sitter 0.22 - Framework for incremental parsing
-  - Grammar-specific packages for each language:
-    - tree-sitter-rust 0.21
-    - tree-sitter-python 0.21
-    - tree-sitter-c 0.21
-    - tree-sitter-cpp 0.21
-    - tree-sitter-javascript 0.21
-    - tree-sitter-typescript 0.21
-    - tree-sitter-java 0.21
+**Infrastructure:**
+- tree-sitter 0.22 + language parsers - AST validation for Rust, Python, C, C++, Java, JavaScript, TypeScript
+- which 6 - Locating compiler binaries on PATH
+- std::process::Command - External compiler execution for validation gates
 
-**Text Processing:**
-- ropey 1.6 - Safe byte-level text editing
-  - Purpose: Precise code span manipulation
-- glob 0.3 - File pattern matching
-  - Purpose: Multi-file operations
-
-**Serialization:**
-- serde 1.0 - Serialization framework
-  - Features: derive macros
-- serde_json 1.0 - JSON serialization
-  - Purpose: Configuration and structured output
-
-**Error Handling:**
-- thiserror 1.0 - Error type derivation
-  - Purpose: Custom error types for the project
-- rusqlite 0.31 - SQLite wrapper
-  - Features: bundled (static linking)
-  - Purpose: Direct database access for logging
-
-**CLI & Logging:**
-- clap 4.5 - Command line argument parsing
-  - Features: derive macros
-- log 0.4 - Logging framework
-- env_logger 0.11 - Environment-based logging
-- which 6 - Find executables
-- tempfile 3.10 - Temporary file management
-
-**Utilities:**
-- sha2 0.10 - SHA-256 hashing
-  - Purpose: Checksum verification
-- uuid 1.10 - UUID generation
-  - Features: v4 (random UUIDs)
-- chrono 0.4 - Date/time handling
-  - Features: std, clock (reduced featureset)
-- strsim 0.10 - String similarity (for diffing)
+**Data Structures:**
+- serde 1.0 + serde_json - JSON serialization for configuration, plans, and output
+- uuid 1.10 (v4) - Unique identifier generation for operations
+- chrono 0.4 - Timestamp handling for execution logging
+- sha2 0.10 - File checksum computation for validation
 
 ## Configuration
 
 **Environment:**
-- No external environment configuration required
-- Language-specific compilers must be available in PATH
+- `SPLICE_EXECUTION_LOG` - Enable/disable execution logging (default: true)
+- `NO_COLOR` - Disable colored diff output
+- `RUST_LOG` - Standard Rust logging configuration
+
+**Key configs required:**
+- Language compilers in PATH (cargo, python, gcc, g++, javac, node, tsc)
+- Graph database path (auto-detected from workspace: `.splice/codegraph.db`)
+- Execution log database path (auto-detected: `.splice/operations.db`)
 
 **Build:**
-- Cargo.toml - Main configuration
-- Workspace: Single-crate project
-- Profile-specific optimizations
+- No separate build config files
+- Standard Cargo configuration via `Cargo.toml`
+- Release optimization: Use `cargo build --release`
 
 ## Platform Requirements
 
 **Development:**
 - Rust 1.70+ toolchain
-- Language-specific compilers:
-  - Rust: cargo
-  - Python: python
-  - C/C++: gcc/g++
-  - Java: javac
-  - JavaScript: node
-  - TypeScript: tsc
+- Git repository (for version control and backups)
+- File system with write permissions for `.splice/` directory
+- Language-specific compilers for target languages
 
 **Production:**
-- Rust runtime (statically linked)
-- No external dependencies at runtime
-- Cross-platform binaries (Linux, macOS, Windows)
+- CLI binary deployment (no runtime dependencies)
+- Local filesystem access for code graph databases
+- Optional: Language compilers for validation gates
 
 ---
 
-*Stack analysis: 2026-01-22*
+*Stack analysis: 2026-01-23*

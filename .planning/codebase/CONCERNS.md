@@ -1,180 +1,179 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-01-22
+**Analysis Date:** 2026-01-23
 
 ## Tech Debt
 
-**Missing line counting in results:**
-- Issue: CLI results report 0 lines added/removed instead of actual values
-- Files: `src/main.rs:492,779,780`
-- Impact: Users cannot see actual code changes
-- Fix approach: Implement diff calculation using ropey's change tracking
+**Incomplete Ingestor Implementation:**
+- Issue: `Ingestor::ingest_file` and `Ingestor::ingest_dir` return hardcoded "Not implemented yet" errors
+- Files: `src/ingest/mod.rs:55-67`
+- Impact: High-level orchestration for file ingestion is non-functional despite having language-specific parsers
+- Fix approach: Wire up existing language-specific extractors (`extract_rust_symbols`, `extract_python_symbols`, etc.) to the ingestor methods
 
-**Unimplemented cross-language resolution:**
-- Issue: Import resolution only works for Rust, others return None
-- Files: `src/resolve/cross_file.rs:176-216`
-- Impact: Cross-language refactoring fails for Python, C++, JS/TS, Java
-- Fix approach: Implement language-specific resolvers for each supported language
+**Deprecated API Usage:**
+- Issue: `store_symbol_with_file` method is deprecated but still used in tests
+- Files: `src/graph/mod.rs:443`, `src/graph/mod.rs:87-93`
+- Impact: Clippy warnings, potential future breakage
+- Fix approach: Replace all `store_symbol_with_file` calls with `store_symbol_with_file_and_language`
 
-**Missing strict/skip CLI flags:**
-- Issue: Patch validation flags are hardcoded to false/true
+**Unimplemented Cross-File Resolution:**
+- Issue: Python and C/C++ import resolution in `CrossFileResolver` returns `None` with TODO comments
+- Files: `src/resolve/cross_file.rs:176-200`
+- Impact: Cross-file reference finding only works for Rust/Java/JavaScript/TypeScript
+- Fix approach: Implement Python-specific path resolution and C/C++ include resolution
+
+**Lines Added/Removed Not Calculated:**
+- Issue: Delete and patch operations report 0 for `lines_added` and `lines_removed` (TODO comments)
+- Files: `src/main.rs:886`, `src/main.rs:1382-1383`
+- Impact: Operation metrics are incomplete; users can't see line count changes
+- Fix approach: Implement diff calculation using ropey or similar text diff library
+
+**Stubbed Relationship Queries:**
+- Issue: `get_imports` and `get_exports` return empty vectors with TODO comments
+- Files: `src/relationships/mod.rs:455-509`
+- Impact: Import/export relationship queries are non-functional despite being exposed in CLI
+- Fix approach: Implement File->Symbol DEFINES edge traversal once Magellan provides that API
+
+**Incomplete Strict/Skip Flag Wiring:**
+- Issue: CLI flags for strict mode and skip mode are hardcoded (`strict = false`, `skip = true`)
 - Files: `src/patch/mod.rs:152`
-- Impact: Users cannot customize validation behavior
-- Fix approach: Wire CLI arguments to validation parameters
+- Impact: Users cannot control verification strictness via CLI
+- Fix approach: Wire `--strict` and `--skip` flags from `Cli` struct to validation calls
 
-**Unimplemented TypeScript tests:**
-- Issue: TypeScript-specific functionality lacks dedicated tests
-- Files: `src/ingest/javascript.rs:422`
-- Impact: TypeScript support may have bugs not caught by tests
-- Fix approach: Add tree-sitter-typescript dependency and implement TS-specific tests
-
-**Disabled reference tracking for glob imports:**
-- Issue: Glob imports may miss references due to warning-based approach
-- Files: `src/main.rs:365`
-- Impact: Incomplete refactoring when glob imports are present
-- Fix approach: Implement proper glob import resolution or warn more explicitly
-
-**Missing disk space checking:**
-- Issue: No verification that sufficient disk space exists for operations
-- Files: `src/verify.rs:236`
-- Impact: Operations may fail mid-way due to disk space exhaustion
-- Fix approach: Implement disk space check before large operations
+**Missing Disk Space Checking:**
+- Issue: `get_disk_space` returns hardcoded 1TB instead of actually checking filesystem
+- Files: `src/verify.rs:231-238`
+- Impact: No real disk space validation before operations; insufficient disk space causes failures mid-operation
+- Fix approach: Use `sysinfo` crate or similar to query actual filesystem statistics
 
 ## Known Bugs
 
-**JSON serialization panics:**
-- Symptoms: Ungraceful failure when serialization fails
-- Files: `src/main.rs:524,820,1055,1211`
-- Trigger: Invalid JSON structure or non-serializable data
-- Workaround: Not reproducible since panic terminates process
-
-**Unnecessary string cloning:**
-- Symptoms: Performance overhead from excessive cloning
-- Files: `src/main.rs:285,423,446,501,503,517,684,720,767,768,777,778,795,797,813`
-- Trigger: Code pattern where &str could be used instead of owned String
-- Workaround: Manual optimization in hot paths
-
-**Missing fallback for single import:**
-- Symptoms: May not capture import references in complex patterns
-- Files: `src/resolve/cross_file.rs:198-214`
-- Trigger: Single imports without explicit modules
-- Workaround: Manual regex-based pattern matching as fallback
+**Line/Column Calculation Approximation:**
+- Symptoms: Line and column calculations in `execute_patch` are documented as "approximate since span may have changed size"
+- Files: `src/main.rs:1225`
+- Trigger: Any patch operation that changes span size
+- Workaround: None; accepts approximation
+- Note: This is documented as current behavior, not a bug per se, but impacts accuracy
 
 ## Security Considerations
 
-**Directory traversal risk:**
-- Risk: Potential for accessing sensitive files via path manipulation
-- Files: `src/main.rs` (file paths from user input)
-- Current mitigation: Path validation in operation functions
-- Recommendations: Add path canonicalization checks
+**Unsafe Code Blocks:**
+- Risk: One explicit `panic!` macro in test code could cause crashes in production if test code path is reached
+- Files: `src/patch/backup.rs:363`
+- Current mitigation: Only present in test module `#[cfg(test)]`
+- Recommendations: Replace `panic!` with `assert!` or `expect!` for proper test failures
 
-**Database file permissions:**
-- Risk: `.splice/operations.db` may contain sensitive operation data
-- Files: `src/execution/log.rs`
-- Current mitigation: Default filesystem permissions
-- Recommendations: Explicit permission setting and encryption for sensitive data
+**Extensive unwrap() Usage:**
+- Risk: ~26 `unwrap()` calls across import modules (`src/ingest/imports/python.rs`, `src/ingest/imports/cpp.rs`, etc.) that could panic on unexpected None
+- Files: Multiple import extraction modules
+- Current mitigation: None; relies on tree-sitter parser always returning expected structure
+- Recommendations: Replace `unwrap()` with `?` operator for proper error propagation
 
 ## Performance Bottlenecks
 
-**Large single files:**
-- Problem: `src/main.rs` (2140 lines) violates code size limits
-- Files: `src/main.rs`, `src/resolve/references/rust.rs` (1395 lines)
-- Cause: CLI grew to handle all commands in one place
-- Improvement path: Split into separate modules by command type
+**Large Source Files:**
+- Problem: `src/main.rs` is 3,668 lines (exceeds 300 LOC guideline)
+- Files: `src/main.rs`, `src/patch/pattern.rs` (1,532 lines), `src/resolve/references/rust.rs` (1,395 lines)
+- Cause: Monolithic entry point handling all CLI commands and operations
+- Improvement path: Split `main.rs` into command-specific modules (delete.rs, patch.rs, query.rs, etc.)
 
-**Inefficient symbol cloning:**
-- Problem: Excessive String cloning in hot paths
-- Files: `src/main.rs`
-- Cause: Early API design patterns
-- Improvement path: Use &str andCow<'_, str> where possible
+**Excessive Cloning:**
+- Problem: 786 `.clone()` calls detected across codebase; potential performance impact
+- Files: Across 45+ source files using HashMap, Vec, String
+- Cause: Heavy use of `clone()` for HashMap values, Vec elements, and String fields
+- Improvement path: Use references (`&T`) where possible, implement `Copy` for small structs, consider `Arc<T>` for shared ownership
 
-**Database write performance:**
-- Problem: Synchronous logging may block operations
-- Files: `src/execution/log.rs`
-- Cause:rusqlite operations are blocking
-- Improvement path: Consider async logging with SQLite WAL mode
+**Unused Variables:**
+- Problem: Multiple compilation warnings for unused variables (`block_span`, `file`, `output` etc.)
+- Files: `src/expand/tree_walker.rs:888`, `src/execution/base.rs:384`, many test files
+- Cause: Incomplete refactoring or dead code paths
+- Improvement path: Remove unused variables or prefix with underscore (`_`) if intentionally unused
 
 ## Fragile Areas
 
-**Cross-language support:**
-- Files: `src/ingest/` modules for each language
-- Why fragile: Heavy reliance on tree-sitter parsers and magellan integration
-- Safe modification: Test each language independently before changes
-- Test coverage: Moderate (has test files for each language)
+**Complex Parsing Logic:**
+- Files: `src/validate/mod.rs` (Rust and TypeScript error parsing with regex)
+- Why fragile: Regex-based error parsing depends on compiler output format; any compiler output format change breaks parsing
+- Safe modification: Add integration tests with actual compiler error samples
+- Test coverage: Present but may not cover all error format variations
 
-**Patch validation:**
-- Files: `src/patch/mod.rs`, `src/validate/gates.rs`
-- Why fragile: Complex validation logic with multiple language-specific rules
-- Safe modification: Make validation functions pure and test in isolation
-- Test coverage: Good (has comprehensive test coverage)
+**Cross-File Reference Resolution:**
+- Files: `src/resolve/cross_file.rs`, `src/resolve/references/rust.rs`
+- Why fragile: Complex import resolution logic for multiple import types (use, super, self, glob, renamed)
+- Safe modification: Add comprehensive unit tests for each import type before refactoring
+- Test coverage: Good for Rust, minimal for other languages
 
-**Reference resolution:**
-- Files: `src/resolve/references/rust.rs`, `src/resolve/cross_file.rs`
-- Why fragile: Complex graph traversal with edge cases
-- Safe modification: Add more unit tests for edge cases before changes
-- Test coverage: Moderate (has tests but may miss edge cases)
+**Tree-Sitter AST Traversal:**
+- Files: `src/expand/tree_walker.rs` (1,154 lines)
+- Why fragile: Deeply nested AST walking logic; easy to miss edge cases
+- Safe modification: Use tree-sitter query API instead of manual node traversal
+- Test coverage: Extensive but may miss AST structure variations
+
+**Compiler Validation Gates:**
+- Files: `src/validate/gates.rs` (774 lines)
+- Why fragile: Depends on external compiler processes; subprocess failures can gate valid code
+- Safe modification: Add timeouts to compiler subprocess calls; implement fallback validation
+- Test coverage: Present but may not cover all compiler behaviors
 
 ## Scaling Limits
 
-**Memory usage:**
-- Current capacity: Moderate (limited by ropey and SQLite)
-- Limit: Large files (>1MB) may cause memory pressure
-- Scaling path: Stream processing for large files
+**Relationship Query Caching:**
+- Current capacity: In-memory `RelationshipCache` with no size limits
+- Limit: Unbounded memory growth for large codebases with many files
+- Scaling path: Implement LRU cache with configurable size limits
 
-**Database concurrency:**
-- Current capacity: Single-writer, multi-reader
-- Limit: Concurrent operations may lock
-- Scaling path: Consider connection pooling or WAL mode
+**Symbol Graph Database:**
+- Current capacity: SQLite-based graph with no known limits
+- Limit: Unknown; should test with 10K+ files
+- Scaling path: Benchmark with large monorepos; consider sharding if needed
 
 ## Dependencies at Risk
 
-**SQLiteGraph:**
-- Risk: External dependency with potential breaking changes
-- Impact: Core graph functionality may break
-- Migration plan: Fork or create abstraction layer
+**Tree-Sitter Parsers:**
+- Risk: Multiple tree-sitter language parsers at version 0.21; ecosystem moving to 0.22+
+- Files: `Cargo.toml` lines 17-23
+- Impact: Potential future incompatibility if parsers diverge
+- Migration plan: Monitor tree-sitter releases; upgrade to 0.22 when ecosystem stabilizes
 
-**Magellan:**
-- Risk: Version 0.5.3 is pinned, may have security updates
-- Impact: Code indexing functionality
-- Migration plan: Regular dependency updates with testing
-
-**Tree-sitter parsers:**
-- Risk: Language updates may break parser
-- Impact: Code parsing functionality
-- Migration plan: Monitor parser updates and update tests
+**Magellan/SQLiteGraph:**
+- Risk: `magellan` at 0.5.3, `sqlitegraph` at 1.0
+- Files: `Cargo.toml` lines 9-11
+- Impact: Breaking changes possible in future versions
+- Migration plan: Pin exact versions in lockfile; monitor release notes
 
 ## Missing Critical Features
 
-**Incremental analysis:**
-- Problem: Full code analysis on every operation
-- Blocks: Large codebases become slow
-- Priority: High
+**TypeScript Parser for Import Resolution:**
+- Problem: TypeScript-specific tests commented out with TODO: "TypeScript-specific tests require tree-sitter-typescript parser"
+- Files: `src/ingest/javascript.rs:422`
+- Blocks: Complete TypeScript import extraction testing
+- Note: tree-sitter-typescript is already a dependency (version 0.21)
 
-**Parallel processing:**
-- Problem: Single-threaded execution
-- Blocks: Large refactoring operations
-- Priority: Medium
-
-**Error recovery:**
-- Problem: No rollback on partial failure
-- Blocks: Data safety during complex operations
-- Priority: High
+**Batch Operation Diff Metrics:**
+- Problem: Batch patch operations don't report line changes
+- Blocks: Accurate operation metrics for batch operations
+- Note: Single-operation patch also has this issue (lines_added/lines_removed hardcoded to 0)
 
 ## Test Coverage Gaps
 
-**Edge case testing:**
-- What's not tested: Exceptional paths in error handling
-- Files: `src/error.rs` error types
-- Risk: Ungraceful failures on unexpected input
-- Priority: Medium
+**Cross-Language Integration Tests:**
+- What's not tested: Full cross-file reference finding across language boundaries
+- Files: Tests exist but limited to single-language or Rust-only cross-file
+- Risk: Multi-language projects may have unresolved references
+- Priority: High (Phase 4 per comment in `src/main.rs:400`)
 
-**Concurrency testing:**
-- What's not tested: Parallel execution scenarios
-- Files: `src/execution/log.rs`
-- Risk: Database corruption or race conditions
-- Priority: Low (currently single-threaded)
+**Disk Space Validation Tests:**
+- What's not tested: Actual disk space checking (only tests hardcoded 1TB return value)
+- Files: `src/verify.rs:231-238` has no integration tests
+- Risk: Insufficient disk space causes mid-operation failures
+- Priority: Medium (current warning-only behavior is safe)
+
+**Deprecated API Migration Tests:**
+- What's not tested: All code paths use `store_symbol_with_file_and_language` (no tests verify deprecated API removal)
+- Files: `src/graph/mod.rs:443` still uses deprecated method in test
+- Risk: Future removal of deprecated API breaks tests
+- Priority: Low (clippy warnings provide ongoing detection)
 
 ---
 
-*Concerns audit: 2026-01-22*
-```
+*Concerns audit: 2026-01-23*

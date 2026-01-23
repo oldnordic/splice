@@ -1,151 +1,176 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-01-22
+**Analysis Date:** 2026-01-23
 
 ## Naming Patterns
 
 **Files:**
-- All lowercase: `src/checksum.rs`, `src/error.rs`
-- Modules in subdirectories: `src/ingest/rust.rs`, `src/ingest/imports/python.rs`
-- Descriptive names: `verify.rs`, `magellan_integration.rs`
+- snake_case for all files (e.g., `mod.rs`, `error_codes.rs`, `checksum.rs`)
+- Module directories use the module name (e.g., `src/ingest/`, `src/resolve/`)
+- Test files use `*_tests.rs` or `test_*.rs` naming
 
 **Functions:**
-- Snake_case for functions: `extract_rust_symbols`, `checksum_file`, `resolve_symbol`
-- Verb-first naming: `extract_*`, `find_*`, `store_*`, `resolve_*`
-- Public functions use `pub fn`, private functions use `fn`
+- snake_case for all functions (e.g., `extract_rust_symbols`, `apply_patch_with_validation`)
+- Public functions have descriptive names indicating action and target
 
 **Variables:**
-- Snake_case: `file_path`, `source`, `symbols`, `module_path`
-- Descriptive names: `rope` for Rope, `cursor` for tree-sitter cursor
-- Single character only for iterators: `i`, `j`, `c`, `n`
+- snake_case for local variables and parameters (e.g., `file_path`, `byte_start`, `context_before`)
+- Field names in structs use snake_case (e.g., `before_hash`, `after_hash`, `line_start`)
 
 **Types:**
-- PascalCase for structs and enums: `CodeGraph`, `RustSymbol`, `Visibility`, `SpliceError`
-- Enum variants: `Public`, `Private`, `Function`, `Struct`
+- UpperCamelCase for all types (structs, enums, traits) (e.g., `SpanReplacement`, `SpliceError`, `RustSymbol`)
+- Enum variants use UpperCamelCase (e.g., `Visibility::Public`, `DiagnosticLevel::Error`)
+
+**Modules:**
+- snake_case for module names (e.g., `mod ingest`, `mod patch`)
+- Use `mod.rs` files for directory modules
 
 ## Code Style
 
 **Formatting:**
-- Rust Edition 2021
-- No explicit formatter configuration found, using defaults
-- Max line length not enforced
+- Four-space indentation (no tabs)
+- Rust 2021 edition defaults
+- No explicit formatting config found (uses rustfmt defaults)
 
 **Linting:**
-- `#![warn(missing_docs)]` enforces documentation
-- `#![expect(unused_crate_dependencies)]` allows dev dependencies in lib.rs
-- Custom error types with `thiserror`
-- All public APIs documented with `///`
+- `#[warn(missing_docs)]` at `src/lib.rs` level enforces documentation
+- `#[expect(unused_crate_dependencies)]` suppresses unused dependency warnings
+- Uses Clippy with strict mode (as per AGENTS.md: `cargo clippy --all-targets --all-features -D warnings`)
+- No explicit `.clippy.toml` configuration file
 
 ## Import Organization
 
 **Order:**
-1. Standard library: `use std::...`
-2. External crates: `use sha2::...`, `use ropey::...`
-3. Local modules: `use crate::...`
+1. Standard library imports (`std::path`, `std::fs`, `std::io`)
+2. External crate imports (`ropey::Rope`, `tree_sitter`, `thiserror::Error`)
+3. Internal module imports (`crate::error`, `crate::ingest`, `crate::validate`)
 
 **Path Aliases:**
-- No aliases found, using full paths
-- Re-exports via `pub use` at module level
+- No path aliases configured
+- Uses full module paths or `use crate::*` style
 
-**Import Groups:**
-- Blank lines separate import groups
-- Related imports grouped together
+**Re-exports:**
+- Library-level re-exports in `src/lib.rs` using `pub use` pattern
+- Example: `pub use error::{Result, SpliceError};`
+- Commonly re-exported: error types, graph types, context functions, diff utilities
 
 ## Error Handling
 
 **Patterns:**
-```rust
-// Result<T> for fallible operations
-pub fn extract_rust_symbols(path: &Path, source: &[u8]) -> Result<Vec<RustSymbol>> {
-    // Error propagation with ?
-    let tree = parser.parse(source, None)
-        .ok_or_else(|| SpliceError::Parse {
-            file: path.to_path_buf(),
-            message: "Parse failed - no tree returned".to_string(),
-        })?;
-}
+- Uses `thiserror` crate for typed errors with `#[derive(Error)]`
+- `Result<T>` type alias: `pub type Result<T> = std::result::Result<T, SpliceError>;`
+- Error variants include structured context: file paths, line/column info, hints
+- NO `unwrap()` in production code (per AGENTS.md)
+- Early returns with `?` operator for error propagation
+- Context can be added via `.with_context()` helper method on `SpliceError`
 
-// Custom enum with thiserror
-#[derive(Error, Debug)]
-pub enum SpliceError {
-    #[error("I/O error for path {path}: {source}")]
-    Io {
-        path: PathBuf,
-        #[source]
-        source: std::io::Error,
-    },
+**Error Variant Structure:**
+```rust
+#[error("Message with {placeholder}")]
+VariantName {
+    field: Type,
+    #[source]
+    source: UnderlyingError,
 }
 ```
+
+**Helper Methods:**
+- `SpliceError::symbol_not_found()` - for symbol lookup failures
+- `SpliceError::symbol_not_found_with_suggestions()` - with fuzzy matching
+- `SpliceError::parse_with_file()` - parse errors with context
+- `SpliceError::with_context()` - chainable context addition
+- `SpliceError::with_path()` - attach path information
+
+## Logging
+
+**Framework:** `log` crate with `env_logger` for CLI
+
+**Patterns:**
+- `log::info!()` for informational messages
+- `log::warn!()` for warnings that don't block execution
+- `log::error!()` for errors requiring attention
+- `log::debug!()` for debugging output (verbose mode)
+- Context-rich messages with format strings: `log::info!("Post-verification: syntax={}, compiler={}", syntax_ok, compiler_ok)`
 
 ## Comments
 
 **When to Comment:**
-- Module headers with `//!` for documentation
-- Public function documentation with `///`
-- Complex algorithm explanations
-- TODO items (minimal usage)
+- Module-level documentation explaining purpose (at top of every file)
+- Function documentation explaining arguments, returns, and behavior
+- Inline comments for non-obvious logic
+- TODO comments for planned work (found in `src/ingest/mod.rs:55,63`)
 
-**JSDoc/TSDoc:**
-- Rust standard doc comments
-- Examples provided for key functions
-- Documented all error variants
+**Documentation Style:**
+- Module docs: `//! Module description.` at file top
+- Function docs: `/// Brief description.` on function/struct definitions
+- Comprehensive doc examples using `///` blocks with `# Examples`, `# Arguments`, `# Returns` sections
+- Rustdoc-compliant examples (marked with `/// ```no_run` or `/// ````)
+
+**Example:**
+```rust
+//! Context extraction for span surroundings.
+//!
+//! Provides line-based context extraction using ropey for efficient
+//! UTF-8 aware line/column calculations.
+
+/// Extract context lines for a byte span with asymmetric before/after counts.
+///
+/// Given a file path and byte range, extracts lines before, within, and after
+/// span. Allows different amounts of context before vs after the match.
+///
+/// # Arguments
+///
+/// * `path` - File path to read
+/// * `byte_start` - Start byte offset (must be <= byte_end)
+/// * `byte_end` - End byte offset (must be <= file size)
+///
+/// # Returns
+///
+/// * `Ok(SpanContext)` - Extracted context with before/selected/after arrays
+/// * `Err(SpliceError)` - If file cannot be read or span is invalid
+pub fn extract_context_asymmetric(...) -> Result<SpanContext>
+```
 
 ## Function Design
 
-**Size:**
-- Max 300 LOC per file (enforced by CLAUDE.md)
-- Average function size: 10-50 lines
-- Large functions broken into smaller helper functions
+**Size:** Functions typically 20-50 lines, up to 100 lines for complex operations
+- Large files: `src/main.rs` (3668 lines) is the CLI entry point (expected to be large)
+- `src/error.rs` (854 lines) contains error definitions and helpers
 
 **Parameters:**
-- Limited parameters (typically 3-5)
-- Optional parameters using Option<T>
-- Clear parameter names with type context
+- Pass paths as `&Path` or `PathBuf` for ownership control
+- Pass strings as `&str` when ownership not needed
+- Use `Option<T>` for optional parameters
+- Config parameters grouped into structs (e.g., `SpanReplacement`, `SpanBatch`)
 
 **Return Values:**
-- Result<T> for fallible functions
-- Vec<T> for multiple results
-- Option<T> for optional results
+- `Result<T>` from `crate::error` for all fallible operations
+- `Option<T>` for lookup operations that may not find results
+- Tuple returns for multiple values (e.g., `(before_hash, after_hash)`)
 
 ## Module Design
 
 **Exports:**
-- Re-exports at module level for convenience
-- Clear module boundaries
-- Minimal public API per module
+- `mod.rs` files re-export public items with `pub use`
+- Library `src/lib.rs` re-exports commonly used items for convenience
+- Pattern: `pub use module::{TypeA, TypeB, function_c};`
 
 **Barrel Files:**
-- Module-level `mod.rs` files organize functionality
-- Re-exports for common types
+- Every directory has `mod.rs` that declares submodules
+- `mod.rs` files aggregate exports from submodules
+- Example: `src/ingest/mod.rs` declares `mod rust;`, `mod python;`, etc. and re-exports
 
-## Logging
+**Module Organization:**
+- `cli/` - Command-line interface (thin adapter only, no logic)
+- `ingest/` - Tree-sitter parsing per language
+- `resolve/` - Reference finding across files
+- `patch/` - Span replacement with validation gates
+- `validate/` - Compiler and analyzer integration
+- `graph/` - SQLiteGraph integration and schema
+- `error/` - Error types and Result alias
+- `context/` - Context extraction utilities
+- `output/` - Diff formatting and display
 
-**Framework:** No logging framework configured
+---
 
-**Patterns:**
-- No debug logging found in codebase
-- Error logging via Result propagation
-- CLI output via clap
-
-## Documentation
-
-**Module Headers:**
-- Every module has `//!` documentation
-- Explains purpose and scope
-
-**Public APIs:**
-- All public functions documented
-- Documented error conditions
-- Examples for complex operations
-
-## Code Organization
-
-**Directory Structure:**
-- Feature-based organization (`ingest/`, `graph/`, `patch/`)
-- Language-specific modules under `ingest/`
-- Clear separation between core and utilities
-
-**File Naming:**
-- Descriptive names
-- Consistent with feature names
-- No abbreviations
+*Convention analysis: 2026-01-23*

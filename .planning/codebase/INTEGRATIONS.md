@@ -1,126 +1,120 @@
 # External Integrations
 
-**Analysis Date:** 2026-01-22
+**Analysis Date:** 2026-01-23
 
 ## APIs & External Services
 
-**Language Compilers:**
-- Rust Compiler (cargo) - Compilation validation
-  - Command: `cargo check`
-  - Purpose: Validate Rust code syntax and semantics
-- Python Compiler (python) - Python compilation validation
-  - Command: `python -m py_compile`
-  - Purpose: Validate Python syntax
-- GCC/G++ - C/C++ compilation validation
-  - Command: `gcc -fsyntax-only` / `g++ -fsyntax-only`
-  - Purpose: Validate C/C++ syntax
-- Java Compiler (javac) - Java compilation validation
-  - Command: `javac`
-  - Purpose: Validate Java syntax
-- Node.js (node) - JavaScript syntax validation
-  - Command: `node --check`
-  - Purpose: Validate JavaScript syntax
-- TypeScript Compiler (tsc) - TypeScript compilation validation
-  - Command: `tsc --noEmit`
-  - Purpose: Validate TypeScript syntax
-
-**File System:**
-- Native file system operations
-  - Operations: Read/write/backup files
-  - Purpose: Source code modification and backup
+**Documentation URLs (reference only):**
+- Rust error documentation - https://doc.rust-lang.org/error-index.html
+- TypeScript error documentation - https://www.typescriptlang.org/errors/
+- Used for: Providing remediation links in diagnostic messages
 
 ## Data Storage
 
 **Databases:**
-- SQLite (embedded)
-  - Connection: Direct file access
-  - Client: rusqlite 0.31
-  - Purpose: Two databases:
-    - `.splice_graph.db` - Code graph storage
-    - `.splice/operations.db` - Execution audit trail
+- SQLite (via SQLiteGraph/Magellan)
+  - Connection: Local filesystem (`.splice/codegraph.db` and `.splice/operations.db`)
+  - Client: sqlitegraph 1.0 (native-v2 backend) + rusqlite 0.31
+  - Purpose: Code graph storage, symbol indexing, execution logging
 
 **File Storage:**
 - Local filesystem only
-  - Operations: File reading, writing, patching
-  - Purpose: Source code manipulation
+  - Backup directory: `.splice/backups/`
+  - No cloud storage or S3 integration
+  - Source files edited in-place
 
 **Caching:**
-- None
-  - Operations: All data read fresh from database/filesystem
+- Symbol name-to-NodeId caching in memory (HashMap)
+- File path-to-NodeId caching in memory
+- No external cache services
 
 ## Authentication & Identity
 
 **Auth Provider:**
-- None
-  - Implementation: Not applicable
+- None - Standalone CLI tool
+  - No OAuth, JWT, or API keys required
+  - All operations performed locally
 
 ## Monitoring & Observability
 
 **Error Tracking:**
-- Built-in error handling with thiserror
-  - Implementation: Custom error types with detailed context
+- None (external)
+  - Local error handling via `thiserror` crate
+  - Execution logging to local SQLite database
 
 **Logs:**
-- env_logger with structured logging
-  - Implementation: Log to stdout with timestamps and metadata
-  - Audit trail in SQLite database (.splice/operations.db)
+- env_logger 0.11 - Structured logging to stderr
+- Execution logging to `.splice/operations.db` (SQLite)
+  - Timestamps, durations, command lines, error details
+  - Disabled via `SPLICE_EXECUTION_LOG=false`
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- Rust Cargo registry (crates.io)
-  - Package name: "splice"
-  - Version: 2.0.0
+- Not applicable (CLI tool distributed via crates.io)
+- Binary distribution via `cargo install splice`
 
 **CI Pipeline:**
-- None (manual builds)
-  - Implementation: Cargo build and test
+- None detected (no `.github/workflows/`, `GitLab CI`, or `Jenkinsfile`)
+  - Local testing via `cargo test`
+  - Manual release to crates.io
 
 ## Environment Configuration
 
 **Required env vars:**
-- None (all configuration through CLI arguments)
+- None strictly required
+  - Optional: `SPLICE_EXECUTION_LOG` (default: true)
+  - Optional: `NO_COLOR` (disable colored output)
+  - Optional: `RUST_LOG` (log level control)
 
 **Secrets location:**
-- None required
+- None - No secrets management
+  - No API keys, tokens, or credentials
+  - All authentication-free operation
 
 ## Webhooks & Callbacks
 
 **Incoming:**
-- None
+- None - Splice does not expose any HTTP endpoints or webhook receivers
 
 **Outgoing:**
-- None
+- None - Splice does not make HTTP requests
+  - Documentation URLs are static references only
+  - No external API calls for validation or analysis
 
-## Language-Specific Integrations
+## Compiler Toolchain Integration
 
-**Rust:**
-- rust-analyzer integration (optional)
-  - Purpose: LSP-based validation
-  - Location: src/validate/
-- Cross-file reference resolution
-  - Implementation: Custom resolver in src/resolve/
+**External compilers (invoked via std::process::Command):**
+- `cargo check` - Rust compilation validation
+- `rust-analyzer` - Rust static analysis diagnostics (optional)
+- `python -m py_compile` - Python syntax validation
+- `gcc -fsyntax-only` - C compilation validation
+- `g++ -fsyntax-only` - C++ compilation validation
+- `javac` - Java compilation validation
+- `node --check` - JavaScript syntax validation
+- `tsc --noEmit` - TypeScript compilation validation
 
-**Multi-language:**
-- Tree-sitter grammars for 7 languages
-  - Languages: Rust, Python, C, C++, Java, JavaScript, TypeScript
-  - Purpose: AST-based parsing and validation
-- Magellan code indexing
-  - Purpose: Symbol lookup and label-based queries
-  - Integration: src/graph/magellan_integration.rs
+**Binary location:**
+- Auto-discovery via `which` crate
+- Fallback to PATH lookup
+- Support for explicit analyzer path via `--analyzer` CLI flag
 
-## Database Schema
+## CodeMCP Integration
 
-**Code Graph (.splice_graph.db):**
-- graph_entities: Nodes in the code graph
-- graph_edges: Relationships between entities
-- graph_labels: Labels for categorization
-- graph_properties: Additional metadata
+**Local MCP Server:**
+- `.codemcp/codemcp` binary - Optional local MCP server for enhanced indexing
+- Configuration: `.codemcp/config.toml`
+  - LLM provider: ollama at http://localhost:11434
+  - LLM model: qwen2.5-coder:7b
+  - Indexing: auto_watch enabled (500ms debounce)
+- Databases in `.codemcp/`:
+  - `codegraph.db` - Primary code graph
+  - `operations.db` - Execution log
+  - `staging.db` - Staged changes
+  - `graph.db` - Additional graph storage
 
-**Audit Trail (.splice/operations.db):**
-- Operations table: Execution log with timestamps
-- Metadata: Command-line arguments, workspace, affected files
+**Note:** This is an optional enhancement, not required for core Splice functionality.
 
 ---
 
-*Integration audit: 2026-01-22*
+*Integration audit: 2026-01-23*
