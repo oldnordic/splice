@@ -428,7 +428,7 @@ fn execute_delete(
             "dry_run": true,
         });
         if let Err(e) = log::record_execution_with_params(
-            &splice::output::OperationResult::with_id("delete".to_string(), operation_id.clone())
+            &splice::output::OperationResult::with_execution_id("delete".to_string(), operation_id.clone())
                 .success(message.clone()),
             duration_ms,
             Some(command_line),
@@ -576,7 +576,7 @@ fn execute_delete(
         "create_backup": create_backup,
     });
     if let Err(e) = log::record_execution_with_params(
-        &splice::output::OperationResult::with_id("delete".to_string(), operation_id.clone())
+        &splice::output::OperationResult::with_execution_id("delete".to_string(), operation_id.clone())
             .success(base_message.clone()),
         duration_ms,
         Some(command_line.clone()),
@@ -833,7 +833,7 @@ fn execute_delete(
         };
 
         // Create operation result with operation_id from CLI or generate new UUID
-        let result = OperationResult::with_id(
+        let result = OperationResult::with_execution_id(
             "delete".to_string(),
             operation_id.clone(),
         )
@@ -1098,7 +1098,7 @@ fn execute_patch(
             "dry_run": true,
         });
         if let Err(e) = log::record_execution_with_params(
-            &splice::output::OperationResult::with_id("patch".to_string(), operation_id.clone())
+            &splice::output::OperationResult::with_execution_id("patch".to_string(), operation_id.clone())
                 .success(message.clone()),
             duration_ms,
             Some(command_line),
@@ -1327,7 +1327,7 @@ fn execute_patch(
         );
 
         // Create operation result with operation_id from CLI or generate new UUID
-        let result = OperationResult::with_id(
+        let result = OperationResult::with_execution_id(
             "patch".to_string(),
             operation_id.clone(),
         )
@@ -1380,7 +1380,7 @@ fn execute_patch(
         "create_backup": create_backup,
     });
     if let Err(e) = log::record_execution_with_params(
-        &splice::output::OperationResult::with_id("patch".to_string(), operation_id.clone())
+        &splice::output::OperationResult::with_execution_id("patch".to_string(), operation_id.clone())
             .success(message.clone()),
         duration_ms,
         Some(command_line),
@@ -1572,7 +1572,7 @@ fn execute_patch_batch(
         });
 
         // Create operation result with operation_id from CLI or generate new UUID
-        let result = OperationResult::with_id(
+        let result = OperationResult::with_execution_id(
             "batch".to_string(),
             operation_id.clone(),
         )
@@ -1655,7 +1655,7 @@ fn execute_patch_batch(
         "span_count": span_ids.len(),
     });
     if let Err(e) = log::record_execution_with_params(
-        &splice::output::OperationResult::with_id("batch".to_string(), operation_id.clone())
+        &splice::output::OperationResult::with_execution_id("batch".to_string(), operation_id.clone())
             .success(message.clone()),
         duration_ms,
         Some(command_line.clone()),
@@ -1737,7 +1737,7 @@ fn execute_plan(
         );
 
         // Create operation result with operation_id from CLI or generate new UUID
-        let result = OperationResult::with_id(
+        let result = OperationResult::with_execution_id(
             "plan".to_string(),
             operation_id.clone(),
         )
@@ -1754,7 +1754,7 @@ fn execute_plan(
             "step_count": step_count,
         });
         if let Err(e) = log::record_execution_with_params(
-            &splice::output::OperationResult::with_id("plan".to_string(), operation_id.clone())
+            &splice::output::OperationResult::with_execution_id("plan".to_string(), operation_id.clone())
                 .success(format!("Plan executed successfully: {} steps completed", step_count)),
             duration_ms,
             Some(command_line.clone()),
@@ -1798,7 +1798,7 @@ fn execute_plan(
         "step_count": step_count,
     });
     if let Err(e) = log::record_execution_with_params(
-        &splice::output::OperationResult::with_id("plan".to_string(), operation_id.clone())
+        &splice::output::OperationResult::with_execution_id("plan".to_string(), operation_id.clone())
             .success(message.clone()),
         duration_ms,
         Some(command_line.clone()),
@@ -1956,7 +1956,7 @@ fn execute_apply_files(
         "file_count": file_count,
     });
     if let Err(e) = log::record_execution_with_params(
-        &splice::output::OperationResult::with_id("apply-files".to_string(), operation_id.clone())
+        &splice::output::OperationResult::with_execution_id("apply-files".to_string(), operation_id.clone())
             .success(message.clone()),
         duration_ms,
         Some(command_line.clone()),
@@ -2268,6 +2268,14 @@ fn execute_query(
             labels: labels.to_vec(),
             count: symbols.len(),
             symbols,
+            total_count: None,
+            offset: None,
+            limit: None,
+            max_symbols: None,
+            max_bytes: None,
+            next_offset: None,
+            partial: None,
+            truncation_reasons: None,
         };
 
         let results_count = query_result.count;
@@ -2633,6 +2641,14 @@ fn execute_get(
                         labels: vec![],
                         count: 1,
                         symbols: vec![span],
+                        total_count: None,
+                        offset: None,
+                        limit: None,
+                        max_symbols: None,
+                        max_bytes: None,
+                        next_offset: None,
+                        partial: None,
+                        truncation_reasons: None,
                     }));
 
                 // Output structured JSON directly

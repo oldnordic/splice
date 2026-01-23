@@ -343,7 +343,7 @@ fn verify_code_chunk(
     expected_substring: &str,
 ) -> bool {
     match db.get_code_chunk(file, start, end) {
-        Ok(Some(chunk)) => chunk.contains(expected_substring),
+        Ok(Some(chunk)) => chunk.content.contains(expected_substring),
         _ => false,
     }
 }
@@ -365,7 +365,10 @@ fn test_temp_db_creation() {
     // Query on empty database should return empty results
     let results = db.query_by_labels(&["rust"]);
     assert!(results.is_ok(), "Query failed on empty database");
-    assert!(results.unwrap().is_empty(), "Empty database should have no results");
+    assert!(
+        results.unwrap().is_empty(),
+        "Empty database should have no results"
+    );
 }
 
 #[test]
@@ -378,10 +381,22 @@ fn test_sample_file_creation() {
 
     // Verify file has content
     let content = fs::read_to_string(&rust_file).unwrap();
-    assert!(content.contains("pub struct MyStruct"), "File should contain struct");
-    assert!(content.contains("pub fn my_function"), "File should contain function");
-    assert!(content.contains("pub trait MyTrait"), "File should contain trait");
-    assert!(content.contains("pub enum MyEnum"), "File should contain enum");
+    assert!(
+        content.contains("pub struct MyStruct"),
+        "File should contain struct"
+    );
+    assert!(
+        content.contains("pub fn my_function"),
+        "File should contain function"
+    );
+    assert!(
+        content.contains("pub trait MyTrait"),
+        "File should contain trait"
+    );
+    assert!(
+        content.contains("pub enum MyEnum"),
+        "File should contain enum"
+    );
 }
 
 #[test]
@@ -404,13 +419,31 @@ fn test_multilang_workspace_creation() {
         .map(|e| e.to_string_lossy().to_string())
         .collect();
 
-    assert!(extensions.contains(&"rs".to_string()), "Should have .rs file");
-    assert!(extensions.contains(&"py".to_string()), "Should have .py file");
+    assert!(
+        extensions.contains(&"rs".to_string()),
+        "Should have .rs file"
+    );
+    assert!(
+        extensions.contains(&"py".to_string()),
+        "Should have .py file"
+    );
     assert!(extensions.contains(&"c".to_string()), "Should have .c file");
-    assert!(extensions.contains(&"cpp".to_string()), "Should have .cpp file");
-    assert!(extensions.contains(&"java".to_string()), "Should have .java file");
-    assert!(extensions.contains(&"js".to_string()), "Should have .js file");
-    assert!(extensions.contains(&"ts".to_string()), "Should have .ts file");
+    assert!(
+        extensions.contains(&"cpp".to_string()),
+        "Should have .cpp file"
+    );
+    assert!(
+        extensions.contains(&"java".to_string()),
+        "Should have .java file"
+    );
+    assert!(
+        extensions.contains(&"js".to_string()),
+        "Should have .js file"
+    );
+    assert!(
+        extensions.contains(&"ts".to_string()),
+        "Should have .ts file"
+    );
 }
 
 #[test]
@@ -716,7 +749,10 @@ fn test_query_empty_results() {
     let results = db.query_by_labels(&["nonexistent", "label"]).unwrap();
 
     // Should return empty Vec (not error)
-    assert!(results.is_empty(), "Non-existent label query should return empty results");
+    assert!(
+        results.is_empty(),
+        "Non-existent label query should return empty results"
+    );
 }
 
 #[test]
@@ -731,7 +767,10 @@ fn test_query_label_inheritance() {
     // Magellan automatically adds language + kind labels
     // Query by language only
     let rust_symbols = db.query_by_labels(&["rust"]).unwrap();
-    assert!(!rust_symbols.is_empty(), "Should find symbols with 'rust' label");
+    assert!(
+        !rust_symbols.is_empty(),
+        "Should find symbols with 'rust' label"
+    );
 
     // Query should succeed for kind label
     let fn_symbols = db.query_by_labels(&["fn"]).unwrap();
@@ -756,7 +795,15 @@ fn test_get_all_labels() {
     assert!(!labels.is_empty(), "Should have labels after indexing");
 
     // Verify language labels present
-    let expected_lang_labels = vec!["rust", "python", "c", "cpp", "java", "javascript", "typescript"];
+    let expected_lang_labels = vec![
+        "rust",
+        "python",
+        "c",
+        "cpp",
+        "java",
+        "javascript",
+        "typescript",
+    ];
     for lang_label in expected_lang_labels {
         // Note: Magellan may use slightly different label names
         // Just verify we have some labels
@@ -765,7 +812,10 @@ fn test_get_all_labels() {
 
     // Verify we have multiple labels (not just language labels)
     // Should have kind labels too (fn, class, struct, etc.)
-    assert!(labels.len() > 7, "Should have more labels than just language labels");
+    assert!(
+        labels.len() > 7,
+        "Should have more labels than just language labels"
+    );
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -836,7 +886,10 @@ fn test_get_code_chunk_not_found() {
     assert!(chunk.is_ok(), "Should not error for non-existent span");
 
     let chunk_opt = chunk.unwrap();
-    assert!(chunk_opt.is_none(), "Should return None for non-existent span");
+    assert!(
+        chunk_opt.is_none(),
+        "Should return None for non-existent span"
+    );
 }
 
 #[test]
@@ -856,18 +909,24 @@ fn test_code_chunk_no_file_reread() {
     // Get code chunk while file exists
     let chunk_before = db.get_code_chunk(&rust_file, symbol.byte_start, symbol.byte_end);
     assert!(chunk_before.is_ok());
-    let content_before = chunk_before.unwrap();
+    let content_before = chunk_before.unwrap().unwrap(); // unwrap Option
 
     // Delete the source file
     fs::remove_file(&rust_file).expect("Failed to delete source file");
 
     // Get code chunk after file is deleted
     let chunk_after = db.get_code_chunk(&rust_file, symbol.byte_start, symbol.byte_end);
-    assert!(chunk_after.is_ok(), "Should still retrieve chunk from database");
-    let content_after = chunk_after.unwrap();
+    assert!(
+        chunk_after.is_ok(),
+        "Should still retrieve chunk from database"
+    );
+    let content_after = chunk_after.unwrap().unwrap(); // unwrap Option
 
     // Content should be the same (retrieved from database, not file)
-    assert_eq!(content_before, content_after, "Content should match from database");
+    assert_eq!(
+        content_before.content, content_after.content,
+        "Content should match from database"
+    );
 }
 
 #[test]
@@ -881,7 +940,10 @@ fn test_get_code_chunks_for_ambiguous_symbol() {
 
     // "MyStruct" might have multiple definitions (struct + impl)
     let chunks = db.get_code_chunks_for_symbol(&rust_file, "MyStruct");
-    assert!(chunks.is_ok(), "Should be able to retrieve chunks for ambiguous symbol");
+    assert!(
+        chunks.is_ok(),
+        "Should be able to retrieve chunks for ambiguous symbol"
+    );
 
     let chunks_vec = chunks.unwrap();
     // Should return at least one chunk (or empty if no match)
@@ -953,7 +1015,8 @@ fn test_index_syntactically_invalid_file() {
     let invalid_file = temp_dir.path().join("invalid.rs");
 
     // Create file with syntax errors
-    fs::write(&invalid_file, "this is not valid rust code {{{ }}}}}").expect("Failed to create invalid file");
+    fs::write(&invalid_file, "this is not valid rust code {{{ }}}}}")
+        .expect("Failed to create invalid file");
 
     let mut db = MagellanIntegration::open(&db_path).unwrap();
 
