@@ -252,10 +252,27 @@ Plans:
 - [x] 17-06-PLAN.md — Add LLM consumption tests verifying JSON fields are properly used by agents
 - [x] 17-07-PLAN.md — Align Splice to enable Magellan database READ compatibility (schema v3, labels, edge casing)
 
+#### Phase 18: Error Code Integration
+
+**Goal**: Complete error code wiring throughout CLI for structured SPL-E### error output
+
+**Depends on**: Phase 15 (Enhanced Errors), Phase 11 (Error Code Infrastructure)
+**Requirements**: CLI-17 (from original scope - "Every error includes stable error code")
+**Gap Closure**: Closes audit gap for error codes not being fully wired
+
+**Success Criteria** (what must be TRUE):
+1. All CLI error paths call `with_error_code()` to attach SPL-E### codes
+2. JSON error output includes `error_code` field with code, severity, and remediation
+3. All 28 error variants are properly categorized and return appropriate codes
+4. Error codes are consistent across all 7 language operations
+5. `splice explain <code>` command returns detailed documentation for all errors
+
+**Plans**: TBD (to be planned by `/gsd:plan-phase 18`)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17
+Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -276,6 +293,7 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17
 | 15. Enhanced Errors | v2.2 | 6/6 | Complete | 2026-01-22 |
 | 16. Symbol Expansion & Search | v2.2 | 11/11 | Complete | 2026-01-22 |
 | 17. Integration & Testing | v2.2 | 7/7 | Complete | 2026-01-23 |
+| 18. Error Code Integration | v2.2 | 0/TBD | Planning | - |
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%)
