@@ -29,13 +29,18 @@ impl MagellanIngestor {
     }
 
     /// Query symbols by labels.
-    pub fn query_by_labels(&self, labels: &[&str]) -> Result<Vec<crate::graph::magellan_integration::SymbolInfo>> {
+    pub fn query_by_labels(
+        &self,
+        labels: &[&str],
+    ) -> Result<Vec<crate::graph::magellan_integration::SymbolInfo>> {
         self.integration.query_by_labels(labels)
     }
 
     /// Get code chunk without re-reading the file.
     pub fn get_code(&self, file_path: &Path, start: usize, end: usize) -> Result<Option<String>> {
-        self.integration.get_code_chunk(file_path, start, end)
+        self.integration
+            .get_code_chunk(file_path, start, end)
+            .map(|opt_chunk| opt_chunk.map(|chunk| chunk.content))
     }
 
     /// Access the underlying Magellan integration.

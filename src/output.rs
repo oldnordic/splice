@@ -40,27 +40,73 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::error_codes::ErrorCode;
-use crate::relationships::Relationships;
-use crate::hints::ToolHints;
 use crate::action::SuggestedAction;
+use crate::error_codes::ErrorCode;
+use crate::hints::ToolHints;
+use crate::relationships::Relationships;
 
-/// Schema version for structured output.
-pub const SCHEMA_VERSION: &str = "2.0.0";
+/// Schema version for mutation results.
+pub const OPERATION_SCHEMA_VERSION: &str = "2.0.0";
+/// Schema version for query-style responses.
+pub const QUERY_SCHEMA_VERSION: &str = "1.0.0";
+/// Tool name for unified output.
+pub const TOOL_NAME: &str = "splice";
+
+/// Wrapper for query-style JSON responses (Magellan-compatible).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JsonResponse<T> {
+    /// Schema version for parsing stability
+    pub schema_version: String,
+    /// Unique execution ID for this run
+    pub execution_id: String,
+    /// Response data
+    pub data: T,
+    /// Tool name (e.g., "splice")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool: Option<String>,
+    /// ISO 8601 timestamp
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timestamp: Option<String>,
+    /// Whether the response is partial (e.g., truncated)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub partial: Option<bool>,
+}
+
+impl<T> JsonResponse<T> {
+    /// Create a new JSON response.
+    pub fn new(data: T, execution_id: &str) -> Self {
+        JsonResponse {
+            schema_version: QUERY_SCHEMA_VERSION.to_string(),
+            execution_id: execution_id.to_string(),
+            data,
+            tool: Some(TOOL_NAME.to_string()),
+            timestamp: Some(chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)),
+            partial: None,
+        }
+    }
+
+    /// Mark the response as partial.
+    pub fn with_partial(mut self, partial: bool) -> Self {
+        self.partial = Some(partial);
+        self
+    }
+}
 
 /// Top-level operation result.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OperationResult {
     /// Schema version
-    pub version: String,
-    /// Unique operation ID (UUID)
-    pub operation_id: String,
+    pub schema_version: String,
+    /// Unique execution ID (UUID)
+    pub execution_id: String,
     /// Operation type
     pub operation_type: String,
     /// Status ("ok", "error", "partial")
     pub status: String,
     /// Human-readable message
     pub message: String,
+    /// Tool name
+    pub tool: String,
     /// Timestamp (ISO 8601)
     pub timestamp: String,
     /// Workspace root (optional)
@@ -77,19 +123,20 @@ pub struct OperationResult {
 impl OperationResult {
     /// Create a new operation result with a generated UUID.
     pub fn new(operation_type: String) -> Self {
-        Self::with_id(operation_type, None)
+        Self::with_execution_id(operation_type, None)
     }
 
-    /// Create a new operation result with an optional operation ID.
-    pub fn with_id(operation_type: String, operation_id: Option<String>) -> Self {
+    /// Create a new operation result with an optional execution ID.
+    pub fn with_execution_id(operation_type: String, execution_id: Option<String>) -> Self {
         use uuid::Uuid;
 
         Self {
-            version: SCHEMA_VERSION.to_string(),
-            operation_id: operation_id.unwrap_or_else(|| Uuid::new_v4().to_string()),
+            schema_version: OPERATION_SCHEMA_VERSION.to_string(),
+            execution_id: execution_id.unwrap_or_else(|| Uuid::new_v4().to_string()),
             operation_type,
             status: "ok".to_string(),
             message: String::new(),
+            tool: TOOL_NAME.to_string(),
             timestamp: chrono::Utc::now().to_rfc3339(),
             workspace: None,
             result: None,
@@ -97,9 +144,9 @@ impl OperationResult {
         }
     }
 
-    /// Set or override the operation_id.
-    pub fn set_operation_id(mut self, operation_id: String) -> Self {
-        self.operation_id = operation_id;
+    /// Set or override the execution_id.
+    pub fn set_execution_id(mut self, execution_id: String) -> Self {
+        self.execution_id = execution_id;
         self
     }
 
@@ -231,10 +278,75 @@ pub struct StepResult {
 pub struct QueryResult {
     /// Query labels that were used
     pub labels: Vec<String>,
-    /// Number of results found
+    /// Number of results returned
     pub count: usize,
     /// Matching symbols
     pub symbols: Vec<SpanResult>,
+    /// Total number of results before pagination
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_count: Option<usize>,
+    /// Offset into the result set
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offset: Option<usize>,
+    /// Limit applied to the result set
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<usize>,
+    /// Max symbols cap applied
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_symbols: Option<usize>,
+    /// Max bytes cap applied
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_bytes: Option<usize>,
+    /// Next offset when more results are available
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_offset: Option<usize>,
+    /// Whether the result set is partial
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub partial: Option<bool>,
+    /// Reasons for truncation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub truncation_reasons: Option<Vec<String>>,
+}
+
+/// Label-based query response (Magellan-compatible JSON).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LabelQueryResponse {
+    /// Query labels that were used
+    pub labels: Vec<String>,
+    /// Matching symbols
+    pub symbols: Vec<SymbolMatch>,
+    /// Number of results returned
+    pub count: usize,
+    /// Total number of results before pagination
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_count: Option<usize>,
+    /// Offset into the result set
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offset: Option<usize>,
+    /// Limit applied to the result set
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<usize>,
+    /// Max symbols cap applied
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_symbols: Option<usize>,
+    /// Max bytes cap applied
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_bytes: Option<usize>,
+    /// Next offset when more results are available
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_offset: Option<usize>,
+    /// Reasons for truncation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub truncation_reasons: Option<Vec<String>>,
+}
+
+/// Response for get command (Magellan-compatible JSON).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetResponse {
+    /// Symbol details
+    pub symbol: SymbolMatch,
+    /// Source code content
+    pub content: String,
 }
 
 /// Pattern replacement across multiple files.
@@ -282,6 +394,207 @@ pub struct SpanContext {
     pub after: Vec<String>,
 }
 
+/// Semantic metadata for a span.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpanSemantics {
+    /// Semantic kind (function, class, etc.)
+    pub kind: String,
+    /// Programming language
+    pub language: String,
+}
+
+/// Checksum metadata for a span.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpanChecksums {
+    /// Checksum of span content before modification (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub checksum_before: Option<String>,
+    /// Checksum of span content after modification (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub checksum_after: Option<String>,
+    /// Checksum of entire file before modification (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_checksum_before: Option<String>,
+}
+
+impl Default for SpanChecksums {
+    fn default() -> Self {
+        Self {
+            checksum_before: None,
+            checksum_after: None,
+            file_checksum_before: None,
+        }
+    }
+}
+
+fn generate_span_id(file_path: &str, byte_start: usize, byte_end: usize) -> String {
+    use sha2::{Digest, Sha256};
+
+    let mut hasher = Sha256::new();
+    hasher.update(file_path.as_bytes());
+    hasher.update(b":");
+    hasher.update(byte_start.to_be_bytes());
+    hasher.update(b":");
+    hasher.update(byte_end.to_be_bytes());
+
+    let result = hasher.finalize();
+    format!(
+        "{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+        result[0], result[1], result[2], result[3], result[4], result[5], result[6], result[7],
+    )
+}
+
+fn normalize_checksum(value: String) -> String {
+    if value.starts_with("sha256:") {
+        value
+    } else {
+        format!("sha256:{}", value)
+    }
+}
+
+/// Span in source code (byte + line/column), Magellan-compatible.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Span {
+    /// Stable span ID (SHA-256 hash of file_path:byte_start:byte_end)
+    pub span_id: String,
+    /// File path (absolute or root-relative)
+    pub file_path: String,
+    /// Byte range start (inclusive)
+    pub byte_start: usize,
+    /// Byte range end (exclusive)
+    pub byte_end: usize,
+    /// Start line (1-indexed)
+    pub start_line: usize,
+    /// Start column (0-indexed, byte-based)
+    pub start_col: usize,
+    /// End line (1-indexed)
+    pub end_line: usize,
+    /// End column (0-indexed, byte-based)
+    pub end_col: usize,
+    /// Context lines around the span
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<SpanContext>,
+    /// Semantic information (kind, language)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub semantics: Option<SpanSemantics>,
+    /// Relationship information (callers, callees, imports, exports)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub relationships: Option<Relationships>,
+    /// Checksums for content verification
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub checksums: Option<SpanChecksums>,
+}
+
+impl Span {
+    /// Create a new span with stable ID.
+    pub fn new(
+        file_path: String,
+        byte_start: usize,
+        byte_end: usize,
+        start_line: usize,
+        start_col: usize,
+        end_line: usize,
+        end_col: usize,
+    ) -> Self {
+        let span_id = generate_span_id(&file_path, byte_start, byte_end);
+        Span {
+            span_id,
+            file_path,
+            byte_start,
+            byte_end,
+            start_line,
+            start_col,
+            end_line,
+            end_col,
+            context: None,
+            semantics: None,
+            relationships: None,
+            checksums: None,
+        }
+    }
+
+    /// Generate a stable span ID from (file_path, byte_start, byte_end).
+    pub fn generate_id(file_path: &str, byte_start: usize, byte_end: usize) -> String {
+        generate_span_id(file_path, byte_start, byte_end)
+    }
+
+    /// Add context lines around the span.
+    pub fn with_context(mut self, context: SpanContext) -> Self {
+        self.context = Some(context);
+        self
+    }
+
+    /// Add semantic info for kind and language.
+    pub fn with_semantics(mut self, semantics: SpanSemantics) -> Self {
+        self.semantics = Some(semantics);
+        self
+    }
+
+    /// Add relationship information.
+    pub fn with_relationships(mut self, relationships: Relationships) -> Self {
+        self.relationships = Some(relationships);
+        self
+    }
+
+    /// Add checksum metadata.
+    pub fn with_checksums(mut self, checksums: SpanChecksums) -> Self {
+        self.checksums = Some(checksums);
+        self
+    }
+}
+
+/// Symbol match result (Magellan-compatible).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SymbolMatch {
+    /// Stable match ID generated from name, file path, and byte start.
+    pub match_id: String,
+    /// Symbol span
+    pub span: Span,
+    /// Symbol name
+    pub name: String,
+    /// Symbol kind (normalized)
+    pub kind: String,
+    /// Parent symbol name (if nested)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent: Option<String>,
+    /// Stable symbol ID (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symbol_id: Option<String>,
+}
+
+impl SymbolMatch {
+    /// Generate a stable match ID for a symbol.
+    pub fn generate_match_id(symbol_name: &str, file_path: &str, byte_start: usize) -> String {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        symbol_name.hash(&mut hasher);
+        file_path.hash(&mut hasher);
+        byte_start.hash(&mut hasher);
+        format!("{:x}", hasher.finish())
+    }
+
+    /// Create a new SymbolMatch with a stable match ID.
+    pub fn new(
+        name: String,
+        kind: String,
+        span: Span,
+        parent: Option<String>,
+        symbol_id: Option<String>,
+    ) -> Self {
+        let match_id = Self::generate_match_id(&name, &span.file_path, span.byte_start);
+        SymbolMatch {
+            match_id,
+            span,
+            name,
+            kind,
+            parent,
+            symbol_id,
+        }
+    }
+}
+
 /// Unified span result with byte and line/column information.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpanResult {
@@ -298,13 +611,13 @@ pub struct SpanResult {
     /// End byte offset
     pub byte_end: usize,
     /// Start line (1-based, 0 if not available)
-    pub line_start: usize,
+    pub start_line: usize,
     /// End line (1-based, 0 if not available)
-    pub line_end: usize,
+    pub end_line: usize,
     /// Start column (0-based, 0 if not available)
-    pub col_start: usize,
+    pub start_col: usize,
     /// End column (0-based, 0 if not available)
-    pub col_end: usize,
+    pub end_col: usize,
     /// Unique ID for this span (generated automatically)
     pub span_id: String,
     /// Symbol resolution match ID (populated when from resolve_symbol())
@@ -316,27 +629,15 @@ pub struct SpanResult {
     /// Hash after modification (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub after_hash: Option<String>,
-    /// Checksum of span content before modification (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub span_checksum_before: Option<String>,
-    /// Checksum of span content after modification (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub span_checksum_after: Option<String>,
     /// Context lines before/selected/after (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context: Option<SpanContext>,
-    /// Standardized semantic kind (optional)
+    /// Semantic metadata (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub semantic_kind: Option<String>,
-    /// Programming language (optional)
+    pub semantics: Option<SpanSemantics>,
+    /// Checksum metadata (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub language: Option<String>,
-    /// Checksum of span content before modification (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub checksum_before: Option<String>,
-    /// Checksum of entire file before modification (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub file_checksum_before: Option<String>,
+    pub checksums: Option<SpanChecksums>,
     /// Error code with severity, location, hint (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<ErrorCode>,
@@ -354,28 +655,24 @@ pub struct SpanResult {
 impl SpanResult {
     /// Create from file path and byte span only (line/col set to 0).
     pub fn from_byte_span(file_path: String, byte_start: usize, byte_end: usize) -> Self {
-        use uuid::Uuid;
+        let span_id = generate_span_id(&file_path, byte_start, byte_end);
         Self {
             file_path,
             symbol: None,
             kind: None,
             byte_start,
             byte_end,
-            line_start: 0,
-            line_end: 0,
-            col_start: 0,
-            col_end: 0,
-            span_id: Uuid::new_v4().to_string(),
+            start_line: 0,
+            end_line: 0,
+            start_col: 0,
+            end_col: 0,
+            span_id,
             match_id: None,
             before_hash: None,
             after_hash: None,
-            span_checksum_before: None,
-            span_checksum_after: None,
             context: None,
-            semantic_kind: None,
-            language: None,
-            checksum_before: None,
-            file_checksum_before: None,
+            semantics: None,
+            checksums: None,
             error_code: None,
             relationships: None,
             tool_hints: None,
@@ -398,11 +695,17 @@ impl SpanResult {
     }
 
     /// Add line/column information.
-    pub fn with_line_col(mut self, line_start: usize, line_end: usize, col_start: usize, col_end: usize) -> Self {
-        self.line_start = line_start;
-        self.line_end = line_end;
-        self.col_start = col_start;
-        self.col_end = col_end;
+    pub fn with_line_col(
+        mut self,
+        line_start: usize,
+        line_end: usize,
+        col_start: usize,
+        col_end: usize,
+    ) -> Self {
+        self.start_line = line_start;
+        self.end_line = line_end;
+        self.start_col = col_start;
+        self.end_col = col_end;
         self
     }
 
@@ -414,8 +717,9 @@ impl SpanResult {
 
     /// Add span checksum information.
     pub fn with_span_checksums(mut self, before: String, after: String) -> Self {
-        self.span_checksum_before = Some(before);
-        self.span_checksum_after = Some(after);
+        let checksums = self.checksums.get_or_insert_with(SpanChecksums::default);
+        checksums.checksum_before = Some(normalize_checksum(before));
+        checksums.checksum_after = Some(normalize_checksum(after));
         self
     }
 
@@ -427,25 +731,37 @@ impl SpanResult {
 
     /// Add semantic kind.
     pub fn with_semantic_kind(mut self, kind: impl Into<String>) -> Self {
-        self.semantic_kind = Some(kind.into());
+        let kind = kind.into();
+        let semantics = self.semantics.get_or_insert_with(|| SpanSemantics {
+            kind: "unknown".to_string(),
+            language: "unknown".to_string(),
+        });
+        semantics.kind = kind;
         self
     }
 
     /// Add programming language.
     pub fn with_language(mut self, language: impl Into<String>) -> Self {
-        self.language = Some(language.into());
+        let language = language.into();
+        let semantics = self.semantics.get_or_insert_with(|| SpanSemantics {
+            kind: "unknown".to_string(),
+            language: "unknown".to_string(),
+        });
+        semantics.language = language;
         self
     }
 
     /// Add checksum_before (alias for span_checksum_before).
     pub fn with_checksum_before(mut self, checksum: impl Into<String>) -> Self {
-        self.checksum_before = Some(checksum.into());
+        let checksums = self.checksums.get_or_insert_with(SpanChecksums::default);
+        checksums.checksum_before = Some(normalize_checksum(checksum.into()));
         self
     }
 
     /// Add file_checksum_before.
     pub fn with_file_checksum_before(mut self, checksum: impl Into<String>) -> Self {
-        self.file_checksum_before = Some(checksum.into());
+        let checksums = self.checksums.get_or_insert_with(SpanChecksums::default);
+        checksums.file_checksum_before = Some(normalize_checksum(checksum.into()));
         self
     }
 
@@ -456,16 +772,33 @@ impl SpanResult {
     }
 
     /// Add both semantic kind and language.
-    pub fn with_semantic_info(mut self, kind: impl Into<String>, language: impl Into<String>) -> Self {
-        self.semantic_kind = Some(kind.into());
-        self.language = Some(language.into());
+    pub fn with_semantic_info(
+        mut self,
+        kind: impl Into<String>,
+        language: impl Into<String>,
+    ) -> Self {
+        self.semantics = Some(SpanSemantics {
+            kind: kind.into(),
+            language: language.into(),
+        });
         self
     }
 
     /// Add both checksums.
-    pub fn with_both_checksums(mut self, checksum_before: impl Into<String>, file_checksum_before: impl Into<String>) -> Self {
-        self.checksum_before = Some(checksum_before.into());
-        self.file_checksum_before = Some(file_checksum_before.into());
+    pub fn with_both_checksums(
+        mut self,
+        checksum_before: impl Into<String>,
+        file_checksum_before: impl Into<String>,
+    ) -> Self {
+        let checksum_after = self
+            .checksums
+            .as_ref()
+            .and_then(|c| c.checksum_after.clone());
+        self.checksums = Some(SpanChecksums {
+            checksum_before: Some(normalize_checksum(checksum_before.into())),
+            checksum_after,
+            file_checksum_before: Some(normalize_checksum(file_checksum_before.into())),
+        });
         self
     }
 
@@ -649,28 +982,25 @@ impl Ord for DiagnosticPayload {
 
 impl From<crate::patch::FilePatchSummary> for SpanResult {
     fn from(summary: crate::patch::FilePatchSummary) -> Self {
-        use uuid::Uuid;
+        let file_path = summary.file.to_string_lossy().to_string();
+        let span_id = generate_span_id(&file_path, 0, 0);
         Self {
-            file_path: summary.file.to_string_lossy().to_string(),
+            file_path,
             symbol: None,
             kind: None,
             byte_start: 0,
             byte_end: 0,
-            line_start: 0,
-            line_end: 0,
-            col_start: 0,
-            col_end: 0,
-            span_id: Uuid::new_v4().to_string(),
+            start_line: 0,
+            end_line: 0,
+            start_col: 0,
+            end_col: 0,
+            span_id,
             match_id: None,
             before_hash: Some(summary.before_hash),
             after_hash: Some(summary.after_hash),
-            span_checksum_before: None,
-            span_checksum_after: None,
             context: None,
-            semantic_kind: None,
-            language: None,
-            checksum_before: None,
-            file_checksum_before: None,
+            semantics: None,
+            checksums: None,
             error_code: None,
             relationships: None,
             tool_hints: None,
@@ -681,28 +1011,24 @@ impl From<crate::patch::FilePatchSummary> for SpanResult {
 
 impl From<crate::resolve::ResolvedSpan> for SpanResult {
     fn from(span: crate::resolve::ResolvedSpan) -> Self {
-        use uuid::Uuid;
+        let span_id = generate_span_id(&span.file_path, span.byte_start, span.byte_end);
         Self {
             file_path: span.file_path,
             symbol: Some(span.name),
             kind: Some(span.kind),
             byte_start: span.byte_start,
             byte_end: span.byte_end,
-            line_start: span.line_start,
-            line_end: span.line_end,
-            col_start: span.col_start,
-            col_end: span.col_end,
-            span_id: Uuid::new_v4().to_string(),
+            start_line: span.line_start,
+            end_line: span.line_end,
+            start_col: span.col_start,
+            end_col: span.col_end,
+            span_id,
             match_id: Some(span.match_id),
             before_hash: None,
             after_hash: None,
-            span_checksum_before: None,
-            span_checksum_after: None,
             context: None,
-            semantic_kind: None,
-            language: None,
-            checksum_before: None,
-            file_checksum_before: None,
+            semantics: None,
+            checksums: None,
             error_code: None,
             relationships: None,
             tool_hints: None,
@@ -716,10 +1042,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_span_id_uniqueness() {
+    fn test_span_id_deterministic() {
         let span1 = SpanResult::from_byte_span("test.rs".to_string(), 10, 20);
         let span2 = SpanResult::from_byte_span("test.rs".to_string(), 10, 20);
-        assert_ne!(span1.span_id, span2.span_id, "Each SpanResult should have a unique span_id");
+        assert_eq!(
+            span1.span_id, span2.span_id,
+            "Same span inputs should produce the same span_id"
+        );
     }
 
     #[test]
@@ -727,7 +1056,11 @@ mod tests {
         let match_id = uuid::Uuid::new_v4().to_string();
         let span = SpanResult::from_byte_span("test.rs".to_string(), 10, 20)
             .with_match_id(match_id.clone());
-        assert_eq!(span.match_id, Some(match_id), "match_id should be preserved when set");
+        assert_eq!(
+            span.match_id,
+            Some(match_id),
+            "match_id should be preserved when set"
+        );
     }
 
     #[test]
@@ -744,14 +1077,13 @@ mod tests {
     }
 
     #[test]
-    fn test_from_byte_span_generates_unique_span_ids() {
+    fn test_from_byte_span_generates_distinct_span_ids() {
         let span1 = SpanResult::from_byte_span("file.rs".to_string(), 0, 10);
         let span2 = SpanResult::from_byte_span("file.rs".to_string(), 0, 10);
         let span3 = SpanResult::from_byte_span("file.rs".to_string(), 20, 30);
 
-        assert_ne!(span1.span_id, span2.span_id);
+        assert_eq!(span1.span_id, span2.span_id);
         assert_ne!(span2.span_id, span3.span_id);
         assert_ne!(span1.span_id, span3.span_id);
     }
 }
-

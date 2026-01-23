@@ -235,8 +235,7 @@ fn resolve_symbol_in_file(
             let hint = if suggestions.is_empty() {
                 format!(
                     "Symbol '{}' not found in {}. Run `splice ingest` to index the codebase.",
-                    name,
-                    file_str
+                    name, file_str
                 )
             } else {
                 format!("Did you mean: {}?", suggestions.join(", "))
@@ -288,10 +287,16 @@ fn resolve_symbol_in_file(
     if let Some(k) = kind {
         if kind_str != k {
             return Err(SpliceError::SymbolNotFound {
-                message: format!("Symbol '{}' of kind '{}' not found in {}", name, k, file_str),
+                message: format!(
+                    "Symbol '{}' of kind '{}' not found in {}",
+                    name, k, file_str
+                ),
                 symbol: name.to_string(),
                 file: Some(file_path.to_path_buf()),
-                hint: format!("Symbol '{}' exists but is a '{}', not '{}'. Try adjusting the --kind flag.", name, kind_str, k),
+                hint: format!(
+                    "Symbol '{}' exists but is a '{}', not '{}'. Try adjusting the --kind flag.",
+                    name, kind_str, k
+                ),
             });
         }
     }
@@ -377,8 +382,14 @@ pub fn resolve_symbol_with_rust_kind(
 /// * `Err(SpliceError::SymbolNotFound)` with suggestions if not found
 ///
 /// # Examples
-/// ```
+/// ```no_run
+/// use splice::graph::CodeGraph;
+/// use splice::resolve::find_symbol_or_suggest;
+/// use std::path::Path;
+///
+/// let graph = CodeGraph::open(Path::new("codegraph.db"))?;
 /// let node_id = find_symbol_or_suggest(&graph, "my_function", None)?;
+/// # Ok::<(), splice::SpliceError>(())
 /// ```
 pub fn find_symbol_or_suggest(
     graph: &CodeGraph,

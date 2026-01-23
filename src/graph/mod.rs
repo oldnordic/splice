@@ -12,6 +12,7 @@ use crate::symbol::Language;
 use serde_json::json;
 use sqlitegraph::{EdgeSpec, GraphBackend, NodeId, NodeSpec};
 use std::collections::HashMap;
+use std::io::Read;
 use std::path::Path;
 
 /// Graph database handle.
@@ -31,13 +32,47 @@ pub struct CodeGraph {
 impl CodeGraph {
     /// Open or create a code graph at the given path.
     pub fn open(path: &std::path::Path) -> Result<Self> {
-        let cfg = sqlitegraph::GraphConfig::native();
+        if let Ok(metadata) = std::fs::metadata(path) {
+            if metadata.len() == 0 {
+                std::fs::remove_file(path).map_err(|e| {
+                    SpliceError::Other(format!(
+                        "Failed to remove empty graph database {:?}: {}",
+                        path, e
+                    ))
+                })?;
+            }
+        }
+
+        let cfg = if Self::is_sqlite_db(path)? {
+            sqlitegraph::GraphConfig::sqlite()
+        } else {
+            sqlitegraph::GraphConfig::native()
+        };
         let backend = sqlitegraph::open_graph(path, &cfg)?;
         Ok(Self {
             backend,
             symbol_cache: HashMap::new(),
             file_cache: HashMap::new(),
         })
+    }
+
+    fn is_sqlite_db(path: &Path) -> Result<bool> {
+        if !path.exists() {
+            return Ok(false);
+        }
+
+        let mut file = std::fs::File::open(path).map_err(|e| {
+            SpliceError::Other(format!("Failed to open graph database {:?}: {}", path, e))
+        })?;
+        let mut header = [0u8; 16];
+        let bytes_read = file.read(&mut header).map_err(|e| {
+            SpliceError::Other(format!("Failed to read graph database {:?}: {}", path, e))
+        })?;
+        if bytes_read < header.len() {
+            return Ok(false);
+        }
+
+        Ok(&header[..15] == b"SQLite format 3")
     }
 
     /// Store a symbol with its byte span and metadata (legacy method for backward compatibility).
@@ -182,7 +217,10 @@ impl CodeGraph {
             Language::Rust,
             byte_start,
             byte_end,
-            0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
+            0,
+            0,
+            0,
+            0, // line_start, line_end, col_start, col_end (placeholders)
         )
     }
 
@@ -337,12 +375,12 @@ mod tests {
                 "test_function",
                 "function",
                 Language::Rust,
-                100,  // byte_start
-                200,  // byte_end
-                5,    // line_start
-                10,   // line_end
-                12,   // col_start
-                45,   // col_end
+                100, // byte_start
+                200, // byte_end
+                5,   // line_start
+                10,  // line_end
+                12,  // col_start
+                45,  // col_end
             )
             .expect("Failed to store symbol");
 
@@ -352,9 +390,15 @@ mod tests {
             .get_node(node_id.as_i64())
             .expect("Failed to retrieve node");
 
-        assert_eq!(node.data.get("line_start").and_then(|v| v.as_u64()), Some(5));
+        assert_eq!(
+            node.data.get("line_start").and_then(|v| v.as_u64()),
+            Some(5)
+        );
         assert_eq!(node.data.get("line_end").and_then(|v| v.as_u64()), Some(10));
-        assert_eq!(node.data.get("col_start").and_then(|v| v.as_u64()), Some(12));
+        assert_eq!(
+            node.data.get("col_start").and_then(|v| v.as_u64()),
+            Some(12)
+        );
         assert_eq!(node.data.get("col_end").and_then(|v| v.as_u64()), Some(45));
 
         // Clean up
@@ -377,7 +421,10 @@ mod tests {
                 Language::Rust,
                 50,  // byte_start
                 100, // byte_end
-                0, 0, 0, 0, // All line/col zeros (placeholders)
+                0,
+                0,
+                0,
+                0, // All line/col zeros (placeholders)
             )
             .expect("Failed to store symbol");
 
@@ -387,7 +434,10 @@ mod tests {
             .expect("Failed to retrieve node");
 
         // Zeros should be stored correctly
-        assert_eq!(node.data.get("line_start").and_then(|v| v.as_u64()), Some(0));
+        assert_eq!(
+            node.data.get("line_start").and_then(|v| v.as_u64()),
+            Some(0)
+        );
         assert_eq!(node.data.get("line_end").and_then(|v| v.as_u64()), Some(0));
         assert_eq!(node.data.get("col_start").and_then(|v| v.as_u64()), Some(0));
         assert_eq!(node.data.get("col_end").and_then(|v| v.as_u64()), Some(0));
@@ -414,7 +464,10 @@ mod tests {
             .expect("Failed to retrieve node");
 
         // All line/col should be 0 from deprecated method
-        assert_eq!(node.data.get("line_start").and_then(|v| v.as_u64()), Some(0));
+        assert_eq!(
+            node.data.get("line_start").and_then(|v| v.as_u64()),
+            Some(0)
+        );
         assert_eq!(node.data.get("line_end").and_then(|v| v.as_u64()), Some(0));
         assert_eq!(node.data.get("col_start").and_then(|v| v.as_u64()), Some(0));
         assert_eq!(node.data.get("col_end").and_then(|v| v.as_u64()), Some(0));

@@ -78,12 +78,10 @@ fn parser_for_language(language: Language) -> Result<tree_sitter::Parser> {
         Language::TypeScript => tree_sitter_typescript::language_typescript(),
     };
 
-    parser
-        .set_language(&lang)
-        .map_err(|e| SpliceError::Parse {
-            file: PathBuf::from("<unknown>"),
-            message: format!("Failed to set language for parser: {:?}", e),
-        })?;
+    parser.set_language(&lang).map_err(|e| SpliceError::Parse {
+        file: PathBuf::from("<unknown>"),
+        message: format!("Failed to set language for parser: {:?}", e),
+    })?;
 
     Ok(parser)
 }
@@ -101,7 +99,8 @@ pub fn find_pattern_in_files(config: &PatternReplaceConfig) -> Result<Vec<Patter
         .map_err(|e| SpliceError::Other(format!("Invalid glob pattern: {}", e)))?;
 
     for entry in glob_paths {
-        let entry = entry.map_err(|e| SpliceError::Other(format!("Glob iteration error: {}", e)))?;
+        let entry =
+            entry.map_err(|e| SpliceError::Other(format!("Glob iteration error: {}", e)))?;
         let path = entry;
 
         // Skip directories
@@ -137,11 +136,10 @@ fn find_pattern_in_file(
     pattern: &str,
     language: Language,
 ) -> Result<Vec<PatternMatch>> {
-    let content = std::fs::read_to_string(file_path)
-        .map_err(|e| SpliceError::Io {
-            path: file_path.to_path_buf(),
-            source: e,
-        })?;
+    let content = std::fs::read_to_string(file_path).map_err(|e| SpliceError::Io {
+        path: file_path.to_path_buf(),
+        source: e,
+    })?;
 
     // Get parser for the language
     let mut parser = parser_for_language(language)?;
@@ -160,7 +158,9 @@ fn find_pattern_in_file(
 
         // Check if this location is in a valid AST node
         let byte_offset = abs_start as usize;
-        let node = tree.root_node().descendant_for_byte_range(byte_offset, byte_offset);
+        let node = tree
+            .root_node()
+            .descendant_for_byte_range(byte_offset, byte_offset);
 
         if let Some(node) = node {
             // Skip matches in comments unless the pattern starts with '//'
@@ -226,10 +226,7 @@ pub fn apply_pattern_replace(
     // Group matches by file and sort by byte offset (descending for replacement)
     let mut matches_by_file: HashMap<PathBuf, Vec<&PatternMatch>> = HashMap::new();
     for m in &matches {
-        matches_by_file
-            .entry(m.file.clone())
-            .or_default()
-            .push(m);
+        matches_by_file.entry(m.file.clone()).or_default().push(m);
     }
 
     for file_matches in matches_by_file.values_mut() {
@@ -253,58 +250,60 @@ pub fn apply_pattern_replace(
     }
 
     // Second pass: apply replacements using atomic writes
-    let apply_result: std::result::Result<(), SpliceError> = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        for (file_path, file_matches) in &matches_by_file {
-            if file_matches.is_empty() {
-                continue;
-            }
+    let apply_result: std::result::Result<(), SpliceError> =
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            for (file_path, file_matches) in &matches_by_file {
+                if file_matches.is_empty() {
+                    continue;
+                }
 
-            // Get original content from backup
-            let replaced = backups
-                .iter()
-                .find(|(path, _)| path == file_path)
-                .map(|(_, content)| content.clone())
-                .unwrap();
+                // Get original content from backup
+                let replaced = backups
+                    .iter()
+                    .find(|(path, _)| path == file_path)
+                    .map(|(_, content)| content.clone())
+                    .unwrap();
 
-            // Apply replacements in reverse byte order
-            let mut content = replaced.clone();
-            for m in &**file_matches {
-                let start_byte = m.byte_start;
-                let end_byte = m.byte_end;
+                // Apply replacements in reverse byte order
+                let mut content = replaced.clone();
+                for m in &**file_matches {
+                    let start_byte = m.byte_start;
+                    let end_byte = m.byte_end;
 
-                // Replace the content
-                content.replace_range(start_byte..end_byte, &config.replace_pattern);
-                replacements_count += 1;
-            }
+                    // Replace the content
+                    content.replace_range(start_byte..end_byte, &config.replace_pattern);
+                    replacements_count += 1;
+                }
 
-            // Atomic write using tempfile
-            let parent_dir = file_path.parent().unwrap_or(Path::new("."));
-            let mut temp = tempfile::NamedTempFile::new_in(parent_dir).map_err(|e| {
-                SpliceError::Io {
+                // Atomic write using tempfile
+                let parent_dir = file_path.parent().unwrap_or(Path::new("."));
+                let mut temp =
+                    tempfile::NamedTempFile::new_in(parent_dir).map_err(|e| SpliceError::Io {
+                        path: file_path.clone(),
+                        source: e.into(),
+                    })?;
+
+                temp.write_all(content.as_bytes())
+                    .map_err(|e| SpliceError::Io {
+                        path: file_path.clone(),
+                        source: e.into(),
+                    })?;
+
+                // Persist atomically (replaces original file)
+                temp.persist(file_path).map_err(|e| SpliceError::Io {
                     path: file_path.clone(),
                     source: e.into(),
-                }
-            })?;
+                })?;
 
-            temp.write_all(content.as_bytes()).map_err(|e| SpliceError::Io {
-                path: file_path.clone(),
-                source: e.into(),
-            })?;
+                files_patched.push(file_path.clone());
+            }
 
-            // Persist atomically (replaces original file)
-            temp.persist(file_path).map_err(|e| SpliceError::Io {
-                path: file_path.clone(),
-                source: e.into(),
-            })?;
-
-            files_patched.push(file_path.clone());
-        }
-
-        Ok::<(), SpliceError>(())
-    })).map_err(|_| {
-        // Panic occurred - convert to SpliceError for rollback
-        SpliceError::Other("Panic during pattern replacement".to_string())
-    })?;
+            Ok::<(), SpliceError>(())
+        }))
+        .map_err(|_| {
+            // Panic occurred - convert to SpliceError for rollback
+            SpliceError::Other("Panic during pattern replacement".to_string())
+        })?;
 
     // apply_result is now Result<(), SpliceError> after map_err
     // If it's Err, we need to roll back and return the error
@@ -323,19 +322,18 @@ pub fn apply_pattern_replace(
         // For each patched file, run validation
         for file_path in &files_patched {
             // Determine language
-            let lang = config.language.or_else(|| {
-                Language::from_path(file_path)
-            }).ok_or_else(|| {
-                SpliceError::Other(format!("Cannot detect language for file: {}", file_path.display()))
-            })?;
+            let lang = config
+                .language
+                .or_else(|| Language::from_path(file_path))
+                .ok_or_else(|| {
+                    SpliceError::Other(format!(
+                        "Cannot detect language for file: {}",
+                        file_path.display()
+                    ))
+                })?;
 
             // Run validation gates
-            crate::patch::run_validation_gates(
-                file_path,
-                workspace_dir,
-                lang,
-                AnalyzerMode::Off,
-            )?;
+            crate::patch::run_validation_gates(file_path, workspace_dir, lang, AnalyzerMode::Off)?;
         }
     }
 
@@ -368,10 +366,11 @@ fn foo() {
     println!("{}", x);
 }
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
-        let matches = find_pattern_in_file(&test_file, "42", Language::Rust)
-            .expect("Failed to find pattern");
+        let matches =
+            find_pattern_in_file(&test_file, "42", Language::Rust).expect("Failed to find pattern");
 
         assert_eq!(matches.len(), 2, "Should find 2 occurrences of '42'");
     }
@@ -390,7 +389,8 @@ def foo():
     y = 10
     return x + y
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
             glob_pattern: workspace_root.join("*.py").to_string_lossy().to_string(),
@@ -428,7 +428,8 @@ fn another_function() {
     let other = "another";
 }
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
             glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
@@ -438,8 +439,7 @@ fn another_function() {
             validate: false,
         };
 
-        let matches = find_pattern_in_files(&config)
-            .expect("Failed to search for pattern");
+        let matches = find_pattern_in_files(&config).expect("Failed to search for pattern");
 
         assert_eq!(matches.len(), 2, "Should find 2 occurrences of 'function'");
         assert_eq!(matches[0].file, test_file);
@@ -462,7 +462,8 @@ def search_function():
 def another_function():
     other = "another"
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
             glob_pattern: workspace_root.join("*.py").to_string_lossy().to_string(),
@@ -472,8 +473,7 @@ def another_function():
             validate: false,
         };
 
-        let matches = find_pattern_in_files(&config)
-            .expect("Failed to search for pattern");
+        let matches = find_pattern_in_files(&config).expect("Failed to search for pattern");
 
         assert_eq!(matches.len(), 2, "Should find 2 occurrences of 'function'");
         assert_eq!(matches[0].file, test_file);
@@ -492,7 +492,8 @@ fn first() {
     let target = 1;
 }
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         let test_file2 = workspace_root.join("file2.rs");
         fs::write(
@@ -502,7 +503,8 @@ fn second() {
     let target = 2;
 }
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
             glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
@@ -512,8 +514,7 @@ fn second() {
             validate: false,
         };
 
-        let matches = find_pattern_in_files(&config)
-            .expect("Failed to search for pattern");
+        let matches = find_pattern_in_files(&config).expect("Failed to search for pattern");
 
         assert_eq!(matches.len(), 2, "Should find 2 occurrences across files");
         assert_eq!(matches[0].file, test_file1);
@@ -533,7 +534,8 @@ fn example() {
     let x = 42;
 }
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
             glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
@@ -543,8 +545,7 @@ fn example() {
             validate: false,
         };
 
-        let matches = find_pattern_in_files(&config)
-            .expect("Failed to search for pattern");
+        let matches = find_pattern_in_files(&config).expect("Failed to search for pattern");
 
         assert_eq!(matches.len(), 0, "Should find no occurrences");
     }
@@ -570,7 +571,8 @@ fn main() {
     let rust_unique_pattern = 42;
 }
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         // Create Python file in tests/
         let python_file = tests_dir.join("test.py");
@@ -580,7 +582,8 @@ fn main() {
 def test():
     python_unique_pattern = 24
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         // Search only .rs files
         let config = PatternReplaceConfig {
@@ -591,10 +594,13 @@ def test():
             validate: false,
         };
 
-        let matches = find_pattern_in_files(&config)
-            .expect("Failed to search for pattern");
+        let matches = find_pattern_in_files(&config).expect("Failed to search for pattern");
 
-        assert_eq!(matches.len(), 1, "Should find 1 occurrence in .rs file only");
+        assert_eq!(
+            matches.len(),
+            1,
+            "Should find 1 occurrence in .rs file only"
+        );
         assert_eq!(matches[0].file, rust_file, "Should match the Rust file");
     }
 
@@ -618,7 +624,8 @@ def test():
 def test_function():
     python_unique_pattern = 42
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         // Create Rust file in src/
         let rust_file = src_dir.join("main.rs");
@@ -629,7 +636,8 @@ fn main() {
     let rust_unique_pattern = 24
 }
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         // Search only .py files
         let config = PatternReplaceConfig {
@@ -640,10 +648,13 @@ fn main() {
             validate: false,
         };
 
-        let matches = find_pattern_in_files(&config)
-            .expect("Failed to search for pattern");
+        let matches = find_pattern_in_files(&config).expect("Failed to search for pattern");
 
-        assert_eq!(matches.len(), 1, "Should find 1 occurrence in .py file only");
+        assert_eq!(
+            matches.len(),
+            1,
+            "Should find 1 occurrence in .py file only"
+        );
         assert_eq!(matches[0].file, python_file, "Should match the Python file");
     }
 
@@ -661,7 +672,8 @@ fn rust_function() {
     let target = 1;
 }
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         // Create Python file
         let python_file = workspace_root.join("test.py");
@@ -671,7 +683,8 @@ fn rust_function() {
 def python_function():
     target = 2
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         // Create C file (should not match)
         let c_file = workspace_root.join("test.c");
@@ -682,7 +695,8 @@ void c_function() {
     int target = 3;
 }
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         // Search for .rs files first
         let config_rs = PatternReplaceConfig {
@@ -693,8 +707,8 @@ void c_function() {
             validate: false,
         };
 
-        let matches_rs = find_pattern_in_files(&config_rs)
-            .expect("Failed to search for pattern in .rs files");
+        let matches_rs =
+            find_pattern_in_files(&config_rs).expect("Failed to search for pattern in .rs files");
 
         // Search for .py files next
         let config_py = PatternReplaceConfig {
@@ -705,13 +719,16 @@ void c_function() {
             validate: false,
         };
 
-        let matches_py = find_pattern_in_files(&config_py)
-            .expect("Failed to search for pattern in .py files");
+        let matches_py =
+            find_pattern_in_files(&config_py).expect("Failed to search for pattern in .py files");
 
         // Total matches across both extensions
         let total_matches = matches_rs.len() + matches_py.len();
 
-        assert_eq!(total_matches, 2, "Should find 2 occurrences total in .rs and .py files");
+        assert_eq!(
+            total_matches, 2,
+            "Should find 2 occurrences total in .rs and .py files"
+        );
         assert_eq!(matches_rs.len(), 1, "Should find 1 occurrence in .rs file");
         assert_eq!(matches_py.len(), 1, "Should find 1 occurrence in .py file");
     }
@@ -737,7 +754,8 @@ fn root() {
     let search_target = 1;
 }
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         let level1_file = level1.join("level1.rs");
         fs::write(
@@ -747,7 +765,8 @@ fn level1() {
     let search_target = 2;
 }
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         let level2_file = level2.join("level2.rs");
         fs::write(
@@ -757,7 +776,8 @@ fn level2() {
     let search_target = 3;
 }
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         // Search recursively with **/*.rs pattern
         let config = PatternReplaceConfig {
@@ -768,13 +788,19 @@ fn level2() {
             validate: false,
         };
 
-        let matches = find_pattern_in_files(&config)
-            .expect("Failed to search for pattern");
+        let matches = find_pattern_in_files(&config).expect("Failed to search for pattern");
 
-        assert_eq!(matches.len(), 3, "Should find 3 occurrences across all nested directories");
+        assert_eq!(
+            matches.len(),
+            3,
+            "Should find 3 occurrences across all nested directories"
+        );
 
         // Verify files are in correct order
-        let file_names: Vec<_> = matches.iter().map(|m| m.file.file_name().unwrap().to_string_lossy().to_string()).collect();
+        let file_names: Vec<_> = matches
+            .iter()
+            .map(|m| m.file.file_name().unwrap().to_string_lossy().to_string())
+            .collect();
         assert!(file_names.contains(&"root.rs".to_string()));
         assert!(file_names.contains(&"level1.rs".to_string()));
         assert!(file_names.contains(&"level2.rs".to_string()));
@@ -796,7 +822,8 @@ fn level2() {
             r#"
 This is a text file with no code.
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         // Search for .rs files in directory that has none
         let config = PatternReplaceConfig {
@@ -807,10 +834,13 @@ This is a text file with no code.
             validate: false,
         };
 
-        let matches = find_pattern_in_files(&config)
-            .expect("Failed to search for pattern");
+        let matches = find_pattern_in_files(&config).expect("Failed to search for pattern");
 
-        assert_eq!(matches.len(), 0, "Should find no occurrences when pattern doesn't match any files");
+        assert_eq!(
+            matches.len(),
+            0,
+            "Should find no occurrences when pattern doesn't match any files"
+        );
     }
 
     #[test]
@@ -829,7 +859,8 @@ line 3
 line 4
 line 5
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         // Search for "line 3" with context
         let config = PatternReplaceConfig {
@@ -840,8 +871,7 @@ line 5
             validate: false,
         };
 
-        let matches = find_pattern_in_files(&config)
-            .expect("Failed to search for pattern");
+        let matches = find_pattern_in_files(&config).expect("Failed to search for pattern");
 
         assert_eq!(matches.len(), 1, "Should find one occurrence of 'line 3'");
 
@@ -853,7 +883,8 @@ line 5
             m.byte_end,
             1, // context_before
             1, // context_after
-        ).expect("Failed to extract context");
+        )
+        .expect("Failed to extract context");
 
         // Verify context
         assert_eq!(context.before.len(), 1, "Should have 1 line before");
@@ -881,7 +912,8 @@ line 4
 line 5
 line 6
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         // Search for "line 4" with asymmetric context
         let config = PatternReplaceConfig {
@@ -892,8 +924,7 @@ line 6
             validate: false,
         };
 
-        let matches = find_pattern_in_files(&config)
-            .expect("Failed to search for pattern");
+        let matches = find_pattern_in_files(&config).expect("Failed to search for pattern");
 
         assert_eq!(matches.len(), 1, "Should find one occurrence of 'line 4'");
 
@@ -905,7 +936,8 @@ line 6
             m.byte_end,
             2, // context_before
             1, // context_after
-        ).expect("Failed to extract context");
+        )
+        .expect("Failed to extract context");
 
         // Verify asymmetric context
         assert_eq!(context.before.len(), 2, "Should have 2 lines before");
@@ -929,7 +961,8 @@ line 6
 line 2
 line 3
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         // Search for "line 2" with no context
         let config = PatternReplaceConfig {
@@ -940,8 +973,7 @@ line 3
             validate: false,
         };
 
-        let matches = find_pattern_in_files(&config)
-            .expect("Failed to search for pattern");
+        let matches = find_pattern_in_files(&config).expect("Failed to search for pattern");
 
         assert_eq!(matches.len(), 1, "Should find one occurrence of 'line 2'");
 
@@ -953,7 +985,8 @@ line 3
             m.byte_end,
             0, // context_before
             0, // context_after
-        ).expect("Failed to extract context");
+        )
+        .expect("Failed to extract context");
 
         // Verify no context
         assert_eq!(context.before.len(), 0, "Should have 0 lines before");
@@ -977,7 +1010,8 @@ line 2
 line 3
 line 4
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         // Search for "line 3" with context
         let config = PatternReplaceConfig {
@@ -988,8 +1022,7 @@ line 4
             validate: false,
         };
 
-        let matches = find_pattern_in_files(&config)
-            .expect("Failed to search for pattern");
+        let matches = find_pattern_in_files(&config).expect("Failed to search for pattern");
 
         assert_eq!(matches.len(), 1, "Should find one occurrence of 'line 3'");
 
@@ -1001,7 +1034,8 @@ line 4
             m.byte_end,
             1, // context_before
             1, // context_after
-        ).expect("Failed to extract context");
+        )
+        .expect("Failed to extract context");
 
         let json_result = json!({
             "file": m.file.to_string_lossy().to_string(),
@@ -1046,10 +1080,7 @@ line 4
         let workspace_root = workspace.path();
 
         let test_file = workspace_root.join("test.rs");
-        fs::write(
-            &test_file,
-            r#"fn test() { let x = 42; }"#,
-        ).expect("Failed to write test file");
+        fs::write(&test_file, r#"fn test() { let x = 42; }"#).expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
             glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
@@ -1059,8 +1090,7 @@ line 4
             validate: false,
         };
 
-        let matches = find_pattern_in_files(&config)
-            .expect("Failed to search for pattern");
+        let matches = find_pattern_in_files(&config).expect("Failed to search for pattern");
 
         // Build full JSON output structure like execute_search does
         let results: Vec<Value> = matches
@@ -1108,7 +1138,8 @@ line 2
 line 3
 line 4
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
             glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
@@ -1118,8 +1149,7 @@ line 4
             validate: false,
         };
 
-        let matches = find_pattern_in_files(&config)
-            .expect("Failed to search for pattern");
+        let matches = find_pattern_in_files(&config).expect("Failed to search for pattern");
 
         assert_eq!(matches.len(), 1);
 
@@ -1130,7 +1160,8 @@ line 4
             m.byte_end,
             1, // context_before
             1, // context_after
-        ).expect("Failed to extract context");
+        )
+        .expect("Failed to extract context");
 
         // Build JSON with context
         let mut match_json = json!({
@@ -1169,7 +1200,8 @@ line 4
             r#"def foo():
     x = 10
     return x"#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
             glob_pattern: workspace_root.join("*.py").to_string_lossy().to_string(),
@@ -1179,8 +1211,7 @@ line 4
             validate: false,
         };
 
-        let matches = find_pattern_in_files(&config)
-            .expect("Failed to search for pattern");
+        let matches = find_pattern_in_files(&config).expect("Failed to search for pattern");
 
         // Build JSON output
         let results: Vec<Value> = matches
@@ -1206,10 +1237,8 @@ line 4
         });
 
         // Verify it can be serialized and deserialized
-        let json_string = serde_json::to_string(&output)
-            .expect("Failed to serialize JSON");
-        let parsed: Value = serde_json::from_str(&json_string)
-            .expect("Failed to parse JSON");
+        let json_string = serde_json::to_string(&output).expect("Failed to serialize JSON");
+        let parsed: Value = serde_json::from_str(&json_string).expect("Failed to parse JSON");
 
         assert_eq!(parsed, output);
     }
@@ -1221,10 +1250,7 @@ line 4
         let workspace_root = workspace.path();
 
         let test_file = workspace_root.join("test.rs");
-        fs::write(
-            &test_file,
-            r#"fn test() { let x = 42; }"#,
-        ).expect("Failed to write test file");
+        fs::write(&test_file, r#"fn test() { let x = 42; }"#).expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
             glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
@@ -1234,8 +1260,7 @@ line 4
             validate: false,
         };
 
-        let matches = find_pattern_in_files(&config)
-            .expect("Failed to search for pattern");
+        let matches = find_pattern_in_files(&config).expect("Failed to search for pattern");
 
         // Build JSON without context (no context flags specified)
         let results: Vec<Value> = matches
@@ -1271,7 +1296,8 @@ line 4
             r#"fn example() {
     let value = 100;
 }"#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
             glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
@@ -1281,8 +1307,7 @@ line 4
             validate: false,
         };
 
-        let matches = find_pattern_in_files(&config)
-            .expect("Failed to search for pattern");
+        let matches = find_pattern_in_files(&config).expect("Failed to search for pattern");
 
         // Build JSON output with all metadata
         let results: Vec<Value> = matches
@@ -1347,7 +1372,8 @@ fn foo() {
     println!("{}", x);
 }
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
             glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
@@ -1381,7 +1407,8 @@ fn first() {
     let target = 1;
 }
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         let test_file2 = workspace_root.join("file2.rs");
         fs::write(
@@ -1391,7 +1418,8 @@ fn second() {
     let target = 2;
 }
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
             glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
@@ -1428,7 +1456,8 @@ fn first() {
     let target = 1;
 }
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         let test_file2 = workspace_root.join("file2.rs");
         fs::write(
@@ -1438,7 +1467,8 @@ fn second() {
     let target = 2;
 }
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
             glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
@@ -1459,22 +1489,32 @@ fn second() {
         let content1 = fs::read_to_string(&test_file1).expect("Failed to read file1");
         let content2 = fs::read_to_string(&test_file2).expect("Failed to read file2");
 
-        assert!(content1.contains("modified"), "file1 should contain replaced text");
-        assert!(!content1.contains("target"), "file1 should not contain original text");
-        assert!(content2.contains("modified"), "file2 should contain replaced text");
-        assert!(!content2.contains("target"), "file2 should not contain original text");
+        assert!(
+            content1.contains("modified"),
+            "file1 should contain replaced text"
+        );
+        assert!(
+            !content1.contains("target"),
+            "file1 should not contain original text"
+        );
+        assert!(
+            content2.contains("modified"),
+            "file2 should contain replaced text"
+        );
+        assert!(
+            !content2.contains("target"),
+            "file2 should not contain original text"
+        );
 
         // Test edge case: no matches found (should succeed without modifying files)
         let workspace2 = TempDir::new().expect("Failed to create temp dir 2");
         let workspace_root2 = workspace2.path();
 
         let test_file3 = workspace_root2.join("file3.rs");
-        fs::write(
-            &test_file3,
-            "fn test() { let x = 42; }",
-        ).expect("Failed to write test file");
+        fs::write(&test_file3, "fn test() { let x = 42; }").expect("Failed to write test file");
 
-        let original_content3 = fs::read_to_string(&test_file3).expect("Failed to read original file3");
+        let original_content3 =
+            fs::read_to_string(&test_file3).expect("Failed to read original file3");
 
         let config2 = PatternReplaceConfig {
             glob_pattern: workspace_root2.join("*.rs").to_string_lossy().to_string(),
@@ -1493,7 +1533,10 @@ fn second() {
 
         // Verify file was not modified (atomicity preserved)
         let content3_after = fs::read_to_string(&test_file3).expect("Failed to read file3 after");
-        assert_eq!(content3_after, original_content3, "file3 should be unchanged when no matches found");
+        assert_eq!(
+            content3_after, original_content3,
+            "file3 should be unchanged when no matches found"
+        );
     }
 
     #[test]
@@ -1510,7 +1553,8 @@ def foo():
     y = 10
     return x + y
 "#,
-        ).expect("Failed to write test file");
+        )
+        .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
             glob_pattern: workspace_root.join("*.py").to_string_lossy().to_string(),

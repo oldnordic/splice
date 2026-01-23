@@ -26,9 +26,11 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
-pub use backup::{restore_from_manifest, BackupWriter, BackupManifest};
+pub use backup::{restore_from_manifest, BackupManifest, BackupWriter};
 pub use batch_loader::load_batches_from_file;
-pub use pattern::{find_pattern_in_files, apply_pattern_replace, PatternReplaceConfig, PatternReplaceResult};
+pub use pattern::{
+    apply_pattern_replace, find_pattern_in_files, PatternReplaceConfig, PatternReplaceResult,
+};
 
 /// Replacement to apply within a specific file.
 #[derive(Debug, Clone, Serialize)]
@@ -153,7 +155,8 @@ pub fn apply_patch_with_validation(
     let strict = false;
     let skip = true;
     let db_path = workspace_dir.join(".splice_graph.db"); // Splice's convention, not used when skip=true
-    let pre_checks = verify::pre_verify_patch(file_path, None, workspace_dir, &db_path, strict, skip)?;
+    let pre_checks =
+        verify::pre_verify_patch(file_path, None, workspace_dir, &db_path, strict, skip)?;
 
     // Check for blocking failures
     for check in &pre_checks {
@@ -229,18 +232,10 @@ pub fn apply_patch_with_validation(
     let after_hash = compute_hash(&refreshed_bytes);
 
     // Step 9: Run post-verification to confirm expected changes
-    let mut post_verify = verify::verify_after_patch(
-        file_path,
-        workspace_dir,
-        &before_hash,
-    )?;
+    let mut post_verify = verify::verify_after_patch(file_path, workspace_dir, &before_hash)?;
 
     // Step 9.1: Verify localized change (no unintended modifications)
-    let localized = verify::verify_localized_change(
-        file_path,
-        &replaced,
-        (start, end),
-    );
+    let localized = verify::verify_localized_change(file_path, &replaced, (start, end));
 
     match &localized {
         Ok(true) => {
@@ -313,7 +308,11 @@ pub fn apply_batch_with_validation(
         // Pre-verify each file
         let pre_check = verify::verify_file_ready(&file_path, None, workspace_dir);
         if pre_check.is_blocking() {
-            log::warn!("Skipping {:?}: pre-verification failed: {:?}", file_path, pre_check);
+            log::warn!(
+                "Skipping {:?}: pre-verification failed: {:?}",
+                file_path,
+                pre_check
+            );
             continue;
         }
 

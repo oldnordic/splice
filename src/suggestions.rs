@@ -23,6 +23,8 @@ use strsim::levenshtein;
 ///
 /// # Examples
 /// ```
+/// use splice::suggestions::suggest_similar_symbols;
+///
 /// let symbols = vec!["foo".to_string(), "foobar".to_string()];
 /// let suggestions = suggest_similar_symbols("fooo", &symbols, 2);
 /// assert_eq!(suggestions, vec!["foo".to_string()]);

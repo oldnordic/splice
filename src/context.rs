@@ -107,7 +107,10 @@ pub fn extract_context_asymmetric(
 
     // Read file
     let contents = std::fs::read(path).map_err(|e| SpliceError::IoContext {
-        context: format!("Failed to read file for context extraction: {}", path.display()),
+        context: format!(
+            "Failed to read file for context extraction: {}",
+            path.display()
+        ),
         source: e,
     })?;
 
@@ -133,12 +136,13 @@ pub fn extract_context_asymmetric(
     }
 
     // Create Rope for efficient line operations (UTF-8 aware)
-    let rope = Rope::from_str(std::str::from_utf8(&contents).map_err(|e| {
-        SpliceError::InvalidUtf8 {
-            file: path.to_path_buf(),
-            source: e,
-        }
-    })?);
+    let rope =
+        Rope::from_str(
+            std::str::from_utf8(&contents).map_err(|e| SpliceError::InvalidUtf8 {
+                file: path.to_path_buf(),
+                source: e,
+            })?,
+        );
 
     // Convert byte offsets to line numbers (0-based)
     let start_line = rope.byte_to_line(byte_start);
@@ -209,7 +213,13 @@ pub fn extract_context_with_before_after(
     context_lines_before: usize,
     context_lines_after: usize,
 ) -> Result<SpanContext> {
-    extract_context_asymmetric(path, byte_start, byte_end, context_lines_before, context_lines_after)
+    extract_context_asymmetric(
+        path,
+        byte_start,
+        byte_end,
+        context_lines_before,
+        context_lines_after,
+    )
 }
 
 /// Extract context lines for a byte span.
@@ -331,7 +341,12 @@ mod tests {
         // Find the start of "line 🚀 2"
         let rocket_line_start = contents.iter().position(|&b| b == b'2').unwrap();
         // Find the newline after "line 🚀 2"
-        let rocket_line_end = contents.iter().skip(rocket_line_start).position(|&b| b == b'\n').unwrap() + rocket_line_start;
+        let rocket_line_end = contents
+            .iter()
+            .skip(rocket_line_start)
+            .position(|&b| b == b'\n')
+            .unwrap()
+            + rocket_line_start;
 
         // Context should still work with multi-byte characters
         let context = extract_context(file.path(), rocket_line_start, rocket_line_end, 1).unwrap();

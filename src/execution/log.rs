@@ -4,7 +4,9 @@
 //! Splice operations to the execution log database.
 
 use crate::error::{Result, SpliceError};
-use crate::execution::{ExecutionLog, ExecutionLogBuilder, init_execution_log_db, insert_execution_log};
+use crate::execution::{
+    init_execution_log_db, insert_execution_log, ExecutionLog, ExecutionLogBuilder,
+};
 use crate::output::OperationResult;
 use rusqlite::Connection;
 use std::path::PathBuf;
@@ -194,13 +196,11 @@ fn build_log_entry(
     command_line: Option<String>,
     parameters: Option<serde_json::Value>,
 ) -> Result<ExecutionLog> {
-    let mut builder = ExecutionLogBuilder::new(
-        result.operation_id.clone(),
-        result.operation_type.clone(),
-    )
-    .status(result.status.clone())
-    .timestamp(result.timestamp.clone())
-    .duration_ms(duration_ms);
+    let mut builder =
+        ExecutionLogBuilder::new(result.execution_id.clone(), result.operation_type.clone())
+            .status(result.status.clone())
+            .timestamp(result.timestamp.clone())
+            .duration_ms(duration_ms);
 
     if let Some(ref workspace) = result.workspace {
         builder = builder.workspace(workspace.clone());
@@ -226,7 +226,13 @@ fn build_log_entry(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Mutex, OnceLock};
     use tempfile::TempDir;
+
+    fn env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
 
     #[test]
     fn test_db_path() {
@@ -236,6 +242,7 @@ mod tests {
 
     #[test]
     fn test_is_enabled_default() {
+        let _guard = env_lock().lock().unwrap();
         // Clear environment variable to test default
         std::env::remove_var(EXECUTION_LOG_ENV);
         assert!(is_enabled(), "Execution log should be enabled by default");
@@ -244,15 +251,23 @@ mod tests {
 
     #[test]
     fn test_is_enabled_false() {
+        let _guard = env_lock().lock().unwrap();
         std::env::set_var(EXECUTION_LOG_ENV, "false");
-        assert!(!is_enabled(), "Execution log should be disabled when set to false");
+        assert!(
+            !is_enabled(),
+            "Execution log should be disabled when set to false"
+        );
         std::env::set_var(EXECUTION_LOG_ENV, "true"); // Reset to default
     }
 
     #[test]
     fn test_is_enabled_true() {
+        let _guard = env_lock().lock().unwrap();
         std::env::set_var(EXECUTION_LOG_ENV, "TRUE"); // Test case insensitivity
-        assert!(is_enabled(), "Execution log should be enabled when set to TRUE");
+        assert!(
+            is_enabled(),
+            "Execution log should be enabled when set to TRUE"
+        );
         std::env::set_var(EXECUTION_LOG_ENV, "true"); // Reset to default
     }
 
@@ -279,14 +294,15 @@ mod tests {
     fn test_record_execution() {
         let temp_dir = TempDir::new().unwrap();
 
-        use crate::output::OperationResult;
         use crate::execution::insert_execution_log;
+        use crate::output::OperationResult;
         use uuid::Uuid;
 
         let execution_id = Uuid::new_v4().to_string();
-        let result = OperationResult::with_id("patch".to_string(), Some(execution_id.clone()))
-            .success("Test operation".to_string())
-            .with_workspace("/test/workspace".to_string());
+        let result =
+            OperationResult::with_execution_id("patch".to_string(), Some(execution_id.clone()))
+                .success("Test operation".to_string())
+                .with_workspace("/test/workspace".to_string());
 
         let command_line = Some("splice patch test_symbol".to_string());
 
@@ -296,20 +312,25 @@ mod tests {
         // Build log entry and insert directly
         let log_entry = build_log_entry(&result, 1234, command_line, None).unwrap();
         let insert_result = insert_execution_log(&conn, &log_entry);
-        assert!(insert_result.is_ok(), "Recording should succeed: {:?}", insert_result.err());
+        assert!(
+            insert_result.is_ok(),
+            "Recording should succeed: {:?}",
+            insert_result.err()
+        );
     }
 
     #[test]
     fn test_record_execution_with_params() {
         let temp_dir = TempDir::new().unwrap();
 
-        use crate::output::OperationResult;
         use crate::execution::insert_execution_log;
+        use crate::output::OperationResult;
         use uuid::Uuid;
 
         let execution_id = Uuid::new_v4().to_string();
-        let result = OperationResult::with_id("delete".to_string(), Some(execution_id.clone()))
-            .success("Test delete".to_string());
+        let result =
+            OperationResult::with_execution_id("delete".to_string(), Some(execution_id.clone()))
+                .success("Test delete".to_string());
 
         let parameters = serde_json::json!({
             "file": "/test/file.rs",
@@ -322,15 +343,19 @@ mod tests {
         // Build log entry and insert directly
         let log_entry = build_log_entry(&result, 567, None, Some(parameters)).unwrap();
         let insert_result = insert_execution_log(&conn, &log_entry);
-        assert!(insert_result.is_ok(), "Recording with params should succeed: {:?}", insert_result.err());
+        assert!(
+            insert_result.is_ok(),
+            "Recording with params should succeed: {:?}",
+            insert_result.err()
+        );
     }
 
     #[test]
     fn test_record_execution_failure() {
         let temp_dir = TempDir::new().unwrap();
 
-        use uuid::Uuid;
         use crate::execution::{insert_execution_log, ExecutionLog};
+        use uuid::Uuid;
 
         let execution_id = Uuid::new_v4().to_string();
         let error = SpliceError::Other("Test error".to_string());
@@ -367,6 +392,10 @@ mod tests {
 
         // Insert directly
         let insert_result = insert_execution_log(&conn, &log_entry);
-        assert!(insert_result.is_ok(), "Recording failure should succeed: {:?}", insert_result.err());
+        assert!(
+            insert_result.is_ok(),
+            "Recording failure should succeed: {:?}",
+            insert_result.err()
+        );
     }
 }

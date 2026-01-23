@@ -10,20 +10,11 @@ pub mod query;
 
 // Re-export commonly used types from base module
 pub use base::{
-    DB_FILENAME,
-    ExecutionLog,
-    ExecutionLogBuilder,
-    init_execution_log_db,
-    insert_execution_log,
+    init_execution_log_db, insert_execution_log, ExecutionLog, ExecutionLogBuilder, DB_FILENAME,
 };
 
 // Re-export query types
 pub use query::{
-    ExecutionQuery,
-    ExecutionStats,
-    get_execution,
-    get_recent_executions,
-    get_execution_stats,
-    format_table_row,
-    format_json,
+    format_json, format_table_row, get_execution, get_execution_stats, get_recent_executions,
+    ExecutionQuery, ExecutionStats,
 };

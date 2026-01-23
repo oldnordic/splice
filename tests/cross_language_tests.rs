@@ -17,11 +17,11 @@
 //! - TypeScript (.ts, .tsx)
 
 use splice::graph::CodeGraph;
-use splice::ingest::rust::extract_rust_symbols;
 use splice::ingest::cpp::extract_cpp_symbols;
-use splice::ingest::python::extract_python_symbols;
 use splice::ingest::java::extract_java_symbols;
 use splice::ingest::javascript::extract_javascript_symbols;
+use splice::ingest::python::extract_python_symbols;
+use splice::ingest::rust::extract_rust_symbols;
 use splice::ingest::typescript::extract_typescript_symbols;
 use splice::symbol::Language;
 use std::fs;
@@ -284,8 +284,13 @@ pub fn verify_validation_gate(lang: TestLanguage, file_path: &Path) {
     let splice_lang = lang.splice_language();
     // Just verify it converts without panicking
     match splice_lang {
-        Language::Rust | Language::Python | Language::C | Language::Cpp |
-        Language::Java | Language::JavaScript | Language::TypeScript => {
+        Language::Rust
+        | Language::Python
+        | Language::C
+        | Language::Cpp
+        | Language::Java
+        | Language::JavaScript
+        | Language::TypeScript => {
             // Valid language
         }
     }
@@ -338,8 +343,7 @@ mod fixture_tests {
             );
 
             // Verify file is not empty
-            let content = fs::read_to_string(&file_path)
-                .expect("Failed to read sample file");
+            let content = fs::read_to_string(&file_path).expect("Failed to read sample file");
             assert!(!content.is_empty(), "Sample file should not be empty");
         }
     }
@@ -359,9 +363,7 @@ mod fixture_tests {
         let mut js_count = 0;
         let mut ts_count = 0;
 
-        for entry in fs::read_dir(workspace_path)
-            .expect("Failed to read workspace")
-        {
+        for entry in fs::read_dir(workspace_path).expect("Failed to read workspace") {
             let entry = entry.expect("Failed to read entry");
             let path = entry.path();
 
@@ -392,10 +394,7 @@ mod fixture_tests {
     #[test]
     fn test_validate_command_mapping() {
         // All languages except JavaScript should have validation commands
-        assert_eq!(
-            TestLanguage::Rust.validate_command(),
-            Some("cargo check")
-        );
+        assert_eq!(TestLanguage::Rust.validate_command(), Some("cargo check"));
         assert_eq!(
             TestLanguage::Python.validate_command(),
             Some("python -m py_compile")
@@ -429,7 +428,10 @@ mod language_extraction_tests {
         let symbols = extract_rust_symbols(&file_path, source.as_bytes())
             .expect("Failed to extract Rust symbols");
 
-        assert!(!symbols.is_empty(), "Should extract at least one Rust symbol");
+        assert!(
+            !symbols.is_empty(),
+            "Should extract at least one Rust symbol"
+        );
     }
 
     /// Test Python symbol extraction
@@ -442,7 +444,10 @@ mod language_extraction_tests {
         let symbols = extract_python_symbols(&file_path, source.as_bytes())
             .expect("Failed to extract Python symbols");
 
-        assert!(!symbols.is_empty(), "Should extract at least one Python symbol");
+        assert!(
+            !symbols.is_empty(),
+            "Should extract at least one Python symbol"
+        );
     }
 
     /// Test C symbol extraction
@@ -468,7 +473,10 @@ mod language_extraction_tests {
         let symbols = extract_cpp_symbols(&file_path, source.as_bytes())
             .expect("Failed to extract C++ symbols");
 
-        assert!(!symbols.is_empty(), "Should extract at least one C++ symbol");
+        assert!(
+            !symbols.is_empty(),
+            "Should extract at least one C++ symbol"
+        );
     }
 
     /// Test Java symbol extraction
@@ -481,7 +489,10 @@ mod language_extraction_tests {
         let symbols = extract_java_symbols(&file_path, source.as_bytes())
             .expect("Failed to extract Java symbols");
 
-        assert!(!symbols.is_empty(), "Should extract at least one Java symbol");
+        assert!(
+            !symbols.is_empty(),
+            "Should extract at least one Java symbol"
+        );
     }
 
     /// Test JavaScript symbol extraction
@@ -494,7 +505,10 @@ mod language_extraction_tests {
         let symbols = extract_javascript_symbols(&file_path, source.as_bytes())
             .expect("Failed to extract JavaScript symbols");
 
-        assert!(!symbols.is_empty(), "Should extract at least one JavaScript symbol");
+        assert!(
+            !symbols.is_empty(),
+            "Should extract at least one JavaScript symbol"
+        );
     }
 
     /// Test TypeScript symbol extraction
@@ -507,7 +521,10 @@ mod language_extraction_tests {
         let symbols = extract_typescript_symbols(&file_path, source.as_bytes())
             .expect("Failed to extract TypeScript symbols");
 
-        assert!(!symbols.is_empty(), "Should extract at least one TypeScript symbol");
+        assert!(
+            !symbols.is_empty(),
+            "Should extract at least one TypeScript symbol"
+        );
     }
 }
 
@@ -530,8 +547,8 @@ mod language_detection_tests {
 
         // Verify we can extract symbols from this file
         let source = fs::read_to_string(&file_path).expect("Failed to read file");
-        let symbols = extract_rust_symbols(&file_path, source.as_bytes())
-            .expect("Failed to extract symbols");
+        let symbols =
+            extract_rust_symbols(&file_path, source.as_bytes()).expect("Failed to extract symbols");
 
         assert!(!symbols.is_empty());
     }
@@ -562,8 +579,8 @@ mod language_detection_tests {
         assert_eq!(extension, "c");
 
         let source = fs::read_to_string(&file_path).expect("Failed to read file");
-        let symbols = extract_cpp_symbols(&file_path, source.as_bytes())
-            .expect("Failed to extract symbols");
+        let symbols =
+            extract_cpp_symbols(&file_path, source.as_bytes()).expect("Failed to extract symbols");
 
         assert!(!symbols.is_empty());
     }
@@ -578,8 +595,8 @@ mod language_detection_tests {
         assert_eq!(extension, "cpp");
 
         let source = fs::read_to_string(&file_path).expect("Failed to read file");
-        let symbols = extract_cpp_symbols(&file_path, source.as_bytes())
-            .expect("Failed to extract symbols");
+        let symbols =
+            extract_cpp_symbols(&file_path, source.as_bytes()).expect("Failed to extract symbols");
 
         assert!(!symbols.is_empty());
     }
@@ -594,8 +611,8 @@ mod language_detection_tests {
         assert_eq!(extension, "java");
 
         let source = fs::read_to_string(&file_path).expect("Failed to read file");
-        let symbols = extract_java_symbols(&file_path, source.as_bytes())
-            .expect("Failed to extract symbols");
+        let symbols =
+            extract_java_symbols(&file_path, source.as_bytes()).expect("Failed to extract symbols");
 
         assert!(!symbols.is_empty());
     }

@@ -226,7 +226,10 @@ mod tests {
         let result = should_use_color();
         env::remove_var("NO_COLOR");
 
-        assert!(!result, "should_use_color should return false when NO_COLOR is set");
+        assert!(
+            !result,
+            "should_use_color should return false when NO_COLOR is set"
+        );
     }
 
     #[test]
@@ -350,7 +353,10 @@ mod tests {
     #[test]
     fn test_format_diff_summary_multiple_files() {
         let summary = format_diff_summary(2, 10, 3);
-        assert_eq!(summary, " 2 files changed, 10 insertions(+), 3 deletions(-)");
+        assert_eq!(
+            summary,
+            " 2 files changed, 10 insertions(+), 3 deletions(-)"
+        );
     }
 
     #[test]

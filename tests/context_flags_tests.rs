@@ -87,7 +87,8 @@ fn test_context_flag_b_only() {
 fn test_context_flag_a_and_b_combination() {
     // -A 5 -B 2 should give 5 after, 2 before
     let dir = TempDir::new().unwrap();
-    let content = "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\n";
+    let content =
+        "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\n";
     let file = create_test_file(&dir, "test.rs", content);
 
     let output = std::process::Command::new(env!("CARGO_BIN_EXE_splice"))
@@ -112,7 +113,10 @@ fn test_context_flag_a_and_b_combination() {
 fn test_context_flag_c_overrides_a_when_larger() {
     // -C 10 -A 5 should give max(10, 5) = 10 for both sides
     let dir = TempDir::new().unwrap();
-    let content = (1..=20).map(|i| format!("line {}", i)).collect::<Vec<_>>().join("\n");
+    let content = (1..=20)
+        .map(|i| format!("line {}", i))
+        .collect::<Vec<_>>()
+        .join("\n");
     let file = create_test_file(&dir, "test.rs", &content);
 
     let output = std::process::Command::new(env!("CARGO_BIN_EXE_splice"))
@@ -136,29 +140,30 @@ fn test_context_flag_c_overrides_a_when_larger() {
 #[test]
 fn test_context_large_file_performance() {
     // Test that context extraction is fast on large files (>32KB)
+    use splice::context;
     use std::time::Instant;
 
     let dir = TempDir::new().unwrap();
-    let lines: Vec<String> = (1..=1000).map(|i| format!("line {}: some content here", i)).collect();
+    let lines: Vec<String> = (1..=1000)
+        .map(|i| format!("line {}: some content here", i))
+        .collect();
     let content = lines.join("\n");
     let file = create_test_file(&dir, "large.rs", &content);
 
-    let start = Instant::now();
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_splice"))
-        .arg("query")
-        .arg("--db")
-        .arg(dir.path().join("db"))
-        .arg("--label")
-        .arg("rust")
-        .arg("-C")
-        .arg("10")
-        .arg("--json")
-        .output()
-        .unwrap();
-    let elapsed = start.elapsed();
+    let start_offset = content.find("line 500").unwrap();
+    let end_offset = content.find("line 501").unwrap();
 
+    let started = Instant::now();
+    let ctx = context::extract_context_asymmetric(&file, start_offset, end_offset, 10, 10).unwrap();
+    let elapsed = started.elapsed();
+
+    assert!(!ctx.selected.is_empty());
     // Should complete in under 100ms even for 1000-line file
-    assert!(elapsed.as_millis() < 100, "Context extraction on large file took too long: {:?}", elapsed);
+    assert!(
+        elapsed.as_millis() < 100,
+        "Context extraction on large file took too long: {:?}",
+        elapsed
+    );
 }
 
 #[test]
@@ -179,7 +184,8 @@ fn test_json_context_before_after_arrays() {
     let line3_start = content.find("line 3").unwrap();
     let line4_end = content.find("line 5").unwrap();
 
-    let ctx = context::extract_context_asymmetric(&test_file, line3_start, line4_end, 2, 3).unwrap();
+    let ctx =
+        context::extract_context_asymmetric(&test_file, line3_start, line4_end, 2, 3).unwrap();
 
     // Verify context structure
     assert_eq!(ctx.before.len(), 2, "Should have 2 lines before");
@@ -206,13 +212,22 @@ fn test_json_context_with_b_flag() {
     let line4_start = content.find("line 4").unwrap();
     let line4_end = content.find("line 5").unwrap();
 
-    let ctx = context::extract_context_asymmetric(&test_file, line4_start, line4_end, 2, 0).unwrap();
+    let ctx =
+        context::extract_context_asymmetric(&test_file, line4_start, line4_end, 2, 0).unwrap();
 
     let before: Vec<_> = ctx.before.iter().collect();
     let after: Vec<_> = ctx.after.iter().collect();
 
-    assert_eq!(before.len(), 2, "With context_before=2, should have 2 lines before");
-    assert_eq!(after.len(), 0, "With context_after=0, after should be empty");
+    assert_eq!(
+        before.len(),
+        2,
+        "With context_before=2, should have 2 lines before"
+    );
+    assert_eq!(
+        after.len(),
+        0,
+        "With context_after=0, after should be empty"
+    );
 }
 
 #[test]
@@ -231,11 +246,20 @@ fn test_json_context_with_c_flag() {
     let line5_start = content.find("line 5").unwrap();
     let line6_end = content.find("line 7").unwrap();
 
-    let ctx = context::extract_context_asymmetric(&test_file, line5_start, line6_end, 3, 3).unwrap();
+    let ctx =
+        context::extract_context_asymmetric(&test_file, line5_start, line6_end, 3, 3).unwrap();
 
     // With -C 3, both should have up to 3 lines
-    assert_eq!(ctx.before.len(), 3, "With context_before=3, should have 3 lines before");
-    assert_eq!(ctx.after.len(), 3, "With context_after=3, should have 3 lines after");
+    assert_eq!(
+        ctx.before.len(),
+        3,
+        "With context_before=3, should have 3 lines before"
+    );
+    assert_eq!(
+        ctx.after.len(),
+        3,
+        "With context_after=3, should have 3 lines after"
+    );
 }
 
 #[test]
@@ -256,7 +280,11 @@ fn test_context_at_file_start() {
     let ctx = context::extract_context_asymmetric(&test_file, 0, line1_end, 3, 3).unwrap();
 
     // No lines before at start of file
-    assert_eq!(ctx.before.len(), 0, "Should have 0 lines before at file start");
+    assert_eq!(
+        ctx.before.len(),
+        0,
+        "Should have 0 lines before at file start"
+    );
     assert!(ctx.after.len() <= 3, "Should have up to 3 lines after");
 }
 
@@ -275,7 +303,8 @@ fn test_context_at_file_end() {
     // Span at the end
     let line5_start = content.find("line 5").unwrap();
 
-    let ctx = context::extract_context_asymmetric(&test_file, line5_start, content.len(), 3, 3).unwrap();
+    let ctx =
+        context::extract_context_asymmetric(&test_file, line5_start, content.len(), 3, 3).unwrap();
 
     // No lines after at end of file
     assert!(ctx.before.len() <= 3, "Should have up to 3 lines before");
@@ -297,18 +326,32 @@ fn test_context_span_context_serialization() {
     let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
 
     // Verify the JSON structure has the right keys
-    assert!(parsed.get("before").is_some(), "SpanContext should have 'before' key");
-    assert!(parsed.get("after").is_some(), "SpanContext should have 'after' key");
+    assert!(
+        parsed.get("before").is_some(),
+        "SpanContext should have 'before' key"
+    );
+    assert!(
+        parsed.get("after").is_some(),
+        "SpanContext should have 'after' key"
+    );
 
     // Verify they are arrays
     assert!(parsed["before"].is_array(), "'before' should be an array");
     assert!(parsed["after"].is_array(), "'after' should be an array");
 
     // Verify content
-    let before: Vec<&str> = parsed["before"].as_array().unwrap().iter()
-        .filter_map(|v| v.as_str()).collect();
-    let after: Vec<&str> = parsed["after"].as_array().unwrap().iter()
-        .filter_map(|v| v.as_str()).collect();
+    let before: Vec<&str> = parsed["before"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|v| v.as_str())
+        .collect();
+    let after: Vec<&str> = parsed["after"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|v| v.as_str())
+        .collect();
 
     assert_eq!(before.len(), 2);
     assert_eq!(after.len(), 2);
@@ -341,8 +384,14 @@ fn test_resolve_context_counts() {
 
     // Test case 5: context_both overrides individual (simulating -C 10 -A 5 -B 3)
     let (before, after) = resolve_context_counts(3, 5, 10);
-    assert_eq!(before, 10, "With -C 10 -B 3, before should be max(10, 3) = 10");
-    assert_eq!(after, 10, "With -C 10 -A 5, after should be max(10, 5) = 10");
+    assert_eq!(
+        before, 10,
+        "With -C 10 -B 3, before should be max(10, 3) = 10"
+    );
+    assert_eq!(
+        after, 10,
+        "With -C 10 -A 5, after should be max(10, 5) = 10"
+    );
 
     // Test case 6: All zeros
     let (before, after) = resolve_context_counts(0, 0, 0);
@@ -371,7 +420,8 @@ footer\n";
     let line2_start = content.find("line 2").unwrap();
     let line4_end = content.find("footer").unwrap();
 
-    let ctx = context::extract_context_asymmetric(&test_file, line2_start, line4_end, 1, 1).unwrap();
+    let ctx =
+        context::extract_context_asymmetric(&test_file, line2_start, line4_end, 1, 1).unwrap();
 
     assert_eq!(ctx.before.len(), 1, "Should have 1 line before");
     assert_eq!(ctx.after.len(), 1, "Should have 1 line after");
@@ -408,7 +458,9 @@ fn test_context_empty_after() {
     let test_file = dir.path().join("test.rs");
 
     // Span at end
-    let ctx = context::extract_context_asymmetric(&test_file, content.len() - 5, content.len(), 5, 5).unwrap();
+    let ctx =
+        context::extract_context_asymmetric(&test_file, content.len() - 5, content.len(), 5, 5)
+            .unwrap();
 
     assert!(ctx.before.len() <= 5, "Before should be at most 5 lines");
     assert_eq!(ctx.after.len(), 0, "At file end, after should be empty");

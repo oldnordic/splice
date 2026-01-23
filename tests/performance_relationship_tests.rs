@@ -21,7 +21,9 @@
 //! Reuses TestGraphBuilder pattern from existing relationship_performance.rs.
 
 use splice::graph::CodeGraph;
-use splice::relationships::{RelationshipCache, get_callers, get_callees, get_imports, get_exports};
+use splice::relationships::{
+    get_callees, get_callers, get_exports, get_imports, RelationshipCache,
+};
 use splice::symbol::Language;
 use std::io::Write;
 use std::time::Instant;
@@ -146,21 +148,27 @@ pub fn {}() -> Result<(), Error> {{
 /// Helper function to create a small test graph (50 symbols).
 fn create_small_graph() -> (CodeGraph, TempDir) {
     let mut builder = TestGraphBuilder::new().expect("Failed to create builder");
-    builder.create_large_graph(50).expect("Failed to create graph");
+    builder
+        .create_large_graph(50)
+        .expect("Failed to create graph");
     builder.build()
 }
 
 /// Helper function to create a medium test graph (200 symbols).
 fn create_medium_graph() -> (CodeGraph, TempDir) {
     let mut builder = TestGraphBuilder::new().expect("Failed to create builder");
-    builder.create_large_graph(200).expect("Failed to create graph");
+    builder
+        .create_large_graph(200)
+        .expect("Failed to create graph");
     builder.build()
 }
 
 /// Helper function to create a large test graph (1000 symbols).
 fn create_large_graph() -> (CodeGraph, TempDir) {
     let mut builder = TestGraphBuilder::new().expect("Failed to create builder");
-    builder.create_large_graph(1000).expect("Failed to create graph");
+    builder
+        .create_large_graph(1000)
+        .expect("Failed to create graph");
     builder.build()
 }
 
@@ -234,7 +242,10 @@ fn test_get_callers_large_graph_performance() {
         duration.as_millis()
     );
 
-    println!("get_callers on 1000-symbol graph: {}ms", duration.as_millis());
+    println!(
+        "get_callers on 1000-symbol graph: {}ms",
+        duration.as_millis()
+    );
 }
 
 // ============================================================================
@@ -263,7 +274,10 @@ fn test_get_callees_large_graph_performance() {
         duration.as_millis()
     );
 
-    println!("get_callees on 1000-symbol graph: {}ms", duration.as_millis());
+    println!(
+        "get_callees on 1000-symbol graph: {}ms",
+        duration.as_millis()
+    );
 }
 
 // ============================================================================
@@ -293,7 +307,10 @@ fn test_get_imports_large_graph_performance() {
         duration.as_millis()
     );
 
-    println!("get_imports on 1000-symbol graph: {}ms", duration.as_millis());
+    println!(
+        "get_imports on 1000-symbol graph: {}ms",
+        duration.as_millis()
+    );
 }
 
 // ============================================================================
@@ -323,7 +340,10 @@ fn test_get_exports_large_graph_performance() {
         duration.as_millis()
     );
 
-    println!("get_exports on 1000-symbol graph: {}ms", duration.as_millis());
+    println!(
+        "get_exports on 1000-symbol graph: {}ms",
+        duration.as_millis()
+    );
 }
 
 // ============================================================================
@@ -441,7 +461,10 @@ fn test_relationship_queries_medium_graph() {
         duration.as_millis()
     );
 
-    println!("get_callers on 200-symbol graph: {}ms", duration.as_millis());
+    println!(
+        "get_callers on 200-symbol graph: {}ms",
+        duration.as_millis()
+    );
 }
 
 // ============================================================================
@@ -465,12 +488,18 @@ fn test_cache_clear_and_reuse() {
 
     // Clear cache
     cache.clear();
-    assert!(!cache.contains_key(&cache_key), "Cache should be empty after clear");
+    assert!(
+        !cache.contains_key(&cache_key),
+        "Cache should be empty after clear"
+    );
 
     // Query again - should repopulate cache
     let result2 = get_callers(&graph, node_id, &mut cache);
     assert!(result2.is_ok(), "Second query failed");
-    assert!(cache.contains_key(&cache_key), "Cache should be repopulated");
+    assert!(
+        cache.contains_key(&cache_key),
+        "Cache should be repopulated"
+    );
 }
 
 // ============================================================================
@@ -581,10 +610,22 @@ fn test_cache_keys_unique_per_query_type() {
     let import_key = format!("import:{}", file_path_str);
     let export_key = format!("export:{}", file_path_str);
 
-    assert!(cache.contains_key(&caller_key), "Caller cache key should exist");
-    assert!(cache.contains_key(&callee_key), "Callee cache key should exist");
-    assert!(cache.contains_key(&import_key), "Import cache key should exist");
-    assert!(cache.contains_key(&export_key), "Export cache key should exist");
+    assert!(
+        cache.contains_key(&caller_key),
+        "Caller cache key should exist"
+    );
+    assert!(
+        cache.contains_key(&callee_key),
+        "Callee cache key should exist"
+    );
+    assert!(
+        cache.contains_key(&import_key),
+        "Import cache key should exist"
+    );
+    assert!(
+        cache.contains_key(&export_key),
+        "Export cache key should exist"
+    );
 
     println!("All four cache keys are unique and present");
 }

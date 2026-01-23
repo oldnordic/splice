@@ -36,26 +36,29 @@ pub use error::{Result, SpliceError};
 pub use graph::CodeGraph;
 
 /// Re-export context types for convenience.
-pub use context::{extract_context, extract_context_asymmetric, extract_context_with_before_after, resolve_context_counts};
+pub use context::{
+    extract_context, extract_context_asymmetric, extract_context_with_before_after,
+    resolve_context_counts,
+};
 pub use output::SpanContext;
 
 /// Re-export diff utilities for convenience.
-pub use diff::{format_unified_diff, should_use_color, format_colored_diff, format_diff_summary};
+pub use diff::{format_colored_diff, format_diff_summary, format_unified_diff, should_use_color};
 
 /// Re-export error codes for convenience.
-pub use error_codes::{ErrorCode, ErrorSeverity, SpliceErrorCode, get_error_explanation};
+pub use error_codes::{get_error_explanation, ErrorCode, ErrorSeverity, SpliceErrorCode};
 
 /// Re-export semantic kind detection for convenience.
 pub use ingest::{detect_semantic_kind, SemanticKind};
 
 /// Re-export tool hints for convenience.
-pub use hints::{ToolHints, ToolHintOperation, derive_tool_hints};
+pub use hints::{derive_tool_hints, ToolHintOperation, ToolHints};
 
 /// Re-export action types for convenience.
-pub use action::{SuggestedAction, ActionType, Confidence, suggest_action};
+pub use action::{suggest_action, ActionType, Confidence, SuggestedAction};
 
 /// Re-export relationship types for convenience.
-pub use relationships::{Relationship, Relationships, RelationshipCache};
+pub use relationships::{Relationship, RelationshipCache, Relationships};
 
 /// Re-export expansion API for convenience.
 pub use expand::{expand_symbol, expand_symbol_with_level, ExpansionLevel, SymbolExpander};

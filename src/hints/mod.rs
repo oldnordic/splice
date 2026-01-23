@@ -45,7 +45,7 @@ impl Default for ToolHints {
     fn default() -> Self {
         Self {
             requires_full_context: false,
-            apply_atomically: true,  // All splice operations are atomic
+            apply_atomically: true, // All splice operations are atomic
             may_break_tests: false,
             requires_compilation: false,
         }
@@ -141,9 +141,9 @@ pub fn derive_tool_hints(
     // True for: closures, impl blocks (traits from impl_item)
     let requires_full_context = matches!(
         (semantic_kind, operation),
-        (SemanticKind::Function, ToolHintOperation::DeleteBody) |
-        (SemanticKind::Function, ToolHintOperation::ReplaceBody) |
-        (SemanticKind::Trait, _)
+        (SemanticKind::Function, ToolHintOperation::DeleteBody)
+            | (SemanticKind::Function, ToolHintOperation::ReplaceBody)
+            | (SemanticKind::Trait, _)
     );
 
     // apply_atomically is always true (all splice operations are atomic)
@@ -196,7 +196,7 @@ mod tests {
             .with_requires_compilation(true);
 
         assert_eq!(hints.requires_full_context, true);
-        assert_eq!(hints.apply_atomically, true);  // Always true
+        assert_eq!(hints.apply_atomically, true); // Always true
         assert_eq!(hints.may_break_tests, true);
         assert_eq!(hints.requires_compilation, true);
     }
@@ -218,11 +218,11 @@ mod tests {
         let hints = ToolHints::for_function_delete(true);
         assert_eq!(hints.requires_full_context, false);
         assert_eq!(hints.apply_atomically, true);
-        assert_eq!(hints.may_break_tests, true);  // public function
+        assert_eq!(hints.may_break_tests, true); // public function
         assert_eq!(hints.requires_compilation, true);
 
         let hints_private = ToolHints::for_function_delete(false);
-        assert_eq!(hints_private.may_break_tests, false);  // private function
+        assert_eq!(hints_private.may_break_tests, false); // private function
     }
 
     #[test]
@@ -230,11 +230,11 @@ mod tests {
         let hints = ToolHints::for_struct_modify(true);
         assert_eq!(hints.requires_full_context, false);
         assert_eq!(hints.apply_atomically, true);
-        assert_eq!(hints.may_break_tests, true);  // public struct
+        assert_eq!(hints.may_break_tests, true); // public struct
         assert_eq!(hints.requires_compilation, true);
 
         let hints_private = ToolHints::for_struct_modify(false);
-        assert_eq!(hints_private.may_break_tests, false);  // private struct
+        assert_eq!(hints_private.may_break_tests, false); // private struct
     }
 
     #[test]
@@ -242,7 +242,7 @@ mod tests {
         let hints = ToolHints::for_body_replace();
         assert_eq!(hints.requires_full_context, false);
         assert_eq!(hints.apply_atomically, true);
-        assert_eq!(hints.may_break_tests, false);  // body changes don't break tests
-        assert_eq!(hints.requires_compilation, false);  // no signature/type change
+        assert_eq!(hints.may_break_tests, false); // body changes don't break tests
+        assert_eq!(hints.requires_compilation, false); // no signature/type change
     }
 }

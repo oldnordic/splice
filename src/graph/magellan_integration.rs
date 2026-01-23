@@ -22,9 +22,8 @@ impl MagellanIntegration {
             .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", db_path)))?;
 
         // Convert anyhow::Error to SpliceError
-        let inner = MagellanGraph::open(db_path_str).map_err(|e| {
-            SpliceError::Other(format!("Failed to open Magellan graph: {}", e))
-        })?;
+        let inner = MagellanGraph::open(db_path_str)
+            .map_err(|e| SpliceError::Other(format!("Failed to open Magellan graph: {}", e)))?;
 
         Ok(Self { inner })
     }
@@ -44,9 +43,9 @@ impl MagellanIntegration {
             SpliceError::Other(format!("Failed to read file {:?}: {}", file_path, e))
         })?;
 
-        self.inner.index_file(file_path_str, &source).map_err(|e| {
-            SpliceError::Other(format!("Failed to index file {:?}: {}", file_path, e))
-        })
+        self.inner
+            .index_file(file_path_str, &source)
+            .map_err(|e| SpliceError::Other(format!("Failed to index file {:?}: {}", file_path, e)))
     }
 
     /// Query symbols by labels (AND semantics).
@@ -58,23 +57,26 @@ impl MagellanIntegration {
     /// Example: `query(&["rust", "fn"])` returns all Rust functions.
     pub fn query_by_labels(&self, labels: &[&str]) -> Result<Vec<SymbolInfo>> {
         let labels_ref: Vec<&str> = labels.to_vec();
-        self.inner.get_symbols_by_labels(&labels_ref).map_err(|e| {
-            SpliceError::Other(format!("Failed to query by labels {:?}: {}", labels, e))
-        }).map(|results| results.into_iter().map(SymbolInfo::from).collect())
+        self.inner
+            .get_symbols_by_labels(&labels_ref)
+            .map_err(|e| {
+                SpliceError::Other(format!("Failed to query by labels {:?}: {}", labels, e))
+            })
+            .map(|results| results.into_iter().map(SymbolInfo::from).collect())
     }
 
     /// Get all available labels in the graph.
     pub fn get_all_labels(&self) -> Result<Vec<String>> {
-        self.inner.get_all_labels().map_err(|e| {
-            SpliceError::Other(format!("Failed to get labels: {}", e))
-        })
+        self.inner
+            .get_all_labels()
+            .map_err(|e| SpliceError::Other(format!("Failed to get labels: {}", e)))
     }
 
     /// Count entities with a specific label.
     pub fn count_by_label(&self, label: &str) -> Result<usize> {
-        self.inner.count_entities_by_label(label).map_err(|e| {
-            SpliceError::Other(format!("Failed to count label {}: {}", label, e))
-        })
+        self.inner
+            .count_entities_by_label(label)
+            .map_err(|e| SpliceError::Other(format!("Failed to count label {}: {}", label, e)))
     }
 
     /// Get code chunk by exact byte span.
@@ -83,14 +85,20 @@ impl MagellanIntegration {
     /// from the database without re-reading the file.
     ///
     /// Returns None if no code chunk exists at the given span.
-    pub fn get_code_chunk(&self, file_path: &Path, start: usize, end: usize) -> Result<Option<String>> {
+    pub fn get_code_chunk(
+        &self,
+        file_path: &Path,
+        start: usize,
+        end: usize,
+    ) -> Result<Option<CodeChunk>> {
         let file_path_str = file_path
             .to_str()
             .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
 
-        self.inner.get_code_chunk_by_span(file_path_str, start, end).map_err(|e| {
-            SpliceError::Other(format!("Failed to get code chunk: {}", e))
-        }).map(|opt_chunk| opt_chunk.map(|chunk| chunk.content))
+        self.inner
+            .get_code_chunk_by_span(file_path_str, start, end)
+            .map_err(|e| SpliceError::Other(format!("Failed to get code chunk: {}", e)))
+            .map(|opt_chunk| opt_chunk.map(CodeChunk::from))
     }
 
     /// Get all code chunks for a symbol by name.
@@ -98,14 +106,24 @@ impl MagellanIntegration {
     /// Note: This retrieves chunks by symbol name, so if multiple symbols
     /// have the same name (e.g., struct + impl), you'll get all of them.
     /// Use `get_code_chunk` with exact spans for precision.
-    pub fn get_code_chunks_for_symbol(&self, file_path: &Path, symbol_name: &str) -> Result<Vec<CodeChunk>> {
+    pub fn get_code_chunks_for_symbol(
+        &self,
+        file_path: &Path,
+        symbol_name: &str,
+    ) -> Result<Vec<CodeChunk>> {
         let file_path_str = file_path
             .to_str()
             .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
 
-        self.inner.get_code_chunks_for_symbol(file_path_str, symbol_name).map_err(|e| {
-            SpliceError::Other(format!("Failed to get code chunks for symbol {}: {}", symbol_name, e))
-        }).map(|chunks| chunks.into_iter().map(CodeChunk::from).collect())
+        self.inner
+            .get_code_chunks_for_symbol(file_path_str, symbol_name)
+            .map_err(|e| {
+                SpliceError::Other(format!(
+                    "Failed to get code chunks for symbol {}: {}",
+                    symbol_name, e
+                ))
+            })
+            .map(|chunks| chunks.into_iter().map(CodeChunk::from).collect())
     }
 
     /// Access the underlying Magellan CodeGraph for advanced operations.
@@ -154,21 +172,49 @@ impl From<SymbolQueryResult> for SymbolInfo {
 pub struct CodeChunk {
     /// Source code content.
     pub content: String,
+    /// File path containing this chunk.
+    pub file_path: String,
     /// Byte offset where the chunk starts.
     pub byte_start: usize,
     /// Byte offset where the chunk ends.
     pub byte_end: usize,
     /// Symbol name if this chunk belongs to a specific symbol.
     pub symbol_name: Option<String>,
+    /// Symbol kind if available.
+    pub symbol_kind: Option<String>,
+}
+
+impl CodeChunk {
+    /// Return the length of the chunk content in bytes.
+    pub fn len(&self) -> usize {
+        self.content.len()
+    }
+
+    /// Check if the chunk content is empty.
+    pub fn is_empty(&self) -> bool {
+        self.content.is_empty()
+    }
+
+    /// Return the chunk content as bytes.
+    pub fn as_bytes(&self) -> &[u8] {
+        self.content.as_bytes()
+    }
+
+    /// Iterate over lines in the chunk content.
+    pub fn lines(&self) -> std::str::Lines<'_> {
+        self.content.lines()
+    }
 }
 
 impl From<magellan::CodeChunk> for CodeChunk {
     fn from(chunk: magellan::CodeChunk) -> Self {
         Self {
             content: chunk.content,
+            file_path: chunk.file_path,
             byte_start: chunk.byte_start,
             byte_end: chunk.byte_end,
             symbol_name: chunk.symbol_name,
+            symbol_kind: chunk.symbol_kind,
         }
     }
 }

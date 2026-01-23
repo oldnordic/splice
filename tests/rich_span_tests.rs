@@ -3,10 +3,10 @@
 //! Tests verify that all rich span fields work together correctly
 //! and backward compatibility is maintained.
 
-use splice::context::extract_context;
-use splice::ingest::{detect_language, detect_semantic_kind, Language};
 use splice::checksum::{checksum_file, checksum_span};
+use splice::context::extract_context;
 use splice::error_codes::{ErrorCode, SpliceErrorCode};
+use splice::ingest::{detect_language, detect_semantic_kind, Language};
 use splice::output::SpanResult;
 use std::io::Write;
 use tempfile::NamedTempFile;
@@ -22,7 +22,7 @@ fn test_rich_span_complete() {
 
     let file_path = file.path();
     let byte_start = 23; // Start of "fn greet..."
-    let byte_end = 65;   // End of function body
+    let byte_end = 65; // End of function body
 
     // Create base span
     let mut span = SpanResult::from_byte_span(
@@ -54,14 +54,28 @@ fn test_rich_span_complete() {
 
     // Verify all fields are populated
     assert!(span.context.is_some());
-    assert_eq!(span.semantic_kind, Some("function".to_string()));
-    assert_eq!(span.language, Some("rust".to_string()));
-    assert!(span.checksum_before.is_some());
-    assert!(span.file_checksum_before.is_some());
+    assert_eq!(
+        span.semantics.as_ref().map(|s| s.kind.clone()),
+        Some("function".to_string())
+    );
+    assert_eq!(
+        span.semantics.as_ref().map(|s| s.language.clone()),
+        Some("rust".to_string())
+    );
+    assert!(span
+        .checksums
+        .as_ref()
+        .and_then(|c| c.checksum_before.clone())
+        .is_some());
+    assert!(span
+        .checksums
+        .as_ref()
+        .and_then(|c| c.file_checksum_before.clone())
+        .is_some());
     assert!(span.error_code.is_some());
 }
 
-// Test backward compatibility: old JSON should parse
+// Test backward compatibility: old JSON should be rejected
 #[test]
 fn test_backward_compatibility_old_json() {
     let old_json = r#"{
@@ -82,18 +96,8 @@ fn test_backward_compatibility_old_json() {
         "span_checksum_after": null
     }"#;
 
-    let span: SpanResult = serde_json::from_str(old_json).unwrap();
-    assert_eq!(span.file_path, "src/main.rs");
-    assert_eq!(span.byte_start, 0);
-    assert_eq!(span.byte_end, 10);
-
-    // New fields should be None
-    assert!(span.context.is_none());
-    assert!(span.semantic_kind.is_none());
-    assert!(span.language.is_none());
-    assert!(span.checksum_before.is_none());
-    assert!(span.file_checksum_before.is_none());
-    assert!(span.error_code.is_none());
+    let parsed = serde_json::from_str::<SpanResult>(old_json);
+    assert!(parsed.is_err(), "old schema should not deserialize");
 }
 
 // Test new JSON includes all fields when populated
@@ -104,11 +108,7 @@ fn test_new_json_includes_rich_fields() {
     writeln!(file, "line 2").unwrap();
 
     let file_path = file.path();
-    let mut span = SpanResult::from_byte_span(
-        file_path.to_string_lossy().to_string(),
-        0,
-        14,
-    );
+    let mut span = SpanResult::from_byte_span(file_path.to_string_lossy().to_string(), 0, 14);
 
     // Populate all new fields
     let context = extract_context(file_path, 0, 14, 1).unwrap();
@@ -124,8 +124,8 @@ fn test_new_json_includes_rich_fields() {
 
     // Verify all new fields are present
     assert!(json.contains("\"context\""));
-    assert!(json.contains("\"semantic_kind\""));
-    assert!(json.contains("\"language\""));
+    assert!(json.contains("\"semantics\""));
+    assert!(json.contains("\"checksums\""));
     assert!(json.contains("\"checksum_before\""));
     assert!(json.contains("\"file_checksum_before\""));
     assert!(json.contains("\"error_code\""));
@@ -139,8 +139,8 @@ fn test_none_fields_omitted_from_json() {
 
     // New fields should NOT be in JSON when None
     assert!(!json.contains("\"context\""));
-    assert!(!json.contains("\"semantic_kind\""));
-    assert!(!json.contains("\"language\""));
+    assert!(!json.contains("\"semantics\""));
+    assert!(!json.contains("\"checksums\""));
     assert!(!json.contains("\"checksum_before\""));
     assert!(!json.contains("\"file_checksum_before\""));
     assert!(!json.contains("\"error_code\""));
@@ -199,7 +199,12 @@ fn test_language_detection_with_span() {
 
         if let Some(detected) = detect_language(path) {
             span = span.with_language(detected.as_str());
-            assert_eq!(span.language, Some(expected_lang.to_string()), "Failed for {}", file_name);
+            assert_eq!(
+                span.semantics.as_ref().map(|s| s.language.clone()),
+                Some(expected_lang.to_string()),
+                "Failed for {}",
+                file_name
+            );
         }
     }
 }
@@ -223,8 +228,18 @@ fn test_checksum_with_span() {
     )
     .with_both_checksums(span_checksum.as_hex(), file_checksum.as_hex());
 
-    assert_eq!(span.checksum_before, Some(span_checksum.as_hex().to_string()));
-    assert_eq!(span.file_checksum_before, Some(file_checksum.as_hex().to_string()));
+    assert_eq!(
+        span.checksums
+            .as_ref()
+            .and_then(|c| c.checksum_before.clone()),
+        Some(format!("sha256:{}", span_checksum.as_hex()))
+    );
+    assert_eq!(
+        span.checksums
+            .as_ref()
+            .and_then(|c| c.file_checksum_before.clone()),
+        Some(format!("sha256:{}", file_checksum.as_hex()))
+    );
 }
 
 // Test error code integration
@@ -237,8 +252,8 @@ fn test_error_code_with_span() {
         Some(10),
     );
 
-    let span = SpanResult::from_byte_span("src/main.rs".to_string(), 0, 10)
-        .with_error_code(error_code);
+    let span =
+        SpanResult::from_byte_span("src/main.rs".to_string(), 0, 10).with_error_code(error_code);
 
     assert!(span.error_code.is_some());
     let ec = span.error_code.as_ref().unwrap();
@@ -255,17 +270,12 @@ fn test_full_span_serialization() {
     writeln!(file, "fn test() {{}}").unwrap();
 
     let file_path = file.path();
-    let mut span = SpanResult::from_byte_span(
-        file_path.to_string_lossy().to_string(),
-        0,
-        13,
-    );
+    let mut span = SpanResult::from_byte_span(file_path.to_string_lossy().to_string(), 0, 13);
 
     // Populate all optional fields
     let context = extract_context(file_path, 0, 13, 0).unwrap();
     span = span.with_context(context);
-    span = span.with_semantic_kind("function");
-    span = span.with_language("rust");
+    span = span.with_semantic_info("function", "rust");
     span = span.with_checksum_before("span_hash");
     span = span.with_file_checksum_before("file_hash");
     let ec = ErrorCode::new("SPL-E001", "error", "test:1:1", "hint");
@@ -278,10 +288,32 @@ fn test_full_span_serialization() {
     // Verify all fields preserved
     assert_eq!(deserialized.file_path, span.file_path);
     assert!(deserialized.context.is_some());
-    assert_eq!(deserialized.semantic_kind, span.semantic_kind);
-    assert_eq!(deserialized.language, span.language);
-    assert_eq!(deserialized.checksum_before, span.checksum_before);
-    assert_eq!(deserialized.file_checksum_before, span.file_checksum_before);
+    assert_eq!(
+        deserialized.semantics.as_ref().map(|s| s.kind.clone()),
+        span.semantics.as_ref().map(|s| s.kind.clone())
+    );
+    assert_eq!(
+        deserialized.semantics.as_ref().map(|s| s.language.clone()),
+        span.semantics.as_ref().map(|s| s.language.clone())
+    );
+    assert_eq!(
+        deserialized
+            .checksums
+            .as_ref()
+            .and_then(|c| c.checksum_before.clone()),
+        span.checksums
+            .as_ref()
+            .and_then(|c| c.checksum_before.clone())
+    );
+    assert_eq!(
+        deserialized
+            .checksums
+            .as_ref()
+            .and_then(|c| c.file_checksum_before.clone()),
+        span.checksums
+            .as_ref()
+            .and_then(|c| c.file_checksum_before.clone())
+    );
     assert!(deserialized.error_code.is_some());
 }
 
@@ -338,6 +370,12 @@ fn test_semantic_kind_all_languages() {
 
     for (node_type, lang, expected) in tests {
         let kind = detect_semantic_kind(node_type, lang);
-        assert_eq!(kind.as_str(), expected, "Failed for {} {:?}", node_type, lang);
+        assert_eq!(
+            kind.as_str(),
+            expected,
+            "Failed for {} {:?}",
+            node_type,
+            lang
+        );
     }
 }

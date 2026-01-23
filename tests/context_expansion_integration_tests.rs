@@ -188,14 +188,22 @@ fn test_context_with_expand_rust() {
     let ctx = extract_context_asymmetric(&file, expanded_start, expanded_end, 2, 0).unwrap();
 
     // Should include the leading comment (context before expanded function)
-    assert!(!ctx.before.is_empty(), "Should have context before expanded function");
     assert!(
-        ctx.before.iter().any(|line| line.contains("Leading comment")),
+        !ctx.before.is_empty(),
+        "Should have context before expanded function"
+    );
+    assert!(
+        ctx.before
+            .iter()
+            .any(|line| line.contains("Leading comment")),
         "Context should include comment before expanded function"
     );
 
     // Context should NOT include anything after (we only requested -B)
-    assert!(ctx.after.is_empty(), "Should not have context after when only -B requested");
+    assert!(
+        ctx.after.is_empty(),
+        "Should not have context after when only -B requested"
+    );
 }
 
 #[test]
@@ -219,7 +227,10 @@ fn test_context_with_expand_python() {
     let ctx = extract_context_asymmetric(&file, expanded_start, expanded_end, 1, 1).unwrap();
 
     // Should include context before
-    assert!(!ctx.before.is_empty(), "Should have context before expanded class");
+    assert!(
+        !ctx.before.is_empty(),
+        "Should have context before expanded class"
+    );
 
     // Should include the full class definition with all methods
     let expanded = std::fs::read_to_string(&file).unwrap();
@@ -261,7 +272,8 @@ fn small_function() -> i32 {
         expand_to_body_with_docs(&file, name_offset, Language::Rust).unwrap();
 
     // Extract context from expanded span
-    let ctx_expanded = extract_context_asymmetric(&file, expanded_start, expanded_end, 2, 0).unwrap();
+    let ctx_expanded =
+        extract_context_asymmetric(&file, expanded_start, expanded_end, 2, 0).unwrap();
 
     // Extract context from just the name (no expansion)
     let ctx_name = extract_context_asymmetric(&file, name_offset, name_end, 2, 0).unwrap();
@@ -300,7 +312,9 @@ fn test_context_after_respects_expansion() {
         "Should have context after expanded function"
     );
     assert!(
-        ctx.after.iter().any(|line| line.contains("This comment") || line.contains("next_function")),
+        ctx.after
+            .iter()
+            .any(|line| line.contains("This comment") || line.contains("next_function")),
         "Context after should be relative to expanded symbol end"
     );
 }
@@ -338,8 +352,14 @@ fn test_context_both_respects_expansion() {
     // Verify expanded content includes full struct
     let expanded = std::fs::read_to_string(&file).unwrap();
     let expanded_content = &expanded[expanded_start..expanded_end];
-    assert!(expanded_content.contains("x: i32"), "Should include struct fields");
-    assert!(expanded_content.contains("y: i32"), "Should include struct fields");
+    assert!(
+        expanded_content.contains("x: i32"),
+        "Should include struct fields"
+    );
+    assert!(
+        expanded_content.contains("y: i32"),
+        "Should include struct fields"
+    );
 }
 
 #[test]
@@ -363,8 +383,10 @@ fn test_function() -> i32 {
     let ctx = extract_context_asymmetric(&file, name_offset, name_end, 1, 1).unwrap();
 
     // Should still provide context around the original span
-    assert!(ctx.before.len() > 0 || ctx.after.len() > 0 || !ctx.selected.is_empty(),
-            "Should have some context content");
+    assert!(
+        ctx.before.len() > 0 || ctx.after.len() > 0 || !ctx.selected.is_empty(),
+        "Should have some context content"
+    );
 }
 
 #[test]
@@ -381,8 +403,13 @@ fn test_context_expand_level_2() {
     let func_offset = source.find("inner_function").unwrap();
 
     // Level 2 expansion to containing block
-    let (expanded_start, expanded_end) =
-        expand_symbol(&file, func_offset, Language::Rust, ExpansionLevel::ContainingBlock).unwrap();
+    let (expanded_start, expanded_end) = expand_symbol(
+        &file,
+        func_offset,
+        Language::Rust,
+        ExpansionLevel::ContainingBlock,
+    )
+    .unwrap();
 
     // Extract context with -C 1 from expanded span
     let _ctx = extract_context_asymmetric(&file, expanded_start, expanded_end, 1, 1).unwrap();
@@ -417,13 +444,22 @@ fn test_context_with_expand_typescript() {
     let ctx = extract_context_asymmetric(&file, expanded_start, expanded_end, 1, 1).unwrap();
 
     // Should include context before
-    assert!(!ctx.before.is_empty(), "Should have context before expanded interface");
+    assert!(
+        !ctx.before.is_empty(),
+        "Should have context before expanded interface"
+    );
 
     // Verify expanded content includes full interface
     let expanded = std::fs::read_to_string(&file).unwrap();
     let expanded_content = &expanded[expanded_start..expanded_end];
-    assert!(expanded_content.contains("name: string"), "Should include interface properties");
-    assert!(expanded_content.contains("value: number"), "Should include interface properties");
+    assert!(
+        expanded_content.contains("name: string"),
+        "Should include interface properties"
+    );
+    assert!(
+        expanded_content.contains("value: number"),
+        "Should include interface properties"
+    );
 
     // After context depends on expansion results
     // Just verify we got some context (before or after)
@@ -451,15 +487,23 @@ fn test_context_with_expand_javascript() {
 
     // Should include leading comment (context before)
     assert!(
-        ctx.before.iter().any(|line| line.contains("Leading comment")),
+        ctx.before
+            .iter()
+            .any(|line| line.contains("Leading comment")),
         "Context should include lines before expanded class"
     );
 
     // Verify expanded content includes full class
     let expanded = std::fs::read_to_string(&file).unwrap();
     let expanded_content = &expanded[expanded_start..expanded_end];
-    assert!(expanded_content.contains("constructor"), "Should include constructor");
-    assert!(expanded_content.contains("getValue"), "Should include methods");
+    assert!(
+        expanded_content.contains("constructor"),
+        "Should include constructor"
+    );
+    assert!(
+        expanded_content.contains("getValue"),
+        "Should include methods"
+    );
 
     // Should include context after (may be empty if at EOF)
     // Note: trailing comment may be at EOF, so after context might be empty
@@ -480,21 +524,24 @@ fn test_context_with_expand_cpp() {
     let class_offset = source.find("CppClass").unwrap();
 
     // Expand to get full class (may fail if C++ parser has issues with this fixture)
-    let (expanded_start, expanded_end) = match expand_to_body_with_docs(&file, class_offset, Language::Cpp) {
-        Ok(span) => span,
-        Err(_) => {
-            // C++ expansion might not work for all fixtures
-            // Fall back to testing with just the name offset
-            (class_offset, class_offset + "CppClass".len())
-        }
-    };
+    let (expanded_start, expanded_end) =
+        match expand_to_body_with_docs(&file, class_offset, Language::Cpp) {
+            Ok(span) => span,
+            Err(_) => {
+                // C++ expansion might not work for all fixtures
+                // Fall back to testing with just the name offset
+                (class_offset, class_offset + "CppClass".len())
+            }
+        };
 
     // Extract context with -C 1 from expanded span
     let ctx = extract_context_asymmetric(&file, expanded_start, expanded_end, 1, 1).unwrap();
 
     // Should have some context (before or after)
-    assert!(ctx.before.len() > 0 || ctx.after.len() > 0,
-            "Should have some context");
+    assert!(
+        ctx.before.len() > 0 || ctx.after.len() > 0,
+        "Should have some context"
+    );
 }
 
 #[test]
@@ -518,12 +565,18 @@ fn test_context_with_expand_java() {
     let ctx = extract_context_asymmetric(&file, expanded_start, expanded_end, 1, 1).unwrap();
 
     // Should include context before
-    assert!(!ctx.before.is_empty(), "Should have context before expanded class");
+    assert!(
+        !ctx.before.is_empty(),
+        "Should have context before expanded class"
+    );
 
     // Verify expanded content includes full class
     let expanded = std::fs::read_to_string(&file).unwrap();
     let expanded_content = &expanded[expanded_start..expanded_end];
-    assert!(expanded_content.contains("getValue"), "Should include all methods");
+    assert!(
+        expanded_content.contains("getValue"),
+        "Should include all methods"
+    );
 
     // After context depends on expansion results
     // Just verify we got context before
@@ -552,15 +605,21 @@ fn test_name() -> i32 {
         expand_to_body_with_docs(&file, name_offset, Language::Rust).unwrap();
 
     // Expanded span should be larger than just the name
-    assert!(expanded_start < name_offset,
-            "Expanded start should be before name start");
-    assert!(expanded_end > name_end,
-            "Expanded end should be after name end");
+    assert!(
+        expanded_start < name_offset,
+        "Expanded start should be before name start"
+    );
+    assert!(
+        expanded_end > name_end,
+        "Expanded end should be after name end"
+    );
 
     // Calculate sizes
     let replaced_size = name_end - name_offset;
     let expanded_size = expanded_end - expanded_start;
 
-    assert!(expanded_size > replaced_size,
-            "Expanded span should be larger than replaced name span");
+    assert!(
+        expanded_size > replaced_size,
+        "Expanded span should be larger than replaced name span"
+    );
 }

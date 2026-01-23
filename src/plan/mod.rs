@@ -203,10 +203,9 @@ fn execute_single_step(
     // Step 3: Create in-memory graph (no persistent database needed)
     let graph_db_path = file_path
         .parent()
-        .ok_or_else(|| crate::SpliceError::Other(format!(
-            "File path has no parent: {}",
-            file_path.display()
-        )))?
+        .ok_or_else(|| {
+            crate::SpliceError::Other(format!("File path has no parent: {}", file_path.display()))
+        })?
         .join(".splice_graph.db");
     let mut code_graph = CodeGraph::open(&graph_db_path)?;
 

@@ -23,7 +23,7 @@ use crate::expand::SymbolExpander;
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```rust,ignore
 /// use splice::expand::tree_walker::find_parent_symbol_node;
 /// use tree_sitter::Node;
 ///
@@ -80,7 +80,7 @@ where
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```rust,ignore
 /// use splice::expand::{RustExpander, SymbolExpander};
 /// use splice::expand::tree_walker::expand_to_containing_block;
 ///
@@ -135,7 +135,7 @@ pub fn expand_to_containing_block<'tree>(
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```rust,ignore
 /// use splice::expand::tree_walker::find_containing_block;
 ///
 /// // Given a tree and a span within a method
@@ -210,7 +210,7 @@ pub fn find_containing_block(
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```rust,ignore
 /// use splice::expand::tree_walker::extract_leading_doc_comment_nodes;
 ///
 /// // Given a function_item node
@@ -283,7 +283,7 @@ pub fn is_doc_comment_node(node: &tree_sitter::Node) -> bool {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```rust,ignore
 /// use splice::expand::tree_walker::extract_leading_doc_comments;
 ///
 /// let function_node = /* function_item node */;
@@ -292,10 +292,7 @@ pub fn is_doc_comment_node(node: &tree_sitter::Node) -> bool {
 /// let comments = extract_leading_doc_comments(function_node, source);
 /// assert_eq!(comments, vec!["/// Example docs"]);
 /// ```
-pub fn extract_leading_doc_comments<'a>(
-    node: tree_sitter::Node,
-    source: &'a [u8],
-) -> Vec<String> {
+pub fn extract_leading_doc_comments<'a>(node: tree_sitter::Node, source: &'a [u8]) -> Vec<String> {
     extract_leading_doc_comment_nodes(node, source)
         .iter()
         .filter_map(|node| node.utf8_text(source).ok())
@@ -328,7 +325,7 @@ pub fn extract_leading_doc_comments<'a>(
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```rust,ignore
 /// use splice::expand::tree_walker::extract_leading_docs;
 ///
 /// let function_node = /* function_item node */;
@@ -410,9 +407,8 @@ mod tests {
             .unwrap();
 
         // Walk up to find function_item
-        let function_node = find_parent_symbol_node(identifier_node, source, |kind| {
-            kind == "function_item"
-        });
+        let function_node =
+            find_parent_symbol_node(identifier_node, source, |kind| kind == "function_item");
 
         assert!(function_node.is_some());
         assert_eq!(function_node.unwrap().kind(), "function_item");
@@ -427,14 +423,11 @@ mod tests {
         let root = tree.root_node();
 
         // Find the function_item node itself
-        let function_node = root
-            .descendant_for_byte_range(0, source.len())
-            .unwrap();
+        let function_node = root.descendant_for_byte_range(0, source.len()).unwrap();
 
         // Try to walk up looking for class (doesn't exist in Rust)
-        let class_node = find_parent_symbol_node(function_node, source, |kind| {
-            kind == "class_declaration"
-        });
+        let class_node =
+            find_parent_symbol_node(function_node, source, |kind| kind == "class_declaration");
 
         assert!(class_node.is_none());
     }
@@ -447,9 +440,7 @@ mod tests {
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
-        let function_node = root
-            .descendant_for_byte_range(0, 2)
-            .unwrap();
+        let function_node = root.descendant_for_byte_range(0, 2).unwrap();
 
         let comments = extract_leading_doc_comments(function_node, source);
         assert_eq!(comments.len(), 0);
@@ -507,9 +498,8 @@ mod tests {
             .unwrap();
 
         // First expand to function body
-        let expanded_fn = find_parent_symbol_node(identifier_node, source, |kind| {
-            kind == "function_item"
-        });
+        let expanded_fn =
+            find_parent_symbol_node(identifier_node, source, |kind| kind == "function_item");
         assert!(expanded_fn.is_some(), "Should find function_item parent");
 
         // Then expand to containing module
@@ -527,16 +517,12 @@ mod tests {
         let root = tree.root_node();
 
         // Find the comment node
-        let comment_node = root
-            .descendant_for_byte_range(0, 12)
-            .unwrap();
+        let comment_node = root.descendant_for_byte_range(0, 12).unwrap();
 
         assert!(is_doc_comment_node(&comment_node));
 
         // Find the function node
-        let fn_node = root
-            .descendant_for_byte_range(14, 18)
-            .unwrap();
+        let fn_node = root.descendant_for_byte_range(14, 18).unwrap();
 
         assert!(!is_doc_comment_node(&fn_node));
     }
@@ -545,7 +531,9 @@ mod tests {
     fn test_python_function_expansion() {
         let source = b"def example():\n    pass\n";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_python::language()).unwrap();
+        parser
+            .set_language(&tree_sitter_python::language())
+            .unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -567,7 +555,9 @@ mod tests {
     fn test_python_class_expansion() {
         let source = b"class MyClass:\n    pass\n";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_python::language()).unwrap();
+        parser
+            .set_language(&tree_sitter_python::language())
+            .unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -577,9 +567,8 @@ mod tests {
             .unwrap();
 
         // Walk up to find class_definition
-        let class_node = find_parent_symbol_node(identifier_node, source, |kind| {
-            kind == "class_definition"
-        });
+        let class_node =
+            find_parent_symbol_node(identifier_node, source, |kind| kind == "class_definition");
 
         assert!(class_node.is_some());
         assert_eq!(class_node.unwrap().kind(), "class_definition");
@@ -621,9 +610,8 @@ mod tests {
             .unwrap();
 
         // Walk up to find class_declaration
-        let class_node = find_parent_symbol_node(identifier_node, source, |kind| {
-            kind == "class_declaration"
-        });
+        let class_node =
+            find_parent_symbol_node(identifier_node, source, |kind| kind == "class_declaration");
 
         assert!(class_node.is_some());
         assert_eq!(class_node.unwrap().kind(), "class_declaration");
@@ -633,7 +621,9 @@ mod tests {
     fn test_javascript_function_expansion() {
         let source = b"function example() { return; }";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_javascript::language()).unwrap();
+        parser
+            .set_language(&tree_sitter_javascript::language())
+            .unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -655,7 +645,9 @@ mod tests {
     fn test_typescript_interface_expansion() {
         let source = b"interface MyInterface { name: string; }";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_typescript::language_typescript()).unwrap();
+        parser
+            .set_language(&tree_sitter_typescript::language_typescript())
+            .unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -697,7 +689,9 @@ mod tests {
         let source_str = std::str::from_utf8(source).unwrap();
         let value_offset = source_str.find("value").unwrap();
 
-        let identifier_node = root.descendant_for_byte_range(value_offset, value_offset + 1).unwrap();
+        let identifier_node = root
+            .descendant_for_byte_range(value_offset, value_offset + 1)
+            .unwrap();
         let replaced_start = identifier_node.start_byte();
         let replaced_end = identifier_node.end_byte();
 
@@ -721,12 +715,13 @@ mod tests {
         let source_str = std::str::from_utf8(source).unwrap();
         let value_offset = source_str.find("value").unwrap();
 
-        let identifier_node = root.descendant_for_byte_range(value_offset, value_offset + 1).unwrap();
+        let identifier_node = root
+            .descendant_for_byte_range(value_offset, value_offset + 1)
+            .unwrap();
 
         // Expand to function body (level 1)
-        let function_node = find_parent_symbol_node(identifier_node, source, |kind| {
-            kind == "function_item"
-        });
+        let function_node =
+            find_parent_symbol_node(identifier_node, source, |kind| kind == "function_item");
 
         assert!(function_node.is_some());
         let fn_node = function_node.unwrap();
@@ -756,13 +751,17 @@ mod tests {
             .expect("Should find identifier node");
 
         // First expand to function body (level 1)
-        let function_node = find_parent_symbol_node(identifier_node, source, |kind| {
-            kind == "function_item"
-        });
+        let function_node =
+            find_parent_symbol_node(identifier_node, source, |kind| kind == "function_item");
         assert!(function_node.is_some(), "Should find function_item");
 
         // Then expand to containing module (level 2)
-        let module_span = find_containing_block(&root, identifier_node.start_byte(), identifier_node.end_byte(), source);
+        let module_span = find_containing_block(
+            &root,
+            identifier_node.start_byte(),
+            identifier_node.end_byte(),
+            source,
+        );
         assert!(module_span.is_some(), "Should find containing module");
 
         let (start, end) = module_span.unwrap();
@@ -781,22 +780,28 @@ mod tests {
 
         // Find the method identifier by searching for "method" in source
         let source_str = std::str::from_utf8(source).unwrap();
-        let method_pos = source_str.find("method").expect("Should find 'method' in source");
+        let method_pos = source_str
+            .find("method")
+            .expect("Should find 'method' in source");
 
         let identifier_node = root
             .descendant_for_byte_range(method_pos, method_pos + 6)
             .expect("Should find method identifier");
 
         // Level 1: Expand to method body
-        let method_node = find_parent_symbol_node(identifier_node, source, |kind| {
-            kind == "function_item"
-        });
+        let method_node =
+            find_parent_symbol_node(identifier_node, source, |kind| kind == "function_item");
         assert!(method_node.is_some(), "Should find method (function_item)");
         let method_text = method_node.unwrap().utf8_text(source).unwrap();
         assert!(method_text.contains("fn method"));
 
         // Level 2: Expand to impl block
-        let impl_span = find_containing_block(&root, identifier_node.start_byte(), identifier_node.end_byte(), source);
+        let impl_span = find_containing_block(
+            &root,
+            identifier_node.start_byte(),
+            identifier_node.end_byte(),
+            source,
+        );
         assert!(impl_span.is_some(), "Should find impl block");
         let (start, end) = impl_span.unwrap();
         let impl_text = std::str::from_utf8(&source[start..end]).unwrap();
@@ -808,13 +813,17 @@ mod tests {
         // Test progressive expansion: method -> class
         let source = b"class MyClass:\n    def method(self):\n        pass\n";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_python::language()).unwrap();
+        parser
+            .set_language(&tree_sitter_python::language())
+            .unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
         // Find the method identifier by searching for "method" in source
         let source_str = std::str::from_utf8(source).unwrap();
-        let method_pos = source_str.find("method").expect("Should find 'method' in source");
+        let method_pos = source_str
+            .find("method")
+            .expect("Should find 'method' in source");
 
         let identifier_node = root
             .descendant_for_byte_range(method_pos, method_pos + 6)
@@ -824,14 +833,16 @@ mod tests {
         let method_node = find_parent_symbol_node(identifier_node, source, |kind| {
             kind == "function_definition"
         });
-        assert!(method_node.is_some(), "Should find method (function_definition)");
+        assert!(
+            method_node.is_some(),
+            "Should find method (function_definition)"
+        );
         let method_text = method_node.unwrap().utf8_text(source).unwrap();
         assert!(method_text.contains("def method"));
 
         // Level 2: Expand to class
-        let class_node = find_parent_symbol_node(identifier_node, source, |kind| {
-            kind == "class_definition"
-        });
+        let class_node =
+            find_parent_symbol_node(identifier_node, source, |kind| kind == "class_definition");
         assert!(class_node.is_some(), "Should find class (class_definition)");
         let class_text = class_node.unwrap().utf8_text(source).unwrap();
         assert!(class_text.contains("class MyClass"));
@@ -842,28 +853,39 @@ mod tests {
         // Test progressive expansion: method -> class/interface
         let source = b"class MyClass {\n  method(): void {}\n}\n";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_typescript::language_typescript()).unwrap();
+        parser
+            .set_language(&tree_sitter_typescript::language_typescript())
+            .unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
         // Find the method identifier by searching for "method" in source
         let source_str = std::str::from_utf8(source).unwrap();
-        let method_pos = source_str.find("method").expect("Should find 'method' in source");
+        let method_pos = source_str
+            .find("method")
+            .expect("Should find 'method' in source");
 
         let identifier_node = root
             .descendant_for_byte_range(method_pos, method_pos + 6)
             .expect("Should find method identifier");
 
         // Level 1: Expand to method body
-        let method_node = find_parent_symbol_node(identifier_node, source, |kind| {
-            kind == "method_definition"
-        });
-        assert!(method_node.is_some(), "Should find method (method_definition)");
+        let method_node =
+            find_parent_symbol_node(identifier_node, source, |kind| kind == "method_definition");
+        assert!(
+            method_node.is_some(),
+            "Should find method (method_definition)"
+        );
         let method_text = method_node.unwrap().utf8_text(source).unwrap();
         assert!(method_text.contains("method"));
 
         // Level 2: Expand to class
-        let class_span = find_containing_block(&root, identifier_node.start_byte(), identifier_node.end_byte(), source);
+        let class_span = find_containing_block(
+            &root,
+            identifier_node.start_byte(),
+            identifier_node.end_byte(),
+            source,
+        );
         assert!(class_span.is_some(), "Should find containing class");
         let (start, end) = class_span.unwrap();
         let class_text = std::str::from_utf8(&source[start..end]).unwrap();
@@ -885,14 +907,21 @@ mod tests {
             .expect("Should find function identifier");
 
         // Try to find containing block (should return None for top-level function)
-        let block_span = find_containing_block(&root, identifier_node.start_byte(), identifier_node.end_byte(), source);
+        let block_span = find_containing_block(
+            &root,
+            identifier_node.start_byte(),
+            identifier_node.end_byte(),
+            source,
+        );
 
         // For a top-level function, there's no impl/module parent, so we expect None or source_file
         // The function should at minimum expand to its own body
-        let function_node = find_parent_symbol_node(identifier_node, source, |kind| {
-            kind == "function_item"
-        });
-        assert!(function_node.is_some(), "Should find function body even without containing block");
+        let function_node =
+            find_parent_symbol_node(identifier_node, source, |kind| kind == "function_item");
+        assert!(
+            function_node.is_some(),
+            "Should find function body even without containing block"
+        );
     }
 
     // Tests for extract_leading_docs (Task 3: Plan 16-04)
@@ -915,7 +944,10 @@ mod tests {
 
         // Should point to the start of the first comment (offset 0)
         assert_eq!(doc_start, 0, "Should include doc comments");
-        assert!(doc_start < function_node.start_byte(), "Doc start should be before function start");
+        assert!(
+            doc_start < function_node.start_byte(),
+            "Doc start should be before function start"
+        );
     }
 
     #[test]
@@ -939,7 +971,11 @@ mod tests {
                 let node = cursor.node();
                 if node.kind() == "function_item" {
                     function_node = Some(node);
-                    eprintln!("Found function_item: start={}, end={}", node.start_byte(), node.end_byte());
+                    eprintln!(
+                        "Found function_item: start={}, end={}",
+                        node.start_byte(),
+                        node.end_byte()
+                    );
                     break;
                 }
                 if !cursor.goto_next_sibling() {
@@ -955,9 +991,15 @@ mod tests {
         let mut prev = function_node.prev_sibling();
         let mut count = 0;
         while let Some(sibling) = prev {
-            eprintln!("  Sibling {}: kind={}, is_named={}, start={}, end={}, text={:?}",
-                count, sibling.kind(), sibling.is_named(), sibling.start_byte(), sibling.end_byte(),
-                sibling.utf8_text(source).unwrap_or(""));
+            eprintln!(
+                "  Sibling {}: kind={}, is_named={}, start={}, end={}, text={:?}",
+                count,
+                sibling.kind(),
+                sibling.is_named(),
+                sibling.start_byte(),
+                sibling.end_byte(),
+                sibling.utf8_text(source).unwrap_or("")
+            );
             prev = sibling.prev_sibling();
             count += 1;
             if count > 5 {
@@ -967,11 +1009,18 @@ mod tests {
 
         // Extract leading docs
         let doc_start = extract_leading_docs(&function_node, source);
-        eprintln!("doc_start={}, function_start={}", doc_start, function_node.start_byte());
+        eprintln!(
+            "doc_start={}, function_start={}",
+            doc_start,
+            function_node.start_byte()
+        );
 
         // Should point to the start of the block comment (offset 0)
         assert_eq!(doc_start, 0, "Should include block doc comments");
-        assert!(doc_start < function_node.start_byte(), "Doc start should be before function start");
+        assert!(
+            doc_start < function_node.start_byte(),
+            "Doc start should be before function start"
+        );
     }
 
     #[test]
@@ -1011,14 +1060,20 @@ mod tests {
         let doc_start = extract_leading_docs(&function_node, source);
 
         // Should return the original node start when no docs found
-        assert_eq!(doc_start, function_node.start_byte(), "Should return replaced start when no docs");
+        assert_eq!(
+            doc_start,
+            function_node.start_byte(),
+            "Should return replaced start when no docs"
+        );
     }
 
     #[test]
     fn test_extract_leading_docs_python_docstrings() {
         let source = b"\"\"\"Example documentation\"\"\"\ndef example():\n    pass";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_python::language()).unwrap();
+        parser
+            .set_language(&tree_sitter_python::language())
+            .unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -1031,7 +1086,12 @@ mod tests {
         if cursor.goto_first_child() {
             loop {
                 let node = cursor.node();
-                eprintln!("Node kind={}, start={}, end={}", node.kind(), node.start_byte(), node.end_byte());
+                eprintln!(
+                    "Node kind={}, start={}, end={}",
+                    node.kind(),
+                    node.start_byte(),
+                    node.end_byte()
+                );
                 if node.kind() == "function_definition" {
                     function_node = Some(node);
                     break;
@@ -1043,16 +1103,25 @@ mod tests {
         }
 
         let function_node = function_node.expect("Should find function_definition");
-        eprintln!("Function: start={}, end={}", function_node.start_byte(), function_node.end_byte());
+        eprintln!(
+            "Function: start={}, end={}",
+            function_node.start_byte(),
+            function_node.end_byte()
+        );
 
         // Check previous siblings
         eprintln!("Previous siblings:");
         let mut prev = function_node.prev_sibling();
         let mut count = 0;
         while let Some(sibling) = prev {
-            eprintln!("  Sibling {}: kind={}, is_named={}, start={}, text={:?}",
-                count, sibling.kind(), sibling.is_named(), sibling.start_byte(),
-                sibling.utf8_text(source).unwrap_or(""));
+            eprintln!(
+                "  Sibling {}: kind={}, is_named={}, start={}, text={:?}",
+                count,
+                sibling.kind(),
+                sibling.is_named(),
+                sibling.start_byte(),
+                sibling.utf8_text(source).unwrap_or("")
+            );
             prev = sibling.prev_sibling();
             count += 1;
             if count > 5 {
@@ -1062,18 +1131,27 @@ mod tests {
 
         // Extract leading docs
         let doc_start = extract_leading_docs(&function_node, source);
-        eprintln!("doc_start={}, function_start={}", doc_start, function_node.start_byte());
+        eprintln!(
+            "doc_start={}, function_start={}",
+            doc_start,
+            function_node.start_byte()
+        );
 
         // Should point to the start of the docstring (offset 0)
         assert_eq!(doc_start, 0, "Should include Python docstrings");
-        assert!(doc_start < function_node.start_byte(), "Doc start should be before function start");
+        assert!(
+            doc_start < function_node.start_byte(),
+            "Doc start should be before function start"
+        );
     }
 
     #[test]
     fn test_extract_leading_docs_python_hash_comments() {
         let source = b"# Example documentation\n# Second line\ndef example():\n    pass";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_python::language()).unwrap();
+        parser
+            .set_language(&tree_sitter_python::language())
+            .unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -1087,7 +1165,11 @@ mod tests {
 
         // Note: Regular # comments are not doc-style, so they won't be included
         // Only """ docstrings are captured as doc comments in Python
-        assert_eq!(doc_start, function_node.start_byte(), "Regular # comments not captured as docs");
+        assert_eq!(
+            doc_start,
+            function_node.start_byte(),
+            "Regular # comments not captured as docs"
+        );
     }
 
     #[test]
@@ -1108,14 +1190,19 @@ mod tests {
 
         // Should point to the start of the Javadoc comment (offset 0)
         assert_eq!(doc_start, 0, "Should include Javadoc comments");
-        assert!(doc_start < class_node.start_byte(), "Doc start should be before class start");
+        assert!(
+            doc_start < class_node.start_byte(),
+            "Doc start should be before class start"
+        );
     }
 
     #[test]
     fn test_extract_leading_docs_jsdoc() {
         let source = b"/** JSDoc comment */\nfunction example() {}";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_javascript::language()).unwrap();
+        parser
+            .set_language(&tree_sitter_javascript::language())
+            .unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -1129,7 +1216,10 @@ mod tests {
 
         // Should point to the start of the JSDoc comment (offset 0)
         assert_eq!(doc_start, 0, "Should include JSDoc comments");
-        assert!(doc_start < function_node.start_byte(), "Doc start should be before function start");
+        assert!(
+            doc_start < function_node.start_byte(),
+            "Doc start should be before function start"
+        );
     }
 
     #[test]
@@ -1149,6 +1239,10 @@ mod tests {
         let doc_start = extract_leading_docs(&function_node, source);
 
         // Regular comments (// without ///) should not be captured
-        assert_eq!(doc_start, function_node.start_byte(), "Regular comments should not be captured");
+        assert_eq!(
+            doc_start,
+            function_node.start_byte(),
+            "Regular comments should not be captured"
+        );
     }
 }

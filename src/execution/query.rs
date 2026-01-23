@@ -136,13 +136,14 @@ impl ExecutionQuery {
             query.push_str(&format!(" OFFSET {}", offset));
         }
 
-        let mut stmt = conn.prepare(&query).map_err(|e| SpliceError::Other(format!(
-            "failed to prepare query: {}",
-            e
-        )))?;
+        let mut stmt = conn
+            .prepare(&query)
+            .map_err(|e| SpliceError::Other(format!("failed to prepare query: {}", e)))?;
 
-        let params: Vec<&dyn rusqlite::ToSql> =
-            params_vec.iter().map(|s| s as &dyn rusqlite::ToSql).collect();
+        let params: Vec<&dyn rusqlite::ToSql> = params_vec
+            .iter()
+            .map(|s| s as &dyn rusqlite::ToSql)
+            .collect();
 
         let logs = stmt
             .query_map(params.as_slice(), |row| {
@@ -419,7 +420,9 @@ pub fn format_json(logs: &[ExecutionLog]) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::execution::base::{ExecutionLogBuilder, init_execution_log_db, insert_execution_log};
+    use crate::execution::base::{
+        init_execution_log_db, insert_execution_log, ExecutionLogBuilder,
+    };
     use tempfile::TempDir;
 
     fn setup_test_db() -> (Connection, TempDir) {
@@ -510,10 +513,7 @@ mod tests {
             insert_test_log(&conn, "patch", "ok");
         }
 
-        let logs = ExecutionQuery::new()
-            .with_limit(2)
-            .execute(&conn)
-            .unwrap();
+        let logs = ExecutionQuery::new().with_limit(2).execute(&conn).unwrap();
 
         assert_eq!(logs.len(), 2);
 

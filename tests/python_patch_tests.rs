@@ -62,7 +62,10 @@ def farewell(name: str) -> str:
                     Language::Python,
                     symbol.byte_start,
                     symbol.byte_end,
-                    symbol.line_start, symbol.line_end, symbol.col_start, symbol.col_end
+                    symbol.line_start,
+                    symbol.line_end,
+                    symbol.col_start,
+                    symbol.col_end,
                 )
                 .expect("Failed to store symbol");
         }
@@ -153,7 +156,10 @@ def valid_function() -> int:
                 Language::Python,
                 symbol.byte_start,
                 symbol.byte_end,
-                symbol.line_start, symbol.line_end, symbol.col_start, symbol.col_end
+                symbol.line_start,
+                symbol.line_end,
+                symbol.col_start,
+                symbol.col_end,
             )
             .expect("Failed to store symbol");
 
@@ -238,7 +244,10 @@ def get_number() -> int:
                 Language::Python,
                 symbol.byte_start,
                 symbol.byte_end,
-                symbol.line_start, symbol.line_end, symbol.col_start, symbol.col_end
+                symbol.line_start,
+                symbol.line_end,
+                symbol.col_start,
+                symbol.col_end,
             )
             .expect("Failed to store symbol");
 

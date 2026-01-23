@@ -411,16 +411,19 @@ fn test_context_extraction_linear_scaling() {
 
     // Create files of different sizes and measure performance
     let test_cases = vec![
-        (100, 50),   // 100 functions, max 50ms
-        (200, 100),  // 200 functions, max 100ms
-        (400, 200),  // 400 functions, max 200ms
+        (100, 50),  // 100 functions, max 50ms
+        (200, 100), // 200 functions, max 100ms
+        (400, 200), // 400 functions, max 200ms
     ];
 
     let mut timings = Vec::new();
 
     for (num_functions, expected_max_ms) in test_cases {
-        let file_path =
-            create_large_rust_file(dir.path(), &format!("scale_{}.rs", num_functions), num_functions);
+        let file_path = create_large_rust_file(
+            dir.path(),
+            &format!("scale_{}.rs", num_functions),
+            num_functions,
+        );
 
         let source = std::fs::read_to_string(&file_path).unwrap();
         let offset = source.find("add_").expect("Symbol not found");

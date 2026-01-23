@@ -23,7 +23,12 @@ pub struct ErrorCode {
 
 impl ErrorCode {
     /// Create a new error code.
-    pub fn new(code: impl Into<String>, severity: impl Into<String>, location: impl Into<String>, hint: impl Into<String>) -> Self {
+    pub fn new(
+        code: impl Into<String>,
+        severity: impl Into<String>,
+        location: impl Into<String>,
+        hint: impl Into<String>,
+    ) -> Self {
         Self {
             code: code.into(),
             severity: severity.into(),
@@ -33,7 +38,12 @@ impl ErrorCode {
     }
 
     /// Create from SpliceErrorCode enum.
-    pub fn from_splice_code(splice_code: SpliceErrorCode, file: Option<&str>, line: Option<usize>, column: Option<usize>) -> Self {
+    pub fn from_splice_code(
+        splice_code: SpliceErrorCode,
+        file: Option<&str>,
+        line: Option<usize>,
+        column: Option<usize>,
+    ) -> Self {
         let location = match (file, line, column) {
             (Some(f), Some(l), Some(c)) => format!("{}:{}:{}", f, l, c),
             (Some(f), Some(l), None) => format!("{}:{}", f, l),
@@ -293,7 +303,9 @@ impl SpliceErrorCode {
             crate::SpliceError::SymbolNotFound { .. } => Some(SpliceErrorCode::SymbolNotFound),
             crate::SpliceError::AmbiguousSymbol { .. } => Some(SpliceErrorCode::AmbiguousSymbol),
             crate::SpliceError::ReferenceFailed { .. } => Some(SpliceErrorCode::ReferenceFailed),
-            crate::SpliceError::AmbiguousReference { .. } => Some(SpliceErrorCode::AmbiguousReference),
+            crate::SpliceError::AmbiguousReference { .. } => {
+                Some(SpliceErrorCode::AmbiguousReference)
+            }
 
             crate::SpliceError::Parse { .. } => Some(SpliceErrorCode::ParseError),
             crate::SpliceError::InvalidUtf8 { .. } => Some(SpliceErrorCode::InvalidUtf8),
@@ -301,26 +313,48 @@ impl SpliceErrorCode {
 
             crate::SpliceError::InvalidSpan { .. } => Some(SpliceErrorCode::InvalidSpan),
             crate::SpliceError::InvalidLineRange { .. } => Some(SpliceErrorCode::InvalidLineRange),
-            crate::SpliceError::FileExternallyModified { .. } => Some(SpliceErrorCode::FileExternallyModified),
+            crate::SpliceError::FileExternallyModified { .. } => {
+                Some(SpliceErrorCode::FileExternallyModified)
+            }
 
-            crate::SpliceError::PreVerificationFailed { .. } => Some(SpliceErrorCode::PreVerificationFailed),
-            crate::SpliceError::ParseValidationFailed { .. } => Some(SpliceErrorCode::ParseValidationFailed),
-            crate::SpliceError::CompilerValidationFailed { .. } => Some(SpliceErrorCode::CompilerValidationFailed),
+            crate::SpliceError::PreVerificationFailed { .. } => {
+                Some(SpliceErrorCode::PreVerificationFailed)
+            }
+            crate::SpliceError::ParseValidationFailed { .. } => {
+                Some(SpliceErrorCode::ParseValidationFailed)
+            }
+            crate::SpliceError::CompilerValidationFailed { .. } => {
+                Some(SpliceErrorCode::CompilerValidationFailed)
+            }
 
-            crate::SpliceError::InvalidPlanSchema { .. } => Some(SpliceErrorCode::InvalidPlanSchema),
-            crate::SpliceError::PlanExecutionFailed { .. } => Some(SpliceErrorCode::PlanExecutionFailed),
-            crate::SpliceError::InvalidBatchSchema { .. } => Some(SpliceErrorCode::InvalidBatchSchema),
+            crate::SpliceError::InvalidPlanSchema { .. } => {
+                Some(SpliceErrorCode::InvalidPlanSchema)
+            }
+            crate::SpliceError::PlanExecutionFailed { .. } => {
+                Some(SpliceErrorCode::PlanExecutionFailed)
+            }
+            crate::SpliceError::InvalidBatchSchema { .. } => {
+                Some(SpliceErrorCode::InvalidBatchSchema)
+            }
 
             crate::SpliceError::Graph(_) => Some(SpliceErrorCode::GraphError),
 
-            crate::SpliceError::ExecutionLogError { .. } => Some(SpliceErrorCode::ExecutionLogError),
-            crate::SpliceError::ExecutionNotFound { .. } => Some(SpliceErrorCode::ExecutionNotFound),
+            crate::SpliceError::ExecutionLogError { .. } => {
+                Some(SpliceErrorCode::ExecutionLogError)
+            }
+            crate::SpliceError::ExecutionNotFound { .. } => {
+                Some(SpliceErrorCode::ExecutionNotFound)
+            }
 
-            crate::SpliceError::AnalyzerNotAvailable { .. } => Some(SpliceErrorCode::AnalyzerNotAvailable),
+            crate::SpliceError::AnalyzerNotAvailable { .. } => {
+                Some(SpliceErrorCode::AnalyzerNotAvailable)
+            }
             crate::SpliceError::AnalyzerFailed { .. } => Some(SpliceErrorCode::AnalyzerFailed),
 
             // I/O errors - map to specific codes
-            crate::SpliceError::Io { .. } | crate::SpliceError::IoContext { .. } => Some(SpliceErrorCode::FileReadError),
+            crate::SpliceError::Io { .. } | crate::SpliceError::IoContext { .. } => {
+                Some(SpliceErrorCode::FileReadError)
+            }
 
             // Other errors - no specific code
             _ => None,
@@ -346,6 +380,8 @@ impl SpliceErrorCode {
 ///
 /// # Examples
 /// ```
+/// use splice::error_codes::get_error_explanation;
+///
 /// let explanation = get_error_explanation("SPL-E001");
 /// assert!(explanation.is_some());
 /// assert!(explanation.unwrap().contains("Symbol Not Found"));
@@ -353,7 +389,8 @@ impl SpliceErrorCode {
 pub fn get_error_explanation(code: &str) -> Option<&'static str> {
     match code {
         // Symbol resolution errors
-        "SPL-E001" => Some(r#"
+        "SPL-E001" => Some(
+            r#"
 Symbol Not Found (SPL-E001)
 
 The specified symbol could not be found in the codebase.
@@ -372,9 +409,11 @@ WHAT TO DO:
 5. Use `splice explain SPL-E002` for help with ambiguous symbols
 
 RELATED: SPL-E002 (Ambiguous Symbol)
-"#),
+"#,
+        ),
 
-        "SPL-E002" => Some(r#"
+        "SPL-E002" => Some(
+            r#"
 Ambiguous Symbol (SPL-E002)
 
 The symbol name exists in multiple files, making it ambiguous which one
@@ -392,9 +431,11 @@ WHAT TO DO:
 4. Use fully-qualified names if supported by the language
 
 RELATED: SPL-E001 (Symbol Not Found)
-"#),
+"#,
+        ),
 
-        "SPL-E003" => Some(r#"
+        "SPL-E003" => Some(
+            r#"
 Reference Failed (SPL-E003)
 
 Failed to locate symbol references in the codebase.
@@ -411,9 +452,11 @@ WHAT TO DO:
 4. Report this as a bug if the issue persists
 
 RELATED: SPL-E061 (Graph Error)
-"#),
+"#,
+        ),
 
-        "SPL-E004" => Some(r#"
+        "SPL-E004" => Some(
+            r#"
 Ambiguous Reference (SPL-E004)
 
 A reference could refer to multiple definitions, making it ambiguous
@@ -431,10 +474,12 @@ WHAT TO DO:
 4. Check the error message for candidate definitions
 
 RELATED: SPL-E002 (Ambiguous Symbol)
-"#),
+"#,
+        ),
 
         // Parse/AST errors
-        "SPL-E011" => Some(r#"
+        "SPL-E011" => Some(
+            r#"
 Parse Error (SPL-E011)
 
 Tree-sitter failed to parse the source file.
@@ -453,9 +498,11 @@ WHAT TO DO:
 5. Re-ingest the file after fixing syntax
 
 RELATED: SPL-E012 (Invalid UTF-8), SPL-E013 (Invalid Syntax)
-"#),
+"#,
+        ),
 
-        "SPL-E012" => Some(r#"
+        "SPL-E012" => Some(
+            r#"
 Invalid UTF-8 (SPL-E012)
 
 The file contains invalid UTF-8 encoding.
@@ -472,9 +519,11 @@ WHAT TO DO:
 4. Ensure your editor is configured to save files as UTF-8
 
 RELATED: SPL-E011 (Parse Error)
-"#),
+"#,
+        ),
 
-        "SPL-E013" => Some(r#"
+        "SPL-E013" => Some(
+            r#"
 Invalid Syntax (SPL-E013)
 
 The compiler reported a syntax error in the source file.
@@ -492,10 +541,12 @@ WHAT TO DO:
 4. Refer to language documentation for correct syntax
 
 RELATED: SPL-E011 (Parse Error), SPL-E043 (Compiler Validation Failed)
-"#),
+"#,
+        ),
 
         // Span errors
-        "SPL-E021" => Some(r#"
+        "SPL-E021" => Some(
+            r#"
 Invalid Span (SPL-E021)
 
 The byte range specified is invalid.
@@ -512,9 +563,11 @@ WHAT TO DO:
 4. Use `splice query` to get valid spans for symbols
 
 RELATED: SPL-E022 (Invalid Line Range), SPL-E023 (Span Out of Bounds)
-"#),
+"#,
+        ),
 
-        "SPL-E022" => Some(r#"
+        "SPL-E022" => Some(
+            r#"
 Invalid Line Range (SPL-E022)
 
 The line range specified is invalid.
@@ -531,9 +584,11 @@ WHAT TO DO:
 4. Use `splice get` to retrieve valid line ranges
 
 RELATED: SPL-E021 (Invalid Span), SPL-E023 (Span Out of Bounds)
-"#),
+"#,
+        ),
 
-        "SPL-E023" => Some(r#"
+        "SPL-E023" => Some(
+            r#"
 Span Out of Bounds (SPL-E023)
 
 The span extends beyond the file's boundaries.
@@ -550,10 +605,12 @@ WHAT TO DO:
 4. Use checksums to detect file modifications
 
 RELATED: SPL-E034 (File Externally Modified)
-"#),
+"#,
+        ),
 
         // I/O errors
-        "SPL-E031" => Some(r#"
+        "SPL-E031" => Some(
+            r#"
 File Read Error (SPL-E031)
 
 Failed to read a file.
@@ -571,9 +628,11 @@ WHAT TO DO:
 4. Verify the file path is correct
 
 RELATED: SPL-E033 (File Not Found), SPL-E032 (File Write Error)
-"#),
+"#,
+        ),
 
-        "SPL-E032" => Some(r#"
+        "SPL-E032" => Some(
+            r#"
 File Write Error (SPL-E032)
 
 Failed to write to a file.
@@ -591,9 +650,11 @@ WHAT TO DO:
 4. Create parent directories if needed
 
 RELATED: SPL-E031 (File Read Error), SPL-E034 (File Externally Modified)
-"#),
+"#,
+        ),
 
-        "SPL-E033" => Some(r#"
+        "SPL-E033" => Some(
+            r#"
 File Not Found (SPL-E033)
 
 The specified file does not exist.
@@ -610,9 +671,11 @@ WHAT TO DO:
 4. Run `splice ingest` to re-index if file was moved
 
 RELATED: SPL-E031 (File Read Error)
-"#),
+"#,
+        ),
 
-        "SPL-E034" => Some(r#"
+        "SPL-E034" => Some(
+            r#"
 File Externally Modified (SPL-E034)
 
 The file was modified by another process since being indexed.
@@ -629,10 +692,12 @@ WHAT TO DO:
 4. Consider using file watchers to detect external changes
 
 RELATED: SPL-E023 (Span Out of Bounds)
-"#),
+"#,
+        ),
 
         // Validation errors
-        "SPL-E041" => Some(r#"
+        "SPL-E041" => Some(
+            r#"
 Pre-Verification Failed (SPL-E041)
 
 A pre-verification check failed before applying changes.
@@ -649,9 +714,11 @@ WHAT TO DO:
 4. Check system resources if applicable
 
 RELATED: SPL-E042 (Parse Validation Failed), SPL-E043 (Compiler Validation Failed)
-"#),
+"#,
+        ),
 
-        "SPL-E042" => Some(r#"
+        "SPL-E042" => Some(
+            r#"
 Parse Validation Failed (SPL-E042)
 
 The file failed to parse after modification.
@@ -668,9 +735,11 @@ WHAT TO DO:
 4. Ensure the replacement content is complete and valid
 
 RELATED: SPL-E011 (Parse Error), SPL-E041 (Pre-Verification Failed)
-"#),
+"#,
+        ),
 
-        "SPL-E043" => Some(r#"
+        "SPL-E043" => Some(
+            r#"
 Compiler Validation Failed (SPL-E043)
 
 Compiler reported errors after modification.
@@ -687,10 +756,12 @@ WHAT TO DO:
 4. Run compiler manually for detailed error messages
 
 RELATED: SPL-E013 (Invalid Syntax), SPL-E081 (Analyzer Not Available)
-"#),
+"#,
+        ),
 
         // Plan execution errors
-        "SPL-E051" => Some(r#"
+        "SPL-E051" => Some(
+            r#"
 Invalid Plan Schema (SPL-E051)
 
 The plan JSON schema is invalid.
@@ -708,9 +779,11 @@ WHAT TO DO:
 4. Verify schema version matches Splice version
 
 RELATED: SPL-E053 (Invalid Batch Schema)
-"#),
+"#,
+        ),
 
-        "SPL-E052" => Some(r#"
+        "SPL-E052" => Some(
+            r#"
 Plan Execution Failed (SPL-E052)
 
 A step in the plan failed during execution.
@@ -727,9 +800,11 @@ WHAT TO DO:
 4. Use `--dry-run` to preview plan execution
 
 RELATED: SPL-E051 (Invalid Plan Schema)
-"#),
+"#,
+        ),
 
-        "SPL-E053" => Some(r#"
+        "SPL-E053" => Some(
+            r#"
 Invalid Batch Schema (SPL-E053)
 
 The batch JSON schema is invalid.
@@ -747,10 +822,12 @@ WHAT TO DO:
 4. Verify the file/replacement structure
 
 RELATED: SPL-E051 (Invalid Plan Schema)
-"#),
+"#,
+        ),
 
         // Graph/database errors
-        "SPL-E061" => Some(r#"
+        "SPL-E061" => Some(
+            r#"
 Graph Error (SPL-E061)
 
 The code graph database encountered an error.
@@ -768,9 +845,11 @@ WHAT TO DO:
 4. Check database version compatibility
 
 RELATED: SPL-E062 (Database Error), SPL-E003 (Reference Failed)
-"#),
+"#,
+        ),
 
-        "SPL-E062" => Some(r#"
+        "SPL-E062" => Some(
+            r#"
 Database Error (SPL-E062)
 
 A database operation failed.
@@ -788,10 +867,12 @@ WHAT TO DO:
 4. Check for concurrent access issues
 
 RELATED: SPL-E061 (Graph Error)
-"#),
+"#,
+        ),
 
         // Execution log errors
-        "SPL-E071" => Some(r#"
+        "SPL-E071" => Some(
+            r#"
 Execution Log Error (SPL-E071)
 
 Failed to access the execution log database.
@@ -808,9 +889,11 @@ WHAT TO DO:
 4. Re-create the log database if corrupted
 
 RELATED: SPL-E062 (Database Error)
-"#),
+"#,
+        ),
 
-        "SPL-E072" => Some(r#"
+        "SPL-E072" => Some(
+            r#"
 Execution Not Found (SPL-E072)
 
 The specified execution ID was not found in the log.
@@ -827,10 +910,12 @@ WHAT TO DO:
 4. Re-run the operation if needed
 
 RELATED: SPL-E071 (Execution Log Error)
-"#),
+"#,
+        ),
 
         // Analyzer errors
-        "SPL-E081" => Some(r#"
+        "SPL-E081" => Some(
+            r#"
 Analyzer Not Available (SPL-E081)
 
 The requested analyzer is not available.
@@ -847,9 +932,11 @@ WHAT TO DO:
 4. Use `--analyzer off` to disable analyzer validation
 
 RELATED: SPL-E082 (Analyzer Failed)
-"#),
+"#,
+        ),
 
-        "SPL-E082" => Some(r#"
+        "SPL-E082" => Some(
+            r#"
 Analyzer Failed (SPL-E082)
 
 The analyzer reported diagnostics.
@@ -866,7 +953,8 @@ WHAT TO DO:
 4. Update analyzer version if outdated
 
 RELATED: SPL-E043 (Compiler Validation Failed), SPL-E081 (Analyzer Not Available)
-"#),
+"#,
+        ),
 
         // Unknown code
         _ => None,
@@ -928,7 +1016,7 @@ mod tests {
             "SPL-E001",
             "error",
             "src/main.rs:10:5",
-            "Check symbol spelling"
+            "Check symbol spelling",
         );
 
         assert_eq!(code.code, "SPL-E001");
@@ -973,12 +1061,7 @@ mod tests {
         assert_eq!(ec.location, "test.rs");
 
         // Unknown location
-        let ec = ErrorCode::from_splice_code(
-            SpliceErrorCode::GraphError,
-            None,
-            None,
-            None,
-        );
+        let ec = ErrorCode::from_splice_code(SpliceErrorCode::GraphError, None, None, None);
         assert_eq!(ec.location, "<unknown>");
     }
 
@@ -1005,7 +1088,10 @@ mod tests {
         assert_eq!(SpliceErrorCode::FileNotFound.severity(), "error");
         assert_eq!(SpliceErrorCode::PreVerificationFailed.severity(), "error");
         assert_eq!(SpliceErrorCode::ParseValidationFailed.severity(), "error");
-        assert_eq!(SpliceErrorCode::CompilerValidationFailed.severity(), "error");
+        assert_eq!(
+            SpliceErrorCode::CompilerValidationFailed.severity(),
+            "error"
+        );
         assert_eq!(SpliceErrorCode::InvalidPlanSchema.severity(), "error");
         assert_eq!(SpliceErrorCode::PlanExecutionFailed.severity(), "error");
         assert_eq!(SpliceErrorCode::InvalidBatchSchema.severity(), "error");
@@ -1022,10 +1108,19 @@ mod tests {
         // Test that warning-level codes return "warning"
         assert_eq!(SpliceErrorCode::AmbiguousSymbol.severity(), "warning");
         assert_eq!(SpliceErrorCode::AmbiguousReference.severity(), "warning");
-        assert_eq!(SpliceErrorCode::FileExternallyModified.severity(), "warning");
-        assert_eq!(SpliceErrorCode::AmbiguousSymbolAsWarning.severity(), "warning");
+        assert_eq!(
+            SpliceErrorCode::FileExternallyModified.severity(),
+            "warning"
+        );
+        assert_eq!(
+            SpliceErrorCode::AmbiguousSymbolAsWarning.severity(),
+            "warning"
+        );
         assert_eq!(SpliceErrorCode::FileSkipped.severity(), "warning");
-        assert_eq!(SpliceErrorCode::FileExternallyModifiedWarning.severity(), "warning");
+        assert_eq!(
+            SpliceErrorCode::FileExternallyModifiedWarning.severity(),
+            "warning"
+        );
     }
 
     #[test]
@@ -1079,7 +1174,10 @@ mod tests {
         // Test that warning codes use SPL-W### format
         assert_eq!(SpliceErrorCode::AmbiguousSymbolAsWarning.code(), "SPL-W001");
         assert_eq!(SpliceErrorCode::FileSkipped.code(), "SPL-W002");
-        assert_eq!(SpliceErrorCode::FileExternallyModifiedWarning.code(), "SPL-W003");
+        assert_eq!(
+            SpliceErrorCode::FileExternallyModifiedWarning.code(),
+            "SPL-W003"
+        );
     }
 
     #[test]

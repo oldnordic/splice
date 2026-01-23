@@ -227,9 +227,7 @@ fn validate_java(path: &Path) -> Result<ValidationOutcome> {
     let path_str = path
         .to_str()
         .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 path: {}", path.display())))?;
-    let output = Command::new("javac")
-        .args([path_str])
-        .output();
+    let output = Command::new("javac").args([path_str]).output();
 
     match output {
         Ok(result) => {
@@ -273,9 +271,7 @@ fn validate_javascript(path: &Path) -> Result<ValidationOutcome> {
     let path_str = path
         .to_str()
         .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 path: {}", path.display())))?;
-    let output = Command::new("node")
-        .args(["--check", path_str])
-        .output();
+    let output = Command::new("node").args(["--check", path_str]).output();
 
     match output {
         Ok(result) => {

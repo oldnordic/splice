@@ -13,11 +13,11 @@
 mod tests {
     use sha2::{Digest, Sha256};
     use std::fs;
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
     use std::path::{Path, PathBuf};
     use std::process::{Command, Output};
     use tempfile::TempDir;
-    #[cfg(unix)]
-    use std::os::unix::fs::PermissionsExt;
 
     /// Create a minimal Rust workspace with Cargo.toml and src/lib.rs
     ///
@@ -187,7 +187,8 @@ pub fn caller_function() -> String {
                     // (test harnesses are small, CLI binary is >50MB)
                     if let Ok(modified) = metadata.modified() {
                         let len = metadata.len();
-                        if len > 50_000_000 { // 50MB threshold
+                        if len > 50_000_000 {
+                            // 50MB threshold
                             candidates.push((modified, path));
                         }
                     }
@@ -195,8 +196,7 @@ pub fn caller_function() -> String {
             }
 
             // Return the newest candidate that meets size threshold
-            if let Some((_, path)) = candidates.into_iter()
-                .max_by_key(|(time, _)| *time) {
+            if let Some((_, path)) = candidates.into_iter().max_by_key(|(time, _)| *time) {
                 return path;
             }
         }
@@ -284,10 +284,7 @@ pub fn caller_function() -> String {
             .current_dir(workspace_path)
             .output();
 
-        assert!(
-            output.is_ok(),
-            "cargo check should succeed in workspace"
-        );
+        assert!(output.is_ok(), "cargo check should succeed in workspace");
 
         let output = output.unwrap();
         assert!(
@@ -440,10 +437,7 @@ pub fn caller_function() -> String {
 
         // Verify returns preview report (stdout should contain "greet" or "preview")
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(
-            stdout.len() > 0,
-            "Preview should produce output"
-        );
+        assert!(stdout.len() > 0, "Preview should produce output");
 
         // Verify original file unchanged
         let current_content = fs::read_to_string(workspace_path.join("src/lib.rs"))
@@ -651,10 +645,7 @@ pub fn caller_function() -> String {
 
         // Verify execution log contains entry (check file size > 0)
         let metadata = fs::metadata(&ops_db_path).expect("Failed to read ops db metadata");
-        assert!(
-            metadata.len() > 0,
-            "operations.db should have content"
-        );
+        assert!(metadata.len() > 0, "operations.db should have content");
 
         // Parse stdout for execution_id if present
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -703,7 +694,15 @@ mod tests {
 
         // Run delete command
         let output = run_splice(
-            &["delete", "--file", "src/lib.rs", "--symbol", "unused_function", "--kind", "function"],
+            &[
+                "delete",
+                "--file",
+                "src/lib.rs",
+                "--symbol",
+                "unused_function",
+                "--kind",
+                "function",
+            ],
             workspace_path,
         );
 
@@ -720,7 +719,10 @@ mod tests {
             assert!(deleted, "Function should be deleted");
         } else {
             // If delete failed, verify error message is meaningful
-            assert!(stderr.len() > 0 || stdout.len() > 0, "Error should produce output");
+            assert!(
+                stderr.len() > 0 || stdout.len() > 0,
+                "Error should produce output"
+            );
         }
     }
 
@@ -761,7 +763,15 @@ mod tests {
 
         // Try to delete helper (which is called by caller)
         let output = run_splice(
-            &["delete", "--file", "src/lib.rs", "--symbol", "helper", "--kind", "function"],
+            &[
+                "delete",
+                "--file",
+                "src/lib.rs",
+                "--symbol",
+                "helper",
+                "--kind",
+                "function",
+            ],
             workspace_path,
         );
 
@@ -783,7 +793,7 @@ mod tests {
             || output.contains("used")
             || output.contains("cannot")
             || output.contains("mismatched types")  // v2.0 cargo check error
-            || output.contains("Cargo check failed");  // v2.0 error format
+            || output.contains("Cargo check failed"); // v2.0 error format
 
         assert!(
             has_ref_msg,
@@ -845,7 +855,15 @@ mod tests {
 
         // Try to delete non-existent symbol
         let output = run_splice(
-            &["delete", "--file", "src/lib.rs", "--symbol", "nonexistent_func", "--kind", "function"],
+            &[
+                "delete",
+                "--file",
+                "src/lib.rs",
+                "--symbol",
+                "nonexistent_func",
+                "--kind",
+                "function",
+            ],
             workspace_path,
         );
 
@@ -860,10 +878,7 @@ mod tests {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let output = format!("{}{}", stdout, stderr);
 
-        assert!(
-            output.len() > 0,
-            "Error should produce output"
-        );
+        assert!(output.len() > 0, "Error should produce output");
 
         // Check for error indicators
         let has_error_msg = output.contains("not found")
@@ -871,10 +886,7 @@ mod tests {
             || output.contains("cannot find")
             || output.contains("symbol");
 
-        assert!(
-            has_error_msg,
-            "Error should indicate symbol not found"
-        );
+        assert!(has_error_msg, "Error should indicate symbol not found");
     }
 
     #[test]
@@ -886,7 +898,15 @@ mod tests {
 
         // Try to delete helper_function (called from b.rs)
         let output = run_splice(
-            &["delete", "--file", "src/a.rs", "--symbol", "helper_function", "--kind", "function"],
+            &[
+                "delete",
+                "--file",
+                "src/a.rs",
+                "--symbol",
+                "helper_function",
+                "--kind",
+                "function",
+            ],
             workspace_path,
         );
 
@@ -902,10 +922,7 @@ mod tests {
                 || output_str.contains("used")
                 || output_str.contains("caller");
 
-            assert!(
-                has_ref_msg,
-                "Error should mention cross-file references"
-            );
+            assert!(has_ref_msg, "Error should mention cross-file references");
         }
     }
 
@@ -1019,7 +1036,10 @@ mod tests {
                 let has_execution_fields = stdout.contains("execution_id")
                     || stdout.contains("steps")
                     || stdout.contains("completed");
-                assert!(has_execution_fields, "JSON should contain execution metadata");
+                assert!(
+                    has_execution_fields,
+                    "JSON should contain execution metadata"
+                );
             }
         }
 
@@ -1085,7 +1105,10 @@ mod tests {
         // Note: In v2.0, operations don't require prior indexing
 
         // Run batch command
-        let output = run_splice(&["patch", "--batch", "batch.json", "--language", "rust"], workspace_path);
+        let output = run_splice(
+            &["patch", "--batch", "batch.json", "--language", "rust"],
+            workspace_path,
+        );
 
         // Verify exit code 0 (or check actual CLI behavior)
         if output.status.success() {
@@ -1130,7 +1153,10 @@ mod tests {
         // Note: In v2.0, operations don't require prior indexing
 
         // Run batch
-        let output = run_splice(&["patch", "--batch", "batch.json", "--language", "rust"], workspace_path);
+        let output = run_splice(
+            &["patch", "--batch", "batch.json", "--language", "rust"],
+            workspace_path,
+        );
 
         // If batch fails, verify atomic rollback
         if !output.status.success() {
@@ -1176,7 +1202,10 @@ mod tests {
         // Note: In v2.0, operations don't require prior indexing
 
         // Run batch
-        let output = run_splice(&["patch", "--batch", "batch.json", "--language", "rust"], workspace_path);
+        let output = run_splice(
+            &["patch", "--batch", "batch.json", "--language", "rust"],
+            workspace_path,
+        );
 
         // Verify checksums validated (check output for hash references)
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -1205,7 +1234,10 @@ mod tests {
         fs::write(&batch_file, batch_json).expect("Failed to write batch.json");
 
         // Run batch
-        let output = run_splice(&["patch", "--batch", "batch.json", "--language", "rust"], workspace_path);
+        let output = run_splice(
+            &["patch", "--batch", "batch.json", "--language", "rust"],
+            workspace_path,
+        );
 
         // Verify exit code 0 (no-op is ok)
         // OR verify "no operations" message
@@ -1410,7 +1442,7 @@ pub fn foo() -> String {
 
         // Test various commands with --json flag
         let commands = vec![
-            vec!["log", "--json"],  // Uses log command instead of deprecated index
+            vec!["log", "--json"], // Uses log command instead of deprecated index
             vec!["--version", "--json"],
         ];
 
@@ -1442,10 +1474,7 @@ pub fn foo() -> String {
         let output = run_splice(&["--version"], workspace_path);
 
         // Should succeed without error
-        assert!(
-            output.status.success(),
-            "Version command should succeed"
-        );
+        assert!(output.status.success(), "Version command should succeed");
     }
 
     #[test]
@@ -1485,10 +1514,12 @@ pub fn foo() -> String {
         if stdout.contains("timestamp") || stdout.contains("time") {
             // Look for ISO 8601 pattern (YYYY-MM-DDTHH:MM:SS)
             // Simple check for date-time pattern
-            let has_iso_pattern = stdout.chars()
+            let has_iso_pattern = stdout
+                .chars()
                 .collect::<String>()
                 .matches(|c: char| c.is_ascii_digit() || c == '-' || c == 'T' || c == ':')
-                .count() > 0;
+                .count()
+                > 0;
 
             if has_iso_pattern {
                 // Found ISO 8601-like timestamp pattern
@@ -1516,10 +1547,7 @@ pub fn foo() -> String {
                 let str2 = serde_json::to_string_pretty(&json2).unwrap();
 
                 // Should be identical (deterministic)
-                assert_eq!(
-                    str1, str2,
-                    "JSON output should be deterministic"
-                );
+                assert_eq!(str1, str2, "JSON output should be deterministic");
             }
         }
     }
@@ -1528,5 +1556,3 @@ pub fn foo() -> String {
     // All tests complete
     // ============================================================================
 }
-
-

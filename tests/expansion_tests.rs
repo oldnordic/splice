@@ -146,7 +146,9 @@ fn test_rust_function_expansion() {
     // Find the offset of "fn fibonacci" in the source (to avoid doc comment matches)
     let source = std::fs::read(&file).unwrap();
     let source_str = std::str::from_utf8(&source).unwrap();
-    let base = source_str.find("fn fibonacci").expect("Should find 'fn fibonacci'");
+    let base = source_str
+        .find("fn fibonacci")
+        .expect("Should find 'fn fibonacci'");
     let fib_offset = base + 3; // Point to "fibonacci" in "fn fibonacci"
 
     // Expand to body with docs
@@ -155,8 +157,14 @@ fn test_rust_function_expansion() {
 
     // Verify expansion includes the doc comment and full function
     let expanded = std::str::from_utf8(&source[start..end]).unwrap();
-    assert!(expanded.contains("/// Calculate the fibonacci"), "Should include doc comment");
-    assert!(expanded.contains("fn fibonacci"), "Should include function signature");
+    assert!(
+        expanded.contains("/// Calculate the fibonacci"),
+        "Should include doc comment"
+    );
+    assert!(
+        expanded.contains("fn fibonacci"),
+        "Should include function signature"
+    );
     assert!(expanded.contains("match n"), "Should include function body");
 }
 
@@ -171,7 +179,9 @@ fn test_rust_struct_expansion() {
     // Find the offset of "Point" in the source
     let source = std::fs::read(&file).unwrap();
     let source_str = std::str::from_utf8(&source).unwrap();
-    let base = source_str.find("struct Point").expect("Should find 'struct Point'");
+    let base = source_str
+        .find("struct Point")
+        .expect("Should find 'struct Point'");
     let point_offset = base + 7; // Point to "Point"
 
     // Expand to body with docs
@@ -180,8 +190,14 @@ fn test_rust_struct_expansion() {
 
     // Verify expansion includes the doc comment and full struct
     let expanded = std::str::from_utf8(&source[start..end]).unwrap();
-    assert!(expanded.contains("/// Represents a 2D point"), "Should include doc comment");
-    assert!(expanded.contains("struct Point"), "Should include struct definition");
+    assert!(
+        expanded.contains("/// Represents a 2D point"),
+        "Should include doc comment"
+    );
+    assert!(
+        expanded.contains("struct Point"),
+        "Should include struct definition"
+    );
     assert!(expanded.contains("x: f64"), "Should include struct fields");
 }
 
@@ -196,23 +212,43 @@ fn test_rust_method_to_impl_expansion() {
     // Find the offset of "distance_to" in the source
     let source = std::fs::read(&file).unwrap();
     let source_str = std::str::from_utf8(&source).unwrap();
-    let distance_offset = source_str.find("distance_to").expect("Should find 'distance_to'");
+    let distance_offset = source_str
+        .find("distance_to")
+        .expect("Should find 'distance_to'");
 
     // Level 1: Expand to method body
-    let (method_start, method_end) = expand_symbol(&file, distance_offset, Language::Rust, ExpansionLevel::Body)
-        .expect("Should expand to method body");
+    let (method_start, method_end) =
+        expand_symbol(&file, distance_offset, Language::Rust, ExpansionLevel::Body)
+            .expect("Should expand to method body");
 
     let method_expanded = std::str::from_utf8(&source[method_start..method_end]).unwrap();
-    assert!(method_expanded.contains("fn distance_to"), "Level 1 should include method signature");
-    assert!(method_expanded.contains("let dx"), "Level 1 should include method body");
+    assert!(
+        method_expanded.contains("fn distance_to"),
+        "Level 1 should include method signature"
+    );
+    assert!(
+        method_expanded.contains("let dx"),
+        "Level 1 should include method body"
+    );
 
     // Level 2: Expand to containing impl block
-    let (impl_start, impl_end) = expand_symbol(&file, distance_offset, Language::Rust, ExpansionLevel::ContainingBlock)
-        .expect("Should expand to impl block");
+    let (impl_start, impl_end) = expand_symbol(
+        &file,
+        distance_offset,
+        Language::Rust,
+        ExpansionLevel::ContainingBlock,
+    )
+    .expect("Should expand to impl block");
 
     let impl_expanded = std::str::from_utf8(&source[impl_start..impl_end]).unwrap();
-    assert!(impl_expanded.contains("impl Point"), "Level 2 should include impl block");
-    assert!(impl_expanded.contains("fn new"), "Level 2 should include other methods in impl");
+    assert!(
+        impl_expanded.contains("impl Point"),
+        "Level 2 should include impl block"
+    );
+    assert!(
+        impl_expanded.contains("fn new"),
+        "Level 2 should include other methods in impl"
+    );
 }
 
 // ============================================================================
@@ -230,7 +266,9 @@ fn test_python_function_expansion() {
     // Find the offset of "fibonacci" in the source
     let source = std::fs::read(&file).unwrap();
     let source_str = std::str::from_utf8(&source).unwrap();
-    let base = source_str.find("def fibonacci").expect("Should find 'def fibonacci'");
+    let base = source_str
+        .find("def fibonacci")
+        .expect("Should find 'def fibonacci'");
     let fib_offset = base + 4; // Point to "fibonacci"
 
     // Expand to body with docs
@@ -239,9 +277,18 @@ fn test_python_function_expansion() {
 
     // Verify expansion includes the docstring and full function
     let expanded = std::str::from_utf8(&source[start..end]).unwrap();
-    assert!(expanded.contains(r#""""Calculate the fibonacci"#), "Should include docstring");
-    assert!(expanded.contains("def fibonacci"), "Should include function signature");
-    assert!(expanded.contains("if n <= 1"), "Should include function body");
+    assert!(
+        expanded.contains(r#""""Calculate the fibonacci"#),
+        "Should include docstring"
+    );
+    assert!(
+        expanded.contains("def fibonacci"),
+        "Should include function signature"
+    );
+    assert!(
+        expanded.contains("if n <= 1"),
+        "Should include function body"
+    );
 }
 
 #[test]
@@ -255,7 +302,9 @@ fn test_python_class_expansion() {
     // Find the offset of "class Point" in the source
     let source = std::fs::read(&file).unwrap();
     let source_str = std::str::from_utf8(&source).unwrap();
-    let base = source_str.find("class Point").expect("Should find 'class Point'");
+    let base = source_str
+        .find("class Point")
+        .expect("Should find 'class Point'");
     let point_offset = base + 6; // Point to "Point"
 
     // Expand to body with docs
@@ -264,9 +313,18 @@ fn test_python_class_expansion() {
 
     // Verify expansion includes the docstring and full class
     let expanded = std::str::from_utf8(&source[start..end]).unwrap();
-    assert!(expanded.contains(r#""""Represents a 2D point"#), "Should include docstring");
-    assert!(expanded.contains("class Point"), "Should include class definition");
-    assert!(expanded.contains("def __init__"), "Should include class methods");
+    assert!(
+        expanded.contains(r#""""Represents a 2D point"#),
+        "Should include docstring"
+    );
+    assert!(
+        expanded.contains("class Point"),
+        "Should include class definition"
+    );
+    assert!(
+        expanded.contains("def __init__"),
+        "Should include class methods"
+    );
 }
 
 #[test]
@@ -280,24 +338,45 @@ fn test_python_method_to_class_expansion() {
     // Find the offset of "distance_to" in the source
     let source = std::fs::read(&file).unwrap();
     let source_str = std::str::from_utf8(&source).unwrap();
-    let base = source_str.find("def distance_to").expect("Should find 'def distance_to'");
+    let base = source_str
+        .find("def distance_to")
+        .expect("Should find 'def distance_to'");
     let distance_offset = base + 4; // Point to "distance_to"
 
     // Level 1: Expand to method body
-    let (method_start, method_end) = expand_symbol(&file, distance_offset, Language::Python, ExpansionLevel::Body)
-        .expect("Should expand to method body");
+    let (method_start, method_end) = expand_symbol(
+        &file,
+        distance_offset,
+        Language::Python,
+        ExpansionLevel::Body,
+    )
+    .expect("Should expand to method body");
 
     let method_expanded = std::str::from_utf8(&source[method_start..method_end]).unwrap();
-    assert!(method_expanded.contains("def distance_to"), "Level 1 should include method signature");
-    assert!(method_expanded.contains("dx = self.x"), "Level 1 should include method body");
+    assert!(
+        method_expanded.contains("def distance_to"),
+        "Level 1 should include method signature"
+    );
+    assert!(
+        method_expanded.contains("dx = self.x"),
+        "Level 1 should include method body"
+    );
 
     // Level 2: Expand to containing class
     // Note: For Python, class_definition is the containing block for methods
-    let (class_start, class_end) = expand_symbol(&file, distance_offset, Language::Python, ExpansionLevel::ContainingBlock)
-        .expect("Should expand to class block");
+    let (class_start, class_end) = expand_symbol(
+        &file,
+        distance_offset,
+        Language::Python,
+        ExpansionLevel::ContainingBlock,
+    )
+    .expect("Should expand to class block");
 
     let class_expanded = std::str::from_utf8(&source[class_start..class_end]).unwrap();
-    assert!(class_expanded.contains("class Point"), "Level 2 should include class definition");
+    assert!(
+        class_expanded.contains("class Point"),
+        "Level 2 should include class definition"
+    );
     // May or may not include other methods depending on tree-sitter structure
 }
 
@@ -320,7 +399,11 @@ int factorial(int n) {
 "#;
 
     let file = create_test_file(&dir, "test.c", source);
-    let factorial_pos = source.match_indices("factorial").nth(1).map(|(p, _)| p).unwrap();
+    let factorial_pos = source
+        .match_indices("factorial")
+        .nth(1)
+        .map(|(p, _)| p)
+        .unwrap();
     let source_bytes = std::fs::read(&file).unwrap();
 
     let (start, end) = expand_symbol(&file, factorial_pos, Language::C, ExpansionLevel::Body)
@@ -449,8 +532,13 @@ public:
     let method_pos = source.find("my_method").unwrap();
     let source_bytes = std::fs::read(&file).unwrap();
 
-    let (start, end) = expand_symbol(&file, method_pos, Language::Cpp, ExpansionLevel::ContainingBlock)
-        .expect("Should expand to containing class");
+    let (start, end) = expand_symbol(
+        &file,
+        method_pos,
+        Language::Cpp,
+        ExpansionLevel::ContainingBlock,
+    )
+    .expect("Should expand to containing class");
 
     let expanded = std::str::from_utf8(&source_bytes[start..end]).unwrap();
     assert!(expanded.contains("class MyClass"));
@@ -529,8 +617,13 @@ public class Calculator {
     let multiply_pos = source.find("multiply").unwrap();
     let source_bytes = std::fs::read(&file).unwrap();
 
-    let (start, end) = expand_symbol(&file, multiply_pos, Language::Java, ExpansionLevel::ContainingBlock)
-        .expect("Should expand to containing class");
+    let (start, end) = expand_symbol(
+        &file,
+        multiply_pos,
+        Language::Java,
+        ExpansionLevel::ContainingBlock,
+    )
+    .expect("Should expand to containing class");
 
     let expanded = std::str::from_utf8(&source_bytes[start..end]).unwrap();
     assert!(expanded.contains("public class Calculator"));
@@ -557,11 +650,20 @@ function factorial(n) {
 "#;
 
     let file = create_test_file(&dir, "test.js", source);
-    let factorial_pos = source.match_indices("factorial").nth(2).map(|(p, _)| p).unwrap();
+    let factorial_pos = source
+        .match_indices("factorial")
+        .nth(2)
+        .map(|(p, _)| p)
+        .unwrap();
     let source_bytes = std::fs::read(&file).unwrap();
 
-    let (start, end) = expand_symbol(&file, factorial_pos, Language::JavaScript, ExpansionLevel::Body)
-        .expect("Should expand JavaScript function");
+    let (start, end) = expand_symbol(
+        &file,
+        factorial_pos,
+        Language::JavaScript,
+        ExpansionLevel::Body,
+    )
+    .expect("Should expand JavaScript function");
 
     let expanded = std::str::from_utf8(&source_bytes[start..end]).unwrap();
     assert!(expanded.contains("function factorial"));
@@ -587,8 +689,13 @@ class Counter {
     let counter_pos = source.find("Counter").unwrap();
     let source_bytes = std::fs::read(&file).unwrap();
 
-    let (start, end) = expand_symbol(&file, counter_pos, Language::JavaScript, ExpansionLevel::Body)
-        .expect("Should expand JavaScript class");
+    let (start, end) = expand_symbol(
+        &file,
+        counter_pos,
+        Language::JavaScript,
+        ExpansionLevel::Body,
+    )
+    .expect("Should expand JavaScript class");
 
     let expanded = std::str::from_utf8(&source_bytes[start..end]).unwrap();
     assert!(expanded.contains("class Counter"));
@@ -610,8 +717,13 @@ class MyClass {
     let method_pos = source.find("myMethod").unwrap();
     let source_bytes = std::fs::read(&file).unwrap();
 
-    let (start, end) = expand_symbol(&file, method_pos, Language::JavaScript, ExpansionLevel::ContainingBlock)
-        .expect("Should expand to containing class");
+    let (start, end) = expand_symbol(
+        &file,
+        method_pos,
+        Language::JavaScript,
+        ExpansionLevel::ContainingBlock,
+    )
+    .expect("Should expand to containing class");
 
     let expanded = std::str::from_utf8(&source_bytes[start..end]).unwrap();
     assert!(expanded.contains("class MyClass"));
@@ -685,7 +797,12 @@ interface MyInterface {
     let file = create_test_file(&dir, "test.ts", source);
     let method_pos = source.find("processData").unwrap();
 
-    let result = expand_symbol(&file, method_pos, Language::TypeScript, ExpansionLevel::ContainingBlock);
+    let result = expand_symbol(
+        &file,
+        method_pos,
+        Language::TypeScript,
+        ExpansionLevel::ContainingBlock,
+    );
     if let Ok((start, end)) = result {
         let source_bytes = std::fs::read(&file).unwrap();
         let expanded = std::str::from_utf8(&source_bytes[start..end]).unwrap();

@@ -70,7 +70,13 @@ impl PreVerificationResult {
 
     /// Returns true if this result is a warning.
     pub fn is_warning(&self) -> bool {
-        matches!(self, Self::Fail { blocking: false, .. })
+        matches!(
+            self,
+            Self::Fail {
+                blocking: false,
+                ..
+            }
+        )
     }
 }
 
@@ -172,7 +178,10 @@ pub fn verify_workspace_resources(
     if !workspace_root.exists() {
         return PreVerificationResult::blocking(
             "workspace_exists",
-            format!("Workspace directory does not exist: {}", workspace_root.display()),
+            format!(
+                "Workspace directory does not exist: {}",
+                workspace_root.display()
+            ),
         );
     }
 
@@ -360,16 +369,9 @@ pub fn pre_verify_patch(
     };
 
     // Run all checks
-    let mut file_result = verify_file_ready(
-        file_path,
-        expected_checksum,
-        workspace_root,
-    );
+    let mut file_result = verify_file_ready(file_path, expected_checksum, workspace_root);
 
-    let mut workspace_result = verify_workspace_resources(
-        workspace_root,
-        file_size,
-    );
+    let mut workspace_result = verify_workspace_resources(workspace_root, file_size);
 
     let mut graph_result = verify_graph_sync(file_path, db_path);
 
@@ -501,8 +503,8 @@ pub fn verify_after_patch(
     use crate::checksum::checksum_file;
 
     let mut result = PostVerificationResult::new(
-        false,  // syntax_ok - will be set below
-        false,  // compiler_ok - will be set below
+        false, // syntax_ok - will be set below
+        false, // compiler_ok - will be set below
         expected_before.to_string(),
         String::new(), // after_checksum - will be set below
     );
@@ -602,7 +604,9 @@ mod tests {
 
         let result = verify_file_ready(&file_path, None, temp_dir.path());
         assert!(result.is_blocking());
-        assert!(matches!(result, PreVerificationResult::Fail { check, .. } if check == "file_exists"));
+        assert!(
+            matches!(result, PreVerificationResult::Fail { check, .. } if check == "file_exists")
+        );
     }
 
     #[test]
@@ -619,7 +623,9 @@ mod tests {
 
         let result = verify_file_ready(&file_path, None, temp_dir.path());
         assert!(result.is_blocking());
-        assert!(matches!(result, PreVerificationResult::Fail { check, .. } if check == "file_writable"));
+        assert!(
+            matches!(result, PreVerificationResult::Fail { check, .. } if check == "file_writable")
+        );
 
         // Cleanup: restore write permissions
         perms.set_readonly(false);
@@ -642,7 +648,9 @@ mod tests {
 
         let result = verify_file_ready(&file_path, Some(&wrong_checksum), temp_dir.path());
         assert!(result.is_blocking());
-        assert!(matches!(result, PreVerificationResult::Fail { check, .. } if check == "file_checksum"));
+        assert!(
+            matches!(result, PreVerificationResult::Fail { check, .. } if check == "file_checksum")
+        );
     }
 
     #[test]
@@ -683,7 +691,8 @@ mod tests {
         let mut db = File::create(&db_path).unwrap();
         writeln!(db, "dummy db").unwrap();
 
-        let results = pre_verify_patch(&file_path, None, temp_dir.path(), &db_path, false, false).unwrap();
+        let results =
+            pre_verify_patch(&file_path, None, temp_dir.path(), &db_path, false, false).unwrap();
         assert!(results.len() == 3);
         assert!(results.iter().all(|r| r.is_pass()));
     }
@@ -694,7 +703,8 @@ mod tests {
         let file_path = temp_dir.path().join("nonexistent.rs");
         let db_path = temp_dir.path().join("codegraph.db");
 
-        let results = pre_verify_patch(&file_path, None, temp_dir.path(), &db_path, false, false).unwrap();
+        let results =
+            pre_verify_patch(&file_path, None, temp_dir.path(), &db_path, false, false).unwrap();
         assert!(results.iter().any(|r| r.is_blocking()));
     }
 
@@ -705,7 +715,8 @@ mod tests {
         let db_path = temp_dir.path().join("codegraph.db");
 
         // Skip mode should pass even though file doesn't exist
-        let results = pre_verify_patch(&file_path, None, temp_dir.path(), &db_path, false, true).unwrap();
+        let results =
+            pre_verify_patch(&file_path, None, temp_dir.path(), &db_path, false, true).unwrap();
         assert!(results.len() == 1);
         assert!(results.iter().all(|r| r.is_pass()));
     }
@@ -721,7 +732,9 @@ mod tests {
 
         let result = verify_file_ready(&outside_file, None, &workspace);
         assert!(result.is_blocking());
-        assert!(matches!(result, PreVerificationResult::Fail { check, .. } if check == "file_in_workspace"));
+        assert!(
+            matches!(result, PreVerificationResult::Fail { check, .. } if check == "file_in_workspace")
+        );
     }
 
     #[test]
@@ -815,12 +828,8 @@ mod tests {
 
     #[test]
     fn test_post_verify_result_methods() {
-        let mut result = PostVerificationResult::new(
-            true,
-            true,
-            "before".to_string(),
-            "after".to_string(),
-        );
+        let mut result =
+            PostVerificationResult::new(true, true, "before".to_string(), "after".to_string());
 
         assert!(result.syntax_ok);
         assert!(result.compiler_ok);

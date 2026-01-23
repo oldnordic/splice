@@ -19,7 +19,7 @@
 
 use crate::graph::CodeGraph;
 use serde::{Deserialize, Serialize};
-use sqlitegraph::NodeId;
+use sqlitegraph::{BackendDirection, NeighborQuery, NodeId};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -182,9 +182,6 @@ impl Default for RelationshipCache {
 ///
 /// # Current Status
 ///
-/// This function currently returns an empty result because CALLS edges
-/// are not yet created during code ingestion. Edge creation infrastructure
-/// needs to be added to the ingest modules.
 pub fn get_callers(
     graph: &CodeGraph,
     symbol_node_id: NodeId,
@@ -204,9 +201,25 @@ pub fn get_callers(
         .get_node(symbol_node_id.as_i64())
         .map_err(|_| Relationships::error("NODE_NOT_FOUND"))?;
 
-    // TODO: Query incoming CALLS edges once edge creation is implemented
-    // For now, return empty result
-    let callers = Vec::new();
+    let call_node_ids = fetch_neighbor_ids(
+        graph,
+        symbol_node_id,
+        BackendDirection::Incoming,
+        &["CALLS", "calls"],
+    )?;
+
+    let mut callers = Vec::new();
+    for call_node_id in call_node_ids {
+        if let Some(rel) = relationship_from_call_node(graph, call_node_id, "caller")? {
+            callers.push(rel);
+        } else if let Some(rel) = relationship_from_symbol_node(graph, call_node_id, "caller")? {
+            callers.push(rel);
+        }
+    }
+
+    if callers.len() > CALLER_THRESHOLD {
+        callers.truncate(CALLER_THRESHOLD);
+    }
 
     // Cache before returning
     cache.set(cache_key, callers.clone());
@@ -235,9 +248,6 @@ pub fn get_callers(
 ///
 /// # Current Status
 ///
-/// This function currently returns an empty result because CALLS edges
-/// are not yet created during code ingestion. Edge creation infrastructure
-/// needs to be added to the ingest modules.
 pub fn get_callees(
     graph: &CodeGraph,
     symbol_node_id: NodeId,
@@ -257,14 +267,148 @@ pub fn get_callees(
         .get_node(symbol_node_id.as_i64())
         .map_err(|_| Relationships::error("NODE_NOT_FOUND"))?;
 
-    // TODO: Query outgoing CALLS edges once edge creation is implemented
-    // For now, return empty result
-    let callees = Vec::new();
+    let call_node_ids = fetch_neighbor_ids(
+        graph,
+        symbol_node_id,
+        BackendDirection::Outgoing,
+        &["CALLER", "caller"],
+    )?;
+
+    let mut callees = Vec::new();
+    for call_node_id in call_node_ids {
+        if let Some(rel) = relationship_from_call_node(graph, call_node_id, "callee")? {
+            callees.push(rel);
+        } else if let Some(rel) = relationship_from_symbol_node(graph, call_node_id, "callee")? {
+            callees.push(rel);
+        }
+    }
+
+    if callees.len() > CALLEE_THRESHOLD {
+        callees.truncate(CALLEE_THRESHOLD);
+    }
 
     // Cache before returning
     cache.set(cache_key, callees.clone());
 
     Ok(callees)
+}
+
+#[derive(Debug, Deserialize)]
+struct CallNodePayload {
+    file: String,
+    caller: String,
+    callee: String,
+    byte_start: u64,
+    byte_end: u64,
+    start_line: u64,
+}
+
+fn fetch_neighbor_ids(
+    graph: &CodeGraph,
+    symbol_node_id: NodeId,
+    direction: BackendDirection,
+    edge_types: &[&str],
+) -> Result<Vec<i64>, Relationships> {
+    let mut ids = Vec::new();
+    for edge_type in edge_types {
+        let neighbors = graph
+            .inner()
+            .neighbors(
+                symbol_node_id.as_i64(),
+                NeighborQuery {
+                    direction,
+                    edge_type: Some((*edge_type).to_string()),
+                },
+            )
+            .map_err(|_| Relationships::error("REL_QUERY_FAILED"))?;
+        ids.extend(neighbors);
+    }
+
+    ids.sort_unstable();
+    ids.dedup();
+    Ok(ids)
+}
+
+fn relationship_from_call_node(
+    graph: &CodeGraph,
+    call_node_id: i64,
+    rel_type: &str,
+) -> Result<Option<Relationship>, Relationships> {
+    let node = match graph.inner().get_node(call_node_id) {
+        Ok(value) => value,
+        Err(_) => return Ok(None),
+    };
+
+    if node.kind != "Call" {
+        return Ok(None);
+    }
+
+    let call_node: CallNodePayload = match serde_json::from_value(node.data) {
+        Ok(value) => value,
+        Err(_) => return Ok(None),
+    };
+
+    let name = match rel_type {
+        "caller" => call_node.caller,
+        "callee" => call_node.callee,
+        _ => return Ok(None),
+    };
+
+    Ok(Some(Relationship {
+        rel_type: rel_type.to_string(),
+        name,
+        kind: "unknown".to_string(),
+        file_path: call_node.file,
+        line_start: call_node.start_line as usize,
+        byte_start: call_node.byte_start as usize,
+        byte_end: call_node.byte_end as usize,
+    }))
+}
+
+fn relationship_from_symbol_node(
+    graph: &CodeGraph,
+    symbol_node_id: i64,
+    rel_type: &str,
+) -> Result<Option<Relationship>, Relationships> {
+    let node = match graph.inner().get_node(symbol_node_id) {
+        Ok(value) => value,
+        Err(_) => return Ok(None),
+    };
+
+    if node.kind != "Symbol" {
+        return Ok(None);
+    }
+
+    let file_path = match node.file_path {
+        Some(value) => value,
+        None => return Ok(None),
+    };
+
+    let line_start = node
+        .data
+        .get("start_line")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as usize;
+    let byte_start = node
+        .data
+        .get("byte_start")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as usize;
+    let byte_end = node
+        .data
+        .get("byte_end")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as usize;
+
+    Ok(Some(Relationship {
+        rel_type: rel_type.to_string(),
+        name: node.name,
+        kind: "unknown".to_string(),
+        file_path,
+        line_start,
+        byte_start,
+        byte_end,
+    }))
 }
 
 /// Get all imports in a file.

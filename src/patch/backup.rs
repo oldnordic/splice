@@ -62,11 +62,10 @@ impl BackupManifest {
         let manifest_path = self.backup_dir.join("manifest.json");
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| SpliceError::Other(format!("Failed to serialize manifest: {}", e)))?;
-        fs::write(&manifest_path, json)
-            .map_err(|e| SpliceError::Io {
-                path: manifest_path,
-                source: e,
-            })?;
+        fs::write(&manifest_path, json).map_err(|e| SpliceError::Io {
+            path: manifest_path,
+            source: e,
+        })?;
         Ok(())
     }
 
@@ -102,9 +101,7 @@ impl BackupWriter {
     /// * `workspace_root` - Root directory of the workspace
     /// * `operation_id` - Unique identifier for the operation (or UUID v4 if None)
     pub fn new(workspace_root: &Path, operation_id: Option<String>) -> Result<Self> {
-        let op_id = operation_id.unwrap_or_else(|| {
-            uuid::Uuid::new_v4().to_string()
-        });
+        let op_id = operation_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
         let backup_dir = workspace_root.join(".splice-backup").join(&op_id);
 
@@ -149,13 +146,13 @@ impl BackupWriter {
         let size = content.len() as u64;
 
         // Compute relative path from workspace root
-        let relative = file_path
-            .strip_prefix(&self.workspace_root)
-            .map_err(|_| SpliceError::Other(format!(
+        let relative = file_path.strip_prefix(&self.workspace_root).map_err(|_| {
+            SpliceError::Other(format!(
                 "File '{}' is not under workspace root '{}'",
                 file_path.display(),
                 self.workspace_root.display()
-            )))?;
+            ))
+        })?;
 
         // Create backup path preserving directory structure
         let backup_path = self.manifest.backup_dir.join(relative);
@@ -285,13 +282,11 @@ mod tests {
         assert!(manifest_path.exists(), "Manifest file should exist");
 
         // Verify backup file exists
-        let backup_file = workspace_root
-            .join(".splice-backup/test-op-123/test.txt");
+        let backup_file = workspace_root.join(".splice-backup/test-op-123/test.txt");
         assert!(backup_file.exists(), "Backup file should exist");
 
         // Verify content matches
-        let backup_content = fs::read_to_string(&backup_file)
-            .expect("Failed to read backup file");
+        let backup_content = fs::read_to_string(&backup_file).expect("Failed to read backup file");
         assert_eq!(backup_content, "hello world");
     }
 
@@ -318,8 +313,8 @@ mod tests {
         fs::write(&test_file, b"modified content").expect("Failed to modify file");
 
         // Restore from backup
-        let restored = restore_from_manifest(&manifest_path, workspace_root)
-            .expect("Failed to restore");
+        let restored =
+            restore_from_manifest(&manifest_path, workspace_root).expect("Failed to restore");
 
         assert_eq!(restored, 1, "Should restore one file");
 
@@ -389,12 +384,15 @@ mod tests {
 
         // Verify backup preserves directory structure
         let backup_file = workspace_root.join(".splice-backup/subdir-test/src/lib.rs");
-        assert!(backup_file.exists(), "Backup should preserve directory structure");
+        assert!(
+            backup_file.exists(),
+            "Backup should preserve directory structure"
+        );
 
         // Verify can be restored
         fs::write(&test_file, b"modified").expect("Failed to modify");
-        let restored = restore_from_manifest(&manifest_path, workspace_root)
-            .expect("Failed to restore");
+        let restored =
+            restore_from_manifest(&manifest_path, workspace_root).expect("Failed to restore");
 
         assert_eq!(restored, 1);
         let content = fs::read_to_string(&test_file).expect("Failed to read");
@@ -411,17 +409,12 @@ mod tests {
             workspace_root.join(".splice-backup").join("test-manifest"),
         );
 
-        manifest.add_file(
-            PathBuf::from("src/lib.rs"),
-            "abc123".to_string(),
-            1024,
-        );
+        manifest.add_file(PathBuf::from("src/lib.rs"), "abc123".to_string(), 1024);
 
         let manifest_path = workspace_root.join(".splice-backup/test-manifest/manifest.json");
 
         // Save
-        fs::create_dir_all(manifest_path.parent().unwrap())
-            .expect("Failed to create dir");
+        fs::create_dir_all(manifest_path.parent().unwrap()).expect("Failed to create dir");
         manifest.save().expect("Failed to save manifest");
 
         // Load

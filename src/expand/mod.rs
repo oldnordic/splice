@@ -23,8 +23,9 @@
 //! ```no_run
 //! use splice::expand::{expand_symbol, ExpansionLevel};
 //! use splice::symbol::Language;
+//! use std::path::Path;
 //!
-//! let path = "src/main.rs";
+//! let path = Path::new("src/main.rs");
 //! let byte_offset = 42; // Offset within a function name
 //! let language = Language::Rust;
 //!
@@ -255,7 +256,10 @@ impl SymbolExpander for TypeScriptExpander {
     }
 
     fn is_block_kind(&self, node_kind: &str) -> bool {
-        matches!(node_kind, "class_declaration" | "interface_declaration" | "module")
+        matches!(
+            node_kind,
+            "class_declaration" | "interface_declaration" | "module"
+        )
     }
 }
 
@@ -287,12 +291,10 @@ fn parser_for_language(language: Language) -> Result<tree_sitter::Parser> {
         Language::TypeScript => tree_sitter_typescript::language_typescript(),
     };
 
-    parser
-        .set_language(&lang)
-        .map_err(|e| SpliceError::Parse {
-            file: std::path::PathBuf::from("<unknown>"),
-            message: format!("Failed to set language for parser: {:?}", e),
-        })?;
+    parser.set_language(&lang).map_err(|e| SpliceError::Parse {
+        file: std::path::PathBuf::from("<unknown>"),
+        message: format!("Failed to set language for parser: {:?}", e),
+    })?;
 
     Ok(parser)
 }
@@ -321,9 +323,10 @@ fn parser_for_language(language: Language) -> Result<tree_sitter::Parser> {
 /// ```no_run
 /// use splice::expand::{expand_symbol, ExpansionLevel};
 /// use splice::symbol::Language;
+/// use std::path::Path;
 ///
 /// // Get the full function body when given an offset within the function name
-/// let (start, end) = expand_symbol("src/lib.rs", 100, Language::Rust, ExpansionLevel::Body)?;
+/// let (start, end) = expand_symbol(Path::new("src/lib.rs"), 100, Language::Rust, ExpansionLevel::Body)?;
 /// # Ok::<(), splice::SpliceError>(())
 /// ```
 pub fn expand_symbol(
@@ -378,9 +381,10 @@ pub fn expand_symbol_with_level(
 /// ```no_run
 /// use splice::expand::expand_to_body_with_docs;
 /// use splice::symbol::Language;
+/// use std::path::Path;
 ///
 /// // Get the full function body including preceding /// docs
-/// let (start, end) = expand_to_body_with_docs("src/lib.rs", 100, Language::Rust)?;
+/// let (start, end) = expand_to_body_with_docs(Path::new("src/lib.rs"), 100, Language::Rust)?;
 /// # Ok::<(), splice::SpliceError>(())
 /// ```
 pub fn expand_to_body_with_docs(
@@ -420,21 +424,23 @@ pub fn expand_to_body_with_docs(
     let expander = get_expander(language);
 
     // Expand to symbol body
-    let (body_start, body_end) = expander
-        .expand_to_body(node, &source)
-        .ok_or_else(|| SpliceError::Other(format!(
+    let (body_start, body_end) = expander.expand_to_body(node, &source).ok_or_else(|| {
+        SpliceError::Other(format!(
             "Could not expand symbol at offset {} in {}",
             byte_offset,
             path.display()
-        )))?;
+        ))
+    })?;
 
     // Find the body node for doc extraction
     let body_node = root_node
         .descendant_for_byte_range(body_start, body_end)
-        .ok_or_else(|| SpliceError::Other(format!(
-            "Could not find expanded body node in {}",
-            path.display()
-        )))?;
+        .ok_or_else(|| {
+            SpliceError::Other(format!(
+                "Could not find expanded body node in {}",
+                path.display()
+            ))
+        })?;
 
     // Extend to include leading docs
     let doc_start = tree_walker::extract_leading_docs(&body_node, &source);
@@ -488,30 +494,33 @@ fn expand_symbol_impl(
         }
         ExpansionLevel::Body => {
             // Expand to symbol body
-            expander
-                .expand_to_body(node, &source)
-                .ok_or_else(|| SpliceError::Other(format!(
+            expander.expand_to_body(node, &source).ok_or_else(|| {
+                SpliceError::Other(format!(
                     "Could not expand symbol at offset {} in {}",
                     byte_offset,
                     path.display()
-                )))
+                ))
+            })
         }
         ExpansionLevel::ContainingBlock => {
             // First expand to body, then to containing block
-            let (body_start, body_end) = expander
-                .expand_to_body(node, &source)
-                .ok_or_else(|| SpliceError::Other(format!(
-                    "Could not expand symbol at offset {} in {}",
-                    byte_offset,
-                    path.display()
-                )))?;
+            let (body_start, body_end) =
+                expander.expand_to_body(node, &source).ok_or_else(|| {
+                    SpliceError::Other(format!(
+                        "Could not expand symbol at offset {} in {}",
+                        byte_offset,
+                        path.display()
+                    ))
+                })?;
 
             // Find the containing block using language-agnostic function
             tree_walker::find_containing_block(&root_node, body_start, body_end, &source)
-                .ok_or_else(|| SpliceError::Other(format!(
-                    "Could not expand to containing block in {}",
-                    path.display()
-                )))
+                .ok_or_else(|| {
+                    SpliceError::Other(format!(
+                        "Could not expand to containing block in {}",
+                        path.display()
+                    ))
+                })
         }
     }
 }
@@ -528,7 +537,10 @@ mod tests {
 
         assert_eq!(ExpansionLevel::from_u8(0), Some(ExpansionLevel::None));
         assert_eq!(ExpansionLevel::from_u8(1), Some(ExpansionLevel::Body));
-        assert_eq!(ExpansionLevel::from_u8(2), Some(ExpansionLevel::ContainingBlock));
+        assert_eq!(
+            ExpansionLevel::from_u8(2),
+            Some(ExpansionLevel::ContainingBlock)
+        );
         assert_eq!(ExpansionLevel::from_u8(3), None);
     }
 

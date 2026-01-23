@@ -105,11 +105,7 @@ fn test_strict_mode_blocks_on_warning() {
     // In a normal scenario with a valid setup, all checks should pass
     // This test verifies the strict mode flag is being passed through correctly
     let results_normal = verify::pre_verify_patch(
-        &test_file,
-        None,
-        workspace,
-        &db_path,
-        false, // not strict
+        &test_file, None, workspace, &db_path, false, // not strict
         false,
     )
     .unwrap();
@@ -119,11 +115,7 @@ fn test_strict_mode_blocks_on_warning() {
 
     // In strict mode with the same valid setup, all checks should still pass
     let results_strict = verify::pre_verify_patch(
-        &test_file,
-        None,
-        workspace,
-        &db_path,
-        true, // strict mode
+        &test_file, None, workspace, &db_path, true, // strict mode
         false,
     )
     .unwrap();
@@ -133,11 +125,7 @@ fn test_strict_mode_blocks_on_warning() {
 
     // Test that skip mode works independently of strict mode
     let results_strict_skip = verify::pre_verify_patch(
-        &test_file,
-        None,
-        workspace,
-        &db_path,
-        true, // strict mode
+        &test_file, None, workspace, &db_path, true, // strict mode
         true, // skip verification
     )
     .unwrap();
@@ -161,12 +149,7 @@ fn test_skip_mode_bypasses_all_checks() {
 
     // Normal mode: should fail
     let results_normal = verify::pre_verify_patch(
-        &test_file,
-        None,
-        workspace,
-        &db_path,
-        false,
-        false, // not skipping
+        &test_file, None, workspace, &db_path, false, false, // not skipping
     )
     .unwrap();
 
@@ -174,12 +157,7 @@ fn test_skip_mode_bypasses_all_checks() {
 
     // Skip mode: should pass
     let results_skip = verify::pre_verify_patch(
-        &test_file,
-        None,
-        workspace,
-        &db_path,
-        false,
-        true, // skip verification
+        &test_file, None, workspace, &db_path, false, true, // skip verification
     )
     .unwrap();
 
@@ -202,15 +180,8 @@ fn test_pre_verify_detects_readonly_file() {
 
     use splice::verify;
 
-    let results = verify::pre_verify_patch(
-        &test_file,
-        None,
-        workspace,
-        &db_path,
-        false,
-        false,
-    )
-    .unwrap();
+    let results =
+        verify::pre_verify_patch(&test_file, None, workspace, &db_path, false, false).unwrap();
 
     // Should have a blocking failure for writable check
     assert!(results.iter().any(|r| r.is_blocking()));
@@ -245,15 +216,8 @@ fn test_pre_verify_detects_file_outside_workspace() {
 
     use splice::verify;
 
-    let results = verify::pre_verify_patch(
-        &outside_file,
-        None,
-        &workspace,
-        &db_path,
-        false,
-        false,
-    )
-    .unwrap();
+    let results =
+        verify::pre_verify_patch(&outside_file, None, &workspace, &db_path, false, false).unwrap();
 
     // Should have a blocking failure for workspace check
     assert!(results.iter().any(|r| r.is_blocking()));
@@ -283,15 +247,8 @@ fn test_pre_verify_checks_workspace_writable() {
     use splice::verify;
     let db_path = workspace.join(".splice_graph.db");
 
-    let results = verify::pre_verify_patch(
-        &test_file,
-        None,
-        workspace,
-        &db_path,
-        false,
-        false,
-    )
-    .unwrap();
+    let results =
+        verify::pre_verify_patch(&test_file, None, workspace, &db_path, false, false).unwrap();
 
     // Should have a blocking failure for workspace writable check
     assert!(results.iter().any(|r| r.is_blocking()));

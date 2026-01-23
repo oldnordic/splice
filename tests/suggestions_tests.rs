@@ -15,7 +15,10 @@ fn test_symbol_not_found_with_suggestions_found() {
 
     // Verify hint contains suggestion
     let hint = error.hint().unwrap_or("");
-    assert!(hint.contains("Did you mean"), "Hint should mention suggestions");
+    assert!(
+        hint.contains("Did you mean"),
+        "Hint should mention suggestions"
+    );
     assert!(hint.contains("foo"), "Hint should suggest similar symbol");
 }
 
@@ -31,7 +34,10 @@ fn test_symbol_not_found_with_suggestions_no_match() {
 
     // Verify hint doesn't contain "Did you mean" when no similar symbols
     let hint = error.hint().unwrap_or("");
-    assert!(!hint.contains("Did you mean"), "Hint should not suggest when no matches");
+    assert!(
+        !hint.contains("Did you mean"),
+        "Hint should not suggest when no matches"
+    );
     assert!(
         hint.contains("ingest") || hint.contains("not found"),
         "Hint should have generic message"
@@ -49,7 +55,10 @@ fn test_symbol_not_found_with_suggestions_with_file() {
     );
 
     let hint = error.hint().unwrap_or("");
-    assert!(hint.contains("Did you mean"), "Should suggest similar symbol");
+    assert!(
+        hint.contains("Did you mean"),
+        "Should suggest similar symbol"
+    );
 }
 
 #[test]

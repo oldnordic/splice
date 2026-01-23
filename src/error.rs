@@ -109,7 +109,9 @@ pub enum SpliceError {
     },
 
     /// Invalid line range.
-    #[error("Invalid line range ({line_start}, {line_end}) in {file} (total lines: {total_lines})")]
+    #[error(
+        "Invalid line range ({line_start}, {line_end}) in {file} (total lines: {total_lines})"
+    )]
     InvalidLineRange {
         /// The file containing the invalid range.
         file: PathBuf,
@@ -580,9 +582,9 @@ impl SpliceError {
     pub fn location(&self) -> (Option<&str>, Option<usize>, Option<usize>) {
         match self {
             // Errors with explicit line/column
-            SpliceError::AmbiguousReference { file, line, col, .. } => {
-                (Some(file.as_str()), Some(*line), Some(*col))
-            }
+            SpliceError::AmbiguousReference {
+                file, line, col, ..
+            } => (Some(file.as_str()), Some(*line), Some(*col)),
 
             // Errors with file but no line/column (use None for now)
             SpliceError::Parse { file, .. }
@@ -595,17 +597,14 @@ impl SpliceError {
             }
 
             // SymbolNotFound with optional file
-            SpliceError::SymbolNotFound { file, .. } => {
-                file.as_ref()
-                    .and_then(|f| f.to_str())
-                    .map(|f| (Some(f), None, None))
-                    .unwrap_or((None, None, None))
-            }
+            SpliceError::SymbolNotFound { file, .. } => file
+                .as_ref()
+                .and_then(|f| f.to_str())
+                .map(|f| (Some(f), None, None))
+                .unwrap_or((None, None, None)),
 
             // Errors with path context
-            SpliceError::FileExternallyModified { file } => {
-                (Some(file.as_str()), None, None)
-            }
+            SpliceError::FileExternallyModified { file } => (Some(file.as_str()), None, None),
 
             // No location available
             _ => (None, None, None),
@@ -683,38 +682,27 @@ impl SpliceError {
     /// # Examples
     ///
     /// ```no_run
-    /// use crate::error::{SpliceError, Result};
+    /// use splice::error::{Result, SpliceError};
     ///
     /// fn do_something() -> Result<()> {
-    ///     Err(SpliceError::Other("base error".to_string()))
-    ///         .with_context("while doing important work")?;
-    ///     Ok(())
+    ///     let err = SpliceError::Other("base error".to_string())
+    ///         .with_context("while doing important work");
+    ///     Err(err)
     /// }
     /// ```
     pub fn with_context(self, context: impl Into<String>) -> Self {
         let ctx = context.into();
         match self {
-            SpliceError::Other(msg) => {
-                SpliceError::Other(format!("{}: {}", ctx, msg))
-            }
-            SpliceError::Parse { file, message } => {
-                SpliceError::Parse {
-                    file,
-                    message: format!("{}: {}", ctx, message),
-                }
-            }
-            SpliceError::Io { path, source } => {
-                SpliceError::Io {
-                    path,
-                    source,
-                }
-            }
-            SpliceError::IoContext { context: _, source } => {
-                SpliceError::IoContext {
-                    context: ctx,
-                    source,
-                }
-            }
+            SpliceError::Other(msg) => SpliceError::Other(format!("{}: {}", ctx, msg)),
+            SpliceError::Parse { file, message } => SpliceError::Parse {
+                file,
+                message: format!("{}: {}", ctx, message),
+            },
+            SpliceError::Io { path, source } => SpliceError::Io { path, source },
+            SpliceError::IoContext { context: _, source } => SpliceError::IoContext {
+                context: ctx,
+                source,
+            },
             other => other,
         }
     }
@@ -727,43 +715,36 @@ impl SpliceError {
     /// # Examples
     ///
     /// ```no_run
-    /// use crate::error::{SpliceError, Result};
+    /// use splice::error::{Result, SpliceError};
     /// use std::path::Path;
     ///
     /// fn process_file(path: &Path) -> Result<()> {
-    ///     Err(SpliceError::Other("failed".to_string()))
-    ///         .with_path(path)?;
-    ///     Ok(())
+    ///     let err = SpliceError::Other("failed".to_string()).with_path(path);
+    ///     Err(err)
     /// }
     /// ```
     pub fn with_path(self, path: impl AsRef<std::path::Path>) -> Self {
         let path_buf = path.as_ref().to_path_buf();
         match self {
-            SpliceError::Other(msg) => {
-                SpliceError::Parse {
-                    file: path_buf.clone(),
-                    message: msg,
-                }
-            }
-            SpliceError::Parse { file: _, message } => {
-                SpliceError::Parse {
-                    file: path_buf,
-                    message,
-                }
-            }
+            SpliceError::Other(msg) => SpliceError::Parse {
+                file: path_buf.clone(),
+                message: msg,
+            },
+            SpliceError::Parse { file: _, message } => SpliceError::Parse {
+                file: path_buf,
+                message,
+            },
             SpliceError::SymbolNotFound {
                 message,
                 symbol,
                 file: _,
                 hint,
-            } => {
-                SpliceError::SymbolNotFound {
-                    message,
-                    symbol,
-                    file: Some(path_buf),
-                    hint,
-                }
-            }
+            } => SpliceError::SymbolNotFound {
+                message,
+                symbol,
+                file: Some(path_buf),
+                hint,
+            },
             other => other,
         }
     }

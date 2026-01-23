@@ -63,7 +63,10 @@ public class Test {
                     Language::Java,
                     symbol.byte_start,
                     symbol.byte_end,
-                    symbol.line_start, symbol.line_end, symbol.col_start, symbol.col_end
+                    symbol.line_start,
+                    symbol.line_end,
+                    symbol.col_start,
+                    symbol.col_end,
                 )
                 .expect("Failed to store symbol");
         }
@@ -137,15 +140,18 @@ public class Test {
             .find(|s| s.name == "validMethod")
             .expect("Should find validMethod");
 
-            code_graph
-                .store_symbol_with_file_and_language(
-                    &java_path,
-                    &method.name,
-                    method.kind.as_str(),
-                    Language::Java,
-                    method.byte_start,
-                    method.byte_end,
-                    method.line_start, method.line_end, method.col_start, method.col_end
+        code_graph
+            .store_symbol_with_file_and_language(
+                &java_path,
+                &method.name,
+                method.kind.as_str(),
+                Language::Java,
+                method.byte_start,
+                method.byte_end,
+                method.line_start,
+                method.line_end,
+                method.col_start,
+                method.col_end,
             )
             .expect("Failed to store symbol");
 
@@ -231,7 +237,10 @@ public class Calculator {
                 Language::Java,
                 class.byte_start,
                 class.byte_end,
-                class.line_start, class.line_end, class.col_start, class.col_end
+                class.line_start,
+                class.line_end,
+                class.col_start,
+                class.col_end,
             )
             .expect("Failed to store symbol");
 

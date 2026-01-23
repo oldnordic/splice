@@ -33,7 +33,10 @@ pub fn init_execution_log_db(db_dir: &Path) -> Result<Connection> {
     // Ensure directory exists
     if !db_dir.exists() {
         std::fs::create_dir_all(db_dir).map_err(|e| SpliceError::IoContext {
-            context: format!("failed to create execution log directory: {}", db_dir.display()),
+            context: format!(
+                "failed to create execution log directory: {}",
+                db_dir.display()
+            ),
             source: e,
         })?;
     }
@@ -493,6 +496,9 @@ mod tests {
             error_string.contains(execution_id),
             "error should contain execution ID"
         );
-        assert!(error_string.contains("not found"), "error should indicate not found");
+        assert!(
+            error_string.contains("not found"),
+            "error should indicate not found"
+        );
     }
 }

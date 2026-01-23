@@ -115,7 +115,12 @@ pub fn {}() {{
     /// Create a simple call chain: A -> B -> C.
     ///
     /// Returns the NodeId of the first function in the chain.
-    fn create_call_chain(&mut self, file_path: &Path, chain_name: &str, depth: usize) -> sqlitegraph::NodeId {
+    fn create_call_chain(
+        &mut self,
+        file_path: &Path,
+        chain_name: &str,
+        depth: usize,
+    ) -> sqlitegraph::NodeId {
         let mut node_ids = Vec::new();
 
         // Create each function in the chain
@@ -392,11 +397,7 @@ mod tests {
         let duration = start.elapsed();
 
         // Query should succeed (even if empty - CALLS edges not implemented yet)
-        assert!(
-            result.is_ok(),
-            "get_callers failed: {:?}",
-            result.err()
-        );
+        assert!(result.is_ok(), "get_callers failed: {:?}", result.err());
 
         // Performance assertion: small graph should be very fast
         assert!(
@@ -427,11 +428,7 @@ mod tests {
         let duration = start.elapsed();
 
         // Query should succeed
-        assert!(
-            result.is_ok(),
-            "get_callers failed: {:?}",
-            result.err()
-        );
+        assert!(result.is_ok(), "get_callers failed: {:?}", result.err());
 
         // Performance assertion: large graph should complete in reasonable time
         assert!(
@@ -462,11 +459,7 @@ mod tests {
         let duration = start.elapsed();
 
         // Query should succeed
-        assert!(
-            result.is_ok(),
-            "get_callees failed: {:?}",
-            result.err()
-        );
+        assert!(result.is_ok(), "get_callees failed: {:?}", result.err());
 
         // Performance assertion
         assert!(

@@ -81,7 +81,8 @@ edition = "2021"
 name = "test"
 path = "test.rs"
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Create a test file with a function
         let source_path = temp_dir.path().join("test.rs");
@@ -96,7 +97,8 @@ pub fn main() {
     println!("{}", greet("world"));
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Create replacement file with different content
         let replacement_file = create_replacement_file(
@@ -154,7 +156,8 @@ edition = "2021"
 name = "test"
 path = "test.rs"
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Create a test file with a function
         let source_path = temp_dir.path().join("test.rs");
@@ -169,7 +172,8 @@ pub fn main() {
     println!("{}", greet("world"));
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Create replacement file with different content
         let replacement_file = create_replacement_file(
@@ -231,7 +235,8 @@ edition = "2021"
 name = "test"
 path = "test.rs"
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Create a test file with a function
         let source_path = temp_dir.path().join("test.rs");
@@ -246,7 +251,8 @@ pub fn main() {
     println!("{}", helper());
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Run splice delete --dry-run for existing symbol
         let output = Command::new(get_splice_binary())
@@ -297,7 +303,8 @@ edition = "2021"
 name = "test"
 path = "test.rs"
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Create a test file WITHOUT the target symbol
         let source_path = temp_dir.path().join("test.rs");
@@ -308,7 +315,8 @@ pub fn main() {
     println!("Hello, world!");
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Run splice delete --dry-run for non-existent symbol
         let output = Command::new(get_splice_binary())
@@ -356,7 +364,8 @@ edition = "2021"
 name = "test"
 path = "test.rs"
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let source_path = temp_dir.path().join("test.rs");
         std::fs::write(
@@ -366,7 +375,8 @@ pub fn greet(name: &str) -> String {
     format!("Hello, {}!", name)
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Replacement with more lines
         let replacement_file = create_replacement_file(
@@ -420,7 +430,8 @@ edition = "2021"
 name = "test"
 path = "test.rs"
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let source_path = temp_dir.path().join("test.rs");
         std::fs::write(
@@ -431,7 +442,8 @@ pub fn greet(name: &str) -> String {
     format!("{}, {}!", greeting, name)
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Replacement with fewer lines
         let replacement_file = create_replacement_file(

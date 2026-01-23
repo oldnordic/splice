@@ -21,15 +21,15 @@ fn test_symbol_not_found_has_severity() {
 
 #[test]
 fn test_symbol_not_found_with_suggestions() {
-    let candidates = vec![
-        "foobar".to_string(),
-        "baz".to_string(),
-    ];
+    let candidates = vec!["foobar".to_string(), "baz".to_string()];
 
     let error = SpliceError::symbol_not_found_with_suggestions("foobaz", None, &candidates);
 
     let hint = error.hint().unwrap_or("");
-    assert!(hint.contains("Did you mean"), "Hint should include suggestions");
+    assert!(
+        hint.contains("Did you mean"),
+        "Hint should include suggestions"
+    );
 }
 
 #[test]
@@ -40,8 +40,14 @@ fn test_error_code_format() {
     assert!(code.is_some());
     let code_str = code.unwrap().code();
     eprintln!("Error code: '{}' (len={})", code_str, code_str.len());
-    assert!(code_str.starts_with("SPL-E"), "Error code should have SPL-E### format");
-    assert!(code_str.len() >= 7, "Error code should be at least 7 characters (SPL-E###)");
+    assert!(
+        code_str.starts_with("SPL-E"),
+        "Error code should have SPL-E### format"
+    );
+    assert!(
+        code_str.len() >= 7,
+        "Error code should be at least 7 characters (SPL-E###)"
+    );
 }
 
 #[test]
