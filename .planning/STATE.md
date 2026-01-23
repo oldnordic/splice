@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 ## Current Position
 
 Phase: 20 of 21 (Lifetime & Resource Safety)
-Plan: Not started
-Status: Phase 19 complete, ready to plan Phase 20
-Last activity: 2026-01-23 — Completed Phase 19: Critical & High-Priority Error Handling
+Plan: 03 of 7
+Status: In progress
+Last activity: 2026-01-24 — Completed Plan 20-03: Replace to_string_lossy() in pattern.rs
 
-Progress: [███░░░░░░] 13% (93/106 plans total: 31 v2.0 + 55 v2.2 + 7 v2.2.1)
+Progress: [███░░░░░░] 14% (94/106 plans total: 31 v2.0 + 55 v2.2 + 7 v2.2.1)
 
 ## Current Milestone: v2.2.1 Code Quality & Bug Fixes
 
@@ -95,11 +95,19 @@ All blockers from v2.2 were resolved during gap closure:
 | 19-07 | Use 3x multiplier for disk space estimation to account for CoW filesystem overhead |
 | 19-07 | Add 4KB per-file overhead for filesystem metadata and journaling |
 
+## Decisions from Phase 20
+
+| Plan | Decision |
+|------|----------|
+| 20-03 | Use to_str().expect() for glob patterns in test code (TempDir paths always valid UTF-8) |
+| 20-03 | Use and_then/to_str with unwrap_or_default() for file name extraction |
+| 20-03 | Use to_str().unwrap_or("<invalid-utf-8>") for JSON serialization of file paths |
+
 ## Session Continuity
 
-Last session: 2026-01-23
-Stopped at: Phase 19 complete
+Last session: 2026-01-24
+Stopped at: Completed Plan 20-03: Replace to_string_lossy() in pattern.rs
 Resume file: None
 
 ---
-*Last updated: 2026-01-23 — v2.2.1 milestone in progress*
+*Last updated: 2026-01-24 — v2.2.1 milestone in progress*
