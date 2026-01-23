@@ -612,6 +612,9 @@ pub struct ErrorDetails {
     /// Optional structured error code (SPL-E### format).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<crate::ErrorCode>,
+    /// Optional explain command for this error.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub explain_command: Option<String>,
 }
 
 impl CliErrorPayload {
@@ -649,6 +652,11 @@ impl CliErrorPayload {
                 )
             });
 
+        // Generate explain command if error_code is present
+        let explain_command = error_code.as_ref().map(|ec| {
+            format!("splice explain {}", ec.code)
+        });
+
         CliErrorPayload {
             status: "error",
             error: ErrorDetails {
@@ -659,6 +667,7 @@ impl CliErrorPayload {
                 hint,
                 diagnostics,
                 error_code,
+                explain_command,
             },
         }
     }
