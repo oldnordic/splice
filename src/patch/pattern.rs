@@ -393,7 +393,7 @@ def foo():
         .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.py").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.py").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "10".to_string(),
             replace_pattern: "20".to_string(),
             language: Some(Language::Python),
@@ -432,7 +432,7 @@ fn another_function() {
         .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.rs").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "function".to_string(),
             replace_pattern: String::new(),
             language: Some(Language::Rust),
@@ -466,7 +466,7 @@ def another_function():
         .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.py").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.py").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "function".to_string(),
             replace_pattern: String::new(),
             language: Some(Language::Python),
@@ -507,7 +507,7 @@ fn second() {
         .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.rs").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "target".to_string(),
             replace_pattern: String::new(),
             language: Some(Language::Rust),
@@ -538,7 +538,7 @@ fn example() {
         .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.rs").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "nonexistent".to_string(),
             replace_pattern: String::new(),
             language: Some(Language::Rust),
@@ -587,7 +587,7 @@ def test():
 
         // Search only .rs files
         let config = PatternReplaceConfig {
-            glob_pattern: src_dir.join("**/*.rs").to_string_lossy().to_string(),
+            glob_pattern: src_dir.join("**/*.rs").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "rust_unique_pattern".to_string(),
             replace_pattern: String::new(),
             language: Some(Language::Rust),
@@ -641,7 +641,7 @@ fn main() {
 
         // Search only .py files
         let config = PatternReplaceConfig {
-            glob_pattern: tests_dir.join("**/*.py").to_string_lossy().to_string(),
+            glob_pattern: tests_dir.join("**/*.py").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "python_unique_pattern".to_string(),
             replace_pattern: String::new(),
             language: Some(Language::Python),
@@ -700,7 +700,7 @@ void c_function() {
 
         // Search for .rs files first
         let config_rs = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.rs").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "target".to_string(),
             replace_pattern: String::new(),
             language: None,
@@ -712,7 +712,7 @@ void c_function() {
 
         // Search for .py files next
         let config_py = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.py").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.py").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "target".to_string(),
             replace_pattern: String::new(),
             language: None,
@@ -781,7 +781,7 @@ fn level2() {
 
         // Search recursively with **/*.rs pattern
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("**/*.rs").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("**/*.rs").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "search_target".to_string(),
             replace_pattern: String::new(),
             language: Some(Language::Rust),
@@ -799,7 +799,7 @@ fn level2() {
         // Verify files are in correct order
         let file_names: Vec<_> = matches
             .iter()
-            .map(|m| m.file.file_name().unwrap().to_string_lossy().to_string())
+            .map(|m| m.file.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string())
             .collect();
         assert!(file_names.contains(&"root.rs".to_string()));
         assert!(file_names.contains(&"level1.rs".to_string()));
@@ -827,7 +827,7 @@ This is a text file with no code.
 
         // Search for .rs files in directory that has none
         let config = PatternReplaceConfig {
-            glob_pattern: empty_dir.join("**/*.rs").to_string_lossy().to_string(),
+            glob_pattern: empty_dir.join("**/*.rs").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "anything".to_string(),
             replace_pattern: String::new(),
             language: Some(Language::Rust),
@@ -864,7 +864,7 @@ line 5
 
         // Search for "line 3" with context
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.rs").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "line 3".to_string(),
             replace_pattern: String::new(),
             language: Some(Language::Rust),
@@ -917,7 +917,7 @@ line 6
 
         // Search for "line 4" with asymmetric context
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.py").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.py").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "line 4".to_string(),
             replace_pattern: String::new(),
             language: Some(Language::Python),
@@ -966,7 +966,7 @@ line 3
 
         // Search for "line 2" with no context
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.rs").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "line 2".to_string(),
             replace_pattern: String::new(),
             language: Some(Language::Rust),
@@ -1015,7 +1015,7 @@ line 4
 
         // Search for "line 3" with context
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.rs").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "line 3".to_string(),
             replace_pattern: String::new(),
             language: Some(Language::Rust),
@@ -1038,7 +1038,7 @@ line 4
         .expect("Failed to extract context");
 
         let json_result = json!({
-            "file": m.file.to_string_lossy().to_string(),
+            "file": m.file.to_str().unwrap_or("<invalid-utf-8>").to_string(),
             "byte_start": m.byte_start,
             "byte_end": m.byte_end,
             "line": m.line,
@@ -1083,7 +1083,7 @@ line 4
         fs::write(&test_file, r#"fn test() { let x = 42; }"#).expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.rs").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "42".to_string(),
             replace_pattern: String::new(),
             language: Some(Language::Rust),
@@ -1097,7 +1097,7 @@ line 4
             .into_iter()
             .map(|m| {
                 json!({
-                    "file": m.file.to_string_lossy().to_string(),
+                    "file": m.file.to_str().unwrap_or("<invalid-utf-8>").to_string(),
                     "byte_start": m.byte_start,
                     "byte_end": m.byte_end,
                     "line": m.line,
@@ -1142,7 +1142,7 @@ line 4
         .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.rs").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "line 3".to_string(),
             replace_pattern: String::new(),
             language: Some(Language::Rust),
@@ -1165,7 +1165,7 @@ line 4
 
         // Build JSON with context
         let mut match_json = json!({
-            "file": m.file.to_string_lossy().to_string(),
+            "file": m.file.to_str().unwrap_or("<invalid-utf-8>").to_string(),
             "byte_start": m.byte_start,
             "byte_end": m.byte_end,
             "line": m.line,
@@ -1204,7 +1204,7 @@ line 4
         .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.py").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.py").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "x".to_string(),
             replace_pattern: String::new(),
             language: Some(Language::Python),
@@ -1218,7 +1218,7 @@ line 4
             .into_iter()
             .map(|m| {
                 json!({
-                    "file": m.file.to_string_lossy().to_string(),
+                    "file": m.file.to_str().unwrap_or("<invalid-utf-8>").to_string(),
                     "byte_start": m.byte_start,
                     "byte_end": m.byte_end,
                     "line": m.line,
@@ -1253,7 +1253,7 @@ line 4
         fs::write(&test_file, r#"fn test() { let x = 42; }"#).expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.rs").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "42".to_string(),
             replace_pattern: String::new(),
             language: Some(Language::Rust),
@@ -1267,7 +1267,7 @@ line 4
             .into_iter()
             .map(|m| {
                 json!({
-                    "file": m.file.to_string_lossy().to_string(),
+                    "file": m.file.to_str().unwrap_or("<invalid-utf-8>").to_string(),
                     "byte_start": m.byte_start,
                     "byte_end": m.byte_end,
                     "line": m.line,
@@ -1300,7 +1300,7 @@ line 4
         .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.rs").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "100".to_string(),
             replace_pattern: String::new(),
             language: Some(Language::Rust),
@@ -1314,7 +1314,7 @@ line 4
             .into_iter()
             .map(|m| {
                 json!({
-                    "file": m.file.to_string_lossy().to_string(),
+                    "file": m.file.to_str().unwrap_or("<invalid-utf-8>").to_string(),
                     "byte_start": m.byte_start,
                     "byte_end": m.byte_end,
                     "line": m.line,
@@ -1376,7 +1376,7 @@ fn foo() {
         .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.rs").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "42".to_string(),
             replace_pattern: "100".to_string(),
             language: Some(Language::Rust),
@@ -1422,7 +1422,7 @@ fn second() {
         .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.rs").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "target".to_string(),
             replace_pattern: "replaced".to_string(),
             language: Some(Language::Rust),
@@ -1471,7 +1471,7 @@ fn second() {
         .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.rs").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.rs").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "target".to_string(),
             replace_pattern: "modified".to_string(),
             language: Some(Language::Rust),
@@ -1517,7 +1517,7 @@ fn second() {
             fs::read_to_string(&test_file3).expect("Failed to read original file3");
 
         let config2 = PatternReplaceConfig {
-            glob_pattern: workspace_root2.join("*.rs").to_string_lossy().to_string(),
+            glob_pattern: workspace_root2.join("*.rs").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "nonexistent_pattern_xyz".to_string(),
             replace_pattern: "replacement".to_string(),
             language: Some(Language::Rust),
@@ -1557,7 +1557,7 @@ def foo():
         .expect("Failed to write test file");
 
         let config = PatternReplaceConfig {
-            glob_pattern: workspace_root.join("*.py").to_string_lossy().to_string(),
+            glob_pattern: workspace_root.join("*.py").to_str().expect("Invalid UTF-8 path").to_string(),
             find_pattern: "10".to_string(),
             replace_pattern: "20".to_string(),
             language: Some(Language::Python),
