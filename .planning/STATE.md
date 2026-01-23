@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 ## Current Position
 
 Phase: 20 of 21 (Lifetime & Resource Safety)
-Plan: 02 of 7
-Status: In progress
-Last activity: 2026-01-24 — Completed Plan 20-02: Replace to_string_lossy() with to_str() in CLI
+Plan: 07 of 7
+Status: Phase complete
+Last activity: 2026-01-24 — Completed Plan 20-07: TempDir and Resource Cleanup Improvements
 
-Progress: [████████░] 90% (95/106 plans total: 31 v2.0 + 55 v2.2 + 7 v2.2.1)
+Progress: [████████░] 90% (96/106 plans total: 31 v2.0 + 55 v2.2 + 10 v2.2.1)
 
 ## Current Milestone: v2.2.1 Code Quality & Bug Fixes
 
@@ -108,11 +108,16 @@ All blockers from v2.2 were resolved during gap closure:
 | 20-03 | Use to_str().unwrap_or("<invalid-utf-8>") for JSON serialization of file paths |
 | 20-04 | Execution log .err() patterns in test code are correct (used for assertion error messages) |
 | 20-04 | No code changes needed - documentation added to explain error handling philosophy |
+| 20-05 | Use map_err() to convert env var errors to SpliceError::Config for proper error propagation |
+| 20-06 | Use HashSet for test command filtering instead of sorting/de-duplicating in shell |
+| 20-07 | Document TempDir's Drop trait behavior explicitly for future maintainers |
+| 20-07 | Clean up stale test files before write test to prevent accumulation from crashes |
+| 20-07 | Rope mutation state tracking (before_hash, replaced, after_hash) already exists and is documented |
 
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed Plan 20-02: Replace to_string_lossy() with to_str() in CLI
+Stopped at: Completed Plan 20-07: TempDir and Resource Cleanup Improvements (Phase 20 complete)
 Resume file: None
 
 ---
