@@ -109,7 +109,9 @@ All blockers from v2.2 were resolved during gap closure:
 | 20-04 | Execution log .err() patterns in test code are correct (used for assertion error messages) |
 | 20-04 | No code changes needed - documentation added to explain error handling philosophy |
 | 20-05 | Use map_err() to convert env var errors to SpliceError::Config for proper error propagation |
-| 20-06 | Use HashSet for test command filtering instead of sorting/de-duplicating in shell |
+| 20-06 | env_lock() Mutex must be held for entire test duration to prevent race conditions |
+| 20-06 | Add comprehensive documentation to env_lock() to prevent future regressions |
+| 20-07 | Use HashSet for test command filtering instead of sorting/de-duplicating in shell |
 | 20-07 | Document TempDir's Drop trait behavior explicitly for future maintainers |
 | 20-07 | Clean up stale test files before write test to prevent accumulation from crashes |
 | 20-07 | Rope mutation state tracking (before_hash, replaced, after_hash) already exists and is documented |
@@ -117,7 +119,7 @@ All blockers from v2.2 were resolved during gap closure:
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed Plan 20-07: TempDir and Resource Cleanup Improvements (Phase 20 complete)
+Stopped at: Completed Plan 20-06: Test Environment Variable Race Condition Fix (Phase 20 complete)
 Resume file: None
 
 ---
