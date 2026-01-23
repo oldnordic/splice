@@ -8,44 +8,50 @@ Splice is a span-safe code refactoring tool that provides AST-validated code mod
 
 **Span-safe refactoring with validation** — Every modification is validated at both AST and compiler level before being applied, with automatic backup and rollback capabilities.
 
-## Current Milestone: v2.2 - Unified JSON & LLM Optimization
+## Shipped Versions
 
-**Goal:** Implement the Unified JSON Schema across all LLM tools (Splice, Magellan, llmtransform, llmsearch, llmastsearch) with LLM-first UX improvements.
+### v2.0 Production Safety (2026-01-18)
 
-**Target features:**
-- Rich span extensions — Context, semantic kind, relationships, checksums, suggested actions, tool hints
-- Full-codebase relationships — Callers/callees/imports/exports across entire project
-- CLI conventions — `-n` dry-run, `-A`/`-B`/`-C` context, unified diff format
-- Enhanced error messages — Severity levels, error codes (SPL-E001), actionable hints
-- Symbol expansion — AST-aware expansion with doc comments
-- Search & patch workflow — Pattern search with atomic apply
+Comprehensive overhaul establishing production safety and structured output with stable identifiers.
 
-## Status: v2.0 COMPLETE ✅ | v2.2 COMPLETE ✅ |
+### v2.2 Unified JSON & LLM Optimization (2026-01-23)
 
-**Release Date:** 2026-01-18
-**Version:** 2.0.0
-**All planned features implemented and tested.**
+Unified JSON Schema across all LLM tools with rich span extensions optimized for AI agent consumption and human-friendly CLI improvements.
 
-**v2.2 Release:** 2026-01-23
-**Version:** 2.2.0
-**Unified JSON Schema with LLM Optimization complete.**
+## Current State
 
-### Completed Features (v2.0)
+**Shipped:** v2.2.0 (2026-01-23)
 
-- ✅ **Safety Foundation** — Eliminated all unwrap() calls in production paths with proper error handling
-- ✅ **SQLiteGraph v1.0 Upgrade** — Migrated to 1.0 with Native V2 backend
-- ✅ **Structured JSON Output** — Explicit field schema for all operations
-- ✅ **Stable Identifiers** — execution_id, match_id, span_id for traceability
-- ✅ **Span-Aware Output** — Byte offsets + line/column for every match
-- ✅ **Deterministic Ordering** — Sorted output across all operations
-- ✅ **Validation Hooks** — Checksums and pre/post verification
-- ✅ **Execution Logging** — Complete audit trail with query capabilities
-- ✅ **Integration Testing** — 75+ integration tests across 7 languages
-- ✅ **Comprehensive Documentation** — README, manual, and API docs updated
+**Production-ready refactoring tool with:**
+- 340 tests passing (unit + integration)
+- Comprehensive documentation
+- Zero unwrap() calls in production paths
+- Modern dependency stack (SQLiteGraph 1.0)
+- Execution logging for audit trails
+- Rich span output optimized for LLM consumption
+- Standard CLI conventions (dry-run, context flags, unified diff)
+- Structured error codes with explain command
 
-### Requirements
+**Technical Environment:**
+- Rust 2021 edition, cargo build system
+- Databases: codegraph.db, operations.db
+- External dependencies: tree-sitter parsers, compiler tooling
 
-#### Validated (v0.5.x baseline)
+## Design Principles Implemented
+
+- Structured JSON output with explicit fields
+- Stable identifiers (execution_id, match_id, span_id)
+- Span-aware (byte offsets + line/col for every match)
+- Deterministic ordering (sorted output)
+- Validation hooks (checksums, pre/post verification)
+- Execution logging (every run logged with execution_id)
+- Additive schema evolution (all new fields optional)
+- Builder pattern for optional fields
+- CLI conventions following Unix/Git standards
+
+## Requirements
+
+### Validated (v0.5.x baseline)
 
 - ✓ Multi-language symbol extraction (tree-sitter 0.21)
 - ✓ Code graph storage and querying (SQLiteGraph 1.0)
@@ -56,7 +62,7 @@ Splice is a span-safe code refactoring tool that provides AST-validated code mod
 - ✓ CLI with JSON output
 - ✓ 7 language support (Rust, Python, C, C++, Java, JavaScript, TypeScript)
 
-#### Delivered (v2.0)
+### Delivered (v2.0)
 
 - ✅ Eliminated unsafe unwrap() calls — All production paths use proper error handling
 - ✅ SQLiteGraph v1.0 — Native V2 backend with structured output
@@ -69,41 +75,24 @@ Splice is a span-safe code refactoring tool that provides AST-validated code mod
 - ✅ Magellan v0.5.3 compatibility — Verified with integration tests
 - ✅ Line/column metadata — Implemented in code graph
 
-#### Delivered (v2.2) ✅
+### Delivered (v2.2)
 
 - ✅ Rich Span Extensions — Context, semantic kind, relationships, checksums, suggested actions, tool hints
-- ✅ CLI Improvements — Dry-run, unified diff, context flags, enhanced errors, symbol expansion, search
-- ✅ Error Code Integration — SPL-E### codes with explain command
-- ✅ Integration & Testing — 311 tests, performance validation, Magellan alignment
+- ✅ CLI Conventions — Dry-run (`-n`), context flags (`-A`/`-B`/`-C`), unified diff, git-style exit codes
+- ✅ Enhanced Errors — Severity levels, SPL-E### codes, fuzzy suggestions, `splice explain` command
+- ✅ Symbol Expansion — AST-aware parent chain walking with 6 language expanders
+- ✅ Search & Apply — `splice search --pattern` with glob filtering, atomic find-and-replace
+- ✅ Integration & Testing — 340 tests, performance validation, Magellan alignment
 
-### Out of Scope
+## Out of Scope
 
-- New programming language support — current 7 languages are sufficient
-- Web UI or IDE integration — CLI-only tool
-- Distributed processing — single-machine operation
-
-## Context
-
-**Current State (v2.0):**
-- Production-ready refactoring tool
-- 334+ tests passing (unit + integration)
-- Comprehensive documentation
-- Zero unwrap() calls in production paths
-- Modern dependency stack (SQLiteGraph 1.0)
-- Execution logging for audit trails
-
-**Design Principles Implemented:**
-- Structured JSON output with explicit fields
-- Stable identifiers (execution_id, match_id, span_id)
-- Span-aware (byte offsets + line/col for every match)
-- Deterministic ordering (sorted output)
-- Validation hooks (checksums, pre/post verification)
-- Execution logging (every run logged with execution_id)
-
-**Technical Environment:**
-- Rust 2021 edition, cargo build system
-- Databases: codegraph.db, operations.db
-- External dependencies: tree-sitter parsers, compiler tooling
+| Feature | Reason |
+|---------|--------|
+| New programming languages | Current 7 languages are sufficient |
+| Web UI or IDE integration | CLI-only tool, LLM-friendly CLI is priority |
+| Parallel batch processing | Existing single-threaded is fine for current scale |
+| Real-time relationship updates | Lazy evaluation sufficient for performance |
+| Macro expansion before semantic detection | Language-specific complexity, defer |
 
 ## Constraints
 
@@ -112,15 +101,17 @@ Splice is a span-safe code refactoring tool that provides AST-validated code mod
 - **7 Language Support:** Maintained support for all existing languages
 - **CLI-First:** No web UI or IDE integration
 
-## Key Decisions (v2.0)
+## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Comprehensive 10-phase overhaul | All features needed for production-ready tool | Complete v2.0 with 31 plans |
+| v2.0 Comprehensive 10-phase overhaul | All features needed for production-ready tool | Complete v2.0 with 31 plans |
 | SQLiteGraph v1.0 Native V2 | High performance, modern API, structured output | Migrated successfully |
-| CLI output redesign | Willing to change to match design principles | Structured output with IDs |
-| Non-blocking logging | Log failures shouldn't fail operations | Warning-only errors |
-| SHA-256 checksums | Industry standard for integrity verification | Pre/post verification |
+| v2.2 Additive schema evolution | Zero breaking changes for backward compatibility | All new fields optional |
+| Builder pattern for optional fields | Fluent API while maintaining optionality | 8 builder methods added |
+| Session-based relationship caching | O(1) lookup for repeated queries | RelationshipCache implemented |
+| Git-style CLI conventions | Familiar UX for developers | `-n`, `-A`/`-B`/`-C`, exit code 1 for changes |
+| AST-aware symbol expansion | Accurate symbol boundaries across languages | 6 language expanders |
 
 ## Future Work
 
@@ -130,6 +121,8 @@ Potential areas for future development:
 - Enhanced undo/redo capabilities
 - IDE integration (LSP support)
 - Parallel batch processing
+- Online error documentation (splice.dev/errors/)
 
 ---
 *Last updated: 2026-01-23 — v2.2 milestone complete*
+*See .planning/milestones/ for detailed milestone archives*

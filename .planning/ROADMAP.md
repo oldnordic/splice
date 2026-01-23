@@ -2,17 +2,17 @@
 
 ## Overview
 
-Splice is a span-safe refactoring tool for 7 programming languages (Rust, Python, C, C++, Java, JavaScript, TypeScript) using tree-sitter for AST parsing and SQLiteGraph for code relationship storage. The v2.0 overhaul established production safety and structured output. The v2.2 milestone implements the Unified JSON Schema with rich span extensions optimized for LLM consumption and human usability improvements.
+Splice is a span-safe refactoring tool for 7 programming languages (Rust, Python, C, C++, Java, JavaScript, TypeScript) using tree-sitter for AST parsing and SQLiteGraph for code relationship storage.
 
 ## Milestones
 
-- **v2.0 Overhaul** - Phases 1-10 (shipped 2026-01-18)
-- **v2.2 Unified JSON & LLM Optimization** - Phases 11-18 (shipped 2026-01-23)
+- ✅ **v2.0 Production Safety** — Phases 1-10 (shipped 2026-01-18)
+- ✅ **v2.2 Unified JSON & LLM Optimization** — Phases 11-18 (shipped 2026-01-23)
 
 ## Phases
 
 <details>
-<summary>v2.0 Overhaul (Phases 1-10) - SHIPPED 2026-01-18</summary>
+<summary>✅ v2.0 Production Safety (Phases 1-10) — SHIPPED 2026-01-18</summary>
 
 **Milestone Goal:** Comprehensive overhaul for production safety, SQLiteGraph v1.0 upgrade, and structured output
 
@@ -31,227 +31,26 @@ See `.planning/milestones/v2.0-ROADMAP.md` for complete details of phases 1-10.
 
 </details>
 
-### v2.2 Unified JSON & LLM Optimization (SHIPPED 2026-01-23)
+<details>
+<summary>✅ v2.2 Unified JSON & LLM Optimization (Phases 11-18) — SHIPPED 2026-01-23</summary>
 
-**Milestone Goal:** ✅ Implemented the Unified JSON Schema across all LLM tools with rich span extensions optimized for AI agent consumption and human-friendly CLI improvements.
+**Milestone Goal:** Unified JSON Schema across all LLM tools with rich span extensions optimized for AI agent consumption and human-friendly CLI improvements
 
-**Summary:** All 8 phases (11-18) completed with 70/70 plans. Added comprehensive error code integration with explain_command field and full SPL-E### coverage.
+See `.planning/milestones/v2.2-ROADMAP.md` for complete details of phases 11-18.
 
-#### Phase 11: Rich Span Core
+**Key Features Delivered:**
+- Rich Span Extensions: Context, semantic kind, language, checksums, error codes with zero breaking changes
+- Rich Span Advanced: Relationships (callers, callees, imports, exports), tool hints, suggested actions
+- CLI Conventions: `-n` dry-run, `-A`/`-B`/`-C` context, unified diff output, git-style exit codes
+- Enhanced Errors: Severity levels, SPL-E### codes, fuzzy suggestions, `splice explain` command
+- Symbol Expansion: AST-aware parent chain walking with 6 language expanders
+- Search & Apply: `splice search --pattern` with glob filtering, atomic find-and-replace
+- Integration Testing: 340 tests passing across 7 languages, Magellan alignment
+- Error Code Integration: All 28 error-level variants mapped with explain_command field
 
-**Goal**: Spans include rich metadata (context, semantic kind, language, checksums, error codes) for LLM consumption
-
-**Depends on**: Phase 10 (v2.0 Documentation)
-**Requirements**: RICHSPAN-01 through RICHSPAN-13
-
-**Success Criteria** (what must be TRUE):
-1. User receives span output with `context` field containing `before`, `selected`, `after` arrays (default 3 lines, configurable via `--context-lines`)
-2. User receives span output with `semantic_kind` field (function, variable, parameter, etc.) and `language` field detected from file extension
-3. User receives span output with `checksum_before` and `file_checksum_before` fields for race condition protection
-4. User receives span output with `error_code` field including severity (error/warning/note), precise location (file:line:column), and "what to do" hint
-5. All rich span fields use UTF-8 byte offsets consistent with existing span coordinates
-
-**Plans**: 11 plans in 8 waves (7 original + 4 gap closure)
-
-Plans:
-- [x] 11-01-PLAN.md — Extend SpanResult structure with rich metadata fields (context, semantic_kind, language, checksums, error_code)
-- [x] 11-02-PLAN.md — Implement context extraction module using ropey for efficient line calculations
-- [x] 11-03-PLAN.md — Implement semantic kind detection mapping tree-sitter node types to standardized kinds
-- [x] 11-04-PLAN.md — Verify language detection integration (already exists in detect.rs)
-- [x] 11-05-PLAN.md — Expose checksum_before and file_checksum_before in JSON output (reuse existing SHA-256)
-- [x] 11-06-PLAN.md — Implement error code field with SPL-E### format, severity level, location, and hints
-- [x] 11-07-PLAN.md — Ensure all new fields are optional with backward compatibility verification
-- [x] 11-08-PLAN.md — Integrate context extraction into CLI JSON output with --context-lines flag (gap closure)
-- [x] 11-09-PLAN.md — Integrate semantic kind and language detection into CLI JSON output (gap closure)
-- [x] 11-10-PLAN.md — Integrate checksum_before and file_checksum_before fields into CLI JSON output (gap closure)
-- [x] 11-11-PLAN.md — Integrate error codes into CLI error handling for structured diagnostics (gap closure)
-
-#### Phase 12: Rich Span Advanced
-
-**Goal**: Spans include relationships, tool hints, and suggested actions for advanced LLM workflows
-
-**Depends on**: Phase 11
-**Requirements**: RICHSPAN-14 through RICHSPAN-21
-
-**Success Criteria** (what must be TRUE):
-1. User receives span output with `relationships` object containing callers, callees, imports, exports (when `--relationships` flag used)
-2. User receives span output with `tool_hints` object containing requires_full_context, apply_atomically, may_break_tests, requires_compilation
-3. User receives span output with `suggested_action` object containing action_type (delete, replace, expand) and params
-4. Relationship queries are lazy (only executed with `--relationships` flag) and span full codebase via codegraph.db
-5. All advanced fields are optional and don't impact performance when not requested
-
-**Plans**: 8 plans in 3 waves
-
-Plans:
-- [x] 12-01-PLAN.md — Create relationships module with Relationship and Relationships structs
-- [x] 12-02-PLAN.md — Implement relationship queries (get_callers, get_callees, get_imports, get_exports)
-- [x] 12-03-PLAN.md — Create tool hints module with ToolHints struct and derive_tool_hints function
-- [x] 12-04-PLAN.md — Create suggested action module with SuggestedAction struct and confidence calculation
-- [x] 12-05-PLAN.md — Extend SpanResult with relationships, tool_hints, suggested_action fields
-- [x] 12-06-PLAN.md — Integrate --relationships flag into CLI and wire up advanced fields
-- [x] 12-07-PLAN.md — Wire relationship queries into CLI commands (Query, Get, Delete, Patch)
-- [x] 12-08-PLAN.md — Wire tool hints and suggested actions into CLI commands
-
-#### Phase 13: Dry-run & Diff
-
-**Goal**: Users can preview exact changes before applying them using standard CLI conventions
-
-**Depends on**: Phase 12
-**Requirements**: CLI-01 through CLI-07
-
-**Success Criteria** (what must be TRUE):
-1. User can run `splice --dry-run` or `splice -n` to preview changes without applying them
-2. Dry-run output shows unified diff format with `---`/`+++` headers, file counts, and `-`/`+` notation
-3. Diff output uses colors (red for deletions, green for additions) when TTY detected
-4. User can control context lines with `--unified <n>` flag (default 3 lines)
-5. Dry-run returns exit code 1 if changes would be made, 0 if no changes
-6. Color output respects `NO_COLOR` environment variable
-
-**Plans**: 5 plans in 4 waves
-
-Plans:
-- [x] 13-01-PLAN.md — Add diff-related dependencies (similar, nu-ansi-term, is-terminal)
-- [x] 13-02-PLAN.md — Create diff module with unified diff generation and color detection
-- [x] 13-03-PLAN.md — Add CLI flags for dry-run aliases and unified context configuration
-- [x] 13-04-PLAN.md — Integrate diff output into patch and delete commands
-- [x] 13-05-PLAN.md — Implement git-style exit codes for dry-run mode
-
-#### Phase 14: Context Flags
-
-**Goal**: Users can see surrounding code context around matches using standard Unix conventions
-
-**Depends on**: Phase 13
-**Requirements**: CLI-08 through CLI-13 (CLI-14 deferred to Phase 16 since --expand flag is implemented there)
-
-**Success Criteria** (what must be TRUE):
-1. User can use `-A <lines>` flag to show lines after a match
-2. User can use `-B <lines>` flag to show lines before a match
-3. User can use `-C <lines>` flag to show context on both sides (defaults to 3 lines, git diff convention)
-4. Context appears in both human-readable output and JSON output (context_before/context_after keys)
-5. Context flags work across patch, delete, query, and get commands
-
-**Plans**: 5 plans in 5 waves
-
-Plans:
-- [x] 14-01-PLAN.md — Add -A, -B, -C context flags to Delete, Patch, Query commands
-- [x] 14-02-PLAN.md — Add -A, -B, -C context flags to Get, ApplyFiles commands
-- [x] 14-03-PLAN.md — Implement asymmetric context extraction function
-- [x] 14-04-PLAN.md — Wire context flags through main.rs with grep-style resolution
-- [x] 14-05-PLAN.md — Complete remaining command integration and add human-readable context display with JSON verification
-
-**Note:** CLI-14 (context respects expanded symbol boundaries when used with `--expand` flag) is implemented in Phase 16 since the `--expand` flag itself is implemented there. Testing the interaction requires both features to exist.
-
-#### Phase 15: Enhanced Errors
-
-**Goal**: Users receive actionable, structured error messages with clear guidance on how to fix issues
-
-**Depends on**: Phase 14
-**Requirements**: CLI-15 through CLI-21
-
-**Success Criteria** (what must be TRUE):
-1. Every error includes severity level (error/warning/note)
-2. Every error includes precise location (file:line:column)
-3. Every error includes stable error code (SPL-E001 format)
-4. Every error includes "what to do" hint or suggestion
-5. SymbolNotFound errors show similar symbol suggestions using Levenshtein distance
-6. Compiler errors are parsed to extract native error codes (Rust E0XXX, TypeScript TSXXXX)
-7. User can run `splice explain <code>` to get detailed error documentation
-
-**Plans**: 6 plans in 4 waves
-
-Plans:
-- [x] 15-01-PLAN.md — Add severity level diversity to SpliceErrorCode enum (CLI-15)
-- [x] 15-02-PLAN.md — Extract line/column information from all errors (CLI-16)
-- [x] 15-03-PLAN.md — Implement fuzzy symbol suggestions using Levenshtein distance (CLI-19)
-- [x] 15-04-PLAN.md — Extract compiler error codes Rust E0XXX, TypeScript TSXXXX (CLI-20)
-- [x] 15-05-PLAN.md — Implement `splice explain` command for error documentation (CLI-21)
-- [x] 15-06-PLAN.md — Integrate all enhanced error features across error sites (CLI-17, CLI-18)
-
-#### Phase 16: Symbol Expansion & Search
-
-**Goal**: Users can retrieve full symbol bodies and search code patterns with atomic apply workflow
-
-**Depends on**: Phase 15
-**Requirements**: CLI-22 through CLI-33 (plus CLI-14 deferred from Phase 14)
-
-**Success Criteria** (what must be TRUE):
-1. User can use `--expand` flag to get full symbol body
-2. Expansion uses AST-aware tree-sitter parent chain walking for accuracy
-3. Multiple expansions work progressively: name → full body → containing block
-4. Expansion includes leading doc comments and documentation
-5. User can specify exact expansion level with `--expand-level <N>` flag
-6. Expansion works consistently across all 7 supported languages
-7. Context flags (-A/-B/-C) respect expanded symbol boundaries when used with `--expand` flag (CLI-14 from Phase 14)
-8. User can run `splice search --pattern <text>` to find code patterns
-9. User can use `splice search --apply` for atomic find-and-replace with rollback on failure
-10. User can filter search results with `--glob` flag for file patterns
-11. Search results available in JSON format for LLM consumption
-
-**Plans**: 11 plans in 5 waves
-
-Plans:
-- [x] 16-01-PLAN.md — Implement AST-aware parent chain walking for symbol expansion
-- [x] 16-02-PLAN.md — Add `--expand` and `--expand-level <N>` flags to get/query commands
-- [x] 16-03-PLAN.md — Implement progressive expansion (name → body → containing block)
-- [x] 16-04-PLAN.md — Include doc comments in expanded output
-- [x] 16-05-PLAN.md — Test expansion across all 7 languages for consistency
-- [x] 16-06-PLAN.md — Test context flags respect expanded boundaries (CLI-14 from Phase 14)
-- [x] 16-07-PLAN.md — Implement `splice search --pattern <text>` command
-- [x] 16-08-PLAN.md — Add file path, line number, and context to search output
-- [x] 16-09-PLAN.md — Implement `--glob` flag for file pattern filtering
-- [x] 16-10-PLAN.md — Add `--apply` flag for atomic find-and-replace with rollback
-- [x] 16-11-PLAN.md — Add JSON output format for search results
-
-#### Phase 17: Integration & Testing
-
-**Goal**: All v2.2 features work correctly across 7 languages with comprehensive test coverage
-
-**Depends on**: Phase 16
-**Requirements**: TEST-01 through TEST-06
-
-**Success Criteria** (what must be TRUE):
-1. All 334+ existing tests pass with new JSON schema (no breaking changes)
-2. New tests verify rich span extensions (context, semantic kind, checksums, error codes) across all 7 languages
-3. Performance tests confirm context extraction works efficiently on large files (>32KB)
-4. Performance tests confirm relationship queries scale on large codebases (>1K symbols)
-5. Cross-tool alignment tests verify Magellan format compatibility
-6. LLM consumption tests verify JSON fields are properly structured for agent use
-
-**Plans**: 7 plans in 2 waves
-
-Plans:
-- [x] 17-01-PLAN.md — Run all 334+ existing tests and update golden files for new JSON schema
-- [x] 17-02-PLAN.md — Add integration tests for rich span extensions across all 7 languages
-- [x] 17-03-PLAN.md — Add performance tests for context extraction on large files (>32KB)
-- [x] 17-04-PLAN.md — Add performance tests for relationship queries on large codebases (>1K symbols)
-- [x] 17-05-PLAN.md — Add cross-tool alignment tests with Magellan format compatibility
-- [x] 17-06-PLAN.md — Add LLM consumption tests verifying JSON fields are properly used by agents
-- [x] 17-07-PLAN.md — Align Splice to enable Magellan database READ compatibility (schema v3, labels, edge casing)
-
-#### Phase 18: Error Code Integration
-
-**Goal**: Complete error code wiring throughout CLI for structured SPL-E### error output
-
-**Depends on**: Phase 15 (Enhanced Errors), Phase 11 (Error Code Infrastructure)
-**Requirements**: CLI-17 (from original scope - "Every error includes stable error code")
-**Gap Closure**: Closes audit gap for error codes not being fully wired
-
-**Success Criteria** (what must be TRUE):
-1. All CLI error paths produce structured error codes in JSON output
-2. JSON error output includes `explain_command` field with format "splice explain SPL-E###"
-3. All 22 error-level SPL-E### variants are covered by SpliceError mappings
-4. Error codes are consistent across all 7 language operations
-5. `splice explain <code>` command returns detailed documentation for all errors
-
-**Plans**: 1 plan in 1 wave
-
-Plans:
-- [x] 18-01-PLAN.md — Map remaining SpliceError variants to error codes and add explain_command field
+</details>
 
 ## Progress
-
-**Execution Order:**
-Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -276,4 +75,4 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15 → 16 → 17 �
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%)
-- v2.2: 70/70 plans complete (100%) ✓
+- v2.2: 55/55 plans complete (100%) ✓
