@@ -221,7 +221,7 @@ Recent decisions affecting current work:
 - None - Phase 17 is the final planned phase
 
 **Incomplete Plan:**
-- 17-07: Magellan Write Integration - Add --db flag to patch/delete/search commands to enable editing based on Magellan database
+- 17-07: Magellan READ Alignment - Fix Splice to properly read Magellan databases (accept schema v3, handle Magellan labels/edge casing)
 
 ### Blockers/Concerns
 
@@ -239,18 +239,21 @@ Recent decisions affecting current work:
 - [Phase 12]: LLM action taxonomy completeness — need survey of real LLM agents to see which JSON fields they use
 - [Phase 12]: Performance testing on 10K+ file codebases to validate mitigation strategies
 
-**Critical Gap - Magellan Integration:**
-- **Current State:** Splice can READ from Magellan database (query/get commands) but CANNOT WRITE using Magellan database
-- **Missing Feature:** patch/delete/search commands lack --db flag to enable Magellan-based editing
-- **Workflow:** Users must manually copy file_path:byte_start:byte_end from Magellan find output, then run splice patch/delete with --file flag (tree-sitter based, not database-based)
-- **Expected Workflow:** User runs magellan watch to index codebase → runs splice patch --db codegraph.db --symbol X → Splice reads from database and edits
-- **Impact:** Without 17-07 implementation, Splice+Magellan integration is READ-ONLY, not full alignment
+**Critical Gap - Magellan READ Integration:**
+- **Current State:** Splice errors when opening Magellan databases due to schema version and label/edge mismatches
+- **Issues:**
+  - Schema version gate: Splice expects v2, Magellan uses v3
+  - Label mismatch: Magellan uses (`rust`, `fn`), Splice uses (`symbol_function`, etc.)
+  - Edge casing: Magellan uses `DEFINES`, Splice uses `defines`
+  - Node kind mismatch: Magellan stores all symbols as `Symbol`, Splice uses specific kinds
+- **Expected Behavior:** Splice should open and query Magellan DBs without errors, accepting Magellan's conventions
+- **Impact:** Without 17-07 implementation, users cannot use Splice to query Magellan-indexed codebases
 
 **Mitigation:**
-- Use `/gsd:plan-phase` before implementing Phase 17-07
-- Start with minimal implementation: add --db flag to patch/delete/search commands
-- Implement database lookup in execute_* functions when --db is provided
-- Keep tree-sitter path as fallback when --db not provided
+- Use `/gsd:execute-phase 17-07` to implement READ alignment
+- Accept Magellan sqlitegraph schema v3 when opening databases
+- Handle Magellan label conventions (`rust`, `fn`, etc.) in queries
+- Accept both `DEFINES` and `defines` edge casing
 
 ## Session Continuity
 
