@@ -414,7 +414,11 @@ mod tests {
         let manifest_path = workspace_root.join(".splice-backup/test-manifest/manifest.json");
 
         // Save
-        fs::create_dir_all(manifest_path.parent().unwrap()).expect("Failed to create dir");
+        if let Some(parent) = manifest_path.parent() {
+            fs::create_dir_all(parent).expect("Failed to create dir");
+        } else {
+            fs::create_dir_all(&manifest_path).expect("Failed to create manifest dir");
+        }
         manifest.save().expect("Failed to save manifest");
 
         // Load
