@@ -20,11 +20,15 @@ Splice is a span-safe code refactoring tool that provides AST-validated code mod
 - Symbol expansion — AST-aware expansion with doc comments
 - Search & patch workflow — Pattern search with atomic apply
 
-## Status: v2.0 COMPLETE ✅ | v2.2 PLANNING ◆
+## Status: v2.0 COMPLETE ✅ | v2.2 COMPLETE ✅ |
 
 **Release Date:** 2026-01-18
 **Version:** 2.0.0
 **All planned features implemented and tested.**
+
+**v2.2 Release:** 2026-01-23
+**Version:** 2.2.0
+**Unified JSON Schema with LLM Optimization complete.**
 
 ### Completed Features (v2.0)
 
@@ -65,20 +69,12 @@ Splice is a span-safe code refactoring tool that provides AST-validated code mod
 - ✅ Magellan v0.5.3 compatibility — Verified with integration tests
 - ✅ Line/column metadata — Implemented in code graph
 
-#### Active (v2.2)
+#### Delivered (v2.2) ✅
 
-- [ ] **RICHSPAN-01:** Context field — `before`/`selected`/`after` lines in span output
-- [ ] **RICHSPAN-02:** Semantic kind — `function`, `variable`, `parameter` + `language` detection
-- [ ] **RICHSPAN-03:** Relationships — Full-codebase callers/callees/imports/exports
-- [ ] **RICHSPAN-04:** Checksums — `checksum_before`, `file_checksum_before` for race protection
-- [ ] **RICHSPAN-05:** Suggested action — `action_type` + `params` for LLM guidance
-- [ ] **RICHSPAN-06:** Tool hints — `requires_full_context`, `apply_atomically`, etc.
-- [ ] **RICHSPAN-07:** Unified error codes — `SPL-E001` format with taxonomy
-- [ ] **CLI-01:** Dry-run mode — `-n`/`--dry-run` with unified diff format
-- [ ] **CLI-02:** Context flags — `-A`/`-B`/`-C` following Unix conventions
-- [ ] **CLI-03:** Enhanced errors — Severity, location, hints, `explain` command
-- [ ] **CLI-04:** Symbol expansion — AST-aware `--expand` with doc comments
-- [ ] **CLI-05:** Search & patch — Pattern search with atomic apply workflow
+- ✅ Rich Span Extensions — Context, semantic kind, relationships, checksums, suggested actions, tool hints
+- ✅ CLI Improvements — Dry-run, unified diff, context flags, enhanced errors, symbol expansion, search
+- ✅ Error Code Integration — SPL-E### codes with explain command
+- ✅ Integration & Testing — 311 tests, performance validation, Magellan alignment
 
 ### Out of Scope
 
@@ -136,4 +132,4 @@ Potential areas for future development:
 - Parallel batch processing
 
 ---
-*Last updated: 2026-01-22 — v2.2 milestone started*
+*Last updated: 2026-01-23 — v2.2 milestone complete*
