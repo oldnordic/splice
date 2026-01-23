@@ -9,6 +9,14 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+/// Helper to log execution recording failures without failing the operation.
+fn log_execution_error(operation: &str, err: &splice::SpliceError) {
+    eprintln!(
+        "Warning: Failed to record execution for '{}': {}",
+        operation, err
+    );
+}
+
 /// Resolve context counts from -A, -B, -C flags following grep conventions.
 ///
 /// # Convention
@@ -434,7 +442,7 @@ fn execute_delete(
             Some(command_line),
             parameters,
         ) {
-            eprintln!("Failed to record execution: {}", e);
+            log_execution_error("delete (dry-run)", &e);
         }
 
         // Mark as having pending changes if lines would be removed (git diff exit code convention)
@@ -582,7 +590,7 @@ fn execute_delete(
         Some(command_line.clone()),
         parameters,
     ) {
-        eprintln!("Failed to record execution: {}", e);
+        log_execution_error("delete", &e);
     }
 
     // Check if JSON output is requested
@@ -854,7 +862,7 @@ fn execute_delete(
             Some(command_line.clone()),
             parameters,
         ) {
-            eprintln!("Failed to record execution: {}", e);
+            log_execution_error("delete", &e);
         }
 
         // Output structured JSON directly
@@ -1104,7 +1112,7 @@ fn execute_patch(
             Some(command_line),
             parameters,
         ) {
-            eprintln!("Failed to record execution: {}", e);
+            log_execution_error("patch (dry-run)", &e);
         }
 
         // Mark as having pending changes if lines were added or removed (git diff exit code convention)
@@ -1350,7 +1358,7 @@ fn execute_patch(
             Some(command_line.clone()),
             parameters,
         ) {
-            eprintln!("Failed to record execution: {}", e);
+            log_execution_error("patch", &e);
         }
 
         // Output structured JSON directly
@@ -1386,7 +1394,7 @@ fn execute_patch(
         Some(command_line),
         parameters,
     ) {
-        eprintln!("Failed to record execution: {}", e);
+        log_execution_error("patch", &e);
     }
 
     // Build span ID
@@ -1585,7 +1593,7 @@ fn execute_patch_batch(
             Some(command_line.clone()),
             parameters,
         ) {
-            eprintln!("Failed to record execution: {}", e);
+            log_execution_error("batch", &e);
         }
 
         // Output structured JSON directly
@@ -1661,7 +1669,7 @@ fn execute_patch_batch(
         Some(command_line.clone()),
         parameters,
     ) {
-        eprintln!("Failed to record execution: {}", e);
+        log_execution_error("batch", &e);
     }
 
     Ok(splice::cli::CliSuccessPayload::with_data(
@@ -1760,7 +1768,7 @@ fn execute_plan(
             Some(command_line.clone()),
             parameters,
         ) {
-            eprintln!("Failed to record execution: {}", e);
+            log_execution_error("plan", &e);
         }
 
         // Return a dummy payload marked as already emitted
@@ -1804,7 +1812,7 @@ fn execute_plan(
         Some(command_line.clone()),
         parameters,
     ) {
-        eprintln!("Failed to record execution: {}", e);
+        log_execution_error("plan", &e);
     }
 
     Ok(splice::cli::CliSuccessPayload::with_data(
@@ -1962,7 +1970,7 @@ fn execute_apply_files(
         Some(command_line.clone()),
         parameters,
     ) {
-        eprintln!("Failed to record execution: {}", e);
+        log_execution_error("apply-files", &e);
     }
 
     Ok(splice::cli::CliSuccessPayload::with_data(message, serde_json::Value::Object(response_data)))
@@ -2024,7 +2032,7 @@ fn execute_query(
             Some(command_line.clone()),
             parameters,
         ) {
-            eprintln!("Failed to record execution: {}", e);
+            log_execution_error("query", &e);
         }
 
         return Ok(splice::cli::CliSuccessPayload::message_only(message));
@@ -2060,7 +2068,7 @@ fn execute_query(
             Some(command_line.clone()),
             parameters,
         ) {
-            eprintln!("Failed to record execution: {}", e);
+            log_execution_error("query", &e);
         }
 
         return Ok(splice::cli::CliSuccessPayload::with_data(
@@ -2107,7 +2115,7 @@ fn execute_query(
             Some(command_line.clone()),
             parameters,
         ) {
-            eprintln!("Failed to record execution: {}", e);
+            log_execution_error("query", &e);
         }
 
         return Ok(splice::cli::CliSuccessPayload::message_only(message));
@@ -2302,7 +2310,7 @@ fn execute_query(
             Some(command_line),
             parameters,
         ) {
-            eprintln!("Failed to record execution: {}", e);
+            log_execution_error("query", &e);
         }
 
         return Ok(splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted());
@@ -2479,7 +2487,7 @@ fn execute_query(
         Some(command_line.clone()),
         parameters,
     ) {
-        eprintln!("Failed to record execution: {}", e);
+        log_execution_error("query", &e);
     }
 
     Ok(splice::cli::CliSuccessPayload::with_data(
