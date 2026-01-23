@@ -1275,6 +1275,59 @@ mod tests {
     }
 
     #[test]
+    fn test_explain_command_generation() {
+        use crate::SpliceError;
+
+        // Test that explain_command is generated for errors with error codes
+        let symbol_error = SpliceError::symbol_not_found("foo", None);
+        let payload = crate::cli::CliErrorPayload::from_error(&symbol_error);
+
+        // Should have error_code
+        assert!(payload.error.error_code.is_some());
+        // Should have explain_command
+        assert!(payload.error.explain_command.is_some());
+
+        let explain_cmd = payload.error.explain_command.as_ref().unwrap();
+        assert_eq!(explain_cmd, "splice explain SPL-E001");
+        assert!(explain_cmd.contains("splice explain"));
+
+        // Test that BrokenPipe (no error code) doesn't have explain_command
+        let broken_pipe_error = SpliceError::BrokenPipe;
+        let payload = crate::cli::CliErrorPayload::from_error(&broken_pipe_error);
+
+        assert!(payload.error.error_code.is_none());
+        assert!(payload.error.explain_command.is_none());
+
+        // Test format for various error codes
+        let test_cases = vec![
+            (SpliceError::Parse {
+                file: std::path::PathBuf::from("test.rs"),
+                message: "parse error".to_string(),
+            }, "SPL-E011"),
+            (SpliceError::InvalidSpan {
+                file: std::path::PathBuf::from("test.rs"),
+                start: 0,
+                end: 10,
+                file_size: 100,
+            }, "SPL-E021"),
+            (SpliceError::Io {
+                path: std::path::PathBuf::from("test.rs"),
+                source: std::io::Error::new(std::io::ErrorKind::NotFound, "not found"),
+            }, "SPL-E031"),
+        ];
+
+        for (error, expected_code) in test_cases {
+            let payload = crate::cli::CliErrorPayload::from_error(&error);
+            assert!(payload.error.error_code.is_some());
+            assert!(payload.error.explain_command.is_some());
+
+            let explain_cmd = payload.error.explain_command.as_ref().unwrap();
+            let expected = format!("splice explain {}", expected_code);
+            assert_eq!(explain_cmd, &expected);
+        }
+    }
+
+    #[test]
     fn test_error_code_construction() {
         let code = ErrorCode::new(
             "SPL-E001",
