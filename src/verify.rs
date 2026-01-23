@@ -17,6 +17,15 @@ use crate::checksum::{checksum_file, Checksum};
 use crate::error::Result;
 use std::path::Path;
 
+/// Multiplier for disk space estimation to account for filesystem overhead.
+/// Atomic writes need space for both original and new file simultaneously,
+/// plus additional buffer for journaling and metadata.
+const DISK_SPACE_MULTIPLIER: usize = 3;
+
+/// Additional overhead per file for metadata and filesystem structures (in bytes).
+/// Accounts for typical filesystem block size (4KB) and inode/table overhead.
+const DISK_OVERHEAD_PER_FILE: u64 = 4096;
+
 /// Pre-verification result.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PreVerificationResult {
@@ -197,17 +206,19 @@ pub fn verify_workspace_resources(
     // Clean up test file
     let _ = std::fs::remove_file(&test_file);
 
-    // Check 3: Sufficient disk space (2x estimated size for safety)
+    // Check 3: Sufficient disk space with improved heuristic
     // Get disk space using filesystem metadata
     match get_disk_space(workspace_root) {
         Ok((available, _total)) => {
-            let needed = estimated_size * 2;
-            if available < needed as u64 {
+            // Calculate needed space with multiplier and overhead
+            // Atomic writes need space for: original + new + metadata overhead
+            let needed = (estimated_size * DISK_SPACE_MULTIPLIER) as u64 + DISK_OVERHEAD_PER_FILE;
+            if available < needed {
                 return PreVerificationResult::blocking(
                     "disk_space",
                     format!(
-                        "Insufficient disk space: need {} bytes, available {} bytes",
-                        needed, available
+                        "Insufficient disk space: need {} bytes ({}x file size + {} overhead), available {} bytes",
+                        needed, DISK_SPACE_MULTIPLIER, DISK_OVERHEAD_PER_FILE, available
                     ),
                 );
             }
