@@ -1288,8 +1288,8 @@ mod tests {
         assert!(payload.error.explain_command.is_some());
 
         let explain_cmd = payload.error.explain_command.as_ref().unwrap();
-        assert_eq!(explain_cmd, "splice explain SPL-E001");
-        assert!(explain_cmd.contains("splice explain"));
+        assert_eq!(explain_cmd, "splice explain --code SPL-E001");
+        assert!(explain_cmd.contains("splice explain --code"));
 
         // Test that BrokenPipe (no error code) doesn't have explain_command
         let broken_pipe_error = SpliceError::BrokenPipe;
@@ -1322,7 +1322,7 @@ mod tests {
             assert!(payload.error.explain_command.is_some());
 
             let explain_cmd = payload.error.explain_command.as_ref().unwrap();
-            let expected = format!("splice explain {}", expected_code);
+            let expected = format!("splice explain --code {}", expected_code);
             assert_eq!(explain_cmd, &expected);
         }
     }

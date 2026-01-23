@@ -654,7 +654,7 @@ impl CliErrorPayload {
 
         // Generate explain command if error_code is present
         let explain_command = error_code.as_ref().map(|ec| {
-            format!("splice explain {}", ec.code)
+            format!("splice explain --code {}", ec.code)
         });
 
         CliErrorPayload {
