@@ -261,9 +261,10 @@ fn extract_require_call(node: tree_sitter::Node, source: &[u8]) -> Option<super:
                     for arg in sub_child.children(&mut sub_child.walk()) {
                         if arg.kind() == "string" {
                             if let Ok(text) = arg.utf8_text(source) {
-                                // Remove quotes from the string
-                                if text.len() > 2 {
-                                    source_path = text[1..text.len() - 1].to_string();
+                                // Remove quotes from the string (character-safe for UTF-8)
+                                let chars: Vec<char> = text.chars().collect();
+                                if chars.len() > 2 {
+                                    source_path = chars[1..chars.len() - 1].iter().collect();
                                 }
                             }
                         }
@@ -318,86 +319,79 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_namespace_import() {
+    fn test_extract_namespace_import() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"import * as utils from './utils';\n";
         let path = Path::new("test.ts");
-        let result = extract_typescript_imports(path, source);
-        assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = extract_typescript_imports(path, source)?;
         assert_eq!(imports.len(), 1);
         assert_eq!(imports[0].import_kind, ImportKind::JsNamespaceImport);
         assert!(imports[0].is_glob);
         assert_eq!(imports[0].imported_names, vec!["utils"]);
+        Ok(())
     }
 
     #[test]
-    fn test_extract_side_effect_import() {
+    fn test_extract_side_effect_import() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"import 'polyfills';\n";
         let path = Path::new("test.ts");
-        let result = extract_typescript_imports(path, source);
-        assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = extract_typescript_imports(path, source)?;
         assert_eq!(imports.len(), 1);
         assert_eq!(imports[0].import_kind, ImportKind::JsSideEffectImport);
         assert_eq!(imports[0].path, vec!["polyfills"]);
+        Ok(())
     }
 
     #[test]
-    fn test_extract_type_only_named_import() {
+    fn test_extract_type_only_named_import() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"import type { User, Admin } from './types';\n";
         let path = Path::new("test.ts");
-        let result = extract_typescript_imports(path, source);
-        assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = extract_typescript_imports(path, source)?;
         assert_eq!(imports.len(), 1);
         assert_eq!(imports[0].import_kind, ImportKind::TsTypeImport);
         assert_eq!(imports[0].path, vec![".", "types"]);
         assert_eq!(imports[0].imported_names.len(), 2);
+        Ok(())
     }
 
     #[test]
-    fn test_extract_type_only_default_import() {
+    fn test_extract_type_only_default_import() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"import type UserModel from './models';\n";
         let path = Path::new("test.ts");
-        let result = extract_typescript_imports(path, source);
-        assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = extract_typescript_imports(path, source)?;
         assert_eq!(imports.len(), 1);
         assert_eq!(imports[0].import_kind, ImportKind::TsTypeDefaultImport);
         assert_eq!(imports[0].imported_names, vec!["UserModel"]);
+        Ok(())
     }
 
     #[test]
-    fn test_extract_multiple_imports() {
+    fn test_extract_multiple_imports() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"import { Foo } from 'bar';\nimport type Baz from 'qux';\n";
         let path = Path::new("test.ts");
-        let result = extract_typescript_imports(path, source);
-        assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = extract_typescript_imports(path, source)?;
         assert_eq!(imports.len(), 2);
+        Ok(())
     }
 
     #[test]
-    fn test_extract_import_with_alias() {
+    fn test_extract_import_with_alias() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"import { Button as Btn } from './ui';\n";
         let path = Path::new("test.ts");
-        let result = extract_typescript_imports(path, source);
-        assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = extract_typescript_imports(path, source)?;
         assert_eq!(imports.len(), 1);
         // Should extract the local alias (Btn)
         assert_eq!(imports[0].imported_names, vec!["Btn"]);
+        Ok(())
     }
 
     #[test]
-    fn test_typescript_import_has_byte_span() {
+    fn test_typescript_import_has_byte_span() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let source = b"import { Foo } from 'bar';\n";
         let path = Path::new("test.ts");
-        let result = extract_typescript_imports(path, source);
-        assert!(result.is_ok());
-        let imports = result.unwrap();
+        let imports = extract_typescript_imports(path, source)?;
         assert_eq!(imports.len(), 1);
         // Byte span is set
         assert!(imports[0].byte_span.0 < imports[0].byte_span.1);
+        Ok(())
     }
 }

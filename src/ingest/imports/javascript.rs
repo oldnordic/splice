@@ -213,9 +213,10 @@ fn extract_require_call(node: tree_sitter::Node, source: &[u8]) -> Option<super:
                     for arg in sub_child.children(&mut sub_child.walk()) {
                         if arg.kind() == "string" {
                             if let Ok(text) = arg.utf8_text(source) {
-                                // Remove quotes from the string
-                                if text.len() > 2 {
-                                    source_path = text[1..text.len() - 1].to_string();
+                                // Remove quotes from the string (character-safe for UTF-8)
+                                let chars: Vec<char> = text.chars().collect();
+                                if chars.len() > 2 {
+                                    source_path = chars[1..chars.len() - 1].iter().collect();
                                 }
                             }
                         }
