@@ -159,14 +159,14 @@ Plans:
   3. Error codes correctly map from Magellan errors
   4. LLM consumption tests verify single-tool workflow for discovery and editing
   5. Performance benchmarks confirm query performance within acceptable limits
-**Plans**: TBD
+**Plans**: 6 plans
 
 Plans:
-- [ ] 26-01-PLAN.md — End-to-end integration tests for all query commands
-- [ ] 26-02-PLAN.md — Export format validation tests
-- [ ] 26-03-PLAN.md — Error code mapping tests
-- [ ] 26-04-PLAN.md — LLM consumption tests
-- [ ] 26-05-PLAN.md — Performance benchmarks
+- [ ] 26-01-PLAN.md — End-to-end integration tests for all query commands (6 tests)
+- [ ] 26-02-PLAN.md — Export format validation tests (4 tests)
+- [ ] 26-03-PLAN.md — Error code mapping tests (4 tests)
+- [ ] 26-04-PLAN.md — LLM consumption tests (3 tests)
+- [ ] 26-05-PLAN.md — Performance benchmarks (4 tests)
 - [ ] 26-06-PLAN.md — Documentation (docs/magellan_integration.md)
 
 ---
