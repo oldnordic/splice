@@ -6,8 +6,29 @@
 //! - Code chunk retrieval (no file re-reading)
 
 use crate::error::{Result, SpliceError};
-use magellan::{CodeGraph as MagellanGraph, SymbolQueryResult};
+use magellan::{CodeGraph as MagellanGraph, SymbolKind, SymbolQueryResult};
 use std::path::{Path, PathBuf};
+
+/// Parse a normalized symbol kind string into SymbolKind enum.
+///
+/// Maps user-facing kind strings (fn, struct, method, etc.) to SymbolKind variants.
+fn parse_symbol_kind(kind: &str) -> SymbolKind {
+    match kind {
+        "fn" => SymbolKind::Function,
+        "method" => SymbolKind::Method,
+        "struct" => SymbolKind::Class,
+        "class" => SymbolKind::Class,
+        "trait" => SymbolKind::Interface,
+        "interface" => SymbolKind::Interface,
+        "enum" => SymbolKind::Enum,
+        "mod" => SymbolKind::Module,
+        "module" => SymbolKind::Module,
+        "union" => SymbolKind::Union,
+        "namespace" => SymbolKind::Namespace,
+        "type_alias" => SymbolKind::TypeAlias,
+        _ => SymbolKind::Unknown,
+    }
+}
 
 /// Wrapper around Magellan's CodeGraph with Splice-specific extensions.
 pub struct MagellanIntegration {
@@ -196,6 +217,133 @@ impl MagellanIntegration {
 
         Ok(count as usize)
     }
+
+    /// Query symbols in a file, with optional filters and relationship context.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to the file to query
+    /// * `kind_filter` - Optional symbol kind filter (e.g., "fn", "struct", "class")
+    /// * `with_callers` - If true, include symbols that call each returned symbol
+    /// * `with_callees` - If true, include symbols that each returned symbol calls
+    ///
+    /// # Returns
+    /// Vector of symbols with their relationships (if requested).
+    pub fn query_symbols_by_file(
+        &mut self,
+        file_path: &Path,
+        kind_filter: Option<&str>,
+        with_callers: bool,
+        with_callees: bool,
+    ) -> Result<Vec<SymbolWithRelations>> {
+        let path_str = file_path
+            .to_str()
+            .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
+
+        // Query symbols with optional kind filter
+        let symbol_facts = if let Some(kind) = kind_filter {
+            let symbol_kind = parse_symbol_kind(kind);
+            self.inner
+                .symbols_in_file_with_kind(path_str, Some(symbol_kind))
+        } else {
+            self.inner.symbols_in_file(path_str)
+        }
+        .map_err(|e| {
+            SpliceError::Other(format!("Failed to query symbols in file {}: {}", path_str, e))
+        })?;
+
+        // Convert to SymbolWithRelations, optionally fetching relationships
+        let mut results = Vec::new();
+        for fact in symbol_facts {
+            // Skip symbols without names (e.g., impl blocks)
+            let name = match fact.name {
+                Some(n) => n,
+                None => continue,
+            };
+
+            let symbol = SymbolInfo {
+                entity_id: 0, // SymbolFact doesn't include entity_id
+                name: name.clone(),
+                file_path: fact.file_path.to_string_lossy().to_string(),
+                kind: fact.kind_normalized,
+                byte_start: fact.byte_start,
+                byte_end: fact.byte_end,
+            };
+
+            let (callers, callees) = if with_callers || with_callees {
+                self.fetch_call_relationships_for_symbol(path_str, &name, with_callers, with_callees)?
+            } else {
+                (Vec::new(), Vec::new())
+            };
+
+            results.push(SymbolWithRelations { symbol, callers, callees });
+        }
+
+        Ok(results)
+    }
+
+    /// Fetch call relationships for a symbol by name.
+    fn fetch_call_relationships_for_symbol(
+        &mut self,
+        file_path: &str,
+        symbol_name: &str,
+        fetch_callers: bool,
+        fetch_callees: bool,
+    ) -> Result<(Vec<SymbolInfo>, Vec<SymbolInfo>)> {
+        let mut callers = Vec::new();
+        let mut callees = Vec::new();
+
+        if fetch_callers {
+            let call_facts = self
+                .inner
+                .callers_of_symbol(file_path, symbol_name)
+                .map_err(|e| SpliceError::Other(format!("Failed to get callers: {}", e)))?;
+            for fact in call_facts {
+                // Resolve caller name to SymbolInfo
+                // CallFact contains the caller's file_path and name
+                if let Ok(caller_symbols) =
+                    self.inner.symbol_extents(&fact.file_path.to_string_lossy(), &fact.caller)
+                {
+                    for (_id, caller_fact) in caller_symbols {
+                        callers.push(SymbolInfo {
+                            entity_id: _id,
+                            name: caller_fact.name.unwrap_or_else(|| fact.caller.clone()),
+                            file_path: caller_fact.file_path.to_string_lossy().to_string(),
+                            kind: caller_fact.kind_normalized,
+                            byte_start: caller_fact.byte_start,
+                            byte_end: caller_fact.byte_end,
+                        });
+                    }
+                }
+            }
+        }
+
+        if fetch_callees {
+            let call_facts = self
+                .inner
+                .calls_from_symbol(file_path, symbol_name)
+                .map_err(|e| SpliceError::Other(format!("Failed to get callees: {}", e)))?;
+            for fact in call_facts {
+                // Resolve callee name to SymbolInfo
+                // CallFact contains the callee's file_path and name
+                if let Ok(callee_symbols) =
+                    self.inner.symbol_extents(&fact.file_path.to_string_lossy(), &fact.callee)
+                {
+                    for (_id, callee_fact) in callee_symbols {
+                        callees.push(SymbolInfo {
+                            entity_id: _id,
+                            name: callee_fact.name.unwrap_or_else(|| fact.callee.clone()),
+                            file_path: callee_fact.file_path.to_string_lossy().to_string(),
+                            kind: callee_fact.kind_normalized,
+                            byte_start: callee_fact.byte_start,
+                            byte_end: callee_fact.byte_end,
+                        });
+                    }
+                }
+            }
+        }
+
+        Ok((callers, callees))
+    }
 }
 
 /// Symbol information extracted from Magellan's SymbolQueryResult.
@@ -213,6 +361,17 @@ pub struct SymbolInfo {
     pub byte_start: usize,
     /// Byte offset where the symbol ends.
     pub byte_end: usize,
+}
+
+/// Symbol with optional call relationship context.
+#[derive(Debug, Clone)]
+pub struct SymbolWithRelations {
+    /// The symbol's basic information.
+    pub symbol: SymbolInfo,
+    /// Symbols that call this symbol (if --with-callers flag).
+    pub callers: Vec<SymbolInfo>,
+    /// Symbols that this symbol calls (if --with-callees flag).
+    pub callees: Vec<SymbolInfo>,
 }
 
 impl From<SymbolQueryResult> for SymbolInfo {
