@@ -7,12 +7,70 @@
 //! - JavaScript/TypeScript: `import` and `require`
 //! - Java: `import` statements
 
+use crate::error::{Result, SpliceError};
+use crate::symbol::Language;
+use std::path::Path;
+
 pub mod cpp;
 pub mod java;
 pub mod javascript;
 pub mod python;
 pub mod rust;
 pub mod typescript;
+
+/// Trait for language-specific import extraction.
+///
+/// Each language implements this trait to provide its import extraction logic.
+/// The trait defines the common interface and default implementations for
+/// shared functionality.
+pub trait ImportExtractor {
+    /// The tree-sitter language for this extractor.
+    fn language() -> tree_sitter::Language;
+
+    /// The Language enum variant for this extractor.
+    fn language_enum() -> Language;
+
+    /// Extract imports from a parsed AST node.
+    ///
+    /// This is where language-specific logic lives - each language
+    /// knows its own AST node types and import structures.
+    fn extract_from_node(
+        node: tree_sitter::Node,
+        source: &[u8],
+        imports: &mut Vec<ImportFact>,
+    );
+
+    /// Extract imports from source code.
+    ///
+    /// This is the main entry point, providing the common flow:
+    /// 1. Create parser
+    /// 2. Parse source
+    /// 3. Walk AST and extract imports
+    fn extract(path: &Path, source: &[u8]) -> Result<Vec<ImportFact>> {
+        // Create tree-sitter parser
+        let mut parser = tree_sitter::Parser::new();
+        parser
+            .set_language(&Self::language())
+            .map_err(|e| SpliceError::Parse {
+                file: path.to_path_buf(),
+                message: format!("Failed to set language: {:?}", e),
+            })?;
+
+        // Parse the source code
+        let tree = parser
+            .parse(source, None)
+            .ok_or_else(|| SpliceError::Parse {
+                file: path.to_path_buf(),
+                message: "Parse failed - no tree returned".to_string(),
+            })?;
+
+        // Extract imports from the AST
+        let mut imports = Vec::new();
+        Self::extract_from_node(tree.root_node(), source, &mut imports);
+
+        Ok(imports)
+    }
+}
 
 /// Represents a single import statement in source code.
 #[derive(Debug, Clone, PartialEq)]
