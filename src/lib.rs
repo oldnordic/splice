@@ -26,6 +26,7 @@ pub mod relationships;
 pub mod resolve;
 pub mod suggestions;
 pub mod symbol;
+pub mod symbol_id;
 pub mod validate;
 pub mod verify;
 
