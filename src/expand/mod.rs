@@ -36,7 +36,7 @@
 
 use crate::error::{Result, SpliceError};
 use crate::expand::tree_walker::find_parent_symbol_node;
-use crate::symbol::Language;
+use crate::symbol::{parser_for_language, Language};
 use std::path::Path;
 
 pub mod tree_walker;
@@ -273,30 +273,6 @@ fn get_expander(language: Language) -> Box<dyn SymbolExpander> {
         Language::JavaScript => Box::new(JavaScriptExpander),
         Language::TypeScript => Box::new(TypeScriptExpander),
     }
-}
-
-/// Create a tree-sitter parser for the given language.
-///
-/// This follows the same pattern as `patch::pattern::parser_for_language`.
-fn parser_for_language(language: Language) -> Result<tree_sitter::Parser> {
-    let mut parser = tree_sitter::Parser::new();
-
-    let lang = match language {
-        Language::Rust => tree_sitter_rust::language(),
-        Language::Python => tree_sitter_python::language(),
-        Language::C => tree_sitter_c::language(),
-        Language::Cpp => tree_sitter_cpp::language(),
-        Language::Java => tree_sitter_java::language(),
-        Language::JavaScript => tree_sitter_javascript::language(),
-        Language::TypeScript => tree_sitter_typescript::language_typescript(),
-    };
-
-    parser.set_language(&lang).map_err(|e| SpliceError::Parse {
-        file: std::path::PathBuf::from("<unknown>"),
-        message: format!("Failed to set language for parser: {:?}", e),
-    })?;
-
-    Ok(parser)
 }
 
 /// Expand a symbol at a given location to its full definition body.
