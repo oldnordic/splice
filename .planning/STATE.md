@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** v2.2.2 Magellan Integration — Phase 25: Export Command & Error Mapping
+**Current focus:** v2.2.2 Magellan Integration — Phase 26: Integration Testing
 
 ## Current Position
 
-Phase: 25 of 26 (Export Command & Error Mapping)
-Plan: 04 of 4 (Export Command Tests)
+Phase: 26 of 26 (Integration Testing)
+Plan: 02 of 6 (Export Format Validation Tests)
 Status: In progress
-Last activity: 2026-01-24 — Completed 25-04: Export Command Tests
+Last activity: 2026-01-24 — Completed 26-02: Export Format Validation Tests
 
-Progress: [█████████░] 94% (127/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 21/24 v2.2.2)
+Progress: [█████████░] 95% (128/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 22/24 v2.2.2)
 
 ## Current Milestone: v2.2.2 Magellan Integration
 
@@ -34,8 +34,8 @@ Progress: [█████████░] 94% (127/130 plans: 31 v2.0 + 55 v2.2
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 120
-- Total execution time: ~43 hours (estimated)
+- Total plans completed: 128
+- Total execution time: ~43.5 hours (estimated)
 
 **By Phase:**
 
@@ -46,8 +46,8 @@ Progress: [█████████░] 94% (127/130 plans: 31 v2.0 + 55 v2.2
 | 19-21 | 20 | Complete |
 | 22-23 | 9 | Complete |
 | 24 | 5 | Complete |
-| 25 | 4/4 | Complete |
-| 26 | 0/1 | Pending |
+| 25 | 4 | Complete |
+| 26 | 2/6 | In progress |
 
 *Updated after each plan completion*
 
@@ -125,6 +125,13 @@ Decisions are logged in PROJECT.md Key Decisions table.
   - Fixed Export command field name conflict (output->file) to avoid clash with global --output flag
   - Removed short option -o from Export::file to avoid conflict with global -o
   - All 5 export tests pass (test_export_json_format, test_export_jsonl_format, test_export_csv_format, test_export_defaults_to_json, test_export_stdout_output)
+- Phase 26-02: Export Format Validation Tests
+  - Added test_export_json_schema_validation with complete schema validation
+  - Added test_export_jsonl_record_types validating all record types (header, file, symbol, reference, call)
+  - Added test_export_csv_section_structure validating section headers and column structure
+  - Added test_export_error_handling validating error conditions
+  - Fixed cli_tests.rs compilation error (std::fs::set_len doesn't exist)
+  - All 9 export tests pass (5 existing + 4 new)
 
 ### Pending Todos
 
@@ -132,19 +139,18 @@ None yet.
 
 ### Blockers/Concerns
 
-**Phase 25:**
-- None - Phase 25 complete
+**Phase 26:**
+- None - Phase 26 progressing as planned
 
 **Discovered Issues:**
 - MagellanIntegration::open() wraps all errors in SpliceError::Other instead of propagating SpliceError::Graph, causing some database errors to return code 1 instead of code 3. This is a pre-existing issue outside the scope of exit code mapping.
-- Phase 24 left incomplete Magellan error handling in error_codes.rs (fixed in Phase 25-01 as deviation)
-- Export command field name conflict (output->file) fixed in Phase 25-04 as deviation
+- cli_tests.rs had compilation error using std::fs::set_len which doesn't exist; fixed in Phase 26-02
 
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed 25-04: Export Command Tests
+Stopped at: Completed 26-02: Export Format Validation Tests
 Resume file: None
 
 ---
-*Last updated: 2026-01-24 — Phase 25 complete*
+*Last updated: 2026-01-24 — Phase 26 Plan 2 complete*
