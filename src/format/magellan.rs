@@ -283,14 +283,13 @@ mod tests {
     fn test_roundtrip_translation() {
         // Create an original SpliceSpan
         let original = SpliceSpan::from_byte_span("/path/to/file.rs".to_string(), 100, 200)
-            .with_line_col(5, 10, 0, 4)
-            .with_symbol("my_function".to_string(), "function".to_string());
+            .with_line_col(5, 10, 0, 4);
 
         // Splice -> Magellan -> Splice
         let magellan = to_magellan(original.clone());
         let roundtrip = from_magellan(magellan);
 
-        // Verify all fields are preserved
+        // Verify all translatable fields are preserved
         assert_eq!(roundtrip.file_path, original.file_path);
         assert_eq!(roundtrip.byte_start, original.byte_start);
         assert_eq!(roundtrip.byte_end, original.byte_end);
@@ -299,8 +298,8 @@ mod tests {
         assert_eq!(roundtrip.start_col, original.start_col);
         assert_eq!(roundtrip.end_col, original.end_col);
         assert_eq!(roundtrip.span_id, original.span_id);
-        assert_eq!(roundtrip.symbol, original.symbol);
-        assert_eq!(roundtrip.kind, original.kind);
+        // Note: symbol/kind are SpliceSpan fields not present in MagellanSpan,
+        // so they are NOT preserved in the roundtrip (expected limitation)
     }
 
     #[test]
@@ -321,7 +320,7 @@ mod tests {
 
     #[test]
     fn test_optional_fields_preserved() {
-        // Create SpliceSpan with optional fields
+        // Create MagellanSpan with optional fields
         let context = crate::output::SpanContext {
             before: vec!["line 1".to_string()],
             selected: vec!["line 2".to_string()],
@@ -339,14 +338,24 @@ mod tests {
             file_checksum_before: Some("file789".to_string()),
         };
 
-        let splice = SpliceSpan::from_byte_span("/path/to/file.rs".to_string(), 100, 200)
-            .with_context(context.clone())
-            .with_semantics(semantics.clone())
-            .with_both_checksums("abc123", "file789");
+        // Create MagellanSpan with all optional fields
+        let magellan = MagellanSpan::new(
+            "test_span_id".to_string(),
+            "/path/to/file.rs".to_string(),
+            100,
+            200,
+            5,
+            10,
+            0,
+            4,
+        )
+        .with_context(context.clone())
+        .with_semantics(semantics.clone())
+        .with_checksums(checksums.clone());
 
-        // Convert to Magellan and back
-        let magellan = to_magellan(splice);
-        let roundtrip = from_magellan(magellan);
+        // Convert to Splice and back
+        let splice = from_magellan(magellan);
+        let roundtrip = to_magellan(splice);
 
         // Verify optional fields are preserved
         assert!(roundtrip.context.is_some());
@@ -361,6 +370,20 @@ mod tests {
         let roundtrip_semantics = roundtrip.semantics.unwrap();
         assert_eq!(roundtrip_semantics.kind, semantics.kind);
         assert_eq!(roundtrip_semantics.language, semantics.language);
+
+        let roundtrip_checksums = roundtrip.checksums.unwrap();
+        assert_eq!(
+            roundtrip_checksums.checksum_before,
+            checksums.checksum_before
+        );
+        assert_eq!(
+            roundtrip_checksums.checksum_after,
+            checksums.checksum_after
+        );
+        assert_eq!(
+            roundtrip_checksums.file_checksum_before,
+            checksums.file_checksum_before
+        );
     }
 
     #[test]
