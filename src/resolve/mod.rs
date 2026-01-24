@@ -417,9 +417,21 @@ pub fn resolve_symbol_with_rust_kind(
 
 /// Find a symbol, providing suggestions if not found.
 ///
-/// This is the preferred method for symbol lookup in user-facing commands
+/// This is the preferred method for **user-facing commands** (CLI, API endpoints)
 /// because it provides helpful "did you mean" suggestions when a symbol
 /// name is misspelled or doesn't exist.
+///
+/// # When to use this vs resolve_symbol
+///
+/// Use `find_symbol_or_suggest` when:
+/// - Building user-facing features (CLI, web UI, API)
+/// - You want fuzzy matching and suggestions for typos
+/// - You only need the NodeId, not full span information
+///
+/// Use `resolve_symbol` when:
+/// - Building internal programmatic features
+/// - You need full span information (ResolvingSpan)
+/// - You need kind filtering or file-scoped resolution
 ///
 /// # Arguments
 /// * `graph` - The code graph to search
@@ -431,13 +443,18 @@ pub fn resolve_symbol_with_rust_kind(
 /// * `Err(SpliceError::SymbolNotFound)` with suggestions if not found
 ///
 /// # Examples
-/// ```no_run
-/// use splice::graph::CodeGraph;
-/// use splice::resolve::find_symbol_or_suggest;
-/// use std::path::Path;
 ///
-/// let graph = CodeGraph::open(Path::new("codegraph.db"))?;
-/// let node_id = find_symbol_or_suggest(&graph, "my_function", None)?;
+/// ```no_run
+/// use splice::resolve::find_symbol_or_suggest;
+/// use splice::graph::CodeGraph;
+///
+/// let graph = CodeGraph::open(std::path::Path::new("codegraph.db"))?;
+///
+/// // Will suggest "my_function" if "my_functoin" is not found
+/// match find_symbol_or_suggest(&graph, "my_functoin", None) {
+///     Ok(id) => println!("Found: {:?}", id),
+///     Err(e) => println!("{}", e), // "Did you mean: my_function?"
+/// }
 /// # Ok::<(), splice::SpliceError>(())
 /// ```
 pub fn find_symbol_or_suggest(
