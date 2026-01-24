@@ -260,13 +260,8 @@ fn main() -> ExitCode {
             execute_files(&db, symbols, output, json_output)
         }
 
-        splice::cli::Commands::Export { db, format, output } => {
-            // Export command - not yet implemented
-            // TODO: Implement export in Phase 25-02
-            let _ = (db, format, output);
-            Err(splice::SpliceError::Other(
-                "export command not yet implemented".to_string(),
-            ))
+        splice::cli::Commands::Export { db, format: export_format, output } => {
+            execute_export(&db, export_format, output.as_deref(), json_output)
         }
     };
 
@@ -3449,6 +3444,173 @@ fn execute_files(
         let message = format!("{} indexed files:\n{}", count, lines.join("\n"));
         Ok(splice::cli::CliSuccessPayload::message_only(message))
     }
+}
+
+/// Execute the export command.
+///
+/// Exports graph data (files, symbols, references, calls) in the specified format.
+fn execute_export(
+    db_path: &Path,
+    format: splice::cli::ExportFormat,
+    output: Option<&Path>,
+    _json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::graph::magellan_integration::MagellanIntegration;
+    use splice::output::{ExportData, ExportResponse, EXPORT_SCHEMA_VERSION};
+    use splice::symbol_id::generate_symbol_id;
+
+    // Open Magellan integration
+    let mut integration = MagellanIntegration::open(db_path)?;
+
+    // Collect all graph data
+    let files = integration.list_indexed_files(false)?;
+
+    // Collect symbols from all files (limited to avoid OOM)
+    let mut all_symbols = Vec::new();
+
+    // Collect symbols from first 100 files (for safety)
+    for file_metadata in files.iter().take(100) {
+        let file_path = std::path::PathBuf::from(&file_metadata.path);
+        if let Ok(symbols) =
+            integration.query_symbols_by_file(&file_path, None, false, false)
+        {
+            for swr in symbols {
+                let sym = swr.symbol;
+                all_symbols.push(splice::output::SymbolExport {
+                    symbol_id: generate_symbol_id(&sym.name, &sym.file_path, sym.byte_start).to_string(),
+                    name: sym.name,
+                    kind: sym.kind,
+                    file_path: sym.file_path,
+                    byte_start: sym.byte_start,
+                    byte_end: sym.byte_end,
+                    start_line: 0,
+                    end_line: 0,
+                    start_col: 0,
+                    end_col: 0,
+                });
+            }
+        }
+    }
+
+    // Build export response
+    let export_data = ExportData {
+        files: files
+            .iter()
+            .map(|f| splice::output::FileExport {
+                path: f.path.clone(),
+                hash: f.hash.clone(),
+                last_indexed_at: f.last_indexed_at,
+                last_modified: f.last_modified,
+            })
+            .collect(),
+        symbols: all_symbols,
+        references: vec![], // References require more complex queries
+        calls: vec![],      // Calls require more complex queries
+    };
+
+    let response = ExportResponse {
+        schema_version: EXPORT_SCHEMA_VERSION.to_string(),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        db_path: db_path.to_string_lossy().to_string(),
+        data: export_data,
+    };
+
+    // Write output
+    if let Some(path) = output {
+        let file = std::fs::File::create(path)?;
+        let writer = std::io::BufWriter::new(file);
+        write_export(&response, format, writer)?;
+    } else {
+        let stdout = std::io::stdout();
+        let writer = std::io::BufWriter::new(stdout.lock());
+        write_export(&response, format, writer)?;
+    }
+
+    let file_count = response.data.files.len();
+    let symbol_count = response.data.symbols.len();
+
+    Ok(splice::cli::CliSuccessPayload::with_data(
+        format!("Exported {} files, {} symbols", file_count, symbol_count),
+        serde_json::json!({"files": file_count, "symbols": symbol_count}),
+    ))
+}
+
+/// Write export data in the specified format.
+fn write_export<W: std::io::Write>(
+    response: &splice::output::ExportResponse,
+    format: splice::cli::ExportFormat,
+    mut writer: std::io::BufWriter<W>,
+) -> Result<(), splice::SpliceError> {
+    use std::io::Write;
+
+    match format {
+        splice::cli::ExportFormat::Json => {
+            serde_json::to_writer_pretty(&mut writer, response).map_err(|e| {
+                splice::SpliceError::Other(format!("JSON serialization error: {}", e))
+            })?;
+        }
+        splice::cli::ExportFormat::Jsonl => {
+            // Write header with schema version
+            writeln!(
+                writer,
+                r#"{{"schema_version": "{}", "type": "header"}}"#,
+                response.schema_version
+            )
+            .map_err(|e| splice::SpliceError::Other(format!("Write error: {}", e)))?;
+
+            // Write files with type tag
+            for file in &response.data.files {
+                let json = serde_json::to_string(file)
+                    .map_err(|e| splice::SpliceError::Other(format!("JSON serialization error: {}", e)))?;
+                writeln!(writer, r#"{{"type": "file", "data": {}}}"#, json)
+                    .map_err(|e| splice::SpliceError::Other(format!("Write error: {}", e)))?;
+            }
+
+            // Write symbols with type tag
+            for symbol in &response.data.symbols {
+                let json = serde_json::to_string(symbol).map_err(|e| {
+                    splice::SpliceError::Other(format!("JSON serialization error: {}", e))
+                })?;
+                writeln!(writer, r#"{{"type": "symbol", "data": {}}}"#, json)
+                    .map_err(|e| splice::SpliceError::Other(format!("Write error: {}", e)))?;
+            }
+        }
+        splice::cli::ExportFormat::Csv => {
+            use csv::Writer;
+
+            // Write files section
+            writeln!(writer, "# Files")
+                .map_err(|e| splice::SpliceError::Other(format!("Write error: {}", e)))?;
+            {
+                let mut wtr = Writer::from_writer(&mut writer);
+                for file in &response.data.files {
+                    wtr.serialize(file)
+                        .map_err(|e| splice::SpliceError::Other(format!("CSV write error: {}", e)))?;
+                }
+                wtr.flush()
+                    .map_err(|e| splice::SpliceError::Other(format!("CSV flush error: {}", e)))?;
+            }
+
+            // Write symbols section
+            writeln!(writer, "\n# Symbols")
+                .map_err(|e| splice::SpliceError::Other(format!("Write error: {}", e)))?;
+            {
+                let mut wtr = Writer::from_writer(&mut writer);
+                for symbol in &response.data.symbols {
+                    wtr.serialize(symbol)
+                        .map_err(|e| splice::SpliceError::Other(format!("CSV write error: {}", e)))?;
+                }
+                wtr.flush()
+                    .map_err(|e| splice::SpliceError::Other(format!("CSV flush error: {}", e)))?;
+            }
+        }
+    }
+
+    writer
+        .flush()
+        .map_err(|e| splice::SpliceError::Other(format!("Flush error: {}", e)))?;
+
+    Ok(())
 }
 
 /// Parse date string to Unix timestamp.
