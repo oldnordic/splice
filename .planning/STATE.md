@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 23 of 26 (Magellan Integration Extensions)
-Plan: 01 of 6 (Database Statistics)
+Plan: 02 of 6 (File-Scoped Symbol Query)
 Status: In progress
-Last activity: 2026-01-24 — Completed 23-01: Database Statistics
+Last activity: 2026-01-24 — Completed 23-02: File-Scoped Symbol Query
 
-Progress: [████████░░] 85% (111/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 5/24 v2.2.2)
+Progress: [████████░░] 86% (112/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 6/24 v2.2.2)
 
 ## Current Milestone: v2.2.2 Magellan Integration
 
@@ -69,6 +69,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - 22-04: Execution ID uniqueness test verifies same timestamp/PID for IDs generated within same second (expected behavior)
 - 23-01: Store db_path in MagellanIntegration to enable Call counting via direct SQL (Magellan lacks entity iteration APIs)
 - 23-01: Use direct SQL for Call counting as safe workaround for missing Magellan count_calls() API
+- 23-02: parse_symbol_kind() helper maps kind strings (fn, struct) to SymbolKind enum since Magellan lacks FromStr
+- 23-02: Skip unnamed symbols (impl blocks) in query results as SymbolFact.name is Option<String>
+- 23-02: SymbolWithRelations composes SymbolInfo with caller/callee vectors for rich query context
 
 ### Pending Todos
 
@@ -80,12 +83,14 @@ None yet.
 - Magellan 0.5.3 doesn't expose entity iteration APIs (entity_ids, get_node) publicly - these exist only on private backends
 - Call counting required direct SQL workaround; consider upstreaming count_calls() to Magellan or accessing backends directly if performance issues emerge
 - Database connection opened separately for Call counting - could reuse existing connection if accessible
+- Magellan lacks FromStr implementation for SymbolKind - required custom parse_symbol_kind() helper
+- SymbolFact.name is Option<String> (not String) - required handling for unnamed symbols like impl blocks
 
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed 23-01 (Database Statistics), Phase 23 in progress
+Stopped at: Completed 23-02 (File-Scoped Symbol Query), Phase 23 in progress
 Resume file: None
 
 ---
-*Last updated: 2026-01-24 — Phase 23 Plan 01 complete*
+*Last updated: 2026-01-24 — Phase 23 Plan 02 complete*
