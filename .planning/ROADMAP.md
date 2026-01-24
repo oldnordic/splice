@@ -141,13 +141,13 @@ Plans:
   2. Export output includes files, symbols, references, and calls with proper schema version
   3. Magellan errors are mapped to SPL-E### codes with original error preserved in chain
   4. Export command supports --output flag for file destination
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 25-01-PLAN.md — Export command implementation (json/jsonl/csv formats)
-- [ ] 25-02-PLAN.md — Export schema definition with version field
-- [ ] 25-03-PLAN.md — Error mapping from Magellan to SPL-E### codes
-- [ ] 25-04-PLAN.md — Export command tests
+- [ ] 25-01-PLAN.md — Export command infrastructure (CLI variant, ExportFormat enum, csv dependency)
+- [ ] 25-02-PLAN.md — Magellan error mapping (SpliceError::Magellan variant, SPL-E091 code)
+- [ ] 25-03-PLAN.md — Export data types and execute_export function
+- [ ] 25-04-PLAN.md — Export command integration tests
 
 #### Phase 26: Integration Testing
 **Goal**: End-to-end validation of unified CLI interface
