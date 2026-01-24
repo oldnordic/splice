@@ -5,7 +5,7 @@
 //! confirmation to ensure replacements land on the intended tokens.
 
 use crate::error::{Result, SpliceError};
-use crate::symbol::Language;
+use crate::symbol::{parser_for_language, Language};
 use crate::validate::AnalyzerMode;
 use glob::glob;
 use serde::Serialize;
@@ -62,28 +62,6 @@ pub struct PatternReplaceResult {
     pub replacements_count: usize,
     /// Validation errors (if any).
     pub validation_errors: Vec<String>,
-}
-
-/// Create a tree-sitter parser for the given language.
-fn parser_for_language(language: Language) -> Result<tree_sitter::Parser> {
-    let mut parser = tree_sitter::Parser::new();
-
-    let lang = match language {
-        Language::Rust => tree_sitter_rust::language(),
-        Language::Python => tree_sitter_python::language(),
-        Language::C => tree_sitter_c::language(),
-        Language::Cpp => tree_sitter_cpp::language(),
-        Language::Java => tree_sitter_java::language(),
-        Language::JavaScript => tree_sitter_javascript::language(),
-        Language::TypeScript => tree_sitter_typescript::language_typescript(),
-    };
-
-    parser.set_language(&lang).map_err(|e| SpliceError::Parse {
-        file: PathBuf::from("<unknown>"),
-        message: format!("Failed to set language for parser: {:?}", e),
-    })?;
-
-    Ok(parser)
 }
 
 /// Find all occurrences of a text pattern in files matching a glob pattern.
