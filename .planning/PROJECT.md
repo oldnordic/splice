@@ -18,19 +18,24 @@ Comprehensive overhaul establishing production safety and structured output with
 
 Unified JSON Schema across all LLM tools with rich span extensions optimized for AI agent consumption and human-friendly CLI improvements.
 
+### v2.2.1 Code Quality & Bug Fixes (2026-01-24)
+
+Fixed all 67 issues identified in comprehensive bug analysis, eliminating unsafe patterns and improving code reliability.
+
 ## Current State
 
-**Shipped:** v2.2.0 (2026-01-23)
+**Shipped:** v2.2.1 (2026-01-24)
 
 **Production-ready refactoring tool with:**
-- 340 tests passing (unit + integration)
+- 312 tests passing (unit + integration)
 - Comprehensive documentation
-- Zero unwrap() calls in production paths
+- Zero unsafe unwrap() patterns (production + test code)
 - Modern dependency stack (SQLiteGraph 1.0)
 - Execution logging for audit trails
 - Rich span output optimized for LLM consumption
 - Standard CLI conventions (dry-run, context flags, unified diff)
 - Structured error codes with explain command
+- Consolidated APIs (parser creation, import extraction, symbol resolution)
 
 **Technical Environment:**
 - Rust 2021 edition, cargo build system
@@ -84,6 +89,17 @@ Unified JSON Schema across all LLM tools with rich span extensions optimized for
 - ✅ Search & Apply — `splice search --pattern` with glob filtering, atomic find-and-replace
 - ✅ Integration & Testing — 340 tests, performance validation, Magellan alignment
 
+### Delivered (v2.2.1)
+
+- ✅ Error Handling — All unsafe unwrap() patterns replaced with proper error handling
+- ✅ UTF-8 Safety — Char-based iteration for string manipulation across all language modules
+- ✅ API Consolidation — Single parser_for_language(), ImportExtractor trait, unified resolve API
+- ✅ Path Handling — and_then(to_str()) instead of to_string_lossy()
+- ✅ Execution Logging — ExecutionLogConfig for testable execution logging
+- ✅ Concurrency — env_lock() for thread-safe test environment
+- ✅ Resource Cleanup — Documented TempDir Drop behavior, stale file cleanup
+- ✅ Bug Analysis — All 67 issues verified and documented
+
 ## Out of Scope
 
 | Feature | Reason |
@@ -124,18 +140,24 @@ Potential areas for future development:
 - Online error documentation (splice.dev/errors/)
 
 ---
-## Current Milestone: v2.2.1 - Code Quality & Bug Fixes
+## Current Milestone: Not Started (Post v2.2.1)
 
-**Goal:** Fix all 67 issues identified in bug analysis report, improving code reliability and safety
+**Status:** v2.2.1 complete — Ready to define next milestone
 
-**Target fixes:**
-- Error-Handling Amnesia — Replace unsafe unwrap/expect with proper error handling
-- Data Lifetime Issues — Fix UTF-8 slicing and lifetime assumptions
-- Boundary Bugs — Add proper bounds checking
-- API Consolidation — Remove duplicate functions
-- Concurrency Safety — Fix test environment race conditions
-- Resource Management — Improve cleanup patterns
+**Last milestone achievements:**
+- Fixed all 67 bug analysis issues (57 code fixes + 10 documented as acceptable)
+- Eliminated unsafe unwrap() patterns in production and test code
+- Consolidated APIs across parser creation, import extraction, and symbol resolution
+- All 312 tests passing
+
+**Potential areas for next work:**
+- Performance optimization for large codebases
+- Additional language support (Go, Ruby, PHP)
+- Enhanced undo/redo capabilities
+- IDE integration (LSP support)
+- Parallel batch processing
 
 ---
-*Last updated: 2026-01-23 — v2.2.1 milestone started*
+*Last updated: 2026-01-24 — v2.2.1 milestone complete*
+*See .planning/milestones/v2.2.1-MILESTONE-AUDIT.md for details*
 *See .planning/milestones/ for detailed milestone archives*
