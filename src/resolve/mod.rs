@@ -58,6 +58,14 @@ pub struct ResolvedSpan {
 
 /// Resolve a symbol to its span with file-aware disambiguation.
 ///
+/// This is the PRIMARY symbol resolution API. Use this for:
+/// - Programmatic symbol lookup
+/// - Resolving symbols with file context
+/// - Resolving symbols with kind filtering
+///
+/// For user-facing commands where you want "did you mean" suggestions,
+/// consider `find_symbol_or_suggest` instead.
+///
 /// # Arguments
 /// * `graph` - The code graph database
 /// * `file` - Optional file path to disambiguate symbols with same name
@@ -68,6 +76,23 @@ pub struct ResolvedSpan {
 /// 1. If `file` is Some, resolves the symbol within that specific file
 /// 2. If `file` is None AND multiple matches exist across files → returns AmbiguousSymbol error
 /// 3. If `file` is None AND exactly one match exists globally → returns that symbol
+///
+/// # Examples
+///
+/// ```no_run
+/// use splice::resolve::resolve_symbol;
+/// use splice::graph::CodeGraph;
+/// use std::path::Path;
+///
+/// let graph = CodeGraph::open(Path::new("codegraph.db"))?;
+///
+/// // Resolve with file context
+/// let symbol = resolve_symbol(&graph, Some(Path::new("src/main.rs")), None, "main")?;
+///
+/// // Resolve globally (requires unique symbol name)
+/// let symbol = resolve_symbol(&graph, None, Some("function"), "my_function")?;
+/// # Ok::<(), splice::SpliceError>(())
+/// ```
 ///
 /// # Errors
 /// - `AmbiguousSymbol` - When name-only resolution finds multiple matches across files
