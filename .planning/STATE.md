@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 24 of 26 (CLI Commands & Response Types)
-Plan: 03 of 5 (Exit Code Mapping)
-Status: In progress
-Last activity: 2026-01-24 — Completed 24-03: Exit Code Mapping
+Plan: 05 of 5 (CLI Tests and Help Text)
+Status: Phase complete
+Last activity: 2026-01-24 — Completed 24-05: CLI Tests and Help Text
 
-Progress: [████████░░] 89% (122/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 16/24 v2.2.2)
+Progress: [█████████░] 90% (123/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 17/24 v2.2.2)
 
 ## Current Milestone: v2.2.2 Magellan Integration
 
@@ -45,7 +45,8 @@ Progress: [████████░░] 89% (122/130 plans: 31 v2.0 + 55 v2.2
 | 11-18 | 55 | Complete |
 | 19-21 | 20 | Complete |
 | 22-23 | 9 | Complete |
-| 24-26 | 1/15 | In progress |
+| 24 | 5/5 | Complete |
+| 25-26 | 0/2 | Pending |
 
 *Updated after each plan completion*
 
@@ -81,6 +82,13 @@ Decisions are logged in PROJECT.md Key Decisions table.
   - MagellanSymbol, MagellanSpan, MagellanCallReference, MagellanFileMetadata
   - From implementations convert from Phase 23 types (DatabaseStats, SymbolInfo, CallReference, FileMetadata, CallRelationships)
   - Re-exported via splice::cli module for external access
+- Phase 24-05: CLI tests and help text categorization
+  - Categorized --help text with 4 command categories (Query, Edit, Export, Validation)
+  - display_order attributes on 9 key commands for logical organization
+  - 17 tests validating CLI parsing, exit codes, and response types
+  - OutputFormat enum, CallDirection enum, SpliceExitCode values verified
+  - Response types serialize with Magellan field names (start_line, not line_start)
+  - All Phase 24 requirements verified: CLI-01 through CLI-04, DATA-03, DATA-04
 
 ### Pending Todos
 
@@ -97,8 +105,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed 24-03: Exit Code Mapping
+Stopped at: Completed 24-05: CLI Tests and Help Text
 Resume file: None
 
 ---
-*Last updated: 2026-01-24 — Phase 24 Plan 03 complete*
+*Last updated: 2026-01-24 — Phase 24 complete*
