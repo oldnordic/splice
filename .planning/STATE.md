@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 ## Current Position
 
 Phase: 21 of 21 (API Consolidation)
-Plan: 01 of 10
+Plan: 04 of 10
 Status: In progress
-Last activity: 2026-01-24 — Completed Plan 21-01: Parser Consolidation
+Last activity: 2026-01-24 — Completed Plan 21-04: Execution Log Testability
 
-Progress: [████████░] 90% (97/106 plans total: 31 v2.0 + 55 v2.2 + 10 v2.2.1 + 1 in Phase 21)
+Progress: [████████░] 90% (100/106 plans total: 31 v2.0 + 55 v2.2 + 10 v2.2.1 + 4 in Phase 21)
 
 ## Current Milestone: v2.2.1 Code Quality & Bug Fixes
 
@@ -129,11 +129,15 @@ All blockers from v2.2 were resolved during gap closure:
 | 21-03 | resolve_symbol_with_rust_kind deprecated with migration guide to string-based kinds (removed in v3.0) |
 | 21-03 | Module-level documentation should include API comparison table for quick reference |
 | 21-03 | Deprecation notices should include since version, removal timeline, and migration guide |
+| 21-04 | Use Option<bool> for config.enabled field to distinguish explicit vs environment-based control |
+| 21-04 | Environment feature toggles should support dependency injection for testability |
+| 21-04 | Config structs provide enabled()/disabled()/from_env() constructors for flexibility |
+| 21-04 | New functions accept Option<Config> parameter pattern for backward compatibility |
 
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed Plan 21-01: Parser Consolidation
+Stopped at: Completed Plan 21-04: Execution Log Testability
 Resume file: None
 
 ---
