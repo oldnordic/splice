@@ -1,5 +1,58 @@
 # Project Milestones: Splice Refactoring Tool
 
+## v2.2.2 Magellan Integration (Shipped: 2026-01-24)
+
+**Delivered:** Unified CLI interface - Splice provides both Magellan query commands and span-safe editing through a single tool.
+
+**Phases completed:** 22-26 (24 plans total)
+
+**Key accomplishments:**
+
+- Symbol ID Format — 16-character hex IDs (SHA-256, first 8 bytes) matching Magellan convention
+- Execution ID Format — {timestamp_hex}-{pid_hex} format for delegated query tracking
+- Field Translation — Magellan (start_line) ↔ Splice (line_start) conversion utilities
+- Query Commands — status, query, find, refs, files commands with full Magellan delegation
+- Export Command — JSON, JSONL, CSV export formats with schema versioning
+- Error Mapping — SPL-E091 Magellan error code with anyhow::Error source preservation
+- CLI Alignment — --output flag (human/json/pretty), --db flag, Magellan-compatible exit codes
+- Response Types — StatusResponse, FindResponse, RefsResponse, FilesResponse with translated fields
+- Integration Testing — 21 integration tests covering commands, formats, errors, LLM workflows, performance
+- Documentation — Comprehensive Magellan integration guide (1030 lines)
+
+**Stats:**
+
+- 50+ files created/modified
+- 4,000+ lines of Rust
+- 5 phases, 24 plans
+- 1 day from v2.2.1 to v2.2.2 ship
+
+**Git range:** `v2.2.1` → `HEAD`
+
+---
+
+## v2.2.1 Code Quality & Bug Fixes (Shipped: 2026-01-24)
+
+**Delivered:** Fixed 67 issues identified in comprehensive bug analysis, improving code reliability and safety.
+
+**Phases completed:** 19-21 (20 plans total)
+
+**Key accomplishments:**
+
+- Critical Error Handling — Fixed unwrap() panic paths in symbol resolution, parser creation, file loading
+- Lifetime & Resource Safety — Fixed 'static lifetime abuses, removed clone() heavy patterns, improved UTF-8 handling
+- API Consolidation — Merged duplicate parser creation APIs, unified import extraction, consolidated resolve_symbol variants
+
+**Stats:**
+
+- 70 files created/modified
+- 5,000+ lines of Rust
+- 3 phases, 20 plans
+- 1 day from v2.2 to v2.2.1 ship
+
+**Git range:** `v2.2` → `v2.2.1`
+
+---
+
 ## v2.2 Unified JSON & LLM Optimization (Shipped: 2026-01-23)
 
 **Delivered:** Unified JSON Schema across all LLM tools with rich span extensions optimized for AI agent consumption and human-friendly CLI improvements.
