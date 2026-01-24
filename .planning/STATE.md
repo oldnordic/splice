@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 24 of 26 (CLI Commands & Response Types)
-Plan: Not started
-Status: Planning phase
-Last activity: 2026-01-24 — Phase 23 complete
+Plan: 01 of 5 (CLI Variants)
+Status: In progress
+Last activity: 2026-01-24 — Completed 24-01: CLI Variants
 
-Progress: [████████░░] 88% (118/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 12/24 v2.2.2)
+Progress: [████████░░] 88% (119/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 13/24 v2.2.2)
 
 ## Current Milestone: v2.2.2 Magellan Integration
 
@@ -34,7 +34,7 @@ Progress: [████████░░] 88% (118/130 plans: 31 v2.0 + 55 v2.2
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 118
+- Total plans completed: 119
 - Total execution time: ~43 hours (estimated)
 
 **By Phase:**
@@ -45,7 +45,7 @@ Progress: [████████░░] 88% (118/130 plans: 31 v2.0 + 55 v2.2
 | 11-18 | 55 | Complete |
 | 19-21 | 20 | Complete |
 | 22-23 | 9 | Complete |
-| 24-26 | 0/15 | Not started |
+| 24-26 | 1/15 | In progress |
 
 *Updated after each plan completion*
 
@@ -63,6 +63,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Phase 23 (Magellan Integration Extensions): Complete
   - get_statistics(), query_symbols_by_file(), find_symbol_by_name(), find_symbol_by_id(), get_call_relationships(), list_indexed_files() all implemented
   - 42 tests passing (25 existing + 17 new)
+- Phase 24-01: CLI command variants (Status, Find, Refs, Files) added with human-readable output
+  - CallDirection enum (In, Out, Both) for relationship traversal
+  - Execute functions delegate to MagellanIntegration methods
 
 ### Pending Todos
 
@@ -70,16 +73,16 @@ None yet.
 
 ### Blockers/Concerns
 
-**Phase 24 Planning:**
-- CLI command variants need to be added for status, query, find, refs, files
+**Phase 24:**
 - Response types need to be defined with translated field names (Magellan to Splice conventions)
+- JSON/pretty output formatting not yet implemented (Plan 02)
 - Exit code mapping to Magellan conventions required
 
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Phase 23 complete, ready to start Phase 24
+Stopped at: Completed 24-01: CLI Variants
 Resume file: None
 
 ---
-*Last updated: 2026-01-24 — Phase 23 complete*
+*Last updated: 2026-01-24 — Phase 24 Plan 01 complete*
