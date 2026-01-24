@@ -10,7 +10,31 @@ use serde_json::Value;
 /// Splice: Span-safe refactoring kernel for Rust.
 #[derive(Parser, Debug)]
 #[command(name = "splice")]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about, long_about = "
+Splice: Span-safe refactoring kernel for Rust.
+
+Query Commands (Magellan-delegated):
+  status, find, refs, files, query    Query code graph database
+
+Edit Commands:
+  delete, patch, plan, apply-files     Modify code with span safety
+
+Export Commands:
+  log, undo                             Export and restore operations
+
+Validation Commands:
+  explain, search, get                  Validate and explain code
+
+Use 'splice help <command>' for more information on a specific command.
+
+Options:
+  -v, --verbose           Enable verbose logging
+  -o, --output <FORMAT>   Output format (human, json, pretty)
+      --json              Output JSON (deprecated: use --output json)
+      --strict            Enable strict pre-verification
+  -h, --help              Print help
+  -V, --version           Print version
+")]
 #[command(subcommand_required = true)]
 pub struct Cli {
     /// Subcommand to execute.
@@ -42,6 +66,7 @@ pub struct Cli {
 #[derive(clap::Subcommand, Debug)]
 pub enum Commands {
     /// Delete a symbol by removing its definition.
+    #[command(display_order = 200)]
     Delete {
         /// Path to the source file containing the symbol.
         #[arg(short, long)]
@@ -101,6 +126,7 @@ pub enum Commands {
     },
 
     /// Apply a patch to a symbol's span.
+    #[command(display_order = 201)]
     Patch {
         /// Path to the source file containing the symbol.
         #[arg(short = 'f', long, required_unless_present = "batch")]
@@ -242,6 +268,7 @@ pub enum Commands {
     },
 
     /// Query symbols by labels (uses Magellan integration).
+    #[command(display_order = 104)]
     Query {
         /// Path to the Magellan database.
         #[arg(short, long)]
@@ -290,6 +317,7 @@ pub enum Commands {
     },
 
     /// Get code chunks from the database (uses Magellan integration).
+    #[command(display_order = 105)]
     Get {
         /// Path to the Magellan database.
         #[arg(short, long)]
@@ -333,6 +361,7 @@ pub enum Commands {
     },
 
     /// Query execution log.
+    #[command(display_order = 300)]
     Log {
         /// Filter by operation type (patch, delete, batch, plan, apply-files, query).
         #[arg(short, long)]
@@ -372,6 +401,7 @@ pub enum Commands {
     },
 
     /// Explain an error code with detailed documentation.
+    #[command(display_order = 400)]
     Explain {
         /// Error code to explain (e.g., SPL-E001, SPL-E002)
         #[arg(short, long, value_name = "CODE")]
@@ -379,6 +409,7 @@ pub enum Commands {
     },
 
     /// Search for code patterns in files.
+    #[command(display_order = 401)]
     Search {
         /// Text pattern to search for.
         #[arg(short, long)]
@@ -423,6 +454,7 @@ pub enum Commands {
     },
 
     /// Show database statistics (files, symbols, refs, calls, chunks)
+    #[command(display_order = 100)]
     Status {
         /// Path to the Magellan database
         #[arg(short, long)]
@@ -430,6 +462,7 @@ pub enum Commands {
     },
 
     /// Find symbols by name or 16-character symbol ID
+    #[command(display_order = 101)]
     Find {
         /// Path to the Magellan database
         #[arg(short, long)]
@@ -453,6 +486,7 @@ pub enum Commands {
     },
 
     /// Show call relationships for a symbol
+    #[command(display_order = 102)]
     Refs {
         /// Path to the Magellan database
         #[arg(short, long)]
@@ -476,6 +510,7 @@ pub enum Commands {
     },
 
     /// List all indexed files
+    #[command(display_order = 103)]
     Files {
         /// Path to the Magellan database
         #[arg(short, long)]
