@@ -9,6 +9,74 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+/// Splice exit codes matching Magellan conventions.
+///
+/// Magellan exit codes:
+/// - 0: success
+/// - 1: generic error
+/// - 2: usage error (invalid arguments)
+/// - 3: database error
+/// - 4: file not found
+/// - 5: validation error
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum SpliceExitCode {
+    /// Operation succeeded
+    Success = 0,
+    /// Generic error (catch-all)
+    Error = 1,
+    /// Usage error (invalid arguments, missing required args)
+    Usage = 2,
+    /// Database error (Magellan graph access failure)
+    Database = 3,
+    /// File not found (requested file doesn't exist)
+    FileNotFound = 4,
+    /// Validation error (pre-verification, compiler check failed)
+    Validation = 5,
+}
+
+impl SpliceExitCode {
+    /// Map SpliceError to appropriate exit code.
+    ///
+    /// Note: clap handles argument parsing errors and exits with code 2
+    /// before application code runs. This maps application-level errors.
+    pub fn from_error(error: &splice::SpliceError) -> Self {
+        match error {
+            // Database-specific errors
+            splice::SpliceError::Graph(_) => Self::Database,
+            splice::SpliceError::ExecutionLogError { .. } => Self::Database,
+
+            // File access errors (Io, IoContext, FileExternallyModified)
+            splice::SpliceError::Io { .. } | splice::SpliceError::IoContext { .. }
+                if error.file_path().is_some() => Self::FileNotFound,
+            splice::SpliceError::FileExternallyModified { .. } => Self::FileNotFound,
+
+            // Validation errors (all validation-related variants)
+            splice::SpliceError::ParseValidationFailed { .. } => Self::Validation,
+            splice::SpliceError::CompilerValidationFailed { .. } => Self::Validation,
+            splice::SpliceError::AnalyzerFailed { .. } => Self::Validation,
+            splice::SpliceError::CargoCheckFailed { .. } => Self::Validation,
+            splice::SpliceError::PreVerificationFailed { .. } => Self::Validation,
+
+            // Usage/schema errors (invalid plan, batch, date format)
+            splice::SpliceError::InvalidPlanSchema { .. } => Self::Usage,
+            splice::SpliceError::InvalidBatchSchema { .. } => Self::Usage,
+            splice::SpliceError::InvalidDateFormat { .. } => Self::Usage,
+
+            // Broken pipe is success (pipelines handle SIGPIPE)
+            splice::SpliceError::BrokenPipe => Self::Success,
+
+            // Default to generic error for all other cases
+            _ => Self::Error,
+        }
+    }
+
+    /// Convert to std::process::ExitCode.
+    pub fn as_exit_code(self) -> ExitCode {
+        ExitCode::from(self as u8)
+    }
+}
+
 /// Helper to log execution recording failures without failing the operation.
 fn log_execution_error(operation: &str, err: &splice::SpliceError) {
     eprintln!(
