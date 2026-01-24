@@ -48,7 +48,6 @@ See `.planning/milestones/v2.2-ROADMAP.md` for complete details of phases 11-18.
 - Symbol Expansion: AST-aware parent chain walking with 6 language expanders
 - Search & Apply: `splice search --pattern` with glob filtering, atomic find-and-replace
 - Integration Testing: 340 tests passing across 7 languages, Magellan alignment
-- Error Code Integration: All 28 error-level variants mapped with explain_command field
 
 </details>
 
@@ -90,10 +89,10 @@ See `.planning/milestones/v2.2-ROADMAP.md` for complete details of phases 11-18.
 **Plans**: 4 plans
 
 Plans:
-- [ ] 22-01-PLAN.md — Create src/symbol_id.rs with 16-char hex ID generation
-- [ ] 22-02-PLAN.md — Create src/format/magellan.rs with field translation utilities
-- [ ] 22-03-PLAN.md — Execution ID generation matching Magellan format
-- [ ] 22-04-PLAN.md — JSON schema compatibility tests
+- [x] 22-01-PLAN.md — Create src/symbol_id.rs with 16-char hex ID generation
+- [x] 22-02-PLAN.md — Create src/format/magellan.rs with field translation utilities
+- [x] 22-03-PLAN.md — Execution ID generation matching Magellan format
+- [x] 22-04-PLAN.md — JSON schema compatibility tests
 
 #### Phase 23: Magellan Integration Extensions
 **Goal**: Extend MagellanIntegration wrapper with query methods for status, query, find, refs, files commands
@@ -108,11 +107,11 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 23-01-PLAN.md — Add get_statistics() method for database statistics (QUERY-01)
-- [ ] 23-02-PLAN.md — Add query_symbols_by_file() method with kind filter and relationships (QUERY-02)
-- [ ] 23-03-PLAN.md — Add find_symbol_by_name() and find_symbol_by_id() methods (QUERY-03)
-- [ ] 23-04-PLAN.md — Add get_call_relationships() method with bidirectional traversal (QUERY-04)
-- [ ] 23-05-PLAN.md — Add list_indexed_files() method and integration tests (QUERY-05)
+- [x] 23-01-PLAN.md — Add get_statistics() method for database statistics (QUERY-01)
+- [x] 23-02-PLAN.md — Add query_symbols_by_file() method with kind filter and relationships (QUERY-02)
+- [x] 23-03-PLAN.md — Add find_symbol_by_name() and find_symbol_by_id() methods (QUERY-03)
+- [x] 23-04-PLAN.md — Add get_call_relationships() method with bidirectional traversal (QUERY-04)
+- [x] 23-05-PLAN.md — Add list_indexed_files() method and integration tests (QUERY-05)
 
 #### Phase 24: CLI Commands & Response Types
 **Goal**: Add CLI command variants and response types for delegated queries
@@ -124,14 +123,14 @@ Plans:
   3. Exit codes match Magellan conventions (0=success, 1=error, 2=usage, 3=database, 4=file not found, 5=validation)
   4. --help shows command categories (Query, Edit, Export, Validation)
   5. Response types (StatusResponse, FindResponse, RefsResponse, FilesResponse) use translated field names
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 24-01: CLI variants (Status, Find, Refs, Files) in src/cli/mod.rs
-- [ ] 24-02: --output and --db flag implementation
-- [ ] 24-03: Exit code mapping to Magellan conventions
-- [ ] 24-04: Response types in src/output.rs
-- [ ] 24-05: CLI parsing and help text tests
+- [ ] 24-01-PLAN.md — CLI variants (Status, Find, Refs, Files) in src/cli/mod.rs
+- [ ] 24-02-PLAN.md — --output and --db flag implementation
+- [ ] 24-03-PLAN.md — Exit code mapping to Magellan conventions
+- [ ] 24-04-PLAN.md — Response types in src/output.rs
+- [ ] 24-05-PLAN.md — CLI parsing and help text tests
 
 #### Phase 25: Export Command & Error Mapping
 **Goal**: Implement export command and map Magellan errors to Splice codes
@@ -145,10 +144,10 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 25-01: Export command implementation (json/jsonl/csv formats)
-- [ ] 25-02: Export schema definition with version field
-- [ ] 25-03: Error mapping from Magellan to SPL-E### codes
-- [ ] 25-04: Export command tests
+- [ ] 25-01-PLAN.md — Export command implementation (json/jsonl/csv formats)
+- [ ] 25-02-PLAN.md — Export schema definition with version field
+- [ ] 25-03-PLAN.md — Error mapping from Magellan to SPL-E### codes
+- [ ] 25-04-PLAN.md — Export command tests
 
 #### Phase 26: Integration Testing
 **Goal**: End-to-end validation of unified CLI interface
@@ -163,12 +162,12 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 26-01: End-to-end integration tests for all query commands
-- [ ] 26-02: Export format validation tests
-- [ ] 26-03: Error code mapping tests
-- [ ] 26-04: LLM consumption tests
-- [ ] 26-05: Performance benchmarks
-- [ ] 26-06: Documentation (docs/magellan_integration.md)
+- [ ] 26-01-PLAN.md — End-to-end integration tests for all query commands
+- [ ] 26-02-PLAN.md — Export format validation tests
+- [ ] 26-03-PLAN.md — Error code mapping tests
+- [ ] 26-04-PLAN.md — LLM consumption tests
+- [ ] 26-05-PLAN.md — Performance benchmarks
+- [ ] 26-06-PLAN.md — Documentation (docs/magellan_integration.md)
 
 ---
 
@@ -195,3 +194,6 @@ Phases execute in numeric order: 22 → 23 → 24 → 25 → 26
 - v2.2: 55/55 plans complete (100%)
 - v2.2.1: 20/20 plans complete (100%)
 - v2.2.2: 9/24 plans complete (38%)
+
+---
+*Last updated: 2026-01-24*
