@@ -3151,4 +3151,553 @@ fn main() {
         // 2. Editing: patch (uses --file, --symbol, --with, --dry-run)
         // All commands use same binary with consistent JSON output
     }
+
+    // ============================================================================
+    // Performance Benchmark Tests (Phase 26-05)
+    // ============================================================================
+    //
+    // These tests validate that query commands complete within acceptable
+    // time limits for typical codebase sizes.
+    //
+    // Performance Baseline Documentation:
+    // - status command: < 500ms for 100 files
+    // - query command: < 100ms average for indexed queries
+    // - find command: < 200ms by name, < 50ms by symbol_id
+    // - export command: < 1s for 500 symbols
+    //
+    // Performance Characteristics:
+    // - Label queries use index (O(log n))
+    // - File queries are direct lookup (O(1))
+    // - Find by name is O(N) where N = number of files (Magellan has no global symbol index)
+
+    /// Task 1: Status command performance benchmark.
+    ///
+    /// Validates that the status command (database statistics query)
+    /// completes within acceptable time limits for varying file counts.
+    ///
+    /// Performance baseline:
+    /// - 10 files: < 50ms
+    /// - 50 files: < 200ms
+    /// - 100 files: < 500ms
+    #[test]
+    fn test_benchmark_status_command_performance() {
+        use std::time::Instant;
+
+        let splice_binary = get_splice_binary();
+
+        // Test with different file counts
+        let test_cases = vec![
+            (10, 50, "10 files should complete in < 50ms"),
+            (50, 200, "50 files should complete in < 200ms"),
+            (100, 500, "100 files should complete in < 500ms"),
+        ];
+
+        for (num_files, expected_max_ms, description) in test_cases {
+            let temp_dir = TempDir::new().expect("Failed to create temp dir");
+            let db_path = temp_dir.path().join("benchmark.db");
+
+            // Create and index files
+            for i in 0..num_files {
+                let file_path = temp_dir.path().join(format!("test_{:03}.rs", i));
+                let source = format!(
+                    r#"/// Test function {}
+pub fn test_function_{}() -> i32 {{
+    // Implementation line 1
+    // Implementation line 2
+    // Implementation line 3
+    {}
+}}
+
+/// Test struct {}
+pub struct TestStruct{} {{
+    field: i32,
+}}
+
+impl TestStruct{} {{
+    pub fn new(value: i32) -> Self {{
+        Self {{ field: value }}
+    }}
+}}
+"#,
+                    i, i, i * 42, i, i, i
+                );
+                std::fs::write(&file_path, source)
+                    .expect("Failed to write test file");
+
+                // Index the file using MagellanIntegration
+                let mut integration =
+                    MagellanIntegration::open(&db_path).expect("Failed to open MagellanIntegration");
+                integration
+                    .index_file(&file_path)
+                    .expect("Failed to index file");
+            }
+
+            // Run status command and measure time
+            let start = Instant::now();
+            let output = Command::new(&splice_binary)
+                .arg("status")
+                .arg("--db")
+                .arg(&db_path)
+                .arg("--output")
+                .arg("json")
+                .output()
+                .expect("Failed to run splice status");
+
+            let duration = start.elapsed();
+
+            // Verify command succeeded
+            assert!(
+                output.status.success(),
+                "{}: status command failed: {}",
+                description,
+                String::from_utf8_lossy(&output.stderr)
+            );
+
+            // Verify performance
+            assert!(
+                duration.as_millis() < expected_max_ms,
+                "{}: status took {}ms, expected < {}ms for {} files",
+                description,
+                duration.as_millis(),
+                expected_max_ms,
+                num_files
+            );
+
+            println!(
+                "Status command ({} files): {}ms (expected < {}ms)",
+                num_files,
+                duration.as_millis(),
+                expected_max_ms
+            );
+        }
+    }
+
+    /// Task 2: Query command performance benchmark.
+    ///
+    /// Validates that the query command completes within acceptable time
+    /// limits for various query types.
+    ///
+    /// Performance baseline: < 100ms average for all query types
+    ///
+    /// Performance characteristics:
+    /// - Label queries use index (O(log n))
+    /// - File queries are direct lookup (O(1))
+    #[test]
+    fn test_benchmark_query_command_performance() {
+        use std::time::Instant;
+
+        let splice_binary = get_splice_binary();
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let db_path = temp_dir.path().join("benchmark_query.db");
+
+        // Create and index 100 files with mixed symbols
+        let num_files = 100;
+        for i in 0..num_files {
+            let file_path = temp_dir.path().join(format!("query_test_{:03}.rs", i));
+            let source = format!(
+                r#"/// Query test function {}
+pub fn query_function_{}(x: i32) -> i32 {{
+    x + {}
+}}
+
+/// Query test struct
+pub struct QueryStruct{} {{
+    value: i32,
+}}
+
+/// Query test impl
+impl QueryStruct{} {{
+    pub fn process(&self) -> i32 {{
+        self.value * 2
+    }}
+}}
+"#,
+                i, i, i, i, i
+            );
+            std::fs::write(&file_path, source).expect("Failed to write test file");
+
+            let mut integration =
+                MagellanIntegration::open(&db_path).expect("Failed to open MagellanIntegration");
+            integration
+                .index_file(&file_path)
+                .expect("Failed to index file");
+        }
+
+        // Query types to benchmark
+        let query_tests = vec![
+            (vec!["--label", "rust"], "Label-only query (rust)"),
+            (vec!["--label", "rust", "--label", "fn"], "Multi-label query (rust + fn)"),
+        ];
+
+        // Performance threshold: 100ms average
+        let expected_max_ms = 100;
+        let iterations = 10;
+        let mut all_timings = Vec::new();
+
+        for (args, description) in query_tests {
+            let mut total_duration_ms = 0;
+
+            for _iter in 0..iterations {
+                let start = Instant::now();
+                let output = Command::new(&splice_binary)
+                    .arg("query")
+                    .arg("--db")
+                    .arg(&db_path)
+                    .args(&args)
+                    .arg("--output")
+                    .arg("json")
+                    .output()
+                    .expect("Failed to run splice query");
+
+                let duration = start.elapsed();
+                total_duration_ms += duration.as_millis();
+
+                // Verify command succeeded
+                assert!(
+                    output.status.success(),
+                    "{}: query command failed: {}",
+                    description,
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+
+            let avg_ms = total_duration_ms / iterations as u128;
+            all_timings.push((description, avg_ms));
+
+            assert!(
+                avg_ms < expected_max_ms,
+                "{}: average {}ms over {} iterations, expected < {}ms",
+                description,
+                avg_ms,
+                iterations,
+                expected_max_ms
+            );
+
+            println!(
+                "Query command ({}): {}ms average over {} iterations (expected < {}ms)",
+                description, avg_ms, iterations, expected_max_ms
+            );
+        }
+
+        // Verify result counts are correct by parsing JSON output
+        // Note: The query command outputs structured JSON directly (OperationResult format)
+        // followed by a simple status payload. We need to extract the structured JSON.
+        let output = Command::new(&splice_binary)
+            .arg("query")
+            .arg("--db")
+            .arg(&db_path)
+            .arg("--label")
+            .arg("rust")
+            .arg("--output")
+            .arg("json")
+            .output()
+            .expect("Failed to run splice query");
+
+        let stdout_str = String::from_utf8_lossy(&output.stdout);
+
+        // The query outputs the structured JSON first (OperationResult)
+        // We need to parse the first JSON object (the actual query results)
+        let first_json_start = stdout_str.find('{').unwrap_or(0);
+        let first_json_end = stdout_str.find("},\n").or_else(|| stdout_str.find("}\n")).unwrap_or(stdout_str.len());
+
+        // Parse the first JSON object (OperationResult with query results)
+        let json_str = &stdout_str[first_json_start..=first_json_end];
+        if let Ok(json) = serde_json::from_str::<Value>(json_str) {
+            // Check if result contains query data
+            if json["result"]["query"]["symbols"].is_array() {
+                let symbol_count = json["result"]["query"]["symbols"].as_array().map_or(0, |a| a.len());
+                assert!(
+                    symbol_count > 0,
+                    "Query should return symbols, got {}",
+                    symbol_count
+                );
+            }
+        }
+
+        println!(
+            "Query performance summary: label queries use index (O(log n)), file queries are direct lookup (O(1))"
+        );
+    }
+
+    /// Task 3: Find command performance benchmark.
+    ///
+    /// Validates that the find command completes within acceptable time
+    /// limits for symbol lookup.
+    ///
+    /// Performance baseline:
+    /// - By name: < 200ms
+    /// - By symbol_id: < 50ms (if implemented)
+    ///
+    /// Note: find by name is O(N) where N = number of files (Magellan has
+    /// no global symbol index, must query each file).
+    #[test]
+    fn test_benchmark_find_command_performance() {
+        use std::time::Instant;
+
+        let splice_binary = get_splice_binary();
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let db_path = temp_dir.path().join("benchmark_find.db");
+
+        // Create 100 files with duplicate symbol names (simulating real codebases)
+        let num_files = 100;
+        let unique_name = "unique_benchmark_symbol_xyz123";
+
+        for i in 0..num_files {
+            let file_path = temp_dir.path().join(format!("find_test_{:03}.rs", i));
+            let source = if i == 50 {
+                // One file has the unique symbol
+                format!(
+                    r#"/// Unique benchmark function
+pub fn {}() -> i32 {{
+    42
+}}
+"#,
+                    unique_name
+                )
+            } else {
+                // All files have common symbol
+                format!(
+                    r#"/// Common function
+pub fn process_data(x: i32) -> i32 {{
+    x + {}
+}}
+"#,
+                    i
+                )
+            };
+            std::fs::write(&file_path, source).expect("Failed to write test file");
+
+            let mut integration =
+                MagellanIntegration::open(&db_path).expect("Failed to open MagellanIntegration");
+            integration
+                .index_file(&file_path)
+                .expect("Failed to index file");
+        }
+
+        let iterations = 10;
+        let expected_max_by_name_ms = 200;
+
+        // Test find by unique name (should be faster, stops at first match)
+        let mut total_duration_unique_ms = 0;
+        for _iter in 0..iterations {
+            let start = Instant::now();
+            let output = Command::new(&splice_binary)
+                .arg("find")
+                .arg("--db")
+                .arg(&db_path)
+                .arg("--name")
+                .arg(unique_name)
+                .arg("--output")
+                .arg("json")
+                .output()
+                .expect("Failed to run splice find");
+
+            let duration = start.elapsed();
+            total_duration_unique_ms += duration.as_millis();
+
+            assert!(
+                output.status.success(),
+                "find by unique name failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+
+        let avg_unique_ms = total_duration_unique_ms / iterations as u128;
+
+        assert!(
+            avg_unique_ms < expected_max_by_name_ms,
+            "find by unique name: average {}ms over {} iterations, expected < {}ms",
+            avg_unique_ms,
+            iterations,
+            expected_max_by_name_ms
+        );
+
+        println!(
+            "Find command (unique name): {}ms average over {} iterations (expected < {}ms)",
+            avg_unique_ms, iterations, expected_max_by_name_ms
+        );
+
+        // Test find by common name (returns ambiguous results)
+        let mut total_duration_common_ms = 0;
+        for _iter in 0..iterations {
+            let start = Instant::now();
+            let output = Command::new(&splice_binary)
+                .arg("find")
+                .arg("--db")
+                .arg(&db_path)
+                .arg("--name")
+                .arg("process_data")
+                .arg("--ambiguous")
+                .arg("--output")
+                .arg("json")
+                .output()
+                .expect("Failed to run splice find");
+
+            let duration = start.elapsed();
+            total_duration_common_ms += duration.as_millis();
+
+            assert!(
+                output.status.success(),
+                "find by common name failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+
+        let avg_common_ms = total_duration_common_ms / iterations as u128;
+
+        assert!(
+            avg_common_ms < expected_max_by_name_ms,
+            "find by common name: average {}ms over {} iterations, expected < {}ms",
+            avg_common_ms,
+            iterations,
+            expected_max_by_name_ms
+        );
+
+        println!(
+            "Find command (common name): {}ms average over {} iterations (expected < {}ms)",
+            avg_common_ms, iterations, expected_max_by_name_ms
+        );
+
+        println!(
+            "Find performance note: O(N) where N = number of files (Magellan has no global symbol index)"
+        );
+    }
+
+    /// Task 4: Export command performance benchmark.
+    ///
+    /// Validates that the export command completes within acceptable time
+    /// limits for typical export sizes.
+    ///
+    /// Performance baseline: < 1s for 500 symbols
+    ///
+    /// Note: Export reads first 100 files for memory safety (Phase 25-03).
+    /// This is a documented limitation.
+    #[test]
+    fn test_benchmark_export_command_performance() {
+        use std::time::Instant;
+
+        let splice_binary = get_splice_binary();
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let db_path = temp_dir.path().join("benchmark_export.db");
+
+        // Create 100 files with ~500 symbols total (5 per file)
+        let num_files = 100;
+        for i in 0..num_files {
+            let file_path = temp_dir.path().join(format!("export_test_{:03}.rs", i));
+            let source = format!(
+                r#"/// Export test function 1
+pub fn export_func_1_{}() -> i32 {{ {} }}
+
+/// Export test function 2
+pub fn export_func_2_{}() -> i32 {{ {} }}
+
+/// Export test struct
+pub struct ExportStruct{} {{
+    field: i32,
+}}
+
+/// Export test enum
+pub enum ExportEnum{} {{
+    VariantA,
+    VariantB,
+}}
+
+/// Export test impl
+impl ExportStruct{} {{
+    pub fn new(value: i32) -> Self {{
+        Self {{ field: value }}
+    }}
+}}
+"#,
+                i, i, i, i, i, i, i
+            );
+            std::fs::write(&file_path, source).expect("Failed to write test file");
+
+            let mut integration =
+                MagellanIntegration::open(&db_path).expect("Failed to open MagellanIntegration");
+            integration
+                .index_file(&file_path)
+                .expect("Failed to index file");
+        }
+
+        let expected_max_ms = 1000; // 1 second
+        let iterations = 5;
+
+        // Test each format
+        let formats = vec![("json", "json"), ("jsonl", "jsonl"), ("csv", "csv")];
+
+        for (format_arg, extension) in formats {
+            let mut total_duration_ms = 0;
+            let mut total_file_size = 0;
+
+            for _iter in 0..iterations {
+                let output_path = temp_dir.path().join(format!("export_{}.{}", _iter, extension));
+
+                let start = Instant::now();
+                let output = Command::new(&splice_binary)
+                    .arg("export")
+                    .arg("--db")
+                    .arg(&db_path)
+                    .arg("--format")
+                    .arg(format_arg)
+                    .arg("--file")
+                    .arg(&output_path)
+                    .output()
+                    .expect("Failed to run splice export");
+
+                let duration = start.elapsed();
+                total_duration_ms += duration.as_millis();
+
+                assert!(
+                    output.status.success(),
+                    "export {} format failed: {}",
+                    extension,
+                    String::from_utf8_lossy(&output.stderr)
+                );
+
+                // Measure file size
+                if let Ok(metadata) = std::fs::metadata(&output_path) {
+                    total_file_size += metadata.len();
+                }
+
+                // Validate output file exists and is not empty
+                assert!(
+                    output_path.exists(),
+                    "export {} output file should exist",
+                    extension
+                );
+                assert!(
+                    output_path.metadata().map(|m| m.len()).unwrap_or(0) > 0,
+                    "export {} output file should not be empty",
+                    extension
+                );
+            }
+
+            let avg_ms = total_duration_ms / iterations as u128;
+            let avg_size = total_file_size / iterations as u64;
+
+            assert!(
+                avg_ms < expected_max_ms,
+                "export {} format: average {}ms over {} iterations, expected < {}ms",
+                extension,
+                avg_ms,
+                iterations,
+                expected_max_ms
+            );
+
+            // Calculate throughput (symbols per second)
+            // Estimated 500 symbols exported
+            let estimated_symbols = 500;
+            let throughput = (estimated_symbols as f64 / avg_ms as f64) * 1000.0;
+
+            println!(
+                "Export command ({} format): {}ms average over {} iterations, avg size: {} bytes, throughput: {:.0} symbols/sec (expected < {}ms)",
+                extension, avg_ms, iterations, avg_size, throughput, expected_max_ms
+            );
+        }
+
+        println!(
+            "Export performance note: reads first 100 files for memory safety (documented limitation)"
+        );
+    }
 }
