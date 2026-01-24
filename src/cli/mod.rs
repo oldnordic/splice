@@ -501,7 +501,7 @@ pub enum Commands {
         path: std::path::PathBuf,
 
         /// Direction: in (callers), out (callees), both (default)
-        #[arg(short, long, value_enum, default_value_t = CallDirection::Both)]
+        #[arg(long, value_enum, default_value_t = CallDirection::Both)]
         direction: CallDirection,
 
         /// Output format (human, json, pretty)
