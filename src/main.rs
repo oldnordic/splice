@@ -175,6 +175,22 @@ fn main() -> ExitCode {
         splice::cli::Commands::Search { pattern, path, language, glob, context_after, context_before, context_both, apply, replace, json } => {
             execute_search(&pattern, &path, language, glob, apply, replace.as_deref(), context_before, context_after, context_both, json_output || json)
         }
+
+        splice::cli::Commands::Status { db } => {
+            execute_status(&db, json_output)
+        }
+
+        splice::cli::Commands::Find { db, name, symbol_id, ambiguous, output } => {
+            execute_find(&db, name, symbol_id, ambiguous, output, json_output)
+        }
+
+        splice::cli::Commands::Refs { db, name, path, direction, output } => {
+            execute_refs(&db, &name, &path, direction, output, json_output)
+        }
+
+        splice::cli::Commands::Files { db, symbols, output } => {
+            execute_files(&db, symbols, output, json_output)
+        }
     };
 
     // Handle result
@@ -3127,6 +3143,143 @@ fn execute_search(
     }
 }
 
+/// Execute the status command.
+///
+/// Shows database statistics from Magellan integration.
+fn execute_status(
+    db_path: &Path,
+    _json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::graph::magellan_integration::MagellanIntegration;
+
+    let integration = MagellanIntegration::open(db_path)?;
+    let stats = integration.get_statistics()?;
+
+    // Format as human-readable for now (output format handled in Plan 02)
+    let message = format!(
+        "Database statistics:\n  Files: {}\n  Symbols: {}\n  References: {}\n  Calls: {}\n  Code chunks: {}",
+        stats.files, stats.symbols, stats.references, stats.calls, stats.code_chunks
+    );
+
+    Ok(splice::cli::CliSuccessPayload::message_only(message))
+}
+
+/// Execute the find command.
+///
+/// Finds symbols by name or 16-character symbol ID.
+fn execute_find(
+    db_path: &Path,
+    name: Option<String>,
+    symbol_id: Option<String>,
+    ambiguous: bool,
+    _output: splice::cli::OutputFormat,
+    _json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::graph::magellan_integration::MagellanIntegration;
+
+    let mut integration = MagellanIntegration::open(db_path)?;
+
+    let results = if let Some(id) = symbol_id {
+        // Search by symbol ID
+        match integration.find_symbol_by_id(&id)? {
+            Some(symbol) => vec![symbol],
+            None => return Err(splice::SpliceError::Other(format!("Symbol ID '{}' not found", id))),
+        }
+    } else if let Some(n) = name {
+        // Search by name
+        integration.find_symbol_by_name(&n, ambiguous)?
+    } else {
+        return Err(splice::SpliceError::Other("--name or --symbol-id required".to_string()));
+    };
+
+    if results.is_empty() {
+        return Err(splice::SpliceError::Other("No symbols found".to_string()));
+    }
+
+    // Format as human-readable for now
+    let lines: Vec<String> = results
+        .iter()
+        .map(|s| format!("{} :: {} at {}:{}", s.kind, s.name, s.file_path, s.byte_start))
+        .collect();
+    let message = lines.join("\n");
+
+    Ok(splice::cli::CliSuccessPayload::message_only(message))
+}
+
+/// Execute the refs command.
+///
+/// Shows call relationships for a symbol.
+fn execute_refs(
+    db_path: &Path,
+    name: &str,
+    path: &Path,
+    direction: splice::cli::CallDirection,
+    _output: splice::cli::OutputFormat,
+    _json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::graph::magellan_integration::{CallDirection, MagellanIntegration};
+
+    let mut integration = MagellanIntegration::open(db_path)?;
+
+    let magellan_direction = match direction {
+        splice::cli::CallDirection::In => CallDirection::In,
+        splice::cli::CallDirection::Out => CallDirection::Out,
+        splice::cli::CallDirection::Both => CallDirection::Both,
+    };
+
+    let relationships = integration.get_call_relationships(path, name, magellan_direction)?;
+
+    // Format as human-readable for now
+    let mut lines = vec![format!("Symbol: {} :: {}", relationships.symbol.kind, relationships.symbol.name)];
+
+    if !relationships.callers.is_empty() {
+        lines.push(format!("  Callers ({}):", relationships.callers.len()));
+        for caller in &relationships.callers {
+            lines.push(format!("    - {} :: {} at {}", caller.symbol.kind, caller.symbol.name, caller.symbol.file_path));
+        }
+    }
+
+    if !relationships.callees.is_empty() {
+        lines.push(format!("  Callees ({}):", relationships.callees.len()));
+        for callee in &relationships.callees {
+            lines.push(format!("    - {} :: {} at {}", callee.symbol.kind, callee.symbol.name, callee.symbol.file_path));
+        }
+    }
+
+    let message = lines.join("\n");
+    Ok(splice::cli::CliSuccessPayload::message_only(message))
+}
+
+/// Execute the files command.
+///
+/// Lists all indexed files.
+fn execute_files(
+    db_path: &Path,
+    with_symbol_counts: bool,
+    _output: splice::cli::OutputFormat,
+    _json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::graph::magellan_integration::MagellanIntegration;
+
+    let mut integration = MagellanIntegration::open(db_path)?;
+    let files = integration.list_indexed_files(with_symbol_counts)?;
+
+    // Format as human-readable for now
+    let lines: Vec<String> = files
+        .iter()
+        .map(|f| {
+            if let Some(count) = f.symbol_count {
+                format!("{} ({} symbols)", f.path, count)
+            } else {
+                f.path.clone()
+            }
+        })
+        .collect();
+    let message = format!("{} indexed files:\n{}", files.len(), lines.join("\n"));
+
+    Ok(splice::cli::CliSuccessPayload::message_only(message))
+}
+
 /// Parse date string to Unix timestamp.
 ///
 /// Accepts either Unix timestamp (integer) or ISO 8601 format.
@@ -3293,6 +3446,223 @@ fn extract_symbols_with_language(
             let symbols = extract_typescript_symbols(path, source)?;
             Ok(symbols.into_iter().map(SymbolWrapper::TypeScript).collect())
         }
+    }
+}
+
+fn execute_status(
+    db_path: &Path,
+    json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::graph::magellan_integration::MagellanIntegration;
+
+    let integration = MagellanIntegration::open(db_path)?;
+    let stats = integration.get_statistics()?;
+
+    let data = serde_json::json!({
+        "files": stats.files,
+        "symbols": stats.symbols,
+        "references": stats.references,
+        "calls": stats.calls,
+        "code_chunks": stats.code_chunks,
+        "db_path": db_path.to_string_lossy(),
+    });
+
+    if json_output {
+        Ok(splice::cli::CliSuccessPayload::with_data(
+            format!("Database has {} files, {} symbols", stats.files, stats.symbols),
+            data,
+        ))
+    } else {
+        let message = format!(
+            "Database statistics:\n  Files: {}\n  Symbols: {}\n  References: {}\n  Calls: {}\n  Code chunks: {}",
+            stats.files, stats.symbols, stats.references, stats.calls, stats.code_chunks
+        );
+        Ok(splice::cli::CliSuccessPayload::message_only(message))
+    }
+}
+
+fn execute_find(
+    db_path: &Path,
+    name: Option<String>,
+    symbol_id: Option<String>,
+    ambiguous: bool,
+    output: splice::cli::OutputFormat,
+    json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::graph::magellan_integration::MagellanIntegration;
+
+    let mut integration = MagellanIntegration::open(db_path)?;
+
+    let results = if let Some(id) = symbol_id {
+        match integration.find_symbol_by_id(&id)? {
+            Some(symbol) => vec![symbol],
+            None => return Err(splice::SpliceError::Other(format!("Symbol ID '{}' not found", id))),
+        }
+    } else if let Some(n) = name {
+        integration.find_symbol_by_name(&n, ambiguous)?
+    } else {
+        return Err(splice::SpliceError::Other("--name or --symbol-id required".to_string()));
+    };
+
+    if results.is_empty() {
+        return Err(splice::SpliceError::Other("No symbols found".to_string()));
+    }
+
+    let count = results.len();
+
+    if json_output {
+        let symbols_data: Vec<serde_json::Value> = results
+            .iter()
+            .map(|s| serde_json::json!({
+                "name": s.name,
+                "kind": s.kind,
+                "file_path": s.file_path,
+                "byte_start": s.byte_start,
+                "byte_end": s.byte_end,
+            }))
+            .collect();
+
+        Ok(splice::cli::CliSuccessPayload::with_data(
+            format!("Found {} symbol(s)", count),
+            serde_json::json!({ "symbols": symbols_data, "count": count }),
+        ))
+    } else {
+        let lines: Vec<String> = results
+            .iter()
+            .map(|s| format!("{} :: {} at {}:{}", s.kind, s.name, s.file_path, s.byte_start))
+            .collect();
+        let message = format!("Found {} symbol(s):\n{}", count, lines.join("\n"));
+        Ok(splice::cli::CliSuccessPayload::message_only(message))
+    }
+}
+
+fn execute_refs(
+    db_path: &Path,
+    name: &str,
+    path: &Path,
+    direction: splice::cli::CallDirection,
+    output: splice::cli::OutputFormat,
+    json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::graph::magellan_integration::{CallDirection, MagellanIntegration};
+
+    let mut integration = MagellanIntegration::open(db_path)?;
+
+    let magellan_direction = match direction {
+        splice::cli::CallDirection::In => CallDirection::In,
+        splice::cli::CallDirection::Out => CallDirection::Out,
+        splice::cli::CallDirection::Both => CallDirection::Both,
+    };
+
+    let relationships = integration.get_call_relationships(path, name, magellan_direction)?;
+
+    if json_output {
+        let callers_data: Vec<serde_json::Value> = relationships
+            .callers
+            .iter()
+            .map(|c| serde_json::json!({
+                "name": c.symbol.name,
+                "kind": c.symbol.kind,
+                "file_path": c.symbol.file_path,
+            }))
+            .collect();
+
+        let callees_data: Vec<serde_json::Value> = relationships
+            .callees
+            .iter()
+            .map(|c| serde_json::json!({
+                "name": c.symbol.name,
+                "kind": c.symbol.kind,
+                "file_path": c.symbol.file_path,
+            }))
+            .collect();
+
+        Ok(splice::cli::CliSuccessPayload::with_data(
+            format!("Call relationships for {}", name),
+            serde_json::json!({
+                "symbol": {
+                    "name": relationships.symbol.name,
+                    "kind": relationships.symbol.kind,
+                    "file_path": relationships.symbol.file_path,
+                },
+                "callers": callers_data,
+                "callees": callees_data,
+            }),
+        ))
+    } else {
+        let mut lines = vec![format!("Symbol: {} :: {}", relationships.symbol.kind, relationships.symbol.name)];
+
+        if !relationships.callers.is_empty() {
+            lines.push(format!("  Callers ({}):", relationships.callers.len()));
+            for caller in &relationships.callers {
+                lines.push(format!("    - {} :: {} at {}", caller.symbol.kind, caller.symbol.name, caller.symbol.file_path));
+            }
+        }
+
+        if !relationships.callees.is_empty() {
+            lines.push(format!("  Callees ({}):", relationships.callees.len()));
+            for callee in &relationships.callees {
+                lines.push(format!("    - {} :: {} at {}", callee.symbol.kind, callee.symbol.name, callee.symbol.file_path));
+            }
+        }
+
+        let message = if lines.len() == 1 {
+            format!("{} (no relationships found)", lines[0])
+        } else {
+            lines.join("\n")
+        };
+
+        Ok(splice::cli::CliSuccessPayload::message_only(message))
+    }
+}
+
+fn execute_files(
+    db_path: &Path,
+    with_symbol_counts: bool,
+    output: splice::cli::OutputFormat,
+    json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::graph::magellan_integration::MagellanIntegration;
+
+    let mut integration = MagellanIntegration::open(db_path)?;
+    let files = integration.list_indexed_files(with_symbol_counts)?;
+
+    let count = files.len();
+
+    if json_output {
+        let files_data: Vec<serde_json::Value> = files
+            .iter()
+            .map(|f| {
+                let mut obj = serde_json::json!({
+                    "path": f.path,
+                    "hash": f.hash,
+                    "last_indexed_at": f.last_indexed_at,
+                    "last_modified": f.last_modified,
+                });
+                if let Some(symbol_count) = f.symbol_count {
+                    obj["symbol_count"] = serde_json::json!(symbol_count);
+                }
+                obj
+            })
+            .collect();
+
+        Ok(splice::cli::CliSuccessPayload::with_data(
+            format!("{} indexed files", count),
+            serde_json::json!({ "files": files_data, "count": count }),
+        ))
+    } else {
+        let lines: Vec<String> = files
+            .iter()
+            .map(|f| {
+                if let Some(cnt) = f.symbol_count {
+                    format!("  {} ({} symbols)", f.path, cnt)
+                } else {
+                    format!("  {}", f.path)
+                }
+            })
+            .collect();
+        let message = format!("{} indexed files:\n{}", count, lines.join("\n"));
+        Ok(splice::cli::CliSuccessPayload::message_only(message))
     }
 }
 
