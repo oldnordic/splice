@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 25 of 26 (Export Command & Error Mapping)
-Plan: 01 of 2 (Export Command Infrastructure)
+Plan: 02 of 4 (Magellan Error Mapping)
 Status: In progress
-Last activity: 2026-01-24 — Completed 25-01: Export Command Infrastructure
+Last activity: 2026-01-24 — Completed 25-02: Magellan Error Mapping
 
-Progress: [█████████░] 91% (124/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 18/24 v2.2.2)
+Progress: [█████████░] 92% (125/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 19/24 v2.2.2)
 
 ## Current Milestone: v2.2.2 Magellan Integration
 
@@ -96,6 +96,12 @@ Decisions are logged in PROJECT.md Key Decisions table.
   - Added Commands::Export variant with db, format, output arguments
   - Updated help text to include export in Export Commands category
   - Export command now appears in CLI (actual implementation in 25-02)
+- Phase 25-02: Magellan Error Mapping
+  - Added SpliceError::Magellan variant with context and #[source] source: anyhow::Error
+  - Added anyhow = "1.0" dependency to Cargo.toml
+  - Added SpliceErrorCode::MagellanError variant returning "SPL-E091"
+  - Added SPL-E091 to code(), severity(), hint(), and from_splice_error() methods
+  - Added full error explanation for SPL-E091 in get_error_explanation()
 
 ### Pending Todos
 
@@ -113,7 +119,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed 25-01: Export Command Infrastructure
+Stopped at: Completed 25-02: Magellan Error Mapping
 Resume file: None
 
 ---
