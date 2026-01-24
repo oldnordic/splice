@@ -537,8 +537,8 @@ pub enum Commands {
         format: ExportFormat,
 
         /// Output file path (writes to stdout if not specified)
-        #[arg(short, long)]
-        output: Option<std::path::PathBuf>,
+        #[arg(long)]
+        file: Option<std::path::PathBuf>,
     },
 }
 

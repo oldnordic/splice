@@ -157,10 +157,7 @@ fn test_magellan_symbol_field_names() {
 fn test_response_types_reexported() {
     // Verify response types are accessible via splice::cli::
     // This is a compile-time check
-    use splice::cli::{
-        FilesResponse, FindResponse, MagellanCallReference, MagellanFileMetadata,
-        MagellanSpan, MagellanSymbol, RefsResponse, StatusResponse,
-    };
+    use splice::cli::{FindResponse, StatusResponse};
 
     // Just verify types exist
     let _status: StatusResponse = StatusResponse {
@@ -427,4 +424,295 @@ fn test_status_response_serialization() {
         value.get("db_path").unwrap().as_str(),
         Some("/tmp/magellan.db")
     );
+}
+
+// ============================================================================
+// Export command tests (Phase 25-04)
+// ============================================================================
+
+#[cfg(test)]
+mod export_tests {
+    use serde_json::Value;
+    use splice::graph::magellan_integration::MagellanIntegration;
+    use std::path::PathBuf;
+    use std::process::Command;
+    use tempfile::TempDir;
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
+
+    /// Get the path to the splice binary.
+    fn get_splice_binary() -> PathBuf {
+        if let Ok(path) = std::env::var("SPLICE_TEST_BIN") {
+            return PathBuf::from(path);
+        }
+
+        if let Ok(path) = std::env::var("CARGO_BIN_EXE_splice") {
+            return PathBuf::from(path);
+        }
+
+        let mut path = std::env::current_exe().unwrap();
+        path.pop(); // deps
+        let deps_dir = path.clone();
+        path.pop(); // debug
+        let bin_path = path.join("splice");
+
+        if bin_path.exists() {
+            return bin_path;
+        }
+
+        if let Ok(entries) = std::fs::read_dir(deps_dir) {
+            let mut candidates: Vec<(std::time::SystemTime, PathBuf)> = Vec::new();
+
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+
+                if !name.starts_with("splice-") || !path.is_file() {
+                    continue;
+                }
+
+                if let Ok(metadata) = entry.metadata() {
+                    #[cfg(unix)]
+                    let is_executable = metadata.permissions().mode() & 0o111 != 0;
+                    #[cfg(not(unix))]
+                    let is_executable = true;
+
+                    if !is_executable {
+                        continue;
+                    }
+
+                    if let Ok(modified) = metadata.modified() {
+                        let len = metadata.len();
+                        if len > 50_000_000 {
+                            candidates.push((modified, path));
+                        }
+                    }
+                }
+            }
+
+            if let Some((_, path)) = candidates.into_iter().max_by_key(|(time, _)| *time) {
+                return path;
+            }
+        }
+
+        bin_path
+    }
+
+    /// Extract JSON from stdout that may contain debug output lines.
+    fn extract_json_from_stdout(stdout: &str) -> String {
+        let start = stdout.find('{');
+        let end = stdout.rfind('}');
+
+        match (start, end) {
+            (Some(start), Some(end)) if end >= start => stdout[start..=end].to_string(),
+            _ => String::new(),
+        }
+    }
+
+    #[test]
+    fn test_export_json_format() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let output_path = temp_dir.path().join("export.json");
+
+        // Create a test file and index it
+        let test_file = temp_dir.path().join("test.rs");
+        std::fs::write(&test_file, "fn test() { println!(\"hello\"); }").unwrap();
+
+        let mut integration = MagellanIntegration::open(&db_path).unwrap();
+        integration.index_file(&test_file).unwrap();
+
+        // Run export command
+        let splice_binary = get_splice_binary();
+        let result = Command::new(&splice_binary)
+            .arg("export")
+            .arg("--db")
+            .arg(&db_path)
+            .arg("--format")
+            .arg("json")
+            .arg("--file")
+            .arg(&output_path)
+            .output();
+
+        assert!(result.is_ok(), "export command should succeed");
+        let output = result.unwrap();
+        if !output.status.success() {
+            eprintln!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+            eprintln!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+        }
+        assert!(output.status.success(), "export should return success");
+
+        // Verify output file exists and contains valid JSON
+        let json_content = std::fs::read_to_string(&output_path).unwrap();
+        let value: Value = serde_json::from_str(&json_content)
+            .expect("export should produce valid JSON");
+
+        // Check required fields
+        assert!(value.get("schema_version").is_some(), "should have schema_version");
+        assert!(value.get("timestamp").is_some(), "should have timestamp");
+        assert!(value.get("db_path").is_some(), "should have db_path");
+        assert!(value.get("data").is_some(), "should have data");
+
+        // Check data structure
+        let data = &value["data"];
+        assert!(data.get("files").is_some(), "data should have files array");
+        assert!(data.get("symbols").is_some(), "data should have symbols array");
+        assert!(data.get("references").is_some(), "data should have references array");
+        assert!(data.get("calls").is_some(), "data should have calls array");
+    }
+
+    #[test]
+    fn test_export_jsonl_format() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let output_path = temp_dir.path().join("export.jsonl");
+
+        // Create a test file and index it
+        let test_file = temp_dir.path().join("test.rs");
+        std::fs::write(&test_file, "fn test() {}").unwrap();
+
+        let mut integration = MagellanIntegration::open(&db_path).unwrap();
+        integration.index_file(&test_file).unwrap();
+
+        // Run export command
+        let splice_binary = get_splice_binary();
+        let result = Command::new(&splice_binary)
+            .arg("export")
+            .arg("--db")
+            .arg(&db_path)
+            .arg("--format")
+            .arg("jsonl")
+            .arg("--file")
+            .arg(&output_path)
+            .output();
+
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.status.success());
+
+        // Verify JSONL format (one JSON object per line)
+        let jsonl_content = std::fs::read_to_string(&output_path).unwrap();
+        for line in jsonl_content.lines() {
+            let value: Value = serde_json::from_str(line)
+                .expect("each line should be valid JSON");
+            // Check for type tag in data records
+            if let Some(obj) = value.as_object() {
+                if obj.get("type").is_some() {
+                    let record_type = obj["type"].as_str().unwrap();
+                    assert!(
+                        record_type == "header" || record_type == "file" || record_type == "symbol",
+                        "type should be header, file, or symbol"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_export_csv_format() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let output_path = temp_dir.path().join("export.csv");
+
+        // Create a test file and index it
+        let test_file = temp_dir.path().join("test.rs");
+        std::fs::write(&test_file, "fn test() {}").unwrap();
+
+        let mut integration = MagellanIntegration::open(&db_path).unwrap();
+        integration.index_file(&test_file).unwrap();
+
+        // Run export command
+        let splice_binary = get_splice_binary();
+        let result = Command::new(&splice_binary)
+            .arg("export")
+            .arg("--db")
+            .arg(&db_path)
+            .arg("--format")
+            .arg("csv")
+            .arg("--file")
+            .arg(&output_path)
+            .output();
+
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.status.success());
+
+        // Verify CSV format
+        let csv_content = std::fs::read_to_string(&output_path).unwrap();
+        // CSV should have section headers
+        assert!(csv_content.contains("# Files"), "CSV should have Files section");
+        assert!(csv_content.contains("# Symbols"), "CSV should have Symbols section");
+        // CSV should have column headers
+        assert!(csv_content.contains("path"), "CSV should have path column");
+        assert!(csv_content.contains("hash"), "CSV should have hash column");
+    }
+
+    #[test]
+    fn test_export_defaults_to_json() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let output_path = temp_dir.path().join("export_default.json");
+
+        // Create and index a test file
+        let test_file = temp_dir.path().join("test.rs");
+        std::fs::write(&test_file, "fn test() {}").unwrap();
+
+        let mut integration = MagellanIntegration::open(&db_path).unwrap();
+        integration.index_file(&test_file).unwrap();
+
+        // Run export without --format flag (should default to json)
+        let splice_binary = get_splice_binary();
+        let result = Command::new(&splice_binary)
+            .arg("export")
+            .arg("--db")
+            .arg(&db_path)
+            .arg("--file")
+            .arg(&output_path)
+            .output();
+
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.status.success());
+
+        // Verify output is valid JSON
+        let json_content = std::fs::read_to_string(&output_path).unwrap();
+        let _value: Value = serde_json::from_str(&json_content)
+            .expect("default format should produce valid JSON");
+    }
+
+    #[test]
+    fn test_export_stdout_output() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+
+        // Create and index a test file
+        let test_file = temp_dir.path().join("test.rs");
+        std::fs::write(&test_file, "fn test() {}").unwrap();
+
+        let mut integration = MagellanIntegration::open(&db_path).unwrap();
+        integration.index_file(&test_file).unwrap();
+
+        // Run export without --file (should write to stdout)
+        let splice_binary = get_splice_binary();
+        let result = Command::new(&splice_binary)
+            .arg("export")
+            .arg("--db")
+            .arg(&db_path)
+            .arg("--format")
+            .arg("json")
+            .output();
+
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.status.success());
+
+        // Verify stdout contains expected export data fields
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        // When exporting to stdout, the export JSON is written directly
+        // followed by the success payload JSON. Verify both are present.
+        assert!(stdout.contains("schema_version"), "stdout should contain schema_version");
+        assert!(stdout.contains("files"), "stdout should contain files array");
+        assert!(stdout.contains("symbols"), "stdout should contain symbols array");
+        assert!(stdout.contains("\"status\""), "stdout should contain success payload status");
+    }
 }

@@ -260,8 +260,8 @@ fn main() -> ExitCode {
             execute_files(&db, symbols, output, json_output)
         }
 
-        splice::cli::Commands::Export { db, format: export_format, output } => {
-            execute_export(&db, export_format, output.as_deref(), json_output)
+        splice::cli::Commands::Export { db, format: export_format, file } => {
+            execute_export(&db, export_format, file.as_deref(), json_output)
         }
     };
 
