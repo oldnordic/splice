@@ -18,3 +18,10 @@ pub use query::{
     format_json, format_table_row, get_execution, get_execution_stats, get_recent_executions,
     ExecutionQuery, ExecutionStats,
 };
+
+// Re-export log types
+pub use log::{
+    ExecutionLogConfig, db_path, init_db, init_db_in_dir,
+    is_enabled, is_enabled_with_config, record_execution,
+    record_execution_with_params, record_execution_failure
+};
