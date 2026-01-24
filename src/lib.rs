@@ -16,6 +16,7 @@ pub mod error;
 pub mod error_codes;
 pub mod execution;
 pub mod expand;
+pub mod format;
 pub mod graph;
 pub mod hints;
 pub mod ingest;

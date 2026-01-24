@@ -16,7 +16,4 @@
 pub mod magellan;
 
 /// Re-exports for commonly used types and functions.
-pub use magellan::{
-    from_magellan, magellan::MagellanSpan, magellan::SpliceSpan, to_magellan,
-    translate_field_name,
-};
+pub use magellan::{from_magellan, to_magellan, translate_field_name, MagellanSpan, SpliceSpan};
