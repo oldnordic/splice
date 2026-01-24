@@ -6,7 +6,7 @@
 //! - Code chunk retrieval without file re-reading
 //! - Error handling at integration boundaries
 
-use splice::graph::magellan_integration::{CodeChunk, MagellanIntegration, SymbolInfo};
+use splice::graph::magellan_integration::{CodeChunk, MagellanIntegration, SymbolInfo, SymbolWithRelations};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
@@ -1034,4 +1034,298 @@ fn test_index_syntactically_invalid_file() {
             // Explicit error - also acceptable
         }
     }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Phase 23: Magellan Integration Extensions - Query Methods Tests
+///////////////////////////////////////////////////////////////////////////////
+
+#[test]
+fn test_get_statistics_empty_database() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+
+    let db = MagellanIntegration::open(&db_path).unwrap();
+
+    // Empty database should have all zero counts
+    let stats = db.get_statistics().unwrap();
+    assert_eq!(stats.files, 0, "Empty database should have 0 files");
+    assert_eq!(stats.symbols, 0, "Empty database should have 0 symbols");
+    assert_eq!(stats.references, 0, "Empty database should have 0 references");
+    assert_eq!(stats.calls, 0, "Empty database should have 0 calls");
+    assert_eq!(stats.code_chunks, 0, "Empty database should have 0 code chunks");
+}
+
+#[test]
+fn test_get_statistics_populated_database() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let rust_file = create_sample_rust_file(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+    db.index_file(&rust_file).unwrap();
+
+    // Populated database should have non-zero counts
+    let stats = db.get_statistics().unwrap();
+    assert_eq!(stats.files, 1, "Should have 1 file indexed");
+    assert!(stats.symbols > 0, "Should have some symbols indexed");
+    // Other counts may vary depending on what Magellan extracts
+}
+
+#[test]
+fn test_query_symbols_by_file_no_filter() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let rust_file = create_sample_rust_file(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+    db.index_file(&rust_file).unwrap();
+
+    // Query all symbols in file (no kind filter, no relationships)
+    let results = db.query_symbols_by_file(&rust_file, None, false, false).unwrap();
+    assert!(!results.is_empty(), "Should find symbols in file");
+
+    // Verify no relationships included (flags were false)
+    for result in &results {
+        assert!(result.callers.is_empty(), "Should not have callers when flag is false");
+        assert!(result.callees.is_empty(), "Should not have callees when flag is false");
+    }
+}
+
+#[test]
+fn test_query_symbols_by_file_with_kind_filter() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let rust_file = create_sample_rust_file(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+    db.index_file(&rust_file).unwrap();
+
+    // Query for "fn" kind symbols only
+    let results = db.query_symbols_by_file(&rust_file, Some("fn"), false, false).unwrap();
+
+    // Should find function symbols (may be empty depending on Magellan labeling)
+    // The important thing is the query succeeds
+    let _ = results;
+}
+
+#[test]
+fn test_find_symbol_by_name_first_match() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let rust_file = create_sample_rust_file(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+    db.index_file(&rust_file).unwrap();
+
+    // Find a symbol that exists (e.g., "MyStruct")
+    let results = db.find_symbol_by_name("MyStruct", false).unwrap();
+
+    // With ambiguous=false, should return at most one result
+    assert!(results.len() <= 1, "Should return first match only when ambiguous=false");
+
+    // If found, verify it's a struct
+    if !results.is_empty() {
+        assert_eq!(results[0].name, "MyStruct");
+    }
+}
+
+#[test]
+fn test_find_symbol_by_name_all_matches() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let rust_file = create_sample_rust_file(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+    db.index_file(&rust_file).unwrap();
+
+    // Find with ambiguous=true to get all matches
+    let results = db.find_symbol_by_name("MyStruct", true).unwrap();
+
+    // May return multiple if same name appears multiple times (struct + impl)
+    // The important thing is the query succeeds
+    let _ = results;
+}
+
+#[test]
+fn test_find_symbol_by_name_not_found() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let rust_file = create_sample_rust_file(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+    db.index_file(&rust_file).unwrap();
+
+    // Search for non-existent symbol
+    let results = db.find_symbol_by_name("NonExistentSymbol", false).unwrap();
+    assert!(results.is_empty(), "Should return empty for non-existent symbol");
+}
+
+#[test]
+fn test_find_symbol_by_id() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let rust_file = create_sample_rust_file(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+    db.index_file(&rust_file).unwrap();
+
+    // Get a symbol via name first to have a known symbol ID
+    let symbols = db.find_symbol_by_name("MyStruct", true).unwrap();
+
+    if let Some(symbol) = symbols.first() {
+        use splice::symbol_id::generate_symbol_id;
+
+        // Generate the expected symbol ID
+        let expected_id = generate_symbol_id(
+            &symbol.name,
+            &symbol.file_path,
+            symbol.byte_start
+        );
+
+        // Look up by ID
+        let found = db.find_symbol_by_id(expected_id.as_str()).unwrap();
+
+        // Should find the symbol (or a symbol with matching properties)
+        assert!(found.is_some(), "Should find symbol by ID");
+    }
+}
+
+#[test]
+fn test_find_symbol_by_id_not_found() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let rust_file = create_sample_rust_file(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+    db.index_file(&rust_file).unwrap();
+
+    // Search for non-existent symbol ID
+    let found = db.find_symbol_by_id("0000000000000000").unwrap();
+    assert!(found.is_none(), "Should return None for non-existent symbol ID");
+}
+
+#[test]
+fn test_get_call_relationships_both_directions() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let rust_file = create_sample_rust_file(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+    db.index_file(&rust_file).unwrap();
+
+    // Try to get relationships for a symbol
+    // Note: May not have actual call relationships in sample file
+    let results = db.get_call_relationships(&rust_file, "my_function", splice::graph::magellan_integration::CallDirection::Both);
+
+    // Should succeed (may be empty if no call relationships)
+    assert!(results.is_ok(), "Should be able to query call relationships");
+
+    let relationships = results.unwrap();
+    assert_eq!(relationships.symbol.name, "my_function");
+    // callers and callees may be empty depending on sample file
+}
+
+#[test]
+fn test_get_call_relationships_in_direction() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let rust_file = create_sample_rust_file(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+    db.index_file(&rust_file).unwrap();
+
+    // Get callers only
+    let results = db.get_call_relationships(&rust_file, "my_function", splice::graph::magellan_integration::CallDirection::In);
+
+    assert!(results.is_ok(), "Should be able to query callers");
+
+    let relationships = results.unwrap();
+    assert!(relationships.callees.is_empty(), "Should not have callees when direction=In");
+    // callers may be empty depending on sample file
+}
+
+#[test]
+fn test_get_call_relationships_out_direction() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let rust_file = create_sample_rust_file(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+    db.index_file(&rust_file).unwrap();
+
+    // Get callees only
+    let results = db.get_call_relationships(&rust_file, "my_function", splice::graph::magellan_integration::CallDirection::Out);
+
+    assert!(results.is_ok(), "Should be able to query callees");
+
+    let relationships = results.unwrap();
+    assert!(relationships.callers.is_empty(), "Should not have callers when direction=Out");
+    // callees may be empty depending on sample file
+}
+
+#[test]
+fn test_list_indexed_files_without_counts() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let rust_file = create_sample_rust_file(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+    db.index_file(&rust_file).unwrap();
+
+    // List files without symbol counts
+    let files = db.list_indexed_files(false).unwrap();
+    assert_eq!(files.len(), 1, "Should have 1 indexed file");
+
+    let file = &files[0];
+    assert!(file.path.contains("sample_rust.rs"), "Should return the indexed file");
+    assert!(file.symbol_count.is_none(), "Should not have symbol count when flag is false");
+}
+
+#[test]
+fn test_list_indexed_files_with_counts() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let rust_file = create_sample_rust_file(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+    db.index_file(&rust_file).unwrap();
+
+    // List files with symbol counts
+    let files = db.list_indexed_files(true).unwrap();
+    assert_eq!(files.len(), 1, "Should have 1 indexed file");
+
+    let file = &files[0];
+    assert!(file.symbol_count.is_some(), "Should have symbol count when flag is true");
+    assert!(file.symbol_count.unwrap() > 0, "Should have at least some symbols");
+}
+
+#[test]
+fn test_list_indexed_files_empty_database() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+
+    // Empty database should have no files
+    let files = db.list_indexed_files(false).unwrap();
+    assert!(files.is_empty(), "Empty database should have no indexed files");
+}
+
+#[test]
+fn test_list_indexed_files_multilang() {
+    let temp_dir = create_temp_magellan_db();
+    let db_path = temp_dir.path().join("test.db");
+    let files = create_multilang_workspace(temp_dir.path());
+
+    let mut db = MagellanIntegration::open(&db_path).unwrap();
+
+    // Index all language files
+    for file in &files {
+        db.index_file(file).unwrap();
+    }
+
+    // Should have all 7 files indexed
+    let indexed = db.list_indexed_files(false).unwrap();
+    assert_eq!(indexed.len(), 7, "Should have 7 indexed files");
 }
