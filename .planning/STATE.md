@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 25 of 26 (Export Command & Error Mapping)
-Plan: 03 of 4 (Export Data Types and Execution Function)
+Plan: 04 of 4 (Export Command Tests)
 Status: In progress
-Last activity: 2026-01-24 — Completed 25-03: Export Data Types and Execution Function
+Last activity: 2026-01-24 — Completed 25-04: Export Command Tests
 
-Progress: [█████████░] 93% (126/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 20/24 v2.2.2)
+Progress: [█████████░] 94% (127/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 21/24 v2.2.2)
 
 ## Current Milestone: v2.2.2 Magellan Integration
 
@@ -46,7 +46,7 @@ Progress: [█████████░] 93% (126/130 plans: 31 v2.0 + 55 v2.2
 | 19-21 | 20 | Complete |
 | 22-23 | 9 | Complete |
 | 24 | 5 | Complete |
-| 25 | 3/4 | In progress |
+| 25 | 4/4 | Complete |
 | 26 | 0/1 | Pending |
 
 *Updated after each plan completion*
@@ -117,6 +117,14 @@ Decisions are logged in PROJECT.md Key Decisions table.
   - JSONL writes type-tagged records (type: "file", type: "symbol")
   - CSV uses csv::Writer with section headers (# Files, # Symbols)
   - Wired Export command to execute_export in Commands match arm
+- Phase 25-04: Export Command Tests
+  - Added 5 integration tests for export command in tests/cli_output_tests.rs
+  - Tests cover all three formats: json, jsonl, csv
+  - Tests verify --file flag behavior (file output vs stdout)
+  - Tests verify JSON is the default format
+  - Fixed Export command field name conflict (output->file) to avoid clash with global --output flag
+  - Removed short option -o from Export::file to avoid conflict with global -o
+  - All 5 export tests pass (test_export_json_format, test_export_jsonl_format, test_export_csv_format, test_export_defaults_to_json, test_export_stdout_output)
 
 ### Pending Todos
 
@@ -125,17 +133,18 @@ None yet.
 ### Blockers/Concerns
 
 **Phase 25:**
-- None
+- None - Phase 25 complete
 
 **Discovered Issues:**
 - MagellanIntegration::open() wraps all errors in SpliceError::Other instead of propagating SpliceError::Graph, causing some database errors to return code 1 instead of code 3. This is a pre-existing issue outside the scope of exit code mapping.
 - Phase 24 left incomplete Magellan error handling in error_codes.rs (fixed in Phase 25-01 as deviation)
+- Export command field name conflict (output->file) fixed in Phase 25-04 as deviation
 
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed 25-03: Export Data Types and Execution Function
+Stopped at: Completed 25-04: Export Command Tests
 Resume file: None
 
 ---
-*Last updated: 2026-01-24 — Phase 25 in progress*
+*Last updated: 2026-01-24 — Phase 25 complete*
