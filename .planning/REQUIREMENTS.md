@@ -18,17 +18,17 @@ Requirements for Magellan query command delegation and CLI/data format alignment
 
 ### CLI Alignment (CLI-01 through CLI-04)
 
-- [ ] **CLI-01**: --output flag supports human (default), json, pretty formats
-- [ ] **CLI-02**: --db flag specifies database path (delegates to Magellan)
-- [ ] **CLI-03**: Exit codes match Magellan conventions (0=success, 1=error, 2=usage, 3=database, 4=file not found, 5=validation)
-- [ ] **CLI-04**: --help shows command categories (Query, Edit, Export, Validation)
+- [x] **CLI-01**: --output flag supports human (default), json, pretty formats
+- [x] **CLI-02**: --db flag specifies database path (delegates to Magellan)
+- [x] **CLI-03**: Exit codes match Magellan conventions (0=success, 1=error, 2=usage, 3=database, 4=file not found, 5=validation)
+- [x] **CLI-04**: --help shows command categories (Query, Edit, Export, Validation)
 
 ### Data Format Alignment (DATA-01 through DATA-04)
 
-- [ ] **DATA-01**: Symbol ID uses 16-character hex format (SHA-256 hash, first 8 bytes)
-- [ ] **DATA-02**: Execution ID uses {timestamp_hex}-{pid_hex} format for delegated queries
-- [ ] **DATA-03**: Field name translation between Magellan (start_line) and Splice (line_start) conventions
-- [ ] **DATA-04**: Response types defined (StatusResponse, FindResponse, RefsResponse, FilesResponse)
+- [x] **DATA-01**: Symbol ID uses 16-character hex format (SHA-256 hash, first 8 bytes)
+- [x] **DATA-02**: Execution ID uses {timestamp_hex}-{pid_hex} format for delegated queries
+- [x] **DATA-03**: Field name translation between Magellan (start_line) and Splice (line_start) conventions
+- [x] **DATA-04**: Response types defined (StatusResponse, FindResponse, RefsResponse, FilesResponse)
 
 ### Export (EXPORT-01 through EXPORT-02)
 
@@ -77,12 +77,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | QUERY-03 | Phase 23 | Complete |
 | QUERY-04 | Phase 23 | Complete |
 | QUERY-05 | Phase 23 | Complete |
-| CLI-01 | Phase 24 | Pending |
-| CLI-02 | Phase 24 | Pending |
-| CLI-03 | Phase 24 | Pending |
-| CLI-04 | Phase 24 | Pending |
-| DATA-03 | Phase 24 | Pending |
-| DATA-04 | Phase 24 | Pending |
+| CLI-01 | Phase 24 | Complete |
+| CLI-02 | Phase 24 | Complete |
+| CLI-03 | Phase 24 | Complete |
+| CLI-04 | Phase 24 | Complete |
+| DATA-03 | Phase 24 | Complete |
+| DATA-04 | Phase 24 | Complete |
 | EXPORT-01 | Phase 25 | Pending |
 | EXPORT-02 | Phase 25 | Pending |
 | ERROR-01 | Phase 25 | Pending |
