@@ -1,12 +1,16 @@
 # Splice Manual
 
-**Version**: 2.0.0
+**Version**: 2.2.2
 
 ---
 
 ## Overview
 
 Splice is a span-safe refactoring tool that performs byte-accurate, AST-validated operations on code in 7 languages: Rust, Python, C, C++, Java, JavaScript, and TypeScript.
+
+**NEW in v2.2.2**: Unified CLI interface with Magellan query commands (status, query, find, refs, files, export) for code graph discovery and editing in a single tool.
+
+**NEW in v2.2**: Rich span extensions, enhanced error codes, CLI conventions, symbol expansion, and search capabilities.
 
 **NEW in v0.5.0**: Magellan integration for code indexing and label-based symbol discovery.
 
@@ -314,6 +318,136 @@ splice get --db <FILE> --file <PATH> --start <N> --end <N>
 ```bash
 # Get code for a specific function (bytes 0-100)
 splice get --db code.db --file src/lib.rs --start 0 --end 100
+```
+
+### splice status (NEW in v2.2.2)
+
+Display database statistics.
+
+```bash
+splice status --db <FILE> [--output FORMAT]
+```
+
+**Required Arguments:**
+- `--db <FILE>`: Path to the Magellan database
+
+**Optional Arguments:**
+- `--output FORMAT`: Output format (human, json, pretty) - default: human
+
+**Example:**
+```bash
+splice status --db code.db
+splice status --db code.db --output json
+```
+
+### splice find (NEW in v2.2.2)
+
+Find symbols by name or symbol_id.
+
+```bash
+splice find --db <FILE> (--name <NAME> | --symbol-id <ID>) [--ambiguous] [--output FORMAT]
+```
+
+**Required Arguments:**
+- `--db <FILE>`: Path to the Magellan database
+- `--name <NAME>`: Symbol name to find
+- `--symbol-id <ID>`: 16-character hex symbol ID
+
+**Optional Arguments:**
+- `--ambiguous`: Show all matches for ambiguous names
+- `--output FORMAT`: Output format (human, json, pretty)
+
+**Example:**
+```bash
+# Find by name
+splice find --db code.db --name my_function
+
+# Find by symbol ID
+splice find --db code.db --symbol-id 1a2b3c4d5e6f7a8b
+
+# Show all matches for ambiguous name
+splice find --db code.db --name process --ambiguous
+```
+
+### splice refs (NEW in v2.2.2)
+
+Show callers/callees for a symbol.
+
+```bash
+splice refs --db <FILE> (--name <NAME> | --path <PATH> --name <NAME>) [--direction DIR] [--output FORMAT]
+```
+
+**Required Arguments:**
+- `--db <FILE>`: Path to the Magellan database
+- `--name <NAME>`: Symbol name
+- `--path <PATH>`: File path (for disambiguation)
+
+**Optional Arguments:**
+- `--direction DIR`: Relationship direction (in, out, both) - default: both
+- `--output FORMAT`: Output format (human, json, pretty)
+
+**Example:**
+```bash
+# Show callers and callees
+splice refs --db code.db --name my_function
+
+# Show only callees (functions this calls)
+splice refs --db code.db --name my_function --direction out
+
+# Show only callers (functions that call this)
+splice refs --db code.db --name my_function --direction in
+
+# Disambiguate by file path
+splice refs --db code.db --path src/lib.rs --name helper --direction both
+```
+
+### splice files (NEW in v2.2.2)
+
+List indexed files.
+
+```bash
+splice files --db <FILE> [--symbols] [--output FORMAT]
+```
+
+**Required Arguments:**
+- `--db <FILE>`: Path to the Magellan database
+
+**Optional Arguments:**
+- `--symbols`: Show symbol counts per file
+- `--output FORMAT`: Output format (human, json, pretty)
+
+**Example:**
+```bash
+# List all indexed files
+splice files --db code.db
+
+# List files with symbol counts
+splice files --db code.db --symbols
+```
+
+### splice export (NEW in v2.2.2)
+
+Export graph data.
+
+```bash
+splice export --db <FILE> --format FORMAT --file <PATH>
+```
+
+**Required Arguments:**
+- `--db <FILE>`: Path to the Magellan database
+- `--format FORMAT`: Export format (json, jsonl, csv)
+- `--file <PATH>`: Output file path
+
+**Example:**
+```bash
+# Export to JSON
+splice export --db code.db --format json --file export.json
+
+# Export to JSONL
+splice export --db code.db --format jsonl --file export.jsonl
+
+# Export to CSV
+splice export --db code.db --format csv --file export.csv
 ```
 
 ---
@@ -750,4 +884,31 @@ splice undo --help
 splice plan --help
 splice query --help
 splice get --help
+splice status --help
+splice find --help
+splice refs --help
+splice files --help
+splice export --help
 ```
+
+---
+
+## Magellan Integration
+
+**Splice works best with [Magellan](https://crates.io/crates/magellan)** for code graph indexing and querying.
+
+Magellan is a code understanding and indexing library that provides:
+- Multi-language parsing (Rust, Python, C, C++, Java, JavaScript, TypeScript)
+- Symbol discovery and relationship tracking
+- Call graph analysis
+- Fast code graph queries
+
+**Links:**
+- [Magellan on crates.io](https://crates.io/crates/magellan)
+- [Magellan on GitHub](https://github.com/oldnordic/magellan)
+
+When you use Splice's query commands (`status`, `query`, `find`, `refs`, `files`, `export`), you're leveraging Magellan's powerful code graph capabilities through Splice's unified CLI interface.
+
+For detailed documentation on Magellan integration, see [docs/magellan_integration.md](docs/magellan_integration.md).
+
+---

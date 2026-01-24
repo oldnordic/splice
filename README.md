@@ -2,25 +2,40 @@
 
 Span-safe refactoring kernel for 7 languages using tree-sitter and SQLiteGraph.
 
-**Version**: 2.0.0
+**Version**: 2.2.2
 **License**: GPL-3.0-or-later
 
 ## What This Is
 
-Splice is a command-line tool that performs byte-accurate, AST-validated refactoring operations on code in 7 languages: Rust, Python, C, C++, Java, JavaScript, and TypeScript. It can replace function bodies, delete symbols, apply batch changes, perform pattern replacements, and undo operations.
+Splice is a command-line tool that performs byte-accurate, AST-validated refactoring operations on code in 7 languages: Rust, Python, C, C++, Java, JavaScript, and TypeScript. It can replace function bodies, delete symbols, apply batch changes, perform pattern replacements, query code graphs, and undo operations.
+
+## v2.2.2 Features
+
+Splice v2.2.2 delivers a unified CLI interface with Magellan query commands for code discovery alongside span-safe editing:
+
+- **Unified CLI**: Single tool for code graph queries (Magellan) and refactoring (Splice)
+- **Query Commands**: `status`, `query`, `find`, `refs`, `files` for code graph navigation
+- **Export Command**: Export graph data in JSON, JSONL, or CSV formats
+- **Magellan Integration**: In-process library delegation for optimal performance
+- **CLI Alignment**: `--output` (human/json/pretty), `--db` for database path, Magellan-compatible exit codes
+- **Error Handling**: SPL-E091 Magellan error code with full error chain preservation
+
+## v2.2 Features
+
+- **Rich Span Extensions**: Context, semantic kind, language, checksums, error codes
+- **Rich Span Advanced**: Relationships (callers, callees, imports, exports), tool hints
+- **CLI Conventions**: `-n` dry-run, `-A`/`-B`/`-C` context, unified diff, git-style exit codes
+- **Enhanced Errors**: SPL-E### codes, severity levels, fuzzy suggestions, `splice explain`
 
 ## v2.0 Features
 
-Splice v2.0 introduces comprehensive improvements across safety, output structure, validation, and observability:
-
-- **Structured JSON Output**: All operations return structured JSON with explicit fields (execution_id, match_id, span_id) for programmatic consumption
-- **Span-Aware Metadata**: Line and column coordinates in all output for precise code location tracking
-- **Deterministic Ordering**: All operations (spans, matches, errors, steps) return sorted results for reproducibility
-- **Validation Hooks**: Pre/post-operation checksums verify code integrity at every step
-- **Execution Logging**: Complete audit trail in `.splice/operations.db` with timestamps, durations, and command-line capture
-- **SQLiteGraph v1.0**: Native V2 backend for improved performance and reliability
-- **Magellan Integration**: Code indexing and label-based symbol discovery for all 7 languages
-- **Enhanced Safety**: Eliminated unwrap() calls, comprehensive error handling, atomic rollback on failures
+- **Structured JSON Output**: All operations return structured JSON with explicit fields
+- **Span-Aware Metadata**: Line and column coordinates in all output
+- **Deterministic Ordering**: All operations return sorted results
+- **Validation Hooks**: Pre/post-operation checksums verify code integrity
+- **Execution Logging**: Complete audit trail in `.splice/operations.db`
+- **SQLiteGraph v1.0**: Native V2 backend for improved performance
+- **Enhanced Safety**: Eliminated unwrap() calls, comprehensive error handling
 
 ## What This Is NOT
 
@@ -31,15 +46,27 @@ Splice v2.0 introduces comprehensive improvements across safety, output structur
 
 ## What It Does
 
+**Edit Commands:**
 - **patch**: Replace function bodies, class definitions, enum variants with validation (single or batch)
 - **delete**: Remove symbol definitions and all references (cross-file, Rust-only)
 - **apply-files**: Multi-file pattern replacement with AST confirmation
-- **query**: Query symbols by labels using Magellan integration (NEW)
-- **get**: Get code chunks from the database without re-reading files (NEW)
+- **search**: Pattern-based search with glob filtering
+
+**Query Commands (Magellan Integration):**
+- **status**: Display database statistics (files, symbols, references, calls, code_chunks)
+- **query**: Query symbols by labels (language, kind) with optional context
+- **find**: Locate symbols by name or symbol_id with disambiguation
+- **refs**: Show callers/callees for a symbol (bidirectional traversal)
+- **files**: List indexed files with optional symbol counts
+- **export**: Export graph data (JSON, JSONL, CSV formats)
+
+**Utility Commands:**
 - **undo**: Restore files from backup manifest
 - **plan**: Orchestrate multi-step refactors via JSON plans
-- **preview**: Inspect changes before applying (dry-run mode)
-- **backup**: Create backups with automatic restore capability
+- **log**: Query execution audit trail from operations.db
+- **explain**: Get detailed explanations for error codes
+
+**Validation:**
 - Validates syntax with tree-sitter after every operation
 - Validates compilation with language-specific compilers
 - Rolls back atomically on any failure
@@ -259,6 +286,28 @@ splice query --db code.db --label struct --show-code
 splice get --db code.db --file src/lib.rs --start 0 --end 100
 ```
 
+### Query Commands (Magellan Integration)
+
+```bash
+# Show database statistics
+splice status --db code.db
+
+# Find all functions in a file
+splice query --db code.db --file src/lib.rs --kind fn
+
+# Find symbol by name
+splice find --db code.db --name my_function
+
+# Show call relationships
+splice refs --db code.db --name my_function --direction out
+
+# List indexed files
+splice files --db code.db --symbols
+
+# Export graph data
+splice export --db code.db --format json --file export.json
+```
+
 ## Commands
 
 ### splice delete
@@ -374,6 +423,82 @@ splice get --db <FILE> --file <PATH> --start <N> --end <N>
 - `--start <N>`: Start byte offset
 - `--end <N>`: End byte offset
 
+### splice status
+
+Display database statistics.
+
+```bash
+splice status --db <FILE> [--output FORMAT]
+```
+
+**Required Arguments:**
+- `--db <FILE>`: Path to the Magellan database
+
+**Optional Arguments:**
+- `--output FORMAT`: Output format (human, json, pretty) - default: human
+
+### splice find
+
+Find symbols by name or symbol_id.
+
+```bash
+splice find --db <FILE> (--name <NAME> | --symbol-id <ID>) [--ambiguous] [--output FORMAT]
+```
+
+**Required Arguments:**
+- `--db <FILE>`: Path to the Magellan database
+- `--name <NAME>`: Symbol name to find
+- `--symbol-id <ID>`: 16-character hex symbol ID
+
+**Optional Arguments:**
+- `--ambiguous`: Show all matches for ambiguous names
+- `--output FORMAT`: Output format (human, json, pretty)
+
+### splice refs
+
+Show callers/callees for a symbol.
+
+```bash
+splice refs --db <FILE> (--name <NAME> | --path <PATH> --name <NAME>) [--direction DIR] [--output FORMAT]
+```
+
+**Required Arguments:**
+- `--db <FILE>`: Path to the Magellan database
+- `--name <NAME>`: Symbol name
+- `--path <PATH>`: File path (for disambiguation)
+
+**Optional Arguments:**
+- `--direction DIR`: Relationship direction (in, out, both) - default: both
+- `--output FORMAT`: Output format (human, json, pretty)
+
+### splice files
+
+List indexed files.
+
+```bash
+splice files --db <FILE> [--symbols] [--output FORMAT]
+```
+
+**Required Arguments:**
+- `--db <FILE>`: Path to the Magellan database
+
+**Optional Arguments:**
+- `--symbols`: Show symbol counts per file
+- `--output FORMAT`: Output format (human, json, pretty)
+
+### splice export
+
+Export graph data.
+
+```bash
+splice export --db <FILE> --format FORMAT --file <PATH>
+```
+
+**Required Arguments:**
+- `--db <FILE>`: Path to the Magellan database
+- `--format FORMAT`: Export format (json, jsonl, csv)
+- `--file <PATH>`: Output file path
+
 ### splice log
 
 Query the execution audit trail from `.splice/operations.db`.
@@ -487,3 +612,21 @@ GPL-3.0-or-later
 ## Disclaimer
 
 This software modifies source code. Always commit your changes before running Splice.
+
+---
+
+## Integration with Magellan
+
+**Splice works best with [Magellan](https://crates.io/crates/magellan)** for code graph indexing and querying.
+
+Magellan is a code understanding and indexing library that provides:
+- Multi-language parsing (Rust, Python, C, C++, Java, JavaScript, TypeScript)
+- Symbol discovery and relationship tracking
+- Call graph analysis
+- Fast code graph queries
+
+**Links:**
+- [Magellan on crates.io](https://crates.io/crates/magellan)
+- [Magellan on GitHub](https://github.com/oldnordic/magellan)
+
+When you use Splice's query commands (`status`, `query`, `find`, `refs`, `files`, `export`), you're leveraging Magellan's powerful code graph capabilities through Splice's unified CLI interface.

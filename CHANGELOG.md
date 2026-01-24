@@ -3,6 +3,134 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.2] - 2026-01-24
+
+### Magellan Integration — Unified CLI Interface
+
+This release delivers a unified CLI interface where Splice provides both Magellan query commands and span-safe editing through a single tool. Five phases with 24 plans bring comprehensive code graph query capabilities alongside Splice's refactoring features.
+
+### Added
+
+**Query Commands (Magellan Delegation)**
+- `splice status` — Display database statistics (files, symbols, references, calls, code_chunks counts)
+- `splice query` — List symbols in a file with optional context/relationship flags
+- `splice find` — Locate symbols by name or symbol_id with disambiguation support
+- `splice refs` — Show callers/callees for a symbol with bidirectional traversal
+- `splice files` — List indexed files with optional symbol counts per file
+- `splice export` — Export graph data in JSON, JSONL, or CSV format
+
+**CLI Enhancements**
+- `--output` flag supports human (default), json, and pretty formats
+- `--db` flag specifies database path and delegates to Magellan
+- Exit codes match Magellan conventions (0=success, 1=error, 2=usage, 3=database, 4=file not found, 5=validation)
+- Command categories in help (Query, Edit, Export, Validation)
+
+**Data Format Alignment**
+- Symbol IDs use 16-character hex format (SHA-256 hash, first 8 bytes)
+- Execution IDs use {timestamp_hex}-{pid_hex} format for delegated queries
+- Field name translation between Magellan (start_line) and Splice (line_start) conventions
+- Response types: StatusResponse, FindResponse, RefsResponse, FilesResponse
+
+**Error Handling**
+- SPL-E091 Magellan error code with original error preserved in chain
+- anyhow::Error source preservation for complete error context
+
+**Documentation**
+- Comprehensive Magellan integration guide (docs/magellan_integration.md — 1030 lines)
+- LLM usage patterns and workflow examples
+- Performance benchmarks and characteristics
+
+### Changed
+
+**Dependencies**
+- Added `csv = "1.3"` for CSV export format
+- Added `anyhow = "1.0"` for error chain preservation
+
+**Test Coverage**
+- 21 new integration tests covering commands, formats, errors, LLM workflows, and performance
+- All query commands validated end-to-end
+- Export format validation tests for JSON, JSONL, CSV
+
+### Technical Notes
+
+- **Single-Tool Workflow**: LLMs can now discover and edit code using one tool
+- **In-Process Delegation**: Uses Magellan as library, not subprocess
+- **Export Schema**: Versioned schema (1.0.0) with files, symbols, references, calls
+
+## [2.2.1] - 2026-01-24
+
+### Code Quality & Bug Fixes
+
+This release addresses 67 issues identified in comprehensive bug analysis, improving code reliability and safety.
+
+### Fixed
+
+**Critical Error Handling**
+- Eliminated unwrap() panic paths in symbol resolution, parser creation, and file loading
+- Proper error propagation throughout all language modules
+
+**Lifetime & Resource Safety**
+- Fixed 'static lifetime abuses in parser creation
+- Improved UTF-8 handling across all language modules
+- Removed excessive clone() patterns
+
+**API Consolidation**
+- Merged duplicate parser creation APIs
+- Unified import extraction implementations
+- Consolidated resolve_symbol variants
+
+### Changed
+
+- 20 plans across 3 phases
+- 70 files created/modified
+- Improved testability with configurable execution logging
+
+## [2.2.0] - 2026-01-23
+
+### Unified JSON & LLM Optimization
+
+This release introduces unified JSON schema across all LLM tools with rich span extensions optimized for AI agent consumption and human-friendly CLI improvements.
+
+### Added
+
+**Rich Span Extensions**
+- Context fields for all operations (file_path, symbol_name, language)
+- Semantic kind labels (function, method, class, struct, etc.)
+- Checksums for change verification (SHA-256)
+- Structured error codes with SPL-E### format
+
+**Rich Span Advanced**
+- Relationships (callers, callees, imports, exports)
+- Tool hints for safe operations
+- Suggested actions for common workflows
+
+**CLI Conventions**
+- `-n` dry-run flag for preview mode
+- `-A`/`-B`/`-C` context flags (lines before/after/around)
+- Unified diff output with TTY colors
+- Git-style exit codes
+
+**Enhanced Errors**
+- Severity levels (error, warning, info)
+- Precise locations (file, line, column)
+- Fuzzy symbol suggestions
+- `splice explain` command for error details
+
+**Symbol Expansion**
+- AST-aware parent chain walking
+- Multi-level expansion with `--expand-level`
+- 6 language expanders (Rust, Python, C, C++, Java, JavaScript, TypeScript)
+
+**Search & Apply**
+- `splice search --pattern` with glob filtering
+- Atomic find-and-replace with rollback capability
+
+### Changed
+
+- 8 phases, 55 plans
+- 340+ tests passing
+- Magellan alignment for unified CLI
+
 ## [2.0.0] - 2026-01-18
 
 ### Major Release - Comprehensive Overhaul

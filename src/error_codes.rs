@@ -250,10 +250,10 @@ impl SpliceErrorCode {
             | SpliceErrorCode::MagellanError => "error".to_string(),
 
             // Warning-level codes
-            SpliceErrorCode::AmbiguousSymbol => "warning".to_string(),
-            SpliceErrorCode::AmbiguousReference => "warning".to_string(),
-            SpliceErrorCode::FileExternallyModified => "warning".to_string(),
-            SpliceErrorCode::AmbiguousSymbolAsWarning
+            SpliceErrorCode::AmbiguousSymbol
+            | SpliceErrorCode::AmbiguousReference
+            | SpliceErrorCode::FileExternallyModified
+            | SpliceErrorCode::AmbiguousSymbolAsWarning
             | SpliceErrorCode::FileSkipped
             | SpliceErrorCode::FileExternallyModifiedWarning => "warning".to_string(),
         }

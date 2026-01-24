@@ -455,7 +455,8 @@ impl MagellanIntegration {
                 .and_then(|v| v.as_u64())
                 .ok_or_else(|| {
                     SpliceError::Other("Symbol data missing byte_start".to_string())
-                })? as usize;
+                })?;
+            let byte_start = byte_start as usize;
 
             // Regenerate symbol_id and compare
             let generated_id = generate_symbol_id(&name, &file_path, byte_start);
@@ -466,7 +467,8 @@ impl MagellanIntegration {
                     .and_then(|v| v.as_u64())
                     .ok_or_else(|| {
                         SpliceError::Other("Symbol data missing byte_end".to_string())
-                    })? as usize;
+                    })?;
+                let byte_end = byte_end as usize;
 
                 let kind = data
                     .get("kind")
