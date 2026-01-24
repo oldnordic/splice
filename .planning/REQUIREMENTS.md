@@ -70,8 +70,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | Phase 22 | Pending |
-| DATA-02 | Phase 22 | Pending |
+| DATA-01 | Phase 22 | Complete |
+| DATA-02 | Phase 22 | Complete |
 | QUERY-01 | Phase 23 | Pending |
 | QUERY-02 | Phase 23 | Pending |
 | QUERY-03 | Phase 23 | Pending |
