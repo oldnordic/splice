@@ -3,8 +3,19 @@
 //! This module provides persistent audit trail storage for all Splice operations.
 //! Execution logs are stored in a separate SQLite database (`.splice/operations.db`)
 //! to enable independent management from the code graph database.
+//!
+//! # Execution ID Formats
+//!
+//! This module supports two execution ID formats:
+//!
+//! - **UUID format**: Standard UUID for existing Splice operations (backward compatible)
+//! - **Delegated format**: `{timestamp_hex}-{pid_hex}` for Magellan query delegation
+//!
+//! Delegated queries use [`generate_delegated_execution_id()`] to produce
+//! Magellan-compatible execution IDs.
 
 use crate::error::{Result, SpliceError};
+use crate::symbol_id;
 use rusqlite::{params, Connection};
 use std::path::Path;
 
@@ -249,6 +260,51 @@ impl ExecutionLogBuilder {
             created_at,
         }
     }
+}
+
+/// Generate a Magellan-compatible execution ID for delegated queries.
+///
+/// This function produces execution IDs in the format used by Magellan
+/// for tracking delegated query operations. The format differs from
+/// standard UUID-based execution IDs used for other Splice operations.
+///
+/// # Format
+///
+/// ```text
+/// {timestamp_hex}-{pid_hex}
+/// ```
+///
+/// Where:
+/// - `timestamp_hex`: 8-character lowercase hex of current Unix timestamp
+/// - `pid_hex`: 4-character lowercase hex of process ID
+///
+/// Total length: 13 characters (8 + dash + 4)
+///
+/// # Returns
+///
+/// A Magellan-compatible execution ID string.
+///
+/// # Example
+///
+/// ```
+/// use splice::execution::base::generate_delegated_execution_id;
+///
+/// let exec_id = generate_delegated_execution_id();
+/// assert_eq!(exec_id.len(), 13);
+/// assert!(exec_id.contains('-'));
+/// ```
+///
+/// # Use Cases
+///
+/// Use this function when:
+/// - Delegating queries to Magellan
+/// - Need Magellan-compatible execution tracking
+/// - Working with cross-system execution ID formats
+///
+/// For standard Splice operations, continue using UUID-based execution IDs
+/// via `ExecutionLogBuilder::new()` which accepts any string identifier.
+pub fn generate_delegated_execution_id() -> String {
+    symbol_id::generate_execution_id()
 }
 
 /// Insert an execution log entry into the database.
