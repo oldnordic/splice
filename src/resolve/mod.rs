@@ -374,13 +374,37 @@ fn resolve_symbol_in_file(
 
 /// Backward compatibility: Resolve with Rust-specific symbol kind.
 ///
-/// This function is provided for backward compatibility with existing code
-/// that uses `RustSymbolKind`. New code should use `resolve_symbol` with
-/// string kinds.
-///
 /// # Deprecated
-/// Use `resolve_symbol` with `Option<&str>` for kind instead.
-#[deprecated(note = "Use resolve_symbol with Option<&str> kind")]
+///
+/// **This function is DEPRECATED and will be removed in a future version.**
+///
+/// Use `resolve_symbol` with `Option<&str>` for the kind parameter instead:
+///
+/// ```ignore
+/// // Old (deprecated):
+/// // resolve_symbol_with_rust_kind(graph, file, Some(RustSymbolKind::Function), "foo")?
+///
+/// // New (preferred):
+/// resolve_symbol(graph, file, Some("function"), "foo")?
+/// ```
+///
+/// The string-based kind in `resolve_symbol` is:
+/// - More flexible (works with all languages, not just Rust)
+/// - Simpler (no enum conversion needed)
+/// - The future direction of the API
+///
+/// # Migration Guide
+///
+/// Replace `RustSymbolKind` values with their string equivalents:
+/// - `RustSymbolKind::Function` -> `"function"`
+/// - `RustSymbolKind::Struct` -> `"struct"`
+/// - `RustSymbolKind::Enum` -> `"enum"`
+/// - `RustSymbolKind::Trait` -> `"trait"`
+/// - etc.
+#[deprecated(
+    since = "2.2.0",
+    note = "Use resolve_symbol with Option<&str> kind instead. This function will be removed in v3.0."
+)]
 pub fn resolve_symbol_with_rust_kind(
     graph: &CodeGraph,
     file: Option<&Path>,
