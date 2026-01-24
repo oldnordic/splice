@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 23 of 26 (Magellan Integration Extensions)
-Plan: 03 of 6 (Symbol Lookup Methods)
+Plan: 04 of 6 (Call Graph Traversal)
 Status: In progress
-Last activity: 2026-01-24 — Completed 23-03: Symbol Lookup Methods
+Last activity: 2026-01-24 — Completed 23-04: Call Graph Traversal
 
-Progress: [████████░░] 86% (113/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 7/24 v2.2.2)
+Progress: [████████░░] 86% (114/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 8/24 v2.2.2)
 
 ## Current Milestone: v2.2.2 Magellan Integration
 
@@ -75,6 +75,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - 23-03: find_symbol_by_id() uses direct SQL entity scan because Magellan doesn't expose entity_ids()/get_node() publicly
 - 23-03: Accept O(N) performance for symbol lookups - will optimize and add symbol_id index if profiling indicates need
 - 23-03: Symbol ID regeneration during entity scan for reverse lookup (SHA-256(name:path:byte_start) match)
+- 23-04: Use CallFact from magellan::references for call relationship data (callee, caller, file_path, byte offsets, line/col positions)
+- 23-04: CallReference combines SymbolInfo with CallSite location for rich call relationship context
+- 23-04: CallDirection enum (In/Out/Both) provides flexible traversal control for callers/callees
 
 ### Pending Todos
 
@@ -97,8 +100,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed 23-03 (Symbol Lookup Methods), Phase 23 in progress
+Stopped at: Completed 23-04 (Call Graph Traversal), Phase 23 in progress
 Resume file: None
 
 ---
-*Last updated: 2026-01-24 — Phase 23 Plan 03 complete*
+*Last updated: 2026-01-24 — Phase 23 Plan 04 complete*
