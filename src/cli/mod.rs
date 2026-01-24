@@ -916,6 +916,7 @@ impl From<crate::error::Diagnostic> for DiagnosticPayload {
 
 // Re-export Magellan-compatible response types for external use
 pub use crate::output::{
-    FilesResponse, FindResponse, MagellanCallReference, MagellanFileMetadata,
-    MagellanSpan, MagellanSymbol, RefsResponse, StatusResponse,
+    CallExport, ExportData, ExportResponse, FileExport, FilesResponse, FindResponse,
+    MagellanCallReference, MagellanFileMetadata, MagellanSpan, MagellanSymbol, RefsResponse,
+    ReferenceExport, StatusResponse, SymbolExport, EXPORT_SCHEMA_VERSION,
 };

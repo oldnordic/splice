@@ -1232,6 +1232,101 @@ impl From<crate::graph::magellan_integration::CallRelationships> for RefsRespons
     }
 }
 
+// ============================================================================
+// Export Data Types (Phase 25-03)
+// ============================================================================
+
+/// Export response with schema version.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExportResponse {
+    /// Schema version for parsing stability
+    pub schema_version: String,
+    /// Execution timestamp
+    pub timestamp: String,
+    /// Database path
+    pub db_path: String,
+    /// Exported graph data
+    pub data: ExportData,
+}
+
+/// Complete graph data export.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExportData {
+    /// All indexed files
+    pub files: Vec<FileExport>,
+    /// All symbols with spans
+    pub symbols: Vec<SymbolExport>,
+    /// All references between symbols
+    pub references: Vec<ReferenceExport>,
+    /// All function calls
+    pub calls: Vec<CallExport>,
+}
+
+/// File export record.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileExport {
+    /// File path
+    pub path: String,
+    /// Content hash
+    pub hash: String,
+    /// Last indexed timestamp (Unix epoch)
+    pub last_indexed_at: i64,
+    /// Last modified timestamp (Unix epoch)
+    pub last_modified: i64,
+}
+
+/// Symbol export record.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SymbolExport {
+    /// Unique symbol identifier
+    pub symbol_id: String,
+    /// Symbol name
+    pub name: String,
+    /// Symbol kind (function, type, etc.)
+    pub kind: String,
+    /// File containing the symbol
+    pub file_path: String,
+    /// Byte offset of symbol start
+    pub byte_start: usize,
+    /// Byte offset of symbol end
+    pub byte_end: usize,
+    /// Start line (1-indexed)
+    pub start_line: usize,
+    /// End line (1-indexed)
+    pub end_line: usize,
+    /// Start column (0-indexed)
+    pub start_col: usize,
+    /// End column (0-indexed)
+    pub end_col: usize,
+}
+
+/// Reference export record.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReferenceExport {
+    /// Source symbol ID
+    pub from_symbol_id: String,
+    /// Target symbol ID
+    pub to_symbol_id: String,
+    /// Reference type
+    pub reference_kind: String,
+}
+
+/// Call export record.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CallExport {
+    /// Caller symbol ID
+    pub caller_symbol_id: String,
+    /// Callee symbol ID
+    pub callee_symbol_id: String,
+    /// File containing call site
+    pub call_site_file: String,
+    /// Line of call site
+    pub call_site_line: usize,
+}
+
+/// Schema version constant for export responses.
+pub const EXPORT_SCHEMA_VERSION: &str = "1.0.0";
+
 #[cfg(test)]
 mod tests {
     use super::*;
