@@ -38,6 +38,7 @@ ropey = "1.6"
 
 # Error handling
 thiserror = "1.0"
+anyhow = "1.0"
 
 # JSON serialization
 serde = { version = "1.0", features = ["derive"] }

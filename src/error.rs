@@ -281,6 +281,16 @@ pub enum SpliceError {
         #[source]
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
+
+    /// Magellan integration error (SPL-E091).
+    #[error("Magellan error: {context}")]
+    Magellan {
+        /// Contextual description of the operation that failed
+        context: String,
+        /// The underlying Magellan anyhow::Error
+        #[source]
+        source: anyhow::Error,
+    },
 }
 
 impl From<std::io::Error> for SpliceError {
@@ -525,6 +535,7 @@ impl SpliceError {
             SpliceError::ExecutionNotFound { .. } => "ExecutionNotFound",
             SpliceError::InvalidDateFormat { .. } => "InvalidDateFormat",
             SpliceError::QueryError { .. } => "QueryError",
+            SpliceError::Magellan { .. } => "Magellan",
         }
     }
 
