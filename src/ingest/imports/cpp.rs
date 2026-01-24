@@ -2,9 +2,31 @@
 //!
 //! Uses tree-sitter-cpp to parse and extract `#include` directives.
 
-use crate::error::{Result, SpliceError};
-use crate::ingest::imports::ImportKind;
+use crate::error::Result;
+use crate::ingest::imports::{ImportExtractor, ImportKind};
+use crate::symbol::Language;
 use std::path::Path;
+
+/// C/C++ extractor implementing the ImportExtractor trait.
+pub struct CppExtractor;
+
+impl ImportExtractor for CppExtractor {
+    fn language() -> tree_sitter::Language {
+        tree_sitter_cpp::language()
+    }
+
+    fn language_enum() -> Language {
+        Language::Cpp
+    }
+
+    fn extract_from_node(
+        node: tree_sitter::Node,
+        source: &[u8],
+        imports: &mut Vec<super::ImportFact>,
+    ) {
+        extract_include_statements(node, source, imports);
+    }
+}
 
 /// Strip surrounding quotes or angle brackets from a string.
 /// Character-safe for UTF-8: works with char indices, not byte offsets.
@@ -38,28 +60,7 @@ fn strip_quotes_or_angle_brackets(text: &str) -> String {
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub fn extract_cpp_imports(path: &Path, source: &[u8]) -> Result<Vec<super::ImportFact>> {
-    // Create tree-sitter parser for C/C++
-    let mut parser = tree_sitter::Parser::new();
-    parser
-        .set_language(&tree_sitter_cpp::language())
-        .map_err(|e| SpliceError::Parse {
-            file: path.to_path_buf(),
-            message: format!("Failed to set C++ language: {:?}", e),
-        })?;
-
-    // Parse the source code
-    let tree = parser
-        .parse(source, None)
-        .ok_or_else(|| SpliceError::Parse {
-            file: path.to_path_buf(),
-            message: "Parse failed - no tree returned".to_string(),
-        })?;
-
-    // Extract includes from the AST
-    let mut imports = Vec::new();
-    extract_include_statements(tree.root_node(), source, &mut imports);
-
-    Ok(imports)
+    CppExtractor::extract(path, source)
 }
 
 /// Extract include statements from AST nodes.
