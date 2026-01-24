@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 23 of 26 (Magellan Integration Extensions)
-Plan: 04 of 6 (Call Graph Traversal)
+Plan: 05 of 6 (File Listing and Integration Tests)
 Status: In progress
-Last activity: 2026-01-24 — Completed 23-04: Call Graph Traversal
+Last activity: 2026-01-24 — Completed 23-05: File Listing and Integration Tests
 
-Progress: [████████░░] 86% (114/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 8/24 v2.2.2)
+Progress: [████████░░] 87% (115/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 9/24 v2.2.2)
 
 ## Current Milestone: v2.2.2 Magellan Integration
 
@@ -78,6 +78,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - 23-04: Use CallFact from magellan::references for call relationship data (callee, caller, file_path, byte offsets, line/col positions)
 - 23-04: CallReference combines SymbolInfo with CallSite location for rich call relationship context
 - 23-04: CallDirection enum (In/Out/Both) provides flexible traversal control for callers/callees
+- 23-05: FileMetadata struct uses Option<usize> for symbol_count to avoid counting overhead when not requested
+- 23-05: list_indexed_files() delegates to MagellanGraph::all_file_nodes() for file iteration
+- 23-05: Comprehensive integration tests (17 new) verify all 5 Phase 23 query methods
 
 ### Pending Todos
 
@@ -100,8 +103,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed 23-04 (Call Graph Traversal), Phase 23 in progress
+Stopped at: Completed 23-05 (File Listing and Integration Tests), Phase 23 in progress
 Resume file: None
 
 ---
-*Last updated: 2026-01-24 — Phase 23 Plan 04 complete*
+*Last updated: 2026-01-24 — Phase 23 Plan 05 complete*
