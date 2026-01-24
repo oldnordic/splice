@@ -4,6 +4,47 @@
 //! Name-only resolution is forbidden unless uniquely provable.
 //! Supports multi-language code analysis.
 //! Provides enhanced symbol lookup with "did you mean" functionality.
+//!
+//! # Symbol Resolution API
+//!
+//! This module provides file-aware, deterministic symbol resolution with
+//! ambiguity detection and fuzzy matching suggestions.
+//!
+//! ## Which function should I use?
+//!
+//! | Function | Use Case | Returns | Suggestions |
+//! |----------|----------|---------|-------------|
+//! | [`resolve_symbol`] | **Primary API** - Programmatic resolution | `ResolvedSpan` | No |
+//! | [`find_symbol_or_suggest`] | User-facing commands | `NodeId` | Yes |
+//! | [`resolve_symbol_with_rust_kind`] | **Deprecated** - Use resolve_symbol | `ResolvedSpan` | No |
+//!
+//! ## Quick Examples
+//!
+//! ### Basic resolution (with file context)
+//! ```no_run
+//! use splice::resolve::resolve_symbol;
+//! use splice::graph::CodeGraph;
+//!
+//! let graph = CodeGraph::open(std::path::Path::new("codegraph.db"))?;
+//! let symbol = resolve_symbol(
+//!     &graph,
+//!     Some(std::path::Path::new("src/main.rs")),  // file context
+//!     Some("function"),                            // kind filter
+//!     "main"                                       // symbol name
+//! )?;
+//! # Ok::<(), splice::SpliceError>(())
+//! ```
+//!
+//! ### User-friendly lookup with suggestions
+//! ```no_run
+//! use splice::resolve::find_symbol_or_suggest;
+//!
+//! // Returns helpful suggestions if symbol name is misspelled
+//! match find_symbol_or_suggest(&graph, "my_functoin", None) {
+//!     Ok(id) => println!("Found: {:?}", id),
+//!     Err(e) => eprintln!("{}", e), // "Did you mean: my_function?"
+//! }
+//! ```
 
 pub mod cross_file;
 pub mod module_resolver;
