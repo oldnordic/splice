@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 
 ## Current Position
 
-Phase: 20 of 21 (Lifetime & Resource Safety)
-Plan: 07 of 7
-Status: Phase complete
-Last activity: 2026-01-24 — Completed Plan 20-07: TempDir and Resource Cleanup Improvements
+Phase: 21 of 21 (API Consolidation)
+Plan: 03 of 10
+Status: In progress
+Last activity: 2026-01-24 — Completed Plan 21-03: Resolve Symbol API Consolidation
 
-Progress: [████████░] 90% (96/106 plans total: 31 v2.0 + 55 v2.2 + 10 v2.2.1)
+Progress: [████████░] 90% (99/106 plans total: 31 v2.0 + 55 v2.2 + 10 v2.2.1 + 3 in Phase 21)
 
 ## Current Milestone: v2.2.1 Code Quality & Bug Fixes
 
@@ -117,10 +117,20 @@ All blockers from v2.2 were resolved during gap closure:
 | 20-07 | Clean up stale test files before write test to prevent accumulation from crashes |
 | 20-07 | Rope mutation state tracking (before_hash, replaced, after_hash) already exists and is documented |
 
+## Decisions from Phase 21
+
+| Plan | Decision |
+|------|----------|
+| 21-03 | resolve_symbol is the PRIMARY API for symbol resolution (documented explicitly) |
+| 21-03 | find_symbol_or_suggest is specifically for user-facing commands needing suggestions |
+| 21-03 | resolve_symbol_with_rust_kind deprecated with migration guide to string-based kinds (removed in v3.0) |
+| 21-03 | Module-level documentation should include API comparison table for quick reference |
+| 21-03 | Deprecation notices should include since version, removal timeline, and migration guide |
+
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed Plan 20-05: Execution Logging Error Messages Improvement
+Stopped at: Completed Plan 21-03: Resolve Symbol API Consolidation
 Resume file: None
 
 ---
