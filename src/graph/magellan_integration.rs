@@ -7,11 +7,12 @@
 
 use crate::error::{Result, SpliceError};
 use magellan::{CodeGraph as MagellanGraph, SymbolQueryResult};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Wrapper around Magellan's CodeGraph with Splice-specific extensions.
 pub struct MagellanIntegration {
     inner: MagellanGraph,
+    db_path: PathBuf,
 }
 
 impl MagellanIntegration {
@@ -25,7 +26,10 @@ impl MagellanIntegration {
         let inner = MagellanGraph::open(db_path_str)
             .map_err(|e| SpliceError::Other(format!("Failed to open Magellan graph: {}", e)))?;
 
-        Ok(Self { inner })
+        Ok(Self {
+            inner,
+            db_path: db_path.to_path_buf(),
+        })
     }
 
     /// Index a file using Magellan's parsers.
@@ -135,6 +139,63 @@ impl MagellanIntegration {
     pub fn inner_mut(&mut self) -> &mut MagellanGraph {
         &mut self.inner
     }
+
+    /// Get comprehensive database statistics.
+    ///
+    /// Returns counts of all entity types in the graph database.
+    pub fn get_statistics(&self) -> Result<DatabaseStats> {
+        let files = self
+            .inner
+            .count_files()
+            .map_err(|e| SpliceError::Other(format!("Failed to count files: {}", e)))?;
+        let symbols = self
+            .inner
+            .count_symbols()
+            .map_err(|e| SpliceError::Other(format!("Failed to count symbols: {}", e)))?;
+        let references = self
+            .inner
+            .count_references()
+            .map_err(|e| SpliceError::Other(format!("Failed to count references: {}", e)))?;
+        let code_chunks = self
+            .inner
+            .count_chunks()
+            .map_err(|e| SpliceError::Other(format!("Failed to count code chunks: {}", e)))?;
+
+        // Magellan has no count_calls() method - count Call nodes explicitly
+        let calls = self.count_call_nodes()?;
+
+        Ok(DatabaseStats {
+            files,
+            symbols,
+            references,
+            calls,
+            code_chunks,
+        })
+    }
+
+    /// Count Call nodes by querying the graph database directly.
+    ///
+    /// Magellan's CodeGraph doesn't expose entity iteration APIs (entity_ids, get_node),
+    /// so we query the database directly to count nodes with kind="Call".
+    ///
+    /// This is safe because the graph_entities table schema is stable in sqlitegraph.
+    fn count_call_nodes(&self) -> Result<usize> {
+        use rusqlite::Connection;
+
+        let conn = Connection::open(&self.db_path).map_err(|e| {
+            SpliceError::Other(format!("Failed to open database for Call counting: {}", e))
+        })?;
+
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM graph_entities WHERE kind = 'Call'",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|e| SpliceError::Other(format!("Failed to count Call nodes: {}", e)))?;
+
+        Ok(count as usize)
+    }
 }
 
 /// Symbol information extracted from Magellan's SymbolQueryResult.
@@ -217,6 +278,21 @@ impl From<magellan::CodeChunk> for CodeChunk {
             symbol_kind: chunk.symbol_kind,
         }
     }
+}
+
+/// Database statistics for Magellan graph.
+#[derive(Debug, Clone)]
+pub struct DatabaseStats {
+    /// Number of indexed files.
+    pub files: usize,
+    /// Number of indexed symbols.
+    pub symbols: usize,
+    /// Number of indexed references.
+    pub references: usize,
+    /// Number of indexed function calls.
+    pub calls: usize,
+    /// Number of stored code chunks.
+    pub code_chunks: usize,
 }
 
 #[cfg(test)]
