@@ -267,28 +267,28 @@ fn main() -> ExitCode {
             Ok(()) => {
                 // For dry-run mode, return exit code 1 if changes are pending (git diff convention)
                 if payload.has_pending_changes {
-                    ExitCode::from(1)
+                    SpliceExitCode::Error.as_exit_code()
                 } else {
-                    ExitCode::SUCCESS
+                    SpliceExitCode::Success.as_exit_code()
                 }
             }
             Err(err) => {
                 if matches!(err, splice::SpliceError::BrokenPipe) {
-                    ExitCode::SUCCESS
+                    SpliceExitCode::Success.as_exit_code()
                 } else {
                     let payload = splice::cli::CliErrorPayload::from_error(&err);
                     emit_error_payload(&payload, json_output);
-                    ExitCode::from(1)
+                    SpliceExitCode::from_error(&err).as_exit_code()
                 }
             }
         },
         Err(e) => {
             if matches!(e, splice::SpliceError::BrokenPipe) {
-                ExitCode::SUCCESS
+                SpliceExitCode::Success.as_exit_code()
             } else {
                 let payload = splice::cli::CliErrorPayload::from_error(&e);
                 emit_error_payload(&payload, json_output);
-                ExitCode::from(1)
+                SpliceExitCode::from_error(&e).as_exit_code()
             }
         }
     }
@@ -298,7 +298,7 @@ fn install_broken_pipe_hook() {
     let default_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         if is_broken_pipe_panic(info) {
-            std::process::exit(0);
+            std::process::exit(SpliceExitCode::Success as u8 as i32);
         }
         default_hook(info);
     }));
