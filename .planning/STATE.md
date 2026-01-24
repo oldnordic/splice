@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 ## Current Position
 
 Phase: 21 of 21 (API Consolidation)
-Plan: 03 of 10
+Plan: 01 of 10
 Status: In progress
-Last activity: 2026-01-24 — Completed Plan 21-03: Resolve Symbol API Consolidation
+Last activity: 2026-01-24 — Completed Plan 21-01: Parser Consolidation
 
-Progress: [████████░] 90% (99/106 plans total: 31 v2.0 + 55 v2.2 + 10 v2.2.1 + 3 in Phase 21)
+Progress: [████████░] 90% (97/106 plans total: 31 v2.0 + 55 v2.2 + 10 v2.2.1 + 1 in Phase 21)
 
 ## Current Milestone: v2.2.1 Code Quality & Bug Fixes
 
@@ -121,6 +121,9 @@ All blockers from v2.2 were resolved during gap closure:
 
 | Plan | Decision |
 |------|----------|
+| 21-01 | Place parser_for_language in symbol module alongside Language enum for single source of truth |
+| 21-01 | Use crate::symbol::parser_for_language as centralized parser creation API |
+| 21-01 | Make parser_for_language public for cross-module reuse while maintaining encapsulation |
 | 21-03 | resolve_symbol is the PRIMARY API for symbol resolution (documented explicitly) |
 | 21-03 | find_symbol_or_suggest is specifically for user-facing commands needing suggestions |
 | 21-03 | resolve_symbol_with_rust_kind deprecated with migration guide to string-based kinds (removed in v3.0) |
@@ -130,7 +133,7 @@ All blockers from v2.2 were resolved during gap closure:
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed Plan 21-03: Resolve Symbol API Consolidation
+Stopped at: Completed Plan 21-01: Parser Consolidation
 Resume file: None
 
 ---
