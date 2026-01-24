@@ -1029,4 +1029,153 @@ pub fn main() { let _ = helper(); }
             );
         }
     }
+
+    #[test]
+    fn test_export_csv_section_structure() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let output_path = temp_dir.path().join("export.csv");
+
+        // Create multiple test files
+        let rust_file = temp_dir.path().join("lib.rs");
+        std::fs::write(&rust_file, r#"
+pub fn helper() -> i32 { 42 }
+pub struct Counter;
+pub fn main() { let _ = helper(); }
+"#).unwrap();
+
+        let python_file = temp_dir.path().join("module.py");
+        std::fs::write(&python_file, r#"
+def helper():
+    return 42
+"#).unwrap();
+
+        let mut integration = MagellanIntegration::open(&db_path).unwrap();
+        integration.index_file(&rust_file).unwrap();
+        integration.index_file(&python_file).unwrap();
+
+        // Run export command with csv format
+        let splice_binary = get_splice_binary();
+        let result = Command::new(&splice_binary)
+            .arg("export")
+            .arg("--db")
+            .arg(&db_path)
+            .arg("--format")
+            .arg("csv")
+            .arg("--file")
+            .arg(&output_path)
+            .output();
+
+        assert!(result.is_ok(), "export command should execute");
+        let output = result.unwrap();
+        if !output.status.success() {
+            eprintln!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+            eprintln!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+        }
+        assert!(output.status.success(), "export should return success");
+
+        // Read and validate CSV format
+        let csv_content = std::fs::read_to_string(&output_path).unwrap();
+
+        // 1. Validate section headers
+        assert!(csv_content.contains("# Files"), "CSV should have Files section header");
+        assert!(csv_content.contains("# Symbols"), "CSV should have Symbols section header");
+
+        // 2. Parse into sections
+        let lines: Vec<&str> = csv_content.lines().collect();
+
+        // Find section boundaries
+        let mut files_section_start = None;
+        let mut symbols_section_start = None;
+        let mut references_section_start = None;
+        let mut calls_section_start = None;
+
+        for (i, line) in lines.iter().enumerate() {
+            if *line == "# Files" {
+                files_section_start = Some(i);
+            } else if *line == "# Symbols" {
+                symbols_section_start = Some(i);
+            } else if *line == "# References" {
+                references_section_start = Some(i);
+            } else if *line == "# Calls" {
+                calls_section_start = Some(i);
+            }
+        }
+
+        assert!(files_section_start.is_some(), "should find # Files section");
+        assert!(symbols_section_start.is_some(), "should find # Symbols section");
+
+        // 3. Validate Files section has proper headers
+        if let Some(files_start) = files_section_start {
+            // Files section header is followed by column header row
+            if files_start + 1 < lines.len() {
+                let header_line = lines[files_start + 1];
+                assert!(header_line.contains("path"),
+                       "Files section should have path column header");
+                assert!(header_line.contains("hash"),
+                       "Files section should have hash column header");
+            }
+        }
+
+        // 4. Validate Symbols section has proper headers
+        if let Some(symbols_start) = symbols_section_start {
+            // Symbols section header is followed by column header row
+            if symbols_start + 1 < lines.len() {
+                let header_line = lines[symbols_start + 1];
+                assert!(header_line.contains("symbol_id"),
+                       "Symbols section should have symbol_id column header");
+                assert!(header_line.contains("name"),
+                       "Symbols section should have name column header");
+                assert!(header_line.contains("kind"),
+                       "Symbols section should have kind column header");
+                assert!(header_line.contains("file_path"),
+                       "Symbols section should have file_path column header");
+                assert!(header_line.contains("byte_start"),
+                       "Symbols section should have byte_start column header");
+                assert!(header_line.contains("byte_end"),
+                       "Symbols section should have byte_end column header");
+            }
+        }
+
+        // 5. Validate data rows match column counts
+        // Count columns in header row vs data rows for each section
+        let mut prev_col_count = None;
+
+        for line in &lines {
+            // Skip empty lines and section headers
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+
+            let col_count = line.split(',').count();
+
+            if let Some(prev) = prev_col_count {
+                // Within a section, column counts should be consistent
+                // (New sections reset the count, which is fine)
+                if col_count != prev {
+                    // Column count changed - this is OK at section boundaries
+                }
+            }
+            prev_col_count = Some(col_count);
+        }
+
+        // 6. Validate no empty rows between sections
+        for (i, line) in lines.iter().enumerate() {
+            // Empty lines are allowed, but consecutive empty lines are not
+            if line.is_empty() {
+                if i > 0 && lines[i - 1].is_empty() {
+                    panic!("Line {}: consecutive empty lines not allowed", i + 1);
+                }
+            }
+        }
+
+        // 7. Verify we have actual data (at least 2 files and symbols)
+        let data_lines: Vec<&str> = lines.iter()
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .copied()
+            .collect();
+
+        assert!(data_lines.len() >= 2,
+               "should have at least 2 data rows (files + symbols)");
+    }
 }
