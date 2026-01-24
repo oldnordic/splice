@@ -21,8 +21,12 @@ pub struct Cli {
     #[arg(short, long, global = true)]
     pub verbose: bool,
 
-    /// Output structured JSON (default: human-readable).
-    #[arg(long, global = true)]
+    /// Output format (human, json, pretty)
+    #[arg(short, long, global = true, value_enum, default_value_t = OutputFormat::Human)]
+    pub output: OutputFormat,
+
+    /// Output structured JSON (deprecated: use --output json instead)
+    #[arg(long, global = true, hide = true)]
     json: bool,
 
     /// Enable strict pre-verification (warnings become errors).
@@ -417,6 +421,74 @@ pub enum Commands {
         #[arg(long)]
         json: bool,
     },
+
+    /// Show database statistics (files, symbols, refs, calls, chunks)
+    Status {
+        /// Path to the Magellan database
+        #[arg(short, long)]
+        db: std::path::PathBuf,
+    },
+
+    /// Find symbols by name or 16-character symbol ID
+    Find {
+        /// Path to the Magellan database
+        #[arg(short, long)]
+        db: std::path::PathBuf,
+
+        /// Symbol name to search
+        #[arg(short, long, conflicts_with = "symbol_id")]
+        name: Option<String>,
+
+        /// 16-character hex symbol ID
+        #[arg(long, conflicts_with = "name")]
+        symbol_id: Option<String>,
+
+        /// Return all matches (default: first match only)
+        #[arg(short, long)]
+        ambiguous: bool,
+
+        /// Output format (human, json, pretty)
+        #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
+        output: OutputFormat,
+    },
+
+    /// Show call relationships for a symbol
+    Refs {
+        /// Path to the Magellan database
+        #[arg(short, long)]
+        db: std::path::PathBuf,
+
+        /// Symbol name
+        #[arg(short, long)]
+        name: String,
+
+        /// File path containing the symbol
+        #[arg(short, long)]
+        path: std::path::PathBuf,
+
+        /// Direction: in (callers), out (callees), both (default)
+        #[arg(short, long, value_enum, default_value_t = CallDirection::Both)]
+        direction: CallDirection,
+
+        /// Output format (human, json, pretty)
+        #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
+        output: OutputFormat,
+    },
+
+    /// List all indexed files
+    Files {
+        /// Path to the Magellan database
+        #[arg(short, long)]
+        db: std::path::PathBuf,
+
+        /// Include symbol count per file
+        #[arg(long)]
+        symbols: bool,
+
+        /// Output format (human, json, pretty)
+        #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
+        output: OutputFormat,
+    },
 }
 
 /// Symbol kind for filtering.
@@ -471,6 +543,46 @@ pub enum Language {
     TypeScript,
 }
 
+/// Output format for query results.
+#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OutputFormat {
+    /// Human-readable text (default)
+    Human,
+    /// Compact JSON
+    Json,
+    /// Pretty-printed JSON
+    Pretty,
+}
+
+/// Call direction for relationship queries.
+#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallDirection {
+    /// Show callers (what calls this symbol)
+    In,
+    /// Show callees (what this symbol calls)
+    Out,
+    /// Show both callers and callees
+    Both,
+}
+
+impl OutputFormat {
+    /// Check if JSON output is requested (either Json or Pretty variant)
+    pub fn is_json(self) -> bool {
+        matches!(self, Self::Json | Self::Pretty)
+    }
+
+    /// Format a value as JSON based on this format setting
+    pub fn format_json<T: serde::Serialize>(&self, value: &T) -> Result<String, String> {
+        match self {
+            Self::Json => serde_json::to_string(value)
+                .map_err(|e| e.to_string()),
+            Self::Pretty => serde_json::to_string_pretty(value)
+                .map_err(|e| e.to_string()),
+            Self::Human => Err("Human format requested but format_json called".to_string()),
+        }
+    }
+}
+
 impl Language {
     /// Convert to string identifier.
     pub fn as_str(&self) -> &'static str {
@@ -523,7 +635,20 @@ pub fn parse_args() -> Cli {
 impl Cli {
     /// Check if JSON output mode is enabled.
     pub fn json_output(&self) -> bool {
-        self.json
+        // --json flag takes precedence for backward compatibility
+        if self.json {
+            return true;
+        }
+        self.output.is_json()
+    }
+
+    /// Get the output format setting.
+    pub fn output_format(&self) -> OutputFormat {
+        // --json flag overrides to Json format for backward compat
+        if self.json {
+            return OutputFormat::Json;
+        }
+        self.output
     }
 }
 
