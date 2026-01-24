@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 25 of 26 (Export Command & Error Mapping)
-Plan: 02 of 4 (Magellan Error Mapping)
+Plan: 03 of 4 (Export Data Types and Execution Function)
 Status: In progress
-Last activity: 2026-01-24 — Completed 25-02: Magellan Error Mapping
+Last activity: 2026-01-24 — Completed 25-03: Export Data Types and Execution Function
 
-Progress: [█████████░] 92% (125/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 19/24 v2.2.2)
+Progress: [█████████░] 93% (126/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 20/24 v2.2.2)
 
 ## Current Milestone: v2.2.2 Magellan Integration
 
@@ -46,7 +46,7 @@ Progress: [█████████░] 92% (125/130 plans: 31 v2.0 + 55 v2.2
 | 19-21 | 20 | Complete |
 | 22-23 | 9 | Complete |
 | 24 | 5 | Complete |
-| 25 | 1/2 | In progress |
+| 25 | 3/4 | In progress |
 | 26 | 0/1 | Pending |
 
 *Updated after each plan completion*
@@ -102,6 +102,21 @@ Decisions are logged in PROJECT.md Key Decisions table.
   - Added SpliceErrorCode::MagellanError variant returning "SPL-E091"
   - Added SPL-E091 to code(), severity(), hint(), and from_splice_error() methods
   - Added full error explanation for SPL-E091 in get_error_explanation()
+- Phase 25-03: Export Data Types and Execution Function
+  - Added ExportResponse struct with schema_version, timestamp, db_path, data fields
+  - Added ExportData struct with files, symbols, references, calls Vec fields
+  - Added FileExport, SymbolExport, ReferenceExport, CallExport structs with full documentation
+  - Added EXPORT_SCHEMA_VERSION constant ("1.0.0")
+  - Re-exported all export types via splice::cli module
+  - Implemented execute_export function opening MagellanIntegration and collecting graph data
+  - Collects symbols from first 100 files for memory safety
+  - Uses generate_symbol_id() to create stable 16-char symbol IDs
+  - Returns CliSuccessPayload with file/symbol counts
+  - Added write_export helper supporting json, jsonl, csv formats
+  - JSON uses serde_json::to_writer_pretty
+  - JSONL writes type-tagged records (type: "file", type: "symbol")
+  - CSV uses csv::Writer with section headers (# Files, # Symbols)
+  - Wired Export command to execute_export in Commands match arm
 
 ### Pending Todos
 
@@ -119,7 +134,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed 25-02: Magellan Error Mapping
+Stopped at: Completed 25-03: Export Data Types and Execution Function
 Resume file: None
 
 ---
