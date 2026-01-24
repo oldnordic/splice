@@ -452,6 +452,7 @@ mod tests {
     #[test]
     fn test_symbol_id_hash() {
         use std::collections::hash_map::DefaultHasher;
+        use std::hash::Hasher;
 
         let id1 = SymbolId::new("a1b2c3d4e5f67890").unwrap();
         let id2 = SymbolId::new("a1b2c3d4e5f67890").unwrap();
