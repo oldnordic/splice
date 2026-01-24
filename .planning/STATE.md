@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 24 of 26 (CLI Commands & Response Types)
-Plan: 02 of 5 (Output and Database Flags)
+Plan: 04 of 5 (Response Types)
 Status: In progress
-Last activity: 2026-01-24 — Completed 24-02: Output and Database Flags
+Last activity: 2026-01-24 — Completed 24-04: Response Types
 
-Progress: [████████░░] 89% (120/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 14/24 v2.2.2)
+Progress: [████████░░] 89% (121/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 15/24 v2.2.2)
 
 ## Current Milestone: v2.2.2 Magellan Integration
 
@@ -71,6 +71,11 @@ Decisions are logged in PROJECT.md Key Decisions table.
   - CliSuccessPayload::with_data() returns structured JSON
   - json_output flag determines response format (JSON vs text)
   - All query commands delegate to MagellanIntegration::open()
+- Phase 24-04: Magellan-compatible response types added
+  - StatusResponse, FindResponse, RefsResponse, FilesResponse with Magellan field naming
+  - MagellanSymbol, MagellanSpan, MagellanCallReference, MagellanFileMetadata
+  - From implementations convert from Phase 23 types (DatabaseStats, SymbolInfo, CallReference, FileMetadata, CallRelationships)
+  - Re-exported via splice::cli module for external access
 
 ### Pending Todos
 
@@ -85,8 +90,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed 24-02: Output and Database Flags
+Stopped at: Completed 24-04: Response Types
 Resume file: None
 
 ---
-*Last updated: 2026-01-24 — Phase 24 Plan 02 complete*
+*Last updated: 2026-01-24 — Phase 24 Plan 04 complete*
