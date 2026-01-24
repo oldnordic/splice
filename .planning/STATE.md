@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 22 of 26 (Symbol ID & Format Foundation)
-Plan: 01 of 4 (Symbol ID Generation)
+Plan: 02 of 4 (Format Module)
 Status: In progress
-Last activity: 2026-01-24 — Completed 22-01: Symbol ID Generation
+Last activity: 2026-01-24 — Completed 22-02: Format Module
 
-Progress: [████████░░] 82% (107/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 1/24 v2.2.2)
+Progress: [████████░░] 83% (108/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 2/24 v2.2.2)
 
 ## Current Milestone: v2.2.2 Magellan Integration
 
@@ -34,8 +34,8 @@ Progress: [████████░░] 82% (107/130 plans: 31 v2.0 + 55 v2.2
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 107
-- Total execution time: ~41 hours (estimated)
+- Total plans completed: 108
+- Total execution time: ~41.5 hours (estimated)
 
 **By Phase:**
 
@@ -44,7 +44,7 @@ Progress: [████████░░] 82% (107/130 plans: 31 v2.0 + 55 v2.2
 | 1-10 | 31 | Complete |
 | 11-18 | 55 | Complete |
 | 19-21 | 20 | Complete |
-| 22-26 | 1/24 | In progress |
+| 22-26 | 2/24 | In progress |
 
 *Updated after each plan completion*
 
@@ -60,6 +60,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - v2.2.2: 16-char symbol IDs (SHA-256, first 8 bytes) for Magellan alignment
 - 22-01: SymbolId newtype with compile-time validation for 16-char hex IDs
 - 22-01: Execution ID format {timestamp_hex}-{pid_hex} for Magellan compatibility
+- 22-02: MagellanSpan uses Magellan field naming (start_line/end_line) to match Magellan's JSON output
+- 22-02: SpliceSpan type alias for crate::output::SpanResult for clarity
+- 22-02: Roundtrip conversion preserves only fields present in both structs
 
 ### Pending Todos
 
@@ -74,8 +77,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed 22-01 (Symbol ID Generation)
+Stopped at: Completed 22-02 (Format Module)
 Resume file: None
 
 ---
-*Last updated: 2026-01-24 — Phase 22-01 complete*
+*Last updated: 2026-01-24 — Phase 22-02 complete*
