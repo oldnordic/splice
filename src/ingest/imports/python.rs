@@ -2,9 +2,31 @@
 //!
 //! Uses tree-sitter-python to parse and extract `import` and `from ... import` statements.
 
-use crate::error::{Result, SpliceError};
-use crate::ingest::imports::ImportKind;
+use crate::error::Result;
+use crate::ingest::imports::{ImportExtractor, ImportKind};
+use crate::symbol::Language;
 use std::path::Path;
+
+/// Python extractor implementing the ImportExtractor trait.
+pub struct PythonExtractor;
+
+impl ImportExtractor for PythonExtractor {
+    fn language() -> tree_sitter::Language {
+        tree_sitter_python::language()
+    }
+
+    fn language_enum() -> Language {
+        Language::Python
+    }
+
+    fn extract_from_node(
+        node: tree_sitter::Node,
+        source: &[u8],
+        imports: &mut Vec<super::ImportFact>,
+    ) {
+        extract_import_statements(node, source, imports);
+    }
+}
 
 /// Extract import statements from a Python source file.
 ///
@@ -21,28 +43,7 @@ use std::path::Path;
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub fn extract_python_imports(path: &Path, source: &[u8]) -> Result<Vec<super::ImportFact>> {
-    // Create tree-sitter parser for Python
-    let mut parser = tree_sitter::Parser::new();
-    parser
-        .set_language(&tree_sitter_python::language())
-        .map_err(|e| SpliceError::Parse {
-            file: path.to_path_buf(),
-            message: format!("Failed to set Python language: {:?}", e),
-        })?;
-
-    // Parse the source code
-    let tree = parser
-        .parse(source, None)
-        .ok_or_else(|| SpliceError::Parse {
-            file: path.to_path_buf(),
-            message: "Parse failed - no tree returned".to_string(),
-        })?;
-
-    // Extract imports from the AST
-    let mut imports = Vec::new();
-    extract_import_statements(tree.root_node(), source, &mut imports);
-
-    Ok(imports)
+    PythonExtractor::extract(path, source)
 }
 
 /// Extract import statements from AST nodes.
