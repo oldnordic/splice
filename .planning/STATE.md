@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 24 of 26 (CLI Commands & Response Types)
-Plan: 04 of 5 (Response Types)
+Plan: 03 of 5 (Exit Code Mapping)
 Status: In progress
-Last activity: 2026-01-24 — Completed 24-04: Response Types
+Last activity: 2026-01-24 — Completed 24-03: Exit Code Mapping
 
-Progress: [████████░░] 89% (121/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 15/24 v2.2.2)
+Progress: [████████░░] 89% (122/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 16/24 v2.2.2)
 
 ## Current Milestone: v2.2.2 Magellan Integration
 
@@ -71,6 +71,11 @@ Decisions are logged in PROJECT.md Key Decisions table.
   - CliSuccessPayload::with_data() returns structured JSON
   - json_output flag determines response format (JSON vs text)
   - All query commands delegate to MagellanIntegration::open()
+- Phase 24-03: Exit code mapping to Magellan conventions
+  - SpliceExitCode enum with 6 variants (Success=0, Error=1, Usage=2, Database=3, FileNotFound=4, Validation=5)
+  - from_error() method maps SpliceError variants to appropriate exit codes
+  - main() function uses SpliceExitCode::from_error() for all error paths
+  - Broken pipe handled as Success (pipelines handle SIGPIPE gracefully)
 - Phase 24-04: Magellan-compatible response types added
   - StatusResponse, FindResponse, RefsResponse, FilesResponse with Magellan field naming
   - MagellanSymbol, MagellanSpan, MagellanCallReference, MagellanFileMetadata
@@ -84,14 +89,16 @@ None yet.
 ### Blockers/Concerns
 
 **Phase 24:**
-- Exit code mapping to Magellan conventions required
-- Export command needs to handle large graph datasets (Plan 03)
+- None
+
+**Discovered Issues:**
+- MagellanIntegration::open() wraps all errors in SpliceError::Other instead of propagating SpliceError::Graph, causing some database errors to return code 1 instead of code 3. This is a pre-existing issue outside the scope of exit code mapping.
 
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed 24-04: Response Types
+Stopped at: Completed 24-03: Exit Code Mapping
 Resume file: None
 
 ---
-*Last updated: 2026-01-24 — Phase 24 Plan 04 complete*
+*Last updated: 2026-01-24 — Phase 24 Plan 03 complete*
