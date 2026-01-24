@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** v2.2.2 Magellan Integration — Phase 24: CLI Commands & Response Types
+**Current focus:** v2.2.2 Magellan Integration — Phase 25: Export Command & Error Mapping
 
 ## Current Position
 
-Phase: 24 of 26 (CLI Commands & Response Types)
-Plan: 05 of 5 (CLI Tests and Help Text)
-Status: Phase complete
-Last activity: 2026-01-24 — Completed 24-05: CLI Tests and Help Text
+Phase: 25 of 26 (Export Command & Error Mapping)
+Plan: 01 of 2 (Export Command Infrastructure)
+Status: In progress
+Last activity: 2026-01-24 — Completed 25-01: Export Command Infrastructure
 
-Progress: [█████████░] 90% (123/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 17/24 v2.2.2)
+Progress: [█████████░] 91% (124/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 18/24 v2.2.2)
 
 ## Current Milestone: v2.2.2 Magellan Integration
 
@@ -34,7 +34,7 @@ Progress: [█████████░] 90% (123/130 plans: 31 v2.0 + 55 v2.2
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 119
+- Total plans completed: 120
 - Total execution time: ~43 hours (estimated)
 
 **By Phase:**
@@ -45,8 +45,9 @@ Progress: [█████████░] 90% (123/130 plans: 31 v2.0 + 55 v2.2
 | 11-18 | 55 | Complete |
 | 19-21 | 20 | Complete |
 | 22-23 | 9 | Complete |
-| 24 | 5/5 | Complete |
-| 25-26 | 0/2 | Pending |
+| 24 | 5 | Complete |
+| 25 | 1/2 | In progress |
+| 26 | 0/1 | Pending |
 
 *Updated after each plan completion*
 
@@ -89,6 +90,12 @@ Decisions are logged in PROJECT.md Key Decisions table.
   - OutputFormat enum, CallDirection enum, SpliceExitCode values verified
   - Response types serialize with Magellan field names (start_line, not line_start)
   - All Phase 24 requirements verified: CLI-01 through CLI-04, DATA-03, DATA-04
+- Phase 25-01: Export Command Infrastructure
+  - Added csv = "1.3" dependency to Cargo.toml
+  - Added ExportFormat enum (Json, Jsonl, Csv) with ValueEnum and Default derives
+  - Added Commands::Export variant with db, format, output arguments
+  - Updated help text to include export in Export Commands category
+  - Export command now appears in CLI (actual implementation in 25-02)
 
 ### Pending Todos
 
@@ -96,17 +103,18 @@ None yet.
 
 ### Blockers/Concerns
 
-**Phase 24:**
+**Phase 25:**
 - None
 
 **Discovered Issues:**
 - MagellanIntegration::open() wraps all errors in SpliceError::Other instead of propagating SpliceError::Graph, causing some database errors to return code 1 instead of code 3. This is a pre-existing issue outside the scope of exit code mapping.
+- Phase 24 left incomplete Magellan error handling in error_codes.rs (fixed in Phase 25-01 as deviation)
 
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed 24-05: CLI Tests and Help Text
+Stopped at: Completed 25-01: Export Command Infrastructure
 Resume file: None
 
 ---
-*Last updated: 2026-01-24 — Phase 24 complete*
+*Last updated: 2026-01-24 — Phase 25 in progress*
