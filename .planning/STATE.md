@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 22 of 26 (Symbol ID & Format Foundation)
-Plan: 02 of 4 (Format Module)
+Plan: 03 of 4 (Delegated Execution ID)
 Status: In progress
-Last activity: 2026-01-24 — Completed 22-02: Format Module
+Last activity: 2026-01-24 — Completed 22-03: Delegated Execution ID
 
-Progress: [████████░░] 83% (108/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 2/24 v2.2.2)
+Progress: [████████░░] 84% (109/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 3/24 v2.2.2)
 
 ## Current Milestone: v2.2.2 Magellan Integration
 
@@ -63,6 +63,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - 22-02: MagellanSpan uses Magellan field naming (start_line/end_line) to match Magellan's JSON output
 - 22-02: SpliceSpan type alias for crate::output::SpanResult for clarity
 - 22-02: Roundtrip conversion preserves only fields present in both structs
+- 22-03: Delegated execution ID uses wrapper function in execution/base delegating to symbol_id::generate_execution_id()
+- 22-03: Module documentation updated to explain dual ID format support (UUID for existing, delegated for Magellan)
 
 ### Pending Todos
 
@@ -77,8 +79,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed 22-02 (Format Module)
+Stopped at: Completed 22-03 (Delegated Execution ID)
 Resume file: None
 
 ---
-*Last updated: 2026-01-24 — Phase 22-02 complete*
+*Last updated: 2026-01-24 — Phase 22-03 complete*
