@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 26 of 26 (Integration Testing)
-Plan: 02 of 6 (Export Format Validation Tests)
+Plan: 03 of 6 (Error Code Mapping Tests)
 Status: In progress
-Last activity: 2026-01-24 — Completed 26-02: Export Format Validation Tests
+Last activity: 2026-01-24 — Completed 26-03: Error Code Mapping Tests
 
-Progress: [█████████░] 95% (128/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 22/24 v2.2.2)
+Progress: [█████████░] 96% (129/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 23/24 v2.2.2)
 
 ## Current Milestone: v2.2.2 Magellan Integration
 
@@ -47,7 +47,7 @@ Progress: [█████████░] 95% (128/130 plans: 31 v2.0 + 55 v2.2
 | 22-23 | 9 | Complete |
 | 24 | 5 | Complete |
 | 25 | 4 | Complete |
-| 26 | 2/6 | In progress |
+| 26 | 3/6 | In progress |
 
 *Updated after each plan completion*
 
@@ -132,6 +132,16 @@ Decisions are logged in PROJECT.md Key Decisions table.
   - Added test_export_error_handling validating error conditions
   - Fixed cli_tests.rs compilation error (std::fs::set_len doesn't exist)
   - All 9 export tests pass (5 existing + 4 new)
+- Phase 26-03: Error Code Mapping Tests
+  - Added 4 integration tests for error code mapping validation
+  - test_magellan_database_error_maps_to_spl_e091 validates Magellan errors map to SPL-E091 with exit code 3
+  - test_magellan_query_error_preserves_context validates Magellan query errors preserve operation context
+  - test_symbol_not_found_error_code validates symbol not found uses SPL-E001, not SPL-E091
+  - test_exit_code_mapping_completeness validates all SpliceExitCode values (0-5) are correctly mapped
+  - Fixed MagellanIntegration::open() to use SpliceError::Magellan instead of SpliceError::Other
+  - Fixed SpliceExitCode::from_error() to map SpliceError::Magellan to Database exit code (3)
+  - Fixed execute_find() to use SpliceError::symbol_not_found for proper SPL-E001 code generation
+  - All 4 new error code tests pass
 
 ### Pending Todos
 
@@ -143,14 +153,17 @@ None yet.
 - None - Phase 26 progressing as planned
 
 **Discovered Issues:**
-- MagellanIntegration::open() wraps all errors in SpliceError::Other instead of propagating SpliceError::Graph, causing some database errors to return code 1 instead of code 3. This is a pre-existing issue outside the scope of exit code mapping.
+- MagellanIntegration::open() was wrapping errors in SpliceError::Other instead of SpliceError::Magellan; FIXED in Phase 26-03
+- SpliceExitCode::from_error() was not mapping SpliceError::Magellan to Database exit code; FIXED in Phase 26-03
+- execute_find() was using SpliceError::Other instead of SpliceError::symbol_not_found; FIXED in Phase 26-03
 - cli_tests.rs had compilation error using std::fs::set_len which doesn't exist; fixed in Phase 26-02
+- cli_tests.rs and cli_output_tests.rs had pre-existing compilation errors; fixed in Phase 26-03
 
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed 26-02: Export Format Validation Tests
+Stopped at: Completed 26-03: Error Code Mapping Tests
 Resume file: None
 
 ---
-*Last updated: 2026-01-24 — Phase 26 Plan 2 complete*
+*Last updated: 2026-01-24 — Phase 26 Plan 3 complete*
