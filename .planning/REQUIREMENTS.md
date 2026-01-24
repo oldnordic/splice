@@ -10,11 +10,11 @@ Requirements for Magellan query command delegation and CLI/data format alignment
 
 ### Query Commands (QUERY-01 through QUERY-05)
 
-- [ ] **QUERY-01**: status command shows database statistics (files, symbols, references, calls, code_chunks counts)
-- [ ] **QUERY-02**: query command lists symbols in a file (--file, --kind, --with-context, --with-callers, --with-callees flags)
-- [ ] **QUERY-03**: find command finds symbol by name or symbol_id (--name, --symbol-id, --ambiguous flags)
-- [ ] **QUERY-04**: refs command shows callers/callees for a symbol (--name, --path, --direction flags)
-- [ ] **QUERY-05**: files command lists indexed files (--symbols flag for counts)
+- [x] **QUERY-01**: status command shows database statistics (files, symbols, references, calls, code_chunks counts)
+- [x] **QUERY-02**: query command lists symbols in a file (--file, --kind, --with-context, --with-callers, --with-callees flags)
+- [x] **QUERY-03**: find command finds symbol by name or symbol_id (--name, --symbol-id, --ambiguous flags)
+- [x] **QUERY-04**: refs command shows callers/callees for a symbol (--name, --path, --direction flags)
+- [x] **QUERY-05**: files command lists indexed files (--symbols flag for counts)
 
 ### CLI Alignment (CLI-01 through CLI-04)
 
@@ -72,11 +72,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | DATA-01 | Phase 22 | Complete |
 | DATA-02 | Phase 22 | Complete |
-| QUERY-01 | Phase 23 | Pending |
-| QUERY-02 | Phase 23 | Pending |
-| QUERY-03 | Phase 23 | Pending |
-| QUERY-04 | Phase 23 | Pending |
-| QUERY-05 | Phase 23 | Pending |
+| QUERY-01 | Phase 23 | Complete |
+| QUERY-02 | Phase 23 | Complete |
+| QUERY-03 | Phase 23 | Complete |
+| QUERY-04 | Phase 23 | Complete |
+| QUERY-05 | Phase 23 | Complete |
 | CLI-01 | Phase 24 | Pending |
 | CLI-02 | Phase 24 | Pending |
 | CLI-03 | Phase 24 | Pending |
