@@ -43,9 +43,13 @@ impl MagellanIntegration {
             .to_str()
             .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", db_path)))?;
 
-        // Convert anyhow::Error to SpliceError
-        let inner = MagellanGraph::open(db_path_str)
-            .map_err(|e| SpliceError::Other(format!("Failed to open Magellan graph: {}", e)))?;
+        // Convert anyhow::Error to SpliceError::Magellan for proper error mapping
+        let inner = MagellanGraph::open(db_path_str).map_err(|e| {
+            SpliceError::Magellan {
+                context: format!("Failed to open Magellan graph at {}", db_path_str),
+                source: e,
+            }
+        })?;
 
         Ok(Self {
             inner,

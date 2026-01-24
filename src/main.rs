@@ -45,6 +45,7 @@ impl SpliceExitCode {
             // Database-specific errors
             splice::SpliceError::Graph(_) => Self::Database,
             splice::SpliceError::ExecutionLogError { .. } => Self::Database,
+            splice::SpliceError::Magellan { .. } => Self::Database,
 
             // File access errors (Io, IoContext, FileExternallyModified)
             splice::SpliceError::Io { .. } | splice::SpliceError::IoContext { .. }
@@ -3269,17 +3270,25 @@ fn execute_find(
         // Search by symbol ID
         match integration.find_symbol_by_id(&id)? {
             Some(symbol) => vec![symbol],
-            None => return Err(splice::SpliceError::Other(format!("Symbol ID '{}' not found", id))),
+            None => {
+                return Err(splice::SpliceError::symbol_not_found(
+                    format!("ID '{}'", id),
+                    Some(db_path),
+                ))
+            }
         }
-    } else if let Some(n) = name {
+    } else if let Some(ref n) = name {
         // Search by name
-        integration.find_symbol_by_name(&n, ambiguous)?
+        integration.find_symbol_by_name(n, ambiguous)?
     } else {
         return Err(splice::SpliceError::Other("--name or --symbol-id required".to_string()));
     };
 
     if results.is_empty() {
-        return Err(splice::SpliceError::Other("No symbols found".to_string()));
+        return Err(splice::SpliceError::symbol_not_found(
+            name.as_ref().map(|s| s.as_str()).unwrap_or("unknown"),
+            Some(db_path),
+        ));
     }
 
     let count = results.len();
