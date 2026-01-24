@@ -4,6 +4,7 @@
 //! from various programming languages. Each language has specific symbol types,
 //! but they all share common properties accessible through the `Symbol` trait.
 
+use crate::error::{Result, SpliceError};
 use crate::ingest::{
     cpp::CppSymbol, java::JavaSymbol, javascript::JavaScriptSymbol, python::PythonSymbol,
     rust::RustSymbol, typescript::TypeScriptSymbol,
@@ -94,6 +95,36 @@ impl Language {
             crate::ingest::detect::Language::TypeScript => Language::TypeScript,
         })
     }
+}
+
+/// Create a tree-sitter parser for the given language.
+///
+/// Centralized parser creation function used by expand and pattern modules.
+/// This follows the DRY principle - there should be only one way to create
+/// a language-specific parser.
+///
+/// # Errors
+///
+/// Returns `SpliceError::Parse` if the language cannot be set on the parser.
+pub fn parser_for_language(language: Language) -> Result<tree_sitter::Parser> {
+    let mut parser = tree_sitter::Parser::new();
+
+    let lang = match language {
+        Language::Rust => tree_sitter_rust::language(),
+        Language::Python => tree_sitter_python::language(),
+        Language::C => tree_sitter_c::language(),
+        Language::Cpp => tree_sitter_cpp::language(),
+        Language::Java => tree_sitter_java::language(),
+        Language::JavaScript => tree_sitter_javascript::language(),
+        Language::TypeScript => tree_sitter_typescript::language_typescript(),
+    };
+
+    parser.set_language(&lang).map_err(|e| SpliceError::Parse {
+        file: std::path::PathBuf::from("<unknown>"),
+        message: format!("Failed to set language for parser: {:?}", e),
+    })?;
+
+    Ok(parser)
 }
 
 /// Wrapper enum for all language-specific symbols.
