@@ -104,13 +104,47 @@ pub fn db_path() -> PathBuf {
 /// Default: `true` (enabled).
 ///
 /// Set to `false`, `0`, or `no` to disable logging.
+///
+/// For testable or programmatic control, use `is_enabled_with_config` instead.
+///
+/// # Examples
+///
+/// ```no_run
+/// use splice::execution::log::is_enabled;
+///
+/// if is_enabled() {
+///     println!("Execution logging is active");
+/// }
+/// ```
 pub fn is_enabled() -> bool {
-    std::env::var(EXECUTION_LOG_ENV)
-        .map(|v| {
-            let v_lower = v.to_lowercase();
-            v_lower != "false" && v_lower != "0" && v_lower != "no"
-        })
-        .unwrap_or(true)
+    is_enabled_with_config(None)
+}
+
+/// Check if execution log is enabled with optional config override.
+///
+/// This is the preferred function for code that needs testability
+/// or programmatic control over execution logging.
+///
+/// # Arguments
+///
+/// * `config` - Optional configuration override.
+///   - `None`: Uses `ExecutionLogConfig::from_env()` (reads environment variable)
+///   - `Some(config)`: Uses the provided configuration
+///
+/// # Examples
+///
+/// ```
+/// use splice::execution::log::{is_enabled_with_config, ExecutionLogConfig};
+///
+/// // Default behavior (respects environment variable)
+/// let enabled = is_enabled_with_config(None);
+///
+/// // Explicit control (useful for testing)
+/// let enabled = is_enabled_with_config(Some(ExecutionLogConfig::disabled()));
+/// ```
+#[must_use]
+pub fn is_enabled_with_config(config: Option<&ExecutionLogConfig>) -> bool {
+    config.unwrap_or(&ExecutionLogConfig::from_env()).is_enabled()
 }
 
 /// Initialize execution log database.
