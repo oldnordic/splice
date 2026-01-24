@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 24 of 26 (CLI Commands & Response Types)
-Plan: 01 of 5 (CLI Variants)
+Plan: 02 of 5 (Output and Database Flags)
 Status: In progress
-Last activity: 2026-01-24 — Completed 24-01: CLI Variants
+Last activity: 2026-01-24 — Completed 24-02: Output and Database Flags
 
-Progress: [████████░░] 88% (119/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 13/24 v2.2.2)
+Progress: [████████░░] 89% (120/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 14/24 v2.2.2)
 
 ## Current Milestone: v2.2.2 Magellan Integration
 
@@ -65,7 +65,12 @@ Decisions are logged in PROJECT.md Key Decisions table.
   - 42 tests passing (25 existing + 17 new)
 - Phase 24-01: CLI command variants (Status, Find, Refs, Files) added with human-readable output
   - CallDirection enum (In, Out, Both) for relationship traversal
+  - OutputFormat enum (Human, Json, Pretty) for output formatting
   - Execute functions delegate to MagellanIntegration methods
+- Phase 24-02: JSON output support added to all query commands
+  - CliSuccessPayload::with_data() returns structured JSON
+  - json_output flag determines response format (JSON vs text)
+  - All query commands delegate to MagellanIntegration::open()
 
 ### Pending Todos
 
@@ -74,15 +79,14 @@ None yet.
 ### Blockers/Concerns
 
 **Phase 24:**
-- Response types need to be defined with translated field names (Magellan to Splice conventions)
-- JSON/pretty output formatting not yet implemented (Plan 02)
 - Exit code mapping to Magellan conventions required
+- Export command needs to handle large graph datasets (Plan 03)
 
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed 24-01: CLI Variants
+Stopped at: Completed 24-02: Output and Database Flags
 Resume file: None
 
 ---
-*Last updated: 2026-01-24 — Phase 24 Plan 01 complete*
+*Last updated: 2026-01-24 — Phase 24 Plan 02 complete*
