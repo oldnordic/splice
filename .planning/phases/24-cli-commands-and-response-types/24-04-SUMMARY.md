@@ -44,7 +44,7 @@ patterns-established:
   - Re-export pattern: pub use crate::output::{Types} for public API access
 
 # Metrics
-duration: 4min
+duration: 6min
 completed: 2026-01-24
 ---
 
@@ -54,9 +54,9 @@ completed: 2026-01-24
 
 ## Performance
 
-- **Duration:** 4 minutes
+- **Duration:** 6 minutes
 - **Started:** 2026-01-24T13:11:10Z
-- **Completed:** 2026-01-24T13:15:23Z
+- **Completed:** 2026-01-24T13:16:59Z
 - **Tasks:** 2
 - **Files modified:** 2
 
