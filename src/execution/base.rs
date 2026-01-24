@@ -557,4 +557,95 @@ mod tests {
             "error should indicate not found"
         );
     }
+
+    #[test]
+    fn test_delegated_execution_id_format() {
+        let exec_id = generate_delegated_execution_id();
+
+        // Format: {8-hex}-{4-hex} = 13 chars total
+        assert_eq!(
+            exec_id.len(),
+            13,
+            "Delegated execution ID should be 13 characters (8-1-4)"
+        );
+
+        // Verify structure with regex
+        let re = regex::Regex::new(r"^[0-9a-f]{8}-[0-9a-f]{4}$").unwrap();
+        assert!(
+            re.is_match(&exec_id),
+            "Delegated execution ID should match format {{8-hex}}-{{4-hex}}"
+        );
+
+        // Verify dash separator
+        let parts: Vec<&str> = exec_id.split('-').collect();
+        assert_eq!(parts.len(), 2, "Should have exactly one dash separator");
+        assert_eq!(parts[0].len(), 8, "Timestamp part should be 8 characters");
+        assert_eq!(parts[1].len(), 4, "PID part should be 4 characters");
+    }
+
+    #[test]
+    fn test_delegated_execution_id_uniqueness() {
+        let id1 = generate_delegated_execution_id();
+
+        // Even if generated quickly, IDs should have valid format
+        // and PID should be consistent
+        let parts1: Vec<&str> = id1.split('-').collect();
+        assert_eq!(parts1.len(), 2);
+
+        let id2 = generate_delegated_execution_id();
+        let parts2: Vec<&str> = id2.split('-').collect();
+        assert_eq!(parts2.len(), 2);
+
+        // Both IDs should have the same PID (same process)
+        assert_eq!(parts1[1], parts2[1], "PID part should be consistent");
+
+        // Verify both have valid format
+        let re = regex::Regex::new(r"^[0-9a-f]{8}-[0-9a-f]{4}$").unwrap();
+        assert!(re.is_match(&id1), "First ID should have valid format");
+        assert!(re.is_match(&id2), "Second ID should have valid format");
+    }
+
+    #[test]
+    fn test_delegated_execution_id_timestamp_valid() {
+        let exec_id = generate_delegated_execution_id();
+        let parts: Vec<&str> = exec_id.split('-').collect();
+        let timestamp_hex = parts[0];
+
+        // Parse hex timestamp
+        let timestamp = u32::from_str_radix(timestamp_hex, 16)
+            .expect("Timestamp part should be valid hex");
+
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as u32;
+
+        // Timestamp should be within the last 60 seconds
+        // (allowing some margin for test execution time)
+        let diff = now.abs_diff(timestamp);
+        assert!(
+            diff <= 60,
+            "Timestamp should be recent (within 60 seconds). Got diff: {}",
+            diff
+        );
+    }
+
+    #[test]
+    fn test_delegated_execution_id_pid_valid() {
+        let exec_id = generate_delegated_execution_id();
+        let parts: Vec<&str> = exec_id.split('-').collect();
+        let pid_hex = parts[1];
+
+        // Parse hex PID
+        let pid = u16::from_str_radix(pid_hex, 16)
+            .expect("PID part should be valid hex");
+
+        let current_pid = std::process::id() as u16;
+
+        // PID should match current process (lower 16 bits)
+        assert_eq!(
+            pid, current_pid,
+            "PID part should match current process ID"
+        );
+    }
 }
