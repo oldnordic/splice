@@ -872,4 +872,161 @@ def main():
                    "symbol should use Magellan field name end_line");
         }
     }
+
+    #[test]
+    fn test_export_jsonl_record_types() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let output_path = temp_dir.path().join("export.jsonl");
+
+        // Create test files with different symbol types
+        let rust_file = temp_dir.path().join("lib.rs");
+        std::fs::write(&rust_file, r#"
+pub fn helper() -> i32 { 42 }
+pub struct Counter;
+impl Counter {
+    pub fn new() -> Self { Counter }
+}
+pub fn main() { let _ = helper(); }
+"#).unwrap();
+
+        let mut integration = MagellanIntegration::open(&db_path).unwrap();
+        integration.index_file(&rust_file).unwrap();
+
+        // Run export command with jsonl format
+        let splice_binary = get_splice_binary();
+        let result = Command::new(&splice_binary)
+            .arg("export")
+            .arg("--db")
+            .arg(&db_path)
+            .arg("--format")
+            .arg("jsonl")
+            .arg("--file")
+            .arg(&output_path)
+            .output();
+
+        assert!(result.is_ok(), "export command should execute");
+        let output = result.unwrap();
+        if !output.status.success() {
+            eprintln!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+            eprintln!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+        }
+        assert!(output.status.success(), "export should return success");
+
+        // Read and validate JSONL format
+        let jsonl_content = std::fs::read_to_string(&output_path).unwrap();
+        let lines: Vec<&str> = jsonl_content.lines().collect();
+
+        // Should have at least header + file record + some symbols
+        assert!(lines.len() >= 3, "should have header, file, and at least one symbol");
+
+        let mut found_header = false;
+        let mut found_file = false;
+        let mut found_symbol = false;
+
+        // Track all record types found
+        let mut record_types = std::collections::HashSet::new();
+
+        for (line_num, line) in lines.iter().enumerate() {
+            // Verify every line is valid JSON
+            let value: Value = serde_json::from_str(line)
+                .unwrap_or_else(|e| {
+                    panic!("Line {} should be valid JSON: {}\nContent: {}", line_num + 1, e, line);
+                });
+
+            // Check for type field
+            if let Some(obj) = value.as_object() {
+                if let Some(record_type) = obj.get("type") {
+                    let type_str = record_type.as_str()
+                        .unwrap_or_else(|| panic!("Line {} type field should be string", line_num + 1));
+                    record_types.insert(type_str.to_string());
+
+                    match type_str {
+                        "header" => {
+                            found_header = true;
+                            // Header should have schema_version
+                            assert!(obj.get("schema_version").is_some(),
+                                   "header record should have schema_version");
+                        }
+                        "file" => {
+                            found_file = true;
+                            // File records have "data" wrapper with path and hash
+                            if let Some(data) = obj.get("data") {
+                                let data_obj = data.as_object()
+                                    .expect("file data should be object");
+                                assert!(data_obj.get("path").is_some(),
+                                       "file data should have path");
+                                assert!(data_obj.get("hash").is_some(),
+                                       "file data should have hash");
+                            } else {
+                                panic!("Line {} file record should have data field", line_num + 1);
+                            }
+                        }
+                        "symbol" => {
+                            found_symbol = true;
+                            // Symbol records have "data" wrapper
+                            if let Some(data) = obj.get("data") {
+                                let data_obj = data.as_object()
+                                    .expect("symbol data should be object");
+                                assert!(data_obj.get("name").is_some(),
+                                       "symbol data should have name");
+                                assert!(data_obj.get("kind").is_some(),
+                                       "symbol data should have kind");
+                                assert!(data_obj.get("file_path").is_some(),
+                                       "symbol data should have file_path");
+                            } else {
+                                panic!("Line {} symbol record should have data field", line_num + 1);
+                            }
+                        }
+                        "reference" => {
+                            // Reference records with from_symbol and to_symbol
+                            if let Some(data) = obj.get("data") {
+                                let data_obj = data.as_object()
+                                    .expect("reference data should be object");
+                                assert!(data_obj.get("from_symbol_id").is_some() ||
+                                        data_obj.get("from_symbol").is_some(),
+                                       "reference data should have from_symbol field");
+                                assert!(data_obj.get("to_symbol_id").is_some() ||
+                                        data_obj.get("to_symbol").is_some(),
+                                       "reference data should have to_symbol field");
+                            }
+                        }
+                        "call" => {
+                            // Call records with caller and callee
+                            if let Some(data) = obj.get("data") {
+                                let data_obj = data.as_object()
+                                    .expect("call data should be object");
+                                assert!(data_obj.get("caller_symbol_id").is_some() ||
+                                        data_obj.get("caller").is_some(),
+                                       "call data should have caller field");
+                                assert!(data_obj.get("callee_symbol_id").is_some() ||
+                                        data_obj.get("callee").is_some(),
+                                       "call data should have callee field");
+                                assert!(data_obj.get("call_site").is_some() ||
+                                        data_obj.get("call_site_file").is_some() ||
+                                        data_obj.get("call_site_line").is_some(),
+                                       "call data should have call_site field");
+                            }
+                        }
+                        other => {
+                            panic!("Line {} unexpected record type: {}", line_num + 1, other);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Verify we found the expected record types
+        assert!(found_header, "should find header record type");
+        assert!(found_file, "should find at least one file record type");
+        assert!(found_symbol, "should find at least one symbol record type");
+
+        // Verify all record types are valid
+        for record_type in &record_types {
+            assert!(
+                matches!(record_type.as_str(), "header" | "file" | "symbol" | "reference" | "call"),
+                "record type '{}' should be valid", record_type
+            );
+        }
+    }
 }
