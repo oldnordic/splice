@@ -11,6 +11,7 @@ pub mod query;
 // Re-export commonly used types from base module
 pub use base::{
     init_execution_log_db, insert_execution_log, ExecutionLog, ExecutionLogBuilder, DB_FILENAME,
+    generate_delegated_execution_id,
 };
 
 // Re-export query types
