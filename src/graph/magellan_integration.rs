@@ -608,6 +608,44 @@ impl MagellanIntegration {
 
         Ok(references)
     }
+
+    /// List all indexed files, with optional symbol counts.
+    ///
+    /// # Arguments
+    /// * `with_symbol_counts` - If true, include symbol count per file
+    ///
+    /// # Returns
+    /// Vector of file metadata for all indexed files.
+    pub fn list_indexed_files(
+        &mut self,
+        with_symbol_counts: bool,
+    ) -> Result<Vec<FileMetadata>> {
+        let file_nodes = self.inner.all_file_nodes()
+            .map_err(|e| SpliceError::Other(format!("Failed to get file nodes: {}", e)))?;
+
+        file_nodes.into_iter().map(|(path, node)| {
+            let symbol_count = if with_symbol_counts {
+                Some(self.count_symbols_in_file(&path)?)
+            } else {
+                None
+            };
+
+            Ok(FileMetadata {
+                path,
+                hash: node.hash,
+                last_indexed_at: node.last_indexed_at,
+                last_modified: node.last_modified,
+                symbol_count,
+            })
+        }).collect()
+    }
+
+    /// Count symbols for a specific file.
+    fn count_symbols_in_file(&mut self, path: &str) -> Result<usize> {
+        let symbols = self.inner.symbols_in_file(path)
+            .map_err(|e| SpliceError::Other(format!("Failed to count symbols in {}: {}", path, e)))?;
+        Ok(symbols.len())
+    }
 }
 
 /// Symbol information extracted from Magellan's SymbolQueryResult.
@@ -686,6 +724,21 @@ pub struct CallRelationships {
     pub callers: Vec<CallReference>,
     /// Symbols that this symbol calls (if direction is Out or Both).
     pub callees: Vec<CallReference>,
+}
+
+/// File metadata with optional symbol count.
+#[derive(Debug, Clone)]
+pub struct FileMetadata {
+    /// Path to the file.
+    pub path: String,
+    /// Content hash of the file.
+    pub hash: String,
+    /// Unix timestamp when file was last indexed.
+    pub last_indexed_at: i64,
+    /// Unix timestamp when file was last modified.
+    pub last_modified: i64,
+    /// Symbol count if requested (None if --symbols flag not provided).
+    pub symbol_count: Option<usize>,
 }
 
 impl From<SymbolQueryResult> for SymbolInfo {
