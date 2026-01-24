@@ -86,7 +86,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXPORT-01 | Phase 25 | Complete |
 | EXPORT-02 | Phase 25 | Complete |
 | ERROR-01 | Phase 25 | Complete |
-| Integration validation | Phase 26 | Pending |
+| Integration validation | Phase 26 | Complete |
 
 **Coverage:**
 - v2.2.2 requirements: 15 total
