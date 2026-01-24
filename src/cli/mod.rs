@@ -20,7 +20,7 @@ Edit Commands:
   delete, patch, plan, apply-files     Modify code with span safety
 
 Export Commands:
-  log, undo                             Export and restore operations
+  log, undo, export                     Export and restore operations
 
 Validation Commands:
   explain, search, get                  Validate and explain code
@@ -524,6 +524,22 @@ pub enum Commands {
         #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
         output: OutputFormat,
     },
+
+    /// Export graph data in JSON, JSONL, or CSV format
+    #[command(display_order = 106)]
+    Export {
+        /// Path to the Magellan database
+        #[arg(short, long)]
+        db: std::path::PathBuf,
+
+        /// Export format (json, jsonl, csv)
+        #[arg(short, long, value_enum, default_value_t = ExportFormat::Json)]
+        format: ExportFormat,
+
+        /// Output file path (writes to stdout if not specified)
+        #[arg(short, long)]
+        output: Option<std::path::PathBuf>,
+    },
 }
 
 /// Symbol kind for filtering.
@@ -598,6 +614,18 @@ pub enum CallDirection {
     Out,
     /// Show both callers and callees
     Both,
+}
+
+/// Export format for graph data.
+#[derive(clap::ValueEnum, Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportFormat {
+    /// JSON array format (default)
+    #[default]
+    Json,
+    /// JSON Lines (newline-delimited JSON)
+    Jsonl,
+    /// CSV format with headers
+    Csv,
 }
 
 impl OutputFormat {

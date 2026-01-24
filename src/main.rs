@@ -259,6 +259,15 @@ fn main() -> ExitCode {
         splice::cli::Commands::Files { db, symbols, output } => {
             execute_files(&db, symbols, output, json_output)
         }
+
+        splice::cli::Commands::Export { db, format, output } => {
+            // Export command - not yet implemented
+            // TODO: Implement export in Phase 25-02
+            let _ = (db, format, output);
+            Err(splice::SpliceError::Other(
+                "export command not yet implemented".to_string(),
+            ))
+        }
     };
 
     // Handle result

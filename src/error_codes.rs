@@ -168,6 +168,10 @@ pub enum SpliceErrorCode {
     AnalyzerNotAvailable,
     /// Analyzer reported diagnostics (SPL-E082)
     AnalyzerFailed,
+
+    // Magellan integration errors (SPL-E091 to SPL-E100)
+    /// Magellan integration error (SPL-E091)
+    MagellanError,
 }
 
 impl SpliceErrorCode {
@@ -212,6 +216,7 @@ impl SpliceErrorCode {
 
             SpliceErrorCode::AnalyzerNotAvailable => "SPL-E081".to_string(),
             SpliceErrorCode::AnalyzerFailed => "SPL-E082".to_string(),
+            SpliceErrorCode::MagellanError => "SPL-E091".to_string(),
         }
     }
 
@@ -241,7 +246,8 @@ impl SpliceErrorCode {
             | SpliceErrorCode::ExecutionLogError
             | SpliceErrorCode::ExecutionNotFound
             | SpliceErrorCode::AnalyzerNotAvailable
-            | SpliceErrorCode::AnalyzerFailed => "error".to_string(),
+            | SpliceErrorCode::AnalyzerFailed
+            | SpliceErrorCode::MagellanError => "error".to_string(),
 
             // Warning-level codes
             SpliceErrorCode::AmbiguousSymbol => "warning".to_string(),
@@ -294,6 +300,11 @@ impl SpliceErrorCode {
 
             SpliceErrorCode::AnalyzerNotAvailable => "The requested analyzer is not available. Install the analyzer or use a different validation mode.".to_string(),
             SpliceErrorCode::AnalyzerFailed => "The analyzer reported diagnostics. Fix the reported issues.".to_string(),
+
+            SpliceErrorCode::MagellanError => {
+                "Check that the Magellan database file exists and is readable. \
+                 Try re-indexing the codebase with `splice ingest`.".to_string()
+            }
         }
     }
 
@@ -374,6 +385,9 @@ impl SpliceErrorCode {
             crate::SpliceError::CargoCheckFailed { .. } => {
                 Some(SpliceErrorCode::CompilerValidationFailed)
             }
+
+            // Magellan integration errors
+            crate::SpliceError::Magellan { .. } => Some(SpliceErrorCode::MagellanError),
 
             // Intentionally unmapped errors:
             // - BrokenPipe: terminal state, not user-fixable
@@ -975,6 +989,28 @@ WHAT TO DO:
 4. Update analyzer version if outdated
 
 RELATED: SPL-E043 (Compiler Validation Failed), SPL-E081 (Analyzer Not Available)
+"#,
+        ),
+
+        "SPL-E091" => Some(
+            r#"
+Magellan Error (SPL-E091)
+
+An error occurred in the Magellan code graph integration.
+
+POSSIBLE CAUSES:
+- Database file is corrupted or incompatible
+- Insufficient permissions to read the database
+- Database file doesn't exist (need to run `splice ingest` first)
+- Magellan internal error
+
+WHAT TO DO:
+1. Check that the database file exists: ls -l <db_path>
+2. Verify file permissions: readable by current user
+3. Try re-indexing: `splice ingest --force`
+4. Check if Magellan version is compatible
+
+RELATED: SPL-E061 (Graph Error), SPL-E031 (File Read Error)
 "#,
         ),
 
