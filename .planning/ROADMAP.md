@@ -87,13 +87,13 @@ See `.planning/milestones/v2.2-ROADMAP.md` for complete details of phases 11-18.
   2. Execution IDs follow {timestamp_hex}-{pid_hex} format for delegated queries
   3. Field translation utilities convert between Magellan (start_line) and Splice (line_start) conventions
   4. JSON schema compatibility tests verify format alignment
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 22-01: Create src/symbol_id.rs with 16-char hex ID generation
-- [ ] 22-02: Create src/format/magellan.rs with field translation utilities
-- [ ] 22-03: Execution ID generation matching Magellan format
-- [ ] 22-04: JSON schema compatibility tests
+- [ ] 22-01-PLAN.md — Create src/symbol_id.rs with 16-char hex ID generation
+- [ ] 22-02-PLAN.md — Create src/format/magellan.rs with field translation utilities
+- [ ] 22-03-PLAN.md — Execution ID generation matching Magellan format
+- [ ] 22-04-PLAN.md — JSON schema compatibility tests
 
 #### Phase 23: Magellan Integration Extensions
 **Goal**: Extend MagellanIntegration wrapper with pagination and ID-based queries
@@ -184,7 +184,7 @@ Phases execute in numeric order: 22 → 23 → 24 → 25 → 26
 | 19 | v2.2.1 | 7/7 | Complete | 2026-01-23 |
 | 20 | v2.2.1 | 7/7 | Complete | 2026-01-24 |
 | 21 | v2.2.1 | 6/6 | Complete | 2026-01-24 |
-| 22. Symbol ID & Format Foundation | v2.2.2 | 0/4 | Not started | - |
+| 22. Symbol ID & Format Foundation | v2.2.2 | 0/4 | Ready to execute | - |
 | 23. Magellan Integration Extensions | v2.2.2 | 0/5 | Not started | - |
 | 24. CLI Commands & Response Types | v2.2.2 | 0/5 | Not started | - |
 | 25. Export Command & Error Mapping | v2.2.2 | 0/4 | Not started | - |
@@ -194,4 +194,4 @@ Phases execute in numeric order: 22 → 23 → 24 → 25 → 26
 - v2.0: 31/31 plans complete (100%)
 - v2.2: 55/55 plans complete (100%)
 - v2.2.1: 20/20 plans complete (100%)
-- v2.2.2: 0/24 plans planned (0%)
+- v2.2.2: 4/24 plans planned (17%)
