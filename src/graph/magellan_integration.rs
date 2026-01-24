@@ -344,6 +344,145 @@ impl MagellanIntegration {
 
         Ok((callers, callees))
     }
+
+    /// Find symbol by name across ALL indexed files.
+    ///
+    /// # Arguments
+    /// * `name` - Symbol name to search for
+    /// * `ambiguous` - If true, return all matches. If false, return first match only.
+    ///
+    /// # Returns
+    /// Vector of matching symbols (empty if none found).
+    ///
+    /// # Performance
+    /// This requires O(N) file queries where N = number of indexed files.
+    /// Magellan has no global symbol name index.
+    pub fn find_symbol_by_name(
+        &mut self,
+        name: &str,
+        ambiguous: bool,
+    ) -> Result<Vec<SymbolInfo>> {
+        let mut results = Vec::new();
+
+        // Get all indexed files
+        let file_nodes = self
+            .inner
+            .all_file_nodes()
+            .map_err(|e| SpliceError::Other(format!("Failed to get file nodes: {}", e)))?;
+
+        for file_path in file_nodes.keys() {
+            // Search for symbol in this file
+            if let Ok(matches) = self.inner.symbol_extents(file_path, name) {
+                for (entity_id, fact) in matches {
+                    let symbol = SymbolInfo {
+                        entity_id,
+                        name: fact.name.clone().unwrap_or_default(),
+                        file_path: fact.file_path.to_string_lossy().to_string(),
+                        kind: fact.kind_normalized,
+                        byte_start: fact.byte_start,
+                        byte_end: fact.byte_end,
+                    };
+                    results.push(symbol);
+
+                    // Early exit if not looking for all matches
+                    if !ambiguous && !results.is_empty() {
+                        return Ok(results);
+                    }
+                }
+            }
+        }
+
+        Ok(results)
+    }
+
+    /// Find symbol by 16-character hex symbol ID.
+    ///
+    /// # Arguments
+    /// * `symbol_id` - 16-char lowercase hex symbol ID (from Phase 22 format)
+    ///
+    /// # Returns
+    /// Some(SymbolInfo) if found, None if not found.
+    ///
+    /// # Performance
+    /// This requires O(N) entity iteration where N = total symbols.
+    /// Magellan does not store symbol_id or provide reverse lookup.
+    /// Consider building a symbol_id index in future if performance is inadequate.
+    ///
+    /// # Note
+    /// Symbol IDs are generated as SHA-256(name:path:byte_start)[0..8].
+    /// We regenerate IDs during iteration to find matches.
+    pub fn find_symbol_by_id(&mut self, symbol_id: &str) -> Result<Option<SymbolInfo>> {
+        use crate::symbol_id::generate_symbol_id;
+        use rusqlite::Connection;
+
+        let conn = Connection::open(&self.db_path).map_err(|e| {
+            SpliceError::Other(format!("Failed to open database for symbol ID lookup: {}", e))
+        })?;
+
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, name, file_path, data FROM graph_entities WHERE kind = 'Symbol'",
+            )
+            .map_err(|e| SpliceError::Other(format!("Failed to prepare query: {}", e)))?;
+
+        let symbol_rows = stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                ))
+            })
+            .map_err(|e| SpliceError::Other(format!("Failed to query symbols: {}", e)))?;
+
+        for row_result in symbol_rows {
+            let (entity_id, name, file_path, data_json) =
+                row_result.map_err(|e| SpliceError::Other(format!("Failed to read row: {}", e)))?;
+
+            // Parse the JSON data to get byte_start
+            let data: serde_json::Value =
+                serde_json::from_str(&data_json).map_err(|e| {
+                    SpliceError::Other(format!("Failed to parse symbol data JSON: {}", e))
+                })?;
+
+            let byte_start = data
+                .get("byte_start")
+                .and_then(|v| v.as_u64())
+                .ok_or_else(|| {
+                    SpliceError::Other("Symbol data missing byte_start".to_string())
+                })? as usize;
+
+            // Regenerate symbol_id and compare
+            let generated_id = generate_symbol_id(&name, &file_path, byte_start);
+            if generated_id.as_str() == symbol_id {
+                // Found match - extract remaining fields
+                let byte_end = data
+                    .get("byte_end")
+                    .and_then(|v| v.as_u64())
+                    .ok_or_else(|| {
+                        SpliceError::Other("Symbol data missing byte_end".to_string())
+                    })? as usize;
+
+                let kind = data
+                    .get("kind")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Unknown")
+                    .to_string();
+
+                return Ok(Some(SymbolInfo {
+                    entity_id,
+                    name,
+                    file_path,
+                    kind,
+                    byte_start,
+                    byte_end,
+                }));
+            }
+        }
+
+        Ok(None)
+    }
 }
 
 /// Symbol information extracted from Magellan's SymbolQueryResult.
