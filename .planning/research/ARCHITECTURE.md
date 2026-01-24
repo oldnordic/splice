@@ -1,629 +1,652 @@
-# Architecture for Rich Span Extensions
+# Architecture: Magellan Query Delegation
 
-**Project:** Splice v2.2 Unified JSON Schema
-**Researched:** 2026-01-22
+**Project:** Splice v2.2.2 - Magellan Integration
+**Researched:** 2026-01-24
 **Overall confidence:** HIGH
 
 ## Executive Summary
 
-Rich span extensions enhance Splice's existing `SpanResult` output structure with seven major additions: context lines, semantic kind detection, cross-file relationships, checksums for race protection, suggested actions for LLM guidance, tool hints, and unified error codes. These integrate cleanly into the existing Rust/tree-sitter/SQLiteGraph architecture by extending current structures rather than replacing them.
+Magellan query delegation integrates Splice's refactoring capabilities with Magellan's multi-language code graph. The architecture follows a **delegation pattern**: Splice handles all edit operations (patch, delete) directly, while delegating query operations (label-based search, code chunk retrieval) to Magellan through a library integration.
 
-**Key architectural insight:** The existing `SpanResult` structure (lines 234-273 in `src/output.rs`) already contains the core fields needed for rich spans. The extensions add optional fields (`#[serde(skip_serializing_if = "Option::is_none")]`) that maintain backward compatibility while enabling the new features.
+**Key architectural insight:** Splice already has Magellan integrated as a Rust library dependency (`magellan = "0.5.3"`). The `MagellanIntegration` wrapper in `src/graph/magellan_integration.rs` provides the delegation interface. Query commands (`splice query`, `splice get`) already use this delegation pattern. The remaining work is to complete the delegation and ensure format alignment.
+
+**Existing integration status:**
+- `src/graph/magellan_integration.rs`: Magellan wrapper with `query_by_labels()`, `get_code_chunk()`, `index_file()` methods
+- `src/main.rs`: `execute_query()` and `execute_get()` already delegate to MagellanIntegration
+- `src/output.rs`: `SpanResult`, `SymbolMatch` structures already Magellan-compatible
+- `src/graph/mod.rs`: `CodeGraph` stores symbols using SQLiteGraph (separate from Magellan)
+
+## Delegation Pattern
+
+### Pattern: Library Delegation (Not Subprocess)
+
+Splice calls Magellan as an **in-process Rust library**, not as a subprocess or HTTP API.
+
+```rust
+// Current pattern (already implemented in src/graph/magellan_integration.rs:19-29)
+pub fn open(db_path: &Path) -> Result<Self> {
+    let db_path_str = db_path.to_str()?;
+    let inner = MagellanGraph::open(db_path_str)  // Direct library call
+        .map_err(|e| SpliceError::Other(format!("Failed to open Magellan graph: {}", e)))?;
+    Ok(Self { inner })
+}
+```
+
+**Why library delegation:**
+- **Zero serialization overhead:** Direct Rust function calls, no JSON/RPC
+- **Shared database access:** Both Splice and Magellan can access the same SQLite file
+- **Type safety:** Compile-time guarantees on Magellan API usage
+- **Error handling:** Splice wraps Magellan's `anyhow::Error` into `SpliceError`
+
+**Alternative considered (rejected):**
+- Subprocess delegation (`magellan query --label rust`): Requires CLI parsing, JSON serialization, slower
+- HTTP API delegation: Adds network overhead, requires separate Magellan server process
+
+### Delegation Boundary
+
+| Operation | Handler | Location |
+|-----------|---------|----------|
+| **Label-based queries** | Magellan (delegated) | `MagellanIntegration::query_by_labels()` |
+| **Code chunk retrieval** | Magellan (delegated) | `MagellanIntegration::get_code_chunk()` |
+| **File indexing** | Magellan (delegated) | `MagellanIntegration::index_file()` |
+| **Symbol editing (patch)** | Splice (native) | `src/patch/` modules |
+| **Symbol deletion** | Splice (native) | `src/resolve/` + `src/patch/` |
+| **Relationship traversal** | Splice (native) | `src/resolve/relationships.rs` |
+
+### Data Flow: Query Command
+
+```
+User: splice query --db codegraph.db --label rust --label fn
+                |
+                v
+[src/main.rs: execute_query()]
+                |
+                +-- Parse CLI arguments (labels, context, relationships flags)
+                |
+                v
+[MagellanIntegration::open(db_path)]  <-- Open Magellan database
+                |
+                v
+[MagellanIntegration::query_by_labels(&["rust", "fn"])]  <-- DELEGATED to Magellan
+                |
+                +-- Returns Vec<SymbolInfo> {entity_id, name, file_path, kind, byte_start, byte_end}
+                |
+                v
+[Splice: Enrich results]
+                |
+                +-- Add context lines (via context::extract_context)
+                +-- Add semantic kind (via ingest::semantic_kind)
+                +-- Add tool hints (via hints::derive_tool_hints)
+                +-- Add suggested action (via action::suggest_action)
+                +-- Add relationships (via CodeGraph, if --relationships flag)
+                |
+                v
+[Splice: Convert to SpanResult]  <-- Splice's unified output format
+                |
+                v
+[JSON output]  <-- Magellan-compatible JSON schema
+```
+
+### Data Flow: Get Command
+
+```
+User: splice get --db codegraph.db --file src/main.rs --start 100 --end 200
+                |
+                v
+[src/main.rs: execute_get()]
+                |
+                +-- Parse CLI arguments (file, byte span, expand flag)
+                |
+                v
+[MagellanIntegration::open(db_path)]
+                |
+                v
+[MagellanIntegration::get_code_chunk(file, start, end)]  <-- DELEGATED to Magellan
+                |
+                +-- Returns Option<CodeChunk> {content, file_path, byte_start, byte_end, symbol_name, symbol_kind}
+                |
+                v
+[Splice: Enrich result]
+                |
+                +-- Add context lines
+                +-- Add semantic info (kind, language)
+                +-- Add checksums (via checksum module)
+                +-- Add error code (if applicable)
+                |
+                v
+[JSON output]  <-- Magellan-compatible GetResponse format
+```
 
 ## New Components
 
-### Context Extraction Module — `src/context.rs` (NEW)
-- **Purpose:** Extract `before`, `selected`, and `after` lines around spans for context
-- **Location:** New top-level module
-- **Dependencies:**
-  - `std::fs::File` — for reading source files
-  - `ropey::Rope` — for efficient line/column calculations (already in dependencies)
-  - `crate::error::{Result, SpliceError}` — for error handling
-- **API:**
-  ```rust
-  pub fn extract_context(
-      file_path: &Path,
-      byte_start: usize,
-      byte_end: usize,
-      lines_before: usize,
-      lines_after: usize,
-  ) -> Result<ContextLines>
-  ```
-- **Integration point:** Called from CLI commands (`execute_query`, `execute_get`, `execute_delete`) before JSON serialization
+### Query Command Handler Module — `src/query.rs` (NEW)
 
-### Semantic Kind Detection — `src/ingest/semantic_kind.rs` (NEW)
-- **Purpose:** Map tree-sitter node types to semantic kinds (`function`, `variable`, `parameter`, `type`, etc.)
-- **Location:** New submodule under `ingest/`
-- **Dependencies:**
-  - `tree_sitter::Node` — for accessing node kinds
-  - `crate::ingest::Language` — for language-specific detection
-  - Existing language-specific modules (`rust.rs`, `python.rs`, etc.)
-- **API:**
-  ```rust
-  pub fn detect_semantic_kind(
-      node: &tree_sitter::Node,
-      language: Language,
-  ) -> SemanticKind
-  ```
-- **Integration point:** Called during symbol extraction in `ingest/` modules, stored in graph as node property
+**Purpose:** Centralize query delegation logic currently scattered in `src/main.rs`.
 
-### Cross-File Relationship Builder — `src/resolve/relationships.rs` (NEW)
-- **Purpose:** Build full-codebase relationship graph (callers, callees, imports, exports)
-- **Location:** New submodule under `resolve/`
-- **Dependencies:**
-  - `crate::graph::CodeGraph` — for querying symbol nodes and edges
-  - `sqlitegraph::GraphBackend` — for graph traversal
-  - `crate::resolve::ResolvedSpan` — for span metadata
-- **API:**
-  ```rust
-  pub fn build_relationships(
-      graph: &CodeGraph,
-      symbol: &ResolvedSpan,
-  ) -> Result<Relationships>
+**Rationale:** Currently, `execute_query()` and `execute_get()` are 200+ line functions in `src/main.rs`. Extracting them to a dedicated module improves testability and separation of concerns.
 
-  pub struct Relationships {
-      pub callers: Vec<RelatedSpan>,
-      pub callees: Vec<RelatedSpan>,
-      pub imports: Vec<RelatedSpan>,
-      pub exports: Vec<RelatedSpan>,
-  }
-  ```
-- **Integration point:** Called from CLI commands when output format includes relationships
+**API:**
+```rust
+pub struct QueryExecutor {
+    magellan: MagellanIntegration,
+    code_graph: Option<CodeGraph>,  // Opened only if --relationships flag
+}
 
-### Span Checksum Service — `src/checksum.rs` (EXTEND)
-- **Purpose:** Compute checksums for span content (currently only supports file-level and diff checksums)
-- **Current state:** Has `checksum_file`, `checksum_span`, `checksum_line_range`, `checksum_diff`
-- **Extension needed:** Add to `SpanResult` at creation time
-- **Integration point:** Called from `SpanResult::from_byte_span()` and `SpanResult::from()`
+impl QueryExecutor {
+    pub fn new(db_path: &Path) -> Result<Self>;
+    pub fn query_by_labels(
+        &self,
+        labels: &[String],
+        context: ContextConfig,
+        options: QueryOptions,
+    ) -> Result<QueryResponse>;
+    pub fn get_code_chunk(
+        &self,
+        file: &Path,
+        start: usize,
+        end: usize,
+        context: ContextConfig,
+        options: QueryOptions,
+    ) -> Result<GetResponse>;
+}
 
-### Error Code Registry — `src/error_codes.rs` (NEW)
-- **Purpose:** Define stable error codes (SPL-E001 format) with taxonomy and documentation
-- **Location:** New top-level module
-- **Dependencies:** None (pure data)
-- **Structure:**
-  ```rust
-  pub struct ErrorDefinition {
-      pub code: &'static str,        // "SPL-E001"
-      pub severity: ErrorSeverity,   // Error, Warning, Note
-      pub category: ErrorCategory,   // ParseError, ValidationError, etc.
-      pub message: &'static str,
-      pub hint: Option<&'static str>,
-      pub remediation: Option<&'static str>,
-  }
+pub struct QueryOptions {
+    pub relationships: bool,
+    pub expand: bool,
+    pub expand_level: usize,
+    pub show_code: bool,
+}
+```
 
-  pub fn lookup_error(code: &str) -> Option<&'static ErrorDefinition>;
-  ```
-- **Integration point:** Used in CLI error formatting and `splice explain` command
+**Dependencies:**
+- `crate::graph::magellan_integration::MagellanIntegration`
+- `crate::graph::CodeGraph` (optional, for relationships)
+- `crate::output::{SpanResult, QueryResult, GetResponse}`
+- `crate::context` (for context extraction)
+- `crate::ingest::semantic_kind` (for semantic enrichment)
 
-### Suggested Action Engine — `src/suggest.rs` (NEW)
-- **Purpose:** Generate suggested actions (action_type + params) for LLM guidance based on span context
-- **Location:** New top-level module
-- **Dependencies:**
-  - `crate::ingest::Language` — for language-specific suggestions
-  - `crate::symbol::Symbol` — for symbol metadata
-- **API:**
-  ```rust
-  pub fn suggest_action(
-      symbol: &dyn Symbol,
-      context: &OperationContext,
-  ) -> SuggestedAction
+**Integration point:** Replace inline `execute_query()` and `execute_get()` in `src/main.rs` with `QueryExecutor` calls.
 
-  pub struct SuggestedAction {
-      pub action_type: ActionType,  // Rename, Extract, Inline, etc.
-      pub params: serde_json::Value,
-      pub confidence: f32,
-  }
-  ```
-- **Integration point:** Added to `SpanResult` before JSON output
+### Symbol ID Generator — `src/symbol_id.rs` (NEW)
+
+**Purpose:** Generate 16-character stable symbol IDs compatible with Magellan's symbol_id format.
+
+**Rationale:** Magellan uses 16-character hex symbol IDs. Splice currently uses SHA-256 derived IDs (`generate_span_id()` in `src/output.rs:430-445`). For compatibility, Splice needs to generate Magellan-format IDs.
+
+**API:**
+```rust
+/// Generate a 16-character hex symbol ID compatible with Magellan.
+///
+/// Magellan's symbol_id format: First 8 bytes of SHA-256 hash, hex-encoded.
+/// Format: "a1b2c3d4e5f6g7h8" (16 lowercase hex chars)
+pub fn generate_symbol_id(
+    file_path: &str,
+    symbol_name: &str,
+    byte_start: usize,
+) -> String;
+
+/// Generate a match ID for query results.
+///
+/// Match IDs are unique per query result, not stable across runs.
+pub fn generate_match_id(
+    symbol_name: &str,
+    file_path: &str,
+    byte_start: usize,
+) -> String;
+```
+
+**Implementation notes:**
+- Use SHA-256 hash of `file_path:symbol_name:byte_start`
+- Take first 8 bytes, convert to 16-character hex string
+- Matches Magellan's internal ID generation
+
+**Dependencies:**
+- `sha2::Sha256` (already in dependencies)
+
+**Integration point:** Call from `SpanResult::from_byte_span()` and `SymbolMatch::new()`.
+
+### Format Alignment Module — `src/format/magellan.rs` (NEW)
+
+**Purpose:** Ensure Splice's JSON output is byte-for-byte compatible with Magellan's query response format.
+
+**Rationale:** LLM tools consuming Splice output expect Magellan-compatible JSON. This module provides conversion functions and validation.
+
+**API:**
+```rust
+/// Convert Splice SpanResult to Magellan SymbolMatch.
+pub fn span_result_to_symbol_match(span: SpanResult) -> SymbolMatch;
+
+/// Convert Splice QueryResult to Magellan LabelQueryResponse.
+pub fn query_result_to_magellan_response(result: QueryResult) -> LabelQueryResponse;
+
+/// Validate JSON output matches Magellan schema.
+#[cfg(test)]
+pub fn validate_magellan_compatibility(json: &serde_json::Value) -> Result<()>;
+```
+
+**Schema alignment points:**
+- `span_id`: Splice uses SHA-256 (64 hex chars), Magellan uses 16-char hex
+- `symbol_id`: Splice currently None, needs to match Magellan format
+- `match_id`: Splice uses UUID, Magellan uses stable hash
+- `semantics.kind`: Splice uses `SemanticKind` enum, Magellan uses string labels
+
+**Dependencies:**
+- `crate::output::{SpanResult, SymbolMatch, QueryResult}`
+
+**Integration point:** Call from `execute_query()` and `execute_get()` before JSON serialization.
 
 ## Modified Components
 
-### `src/output.rs` — SpanResult Structure (MODIFIED)
-- **Current structure:** Lines 234-273 define `SpanResult` with 15 fields
-- **Changes needed:** Add 7 new optional fields:
-  ```rust
-  // Context lines (RICHSPAN-01)
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub context_before: Option<Vec<String>>,
-
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub context_selected: Option<String>,
-
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub context_after: Option<Vec<String>>,
-
-  // Semantic kind (RICHSPAN-02)
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub semantic_kind: Option<String>,
-
-  // Relationships (RICHSPAN-03)
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub relationships: Option<Relationships>,
-
-  // Suggested action (RICHSPAN-05)
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub suggested_action: Option<SuggestedAction>,
-
-  // Tool hints (RICHSPAN-06)
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub tool_hints: Option<ToolHints>,
-  ```
-- **Breaking changes:** NO — all fields are optional with `skip_serializing_if`
-- **Integration:** Update `SpanResult::from_byte_span()` and `SpanResult::from()` to accept new fields
-
-### `src/resolve/mod.rs` — ResolvedSpan Structure (MODIFIED)
-- **Current structure:** Lines 18-56 define `ResolvedSpan` with byte spans, line/col, language
-- **Changes needed:** Add `semantic_kind` field (populated during resolution)
-- **Integration:** Extend `resolve_symbol()` and `resolve_symbol_in_file()` to call semantic kind detection
-- **Breaking changes:** NO — add as optional field
-
-### `src/graph/mod.rs` — CodeGraph Storage (MODIFIED)
-- **Current behavior:** Stores symbol nodes with `kind` (language-agnostic string)
-- **Changes needed:** Add `semantic_kind` property to node data during ingestion
-- **Integration:** Update `store_symbol_with_file_and_language()` to accept semantic kind
-- **Breaking changes:** NO — property is optional in JSON data
-
-### `src/error.rs` — SpliceError Enum (MODIFIED)
-- **Current behavior:** Error variants with diagnostic extraction via `diagnostics()` method
-- **Changes needed:** Add error code property to all error variants
-- **Integration:**
-  1. Add `pub code: Option<String>` field to `SpliceError` enum
-  2. Map each variant to error code via new `error_codes::lookup_error()`
-  3. Update `diagnostics()` to include error code in output
-- **Breaking changes:** NO — error codes are added as optional field
-
 ### `src/main.rs` — CLI Command Handlers (MODIFIED)
-- **Current behavior:** Commands create `SpanResult` and convert to JSON
-- **Changes needed:**
-  1. Call `context::extract_context()` before `SpanResult` creation
-  2. Call `resolve::relationships::build_relationships()` for commands that need it
-  3. Compute checksums via `checksum::checksum_span()` before output
-  4. Add `--context <n>` flag handling for `-A`/`-B`/`-C` flags
-  5. Add `--explain <code>` command handler
-- **Breaking changes:** NO — additive changes to command flow
 
-## Data Flow
+**Current state:**
+- `execute_query()` (lines 1982-2360): 378 lines, handles all query logic inline
+- `execute_get()` (lines 2502-2750): 248 lines, handles all get logic inline
 
-### Existing Flow (v2.0 Baseline)
+**Changes needed:**
+1. **Extract to `src/query.rs`:** Move `execute_query()` and `execute_get()` logic to `QueryExecutor`
+2. **Simplify handlers:** Replace inline logic with `QueryExecutor` calls
+3. **Add `--db` flag handling:** Ensure all query commands accept `--db` flag consistently
 
-```
-[CLI Command] → [Ingest/Resolve] → [Patch] → [Verify] → [Log] → [Output JSON]
-                                                          ↓
-                                                  SpanResult with basic fields
-                                                  (file_path, byte_start/end,
-                                                   line/col, symbol/kind)
-```
-
-### New Flow with Rich Span Extensions
-
-```
-[CLI Command] → [Ingest/Resolve] → [Patch] → [Verify] → [Log] → [Enrich SpanResult] → [Output JSON]
-                                                          ↓
-                                          ┌───────────────┴───────────────┐
-                                          │                               │
-                                   [Context Module]              [Relationship Builder]
-                                   extract_context()              build_relationships()
-                                          │                               │
-                                          └───────────────┬───────────────┘
-                                                          ↓
-                                                   [Checksum Module]
-                                                   checksum_span()
-                                                          │
-                                                          ↓
-                                                   [Suggest Engine]
-                                                   suggest_action()
-                                                          │
-                                                          ↓
-                                              Enhanced SpanResult
-                                              (all basic fields +
-                                               context_lines +
-                                               semantic_kind +
-                                               relationships +
-                                               checksums +
-                                               suggested_action +
-                                               tool_hints)
+**Before:**
+```rust
+fn execute_query(...) -> Result<...> {
+    // 378 lines of query logic
+    let integration = MagellanIntegration::open(db_path)?;
+    let results = integration.query_by_labels(&labels_ref)?;
+    // ... enrichment logic
+}
 ```
 
-### Per-Feature Integration Flow
-
-**1. Context Extraction (RICHSPAN-01)**
-```
-User runs: splice query --symbol foo --context 3
-                ↓
-CLI handler parses --context flag
-                ↓
-resolve::resolve_symbol() finds span
-                ↓
-context::extract_context() reads file, extracts lines
-                ↓
-SpanResult::from(resolved).with_context(context_lines)
-                ↓
-JSON output includes "context_before", "context_selected", "context_after"
+**After:**
+```rust
+fn execute_query(...) -> Result<...> {
+    let executor = QueryExecutor::new(db_path)?;
+    let options = QueryOptions {
+        relationships,
+        expand,
+        expand_level,
+        show_code,
+    };
+    let response = executor.query_by_labels(&labels, context_config, options)?;
+    Ok(CliSuccessPayload::with_data(message, serde_json::to_value(response)?))
+}
 ```
 
-**2. Semantic Kind Detection (RICHSPAN-02)**
-```
-User runs: splice get --file src/lib.rs --symbol foo
-                ↓
-ingest::extract_rust_symbols() parses with tree-sitter
-                ↓
-ingest::semantic_kind::detect_semantic_kind(node, language) maps node type
-                ↓
-graph::store_symbol_with_file_and_language(..., semantic_kind)
-                ↓
-resolve::resolve_symbol() retrieves node with semantic_kind
-                ↓
-SpanResult includes "semantic_kind": "function_definition"
+**Breaking changes:** NO — CLI interface unchanged, only internal refactoring
+
+### `src/cli/mod.rs` — CLI Argument Structure (MODIFIED)
+
+**Current state:** `Query` and `Get` commands already defined (lines 241-329)
+
+**Changes needed:**
+1. **Add `--limit` flag:** Limit number of results returned
+2. **Add `--offset` flag:** Pagination support
+3. **Add `--format` flag:** Choose between "splice" (rich) or "magellan" (minimal) output
+
+**Added fields:**
+```rust
+Query {
+    // ... existing fields ...
+
+    /// Maximum number of results to return.
+    #[arg(long, default_value = "100")]
+    limit: usize,
+
+    /// Skip first N results (for pagination).
+    #[arg(long, default_value = "0")]
+    offset: usize,
+
+    /// Output format: "splice" (rich) or "magellan" (minimal).
+    #[arg(long, value_name = "FORMAT", default_value = "splice")]
+    format: String,
+}
 ```
 
-**3. Cross-File Relationships (RICHSPAN-03)**
-```
-User runs: splice get --file src/lib.rs --symbol foo --relationships
-                ↓
-resolve::resolve_symbol() finds target symbol
-                ↓
-resolve::relationships::build_relationships(graph, symbol)
-                ↓
-Traverse CodeGraph:
-  - Follow incoming edges → callers
-  - Follow outgoing edges → callees
-  - Query import/export edges → imports/exports
-                ↓
-SpanResult includes "relationships": {callers: [...], callees: [...]}
+**Breaking changes:** NO — new fields are optional with defaults
+
+### `src/graph/magellan_integration.rs` — Magellan Wrapper (EXTEND)
+
+**Current state:** Basic wrapper with `query_by_labels()`, `get_code_chunk()`, `index_file()`
+
+**Changes needed:**
+1. **Add pagination support:** `query_by_labels_paginated(labels, offset, limit)`
+2. **Add label listing:** `get_all_labels()` already exists (line 69-73)
+3. **Add label counting:** `count_by_label()` already exists (line 76-80)
+4. **Add symbol lookup:** `get_symbol_by_id(symbol_id)` for ID-based queries
+
+**New methods:**
+```rust
+impl MagellanIntegration {
+    /// Query symbols with pagination.
+    pub fn query_by_labels_paginated(
+        &self,
+        labels: &[&str],
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<SymbolInfo>>;
+
+    /// Get symbol by its 16-character symbol ID.
+    pub fn get_symbol_by_id(&self, symbol_id: &str) -> Result<Option<SymbolInfo>>;
+
+    /// Get all symbols for pagination metadata (total count).
+    pub fn count_symbols_with_labels(&self, labels: &[&str]) -> Result<usize>;
+}
 ```
 
-**4. Span Checksums (RICHSPAN-04)**
-```
-User runs: splice patch --file src/lib.rs --symbol foo --with new.rs
-                ↓
-resolve::resolve_symbol() finds span
-                ↓
-checksum::checksum_span(file, byte_start, byte_end) computes SHA-256
-                ↓
-Patch applied with validation
-                ↓
-SpanResult includes:
-  "checksum_before": "abc123...",
-  "checksum_after": "def456...",
-  "file_checksum_before": "789ghi..."
+**Breaking changes:** NO — additive methods only
+
+### `src/output.rs` — JSON Output Types (MODIFIED)
+
+**Current state:** `SpanResult`, `SymbolMatch`, `QueryResult`, `GetResponse` defined
+
+**Changes needed:**
+1. **Add `symbol_id` field:** 16-character hex string compatible with Magellan
+2. **Shorten `span_id`:** Option to use 16-char format instead of 64-char SHA-256
+3. **Add `total_count` to `QueryResult`:** For pagination metadata
+
+**Modified structures:**
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SymbolMatch {
+    /// Stable match ID (16-char hex for Magellan compatibility)
+    pub match_id: String,
+    /// Symbol span
+    pub span: Span,
+    /// Symbol name
+    pub name: String,
+    /// Symbol kind (normalized)
+    pub kind: String,
+    /// Parent symbol name (if nested)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent: Option<String>,
+    /// Stable symbol ID (16-char hex, Magellan-compatible)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symbol_id: Option<String>,  // NEW: Always populated in queries
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueryResult {
+    // ... existing fields ...
+
+    /// Total number of results (for pagination)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_count: Option<usize>,  // NEW: Populated when using --limit/--offset
+}
 ```
 
-**5. Suggested Actions (RICHSPAN-05)**
-```
-User runs: splice query --symbol foo
-                ↓
-resolve::resolve_symbol() gets span with semantic_kind
-                ↓
-suggest::suggest_action(symbol, operation_context)
-                ↓
-SpanResult includes:
-  "suggested_action": {
-    "action_type": "rename",
-    "params": {"new_name": "bar"},
-    "confidence": 0.92
-  }
+**Breaking changes:** NO — new fields are optional
+
+## Data Format Alignment
+
+### Symbol ID Format
+
+| Property | Splice Current | Magellan | Alignment Strategy |
+|----------|---------------|----------|-------------------|
+| `symbol_id` length | 64 chars (SHA-256 hex) | 16 chars (first 8 bytes of SHA-256) | Splice adopts Magellan 16-char format for queries |
+| `symbol_id` stability | Per-session UUID | Content-based hash | Splice uses content hash for `symbol_id` |
+| `match_id` format | UUID v4 | Content-based hash | Splice keeps UUID for match uniqueness, adds Magellan-compatible `symbol_id` |
+
+### JSON Schema Alignment
+
+**Splice `QueryResult` (current):**
+```json
+{
+  "labels": ["rust", "fn"],
+  "count": 42,
+  "symbols": [
+    {
+      "span_id": "a1b2c3d4e5f6...",  // 64-char SHA-256
+      "file_path": "src/main.rs",
+      "byte_start": 100,
+      "byte_end": 200,
+      "symbol": "main",
+      "kind": "function",
+      "match_id": "uuid-v4-here",  // UUID
+      "semantics": {"kind": "function", "language": "rust"}
+    }
+  ]
+}
 ```
 
-**6. Tool Hints (RICHSPAN-06)**
-```
-User runs: splice delete --file src/lib.rs --symbol foo
-                ↓
-resolve::resolve_symbol() finds span
-                ↓
-Analyze span properties (size, location, language)
-                ↓
-SpanResult includes:
-  "tool_hints": {
-    "requires_full_context": true,
-    "apply_atomically": true,
-    "verify_after": true
-  }
+**Magellan `LabelQueryResponse` (target):**
+```json
+{
+  "labels": ["rust", "fn"],
+  "count": 42,
+  "symbols": [
+    {
+      "match_id": "a1b2c3d4e5f6g7h8",  // 16-char content hash
+      "span": {
+        "span_id": "a1b2c3d4e5f6g7h8",  // 16-char
+        "file_path": "src/main.rs",
+        "byte_start": 100,
+        "byte_end": 200,
+        "start_line": 10,
+        "start_col": 0,
+        "end_line": 15,
+        "end_col": 1
+      },
+      "name": "main",
+      "kind": "fn",
+      "symbol_id": "i8j7k6l5m4n3o2p1"  // 16-char, separate from span_id
+    }
+  ]
+}
 ```
 
-**7. Error Codes (RICHSPAN-07)**
-```
-Command fails with SpliceError::SymbolNotFound
-                ↓
-error::SpliceError::diagnostics() called
-                ↓
-error_codes::lookup_error("SPL-E001") retrieves definition
-                ↓
-ErrorDetails populated:
-  "kind": "SPL-E001",
-  "severity": "error",
-  "category": "SymbolResolution",
-  "message": "Symbol 'foo' not found",
-  "hint": "Did you mean 'bar'?"
-```
+**Alignment strategy:**
+1. Splice keeps rich fields (`semantics`, `tool_hints`, `suggested_action`) for LLM value
+2. Splice adds `symbol_id` field in Magellan 16-char format
+3. Splice changes `match_id` to match Magellan content-based hash
+4. Splice provides `--format magellan` flag to exclude rich fields for strict compatibility
+
+### Format Modes
+
+| Mode | Fields | Use Case |
+|------|--------|----------|
+| `--format splice` (default) | All Splice fields + Magellan-compatible IDs | LLM consumption, maximum context |
+| `--format magellan` | Magellan-only fields | Tools expecting exact Magellan output |
 
 ## Build Order
 
-Based on dependency analysis, the recommended build order:
+Based on dependency analysis and integration points:
 
-### Phase 1: Foundation Extensions (Low Risk)
-**Rationale:** Extend existing types with optional fields, no breaking changes
+### Step 1: Symbol ID Generator Foundation
+**Create `src/symbol_id.rs`**
+- **Why first:** All other components depend on consistent symbol ID generation
+- **Dependencies:** None (uses `sha2` already in dependencies)
+- **Risk:** LOW — pure function module
+- **Tests:** Unit tests for determinism, uniqueness
 
-1. **Extend `src/error.rs` with error codes** — Enrich error types, add error code lookup
-   - Enables: RICHSPAN-07 (Unified error codes)
-   - Dependencies: None (pure data module)
-   - Risk: LOW — additive changes only
+### Step 2: Format Alignment Module
+**Create `src/format/mod.rs` and `src/format/magellan.rs`**
+- **Why second:** Provides conversion utilities for integration
+- **Dependencies:** Step 1 (symbol_id generator)
+- **Risk:** LOW — conversion functions, no side effects
+- **Tests:** Validate JSON schema compatibility
 
-2. **Extend `src/output.rs::SpanResult`** — Add new optional fields to structure
-   - Enables: All RICHSPAN features (output structure)
-   - Dependencies: None
-   - Risk: LOW — all fields optional, backward compatible
+### Step 3: Magellan Integration Extensions
+**Extend `src/graph/magellan_integration.rs`**
+- **Why third:** Adds pagination and ID-based queries needed by executor
+- **Dependencies:** None (extends existing wrapper)
+- **Risk:** MEDIUM — wraps Magellan library API
+- **Tests:** Integration tests with test database
 
-3. **Extend `src/checksum.rs`** — Add span-level checksum computation
-   - Enables: RICHSPAN-04 (Checksums for race protection)
-   - Dependencies: None (module already exists)
-   - Risk: LOW — pure function addition
+### Step 4: Query Executor Module
+**Create `src/query.rs`**
+- **Why fourth:** Centralizes query logic, uses all previous components
+- **Dependencies:**
+  - Step 1 (symbol_id for ID generation)
+  - Step 2 (format conversion)
+  - Step 3 (Magellan integration)
+- **Risk:** MEDIUM — refactors existing `main.rs` logic
+- **Tests:** Unit tests for executor, integration tests with Magellan
 
-### Phase 2: Detection & Extraction Modules (Medium Risk)
-**Rationale:** New modules with clear dependencies on Phase 1
+### Step 5: CLI Argument Extensions
+**Modify `src/cli/mod.rs`**
+- **Why fifth:** Adds `--limit`, `--offset`, `--format` flags
+- **Dependencies:** None (CLI-only)
+- **Risk:** LOW — additive changes to argument parsing
+- **Tests:** CLI parsing tests
 
-4. **Create `src/ingest/semantic_kind.rs`** — Semantic kind detection from tree-sitter nodes
-   - Enables: RICHSPAN-02 (Semantic kind detection)
-   - Dependencies: Phase 1 (output structure to store results)
-   - Risk: MEDIUM — new module, tree-sitter API integration
+### Step 6: Main.rs Refactoring
+**Modify `src/main.rs`**
+- **Why sixth:** Replaces inline query logic with `QueryExecutor` calls
+- **Dependencies:** Step 4 (QueryExecutor)
+- **Risk:** MEDIUM — refactors existing code, requires careful testing
+- **Tests:** Integration tests for full CLI flow
 
-5. **Create `src/context.rs`** — Context line extraction from source files
-   - Enables: RICHSPAN-01 (Context field)
-   - Dependencies: Phase 1 (output structure to store results)
-   - Risk: MEDIUM — file I/O, line calculation with ropey
+### Step 7: Output Schema Extensions
+**Modify `src/output.rs`**
+- **Why seventh:** Adds `symbol_id`, `total_count` fields to output types
+- **Dependencies:** Step 1 (symbol_id generator)
+- **Risk:** LOW — additive optional fields
+- **Tests:** JSON serialization tests, backward compatibility
 
-6. **Create `src/suggest.rs`** — Suggested action engine for LLM guidance
-   - Enables: RICHSPAN-05 (Suggested actions)
-   - Dependencies: Phase 1 (output structure), Phase 2 semantic_kind
-   - Risk: MEDIUM — heuristic logic, requires testing
-
-### Phase 3: Graph Relationship Integration (High Risk)
-**Rationale:** Complex graph traversal, depends on ingestion and graph structure
-
-7. **Create `src/resolve/relationships.rs`** — Cross-file relationship builder
-   - Enables: RICHSPAN-03 (Full-codebase relationships)
-   - Dependencies:
-     - Phase 1 (output structure)
-     - Phase 2 (semantic_kind for filtering)
-     - Existing `graph::CodeGraph` integration
-   - Risk: HIGH — graph traversal, potential performance impact
-
-8. **Extend `src/graph/mod.rs`** — Store semantic_kind in graph nodes
-   - Enables: RICHSPAN-02 (persist semantic kind), RICHSPAN-03 (relationship queries)
-   - Dependencies:
-     - Phase 2 semantic_kind module
-     - Phase 3 relationship builder
-   - Risk: MEDIUM — modifies core graph operations
-
-### Phase 4: CLI Integration (Medium Risk)
-**Rationale:** Integrates all modules into user-facing commands
-
-9. **Update `src/main.rs` CLI handlers** — Wire context, relationships, checksums
-   - Enables: All RICHSPAN features (CLI exposure)
-   - Dependencies:
-     - All Phase 1-3 modules
-     - Existing CLI infrastructure
-   - Risk: MEDIUM — multiple integration points, needs testing
-
-10. **Add `splice explain` command** — Error code documentation lookup
-    - Enables: RICHSPAN-07 (Error documentation)
-    - Dependencies: Phase 1 error_codes module
-    - Risk: LOW — simple read-only command
-
-### Phase 5: Testing & Validation (Required)
-**Rationale:** Ensure all features work across 7 languages
-
-11. **Integration tests for rich spans** — Test all features across languages
-    - Context extraction accuracy (line counts, boundaries)
-    - Semantic kind detection coverage per language
-    - Relationship graph correctness
-    - Checksum computation correctness
-    - Error code mapping completeness
-
-## Performance Considerations
-
-### Feature Impact Analysis
-
-| Feature | Component Impact | Performance Risk | Mitigation |
-|---------|------------------|------------------|------------|
-| **Context extraction** | File I/O for context lines | LOW | Uses existing `ropey` Rope for efficient line calculation; lazy loading (only when requested via --context flag) |
-| **Semantic kind detection** | Ingest-time node type mapping | LOW | Pure computation during ingestion; O(1) lookup table per language; cached in graph |
-| **Relationship building** | Graph traversal for callers/callees | HIGH | **Potential bottleneck:** full-codebase graph traversal. Mitigation: (1) Lazy evaluation (only when `--relationships` flag used), (2) Limit traversal depth with configurable `--max-depth`, (3) Cache results per query session |
-| **Span checksums** | SHA-256 computation per span | LOW-MEDIUM | SHA-256 is fast; impact scales with span count. Mitigation: Compute only for operations that modify code (patch/delete), not read-only queries |
-| **Suggested actions** | Heuristic analysis per span | LOW | Simple rule-based logic; negligible overhead |
-| **Error codes** | Error variant → code lookup | LOW | O(1) HashMap lookup; negligible overhead |
-| **Tool hints** | Span property analysis | LOW | Simple boolean checks; negligible overhead |
-
-### Scaling Considerations
-
-**At 100 files:**
-- Context extraction: Negligible (file already in memory for parsing)
-- Semantic kind: Negligible (computed during ingest)
-- Relationships: < 1ms per query (small graph)
-- Checksums: < 10ms for batch operations
-
-**At 10K files:**
-- Context extraction: Still negligible (per-file operation)
-- Semantic kind: Still negligible (computed once per ingest)
-- Relationships: **100ms - 1s** for deep traversal (mitigation: limit depth, add indices)
-- Checksums: < 100ms for batch (SHA-256 is fast)
-
-**At 1M+ files (monorepo scale):**
-- Context extraction: Negligible (per-file operation doesn't scale with repo size)
-- Semantic kind: Negligible (computed once per ingest)
-- Relationships: **SEVERAL SECONDS** for full traversal. **Mitigation critical:**
-  - Default to shallow relationships (direct callers/callees only)
-  - Require explicit `--recursive` flag for deep traversal
-  - Add graph indices on relationship edge types
-  - Consider incremental relationship caching
-- Checksums: < 1s for batch (linear with number of changed files, not repo size)
-
-### Memory Considerations
-
-**Context lines:**
-- 3 lines before/after × ~80 chars/line ≈ 480 bytes per span
-- For 1000 spans: ~480 KB (negligible)
-
-**Relationships:**
-- Each related span: ~200 bytes (file_path, byte_start/end, symbol, kind)
-- For 10 callers + 10 callees + 10 imports + 10 exports = 40 related spans
-- 40 × 200 bytes = 8 KB per symbol (negligible)
-
-**Checksums:**
-- SHA-256 hex string = 64 bytes per checksum
-- 3 checksums per span (before, after, file) = 192 bytes
-- Negligible
-
-**Conclusion:** Rich span extensions add minimal memory overhead (< 1MB even for large queries). The primary concern is graph traversal performance for relationships at scale.
+### Step 8: Documentation and Examples
+**Create docs/magellan_integration.md**
+- **Why eighth:** Documents integration patterns for users
+- **Dependencies:** All previous steps complete
+- **Risk:** NONE — documentation only
+- **Tests:** Example validation (run examples in docs)
 
 ## Integration Risks & Mitigation
 
-### Risk 1: Graph Traversal Performance (Relationship Building)
-**Severity:** HIGH
-**Impact:** Full-codebase relationship queries could timeout on large codebases (10K+ files)
-**Mitigation:**
-- Lazy evaluation: Only build relationships when `--relationships` flag is present
-- Depth limiting: Default to depth=1 (direct relationships), require `--recursive` for deeper
-- Progress indication: Show progress bar for long-running traversals
-- Caching: Cache relationship results per query session
-- Future: Add specialized graph indices on relationship edge types
-
-### Risk 2: Context Extraction Accuracy
+### Risk 1: Symbol ID Collision
 **Severity:** MEDIUM
-**Impact:** Incorrect line boundaries or UTF-8 handling could crash context extraction
+**Impact:** Magellan and Splice generate different IDs for the same symbol → confusion in downstream tools
 **Mitigation:**
-- Reuse existing `ropey::Rope` infrastructure (proven in patch module)
-- Comprehensive tests for edge cases (file start/end, empty files, very long lines)
-- Fallback to empty context on extraction errors (non-fatal)
+- Verify Magellan's ID generation algorithm matches Splice implementation
+- Test with real Magella database to ensure ID consistency
+- Document ID format clearly for consumers
+- Add validation tests for ID uniqueness
 
-### Risk 3: Semantic Kind Coverage
+### Risk 2: JSON Schema Drift
+**Severity:** LOW
+**Impact:** Splice adds rich fields that Magellan consumers don't expect → parsing errors
+**Mitigation:**
+- Use `#[serde(skip_serializing_if = "Option::is_none")]` for all Splice-specific fields
+- Provide `--format magellan` flag for strict compatibility
+- Document schema differences clearly
+- Validate against Magella's test cases
+
+### Risk 3: Main.rs Refactoring Complexity
 **Severity:** MEDIUM
-**Impact:** Missing mappings for tree-sitter node types → fallback to generic "unknown" kind
+**Impact:** Refactoring 600+ lines of query logic could introduce bugs
 **Mitigation:**
-- Start with high-confidence mappings only (function, class, variable, parameter)
-- Add "unknown" kind gracefully (doesn't break output, just less informative)
-- Per-language test coverage for common node types
-- Document extension points for adding new mappings
+- Extract logic incrementally (query first, then get)
+- Maintain existing tests as refactoring safety net
+- Add new tests for `QueryExecutor` before removing old code
+- Keep old functions as deprecated wrappers during transition
 
-### Risk 4: Backward Compatibility
+### Risk 4: Magell an API Changes
 **Severity:** LOW
-**Impact:** Existing tooling that consumes Splice JSON output might not handle new fields
+**Impact:** Magell 0.5.x API changes could break integration
 **Mitigation:**
-- All new fields use `#[serde(skip_serializing_if = "Option::is_none")]`
-- Default to `None` when not explicitly populated
-- Old tooling sees no new fields, new tooling gets rich data
-- Document JSON schema evolution clearly
+- Pin Magell version in Cargo.toml (`= "0.5.3"`)
+- Wrap Magell API behind `MagellanIntegration` abstraction layer
+- Monitor Magell releases for breaking changes
+- Version compatibility tests
 
-### Risk 5: Checksum Computation Overhead
+### Risk 5: Performance Regression
 **Severity:** LOW
-**Impact:** SHA-256 computation adds latency to patch/delete operations
+**Impact:** Additional format conversions and ID generation slow queries
 **Mitigation:**
-- SHA-256 is fast (~200MB/s on modern CPUs)
-- Only compute checksums for modifying operations (not read-only queries)
-- Cache checksums during batch operations (compute once per file)
+- Benchmark query performance before/after
+- Optimize ID generation (cache SHA-256 hasher)
+- Lazy evaluation for format conversions
+- Only compute `symbol_id` when needed (query output)
 
-## Existing Architecture Compatibility
+## Dependencies on Existing Components
 
-The rich span extensions are designed to integrate seamlessly with the existing Splice v2.0 architecture:
+### Required (Already Implemented)
+- `src/graph/magellan_integration.rs`: Magell wrapper (HIGH confidence, production-ready)
+- `src/main.rs::execute_query()`: Query delegation logic (needs refactoring)
+- `src/main.rs::execute_get()`: Get command logic (needs refactoring)
+- `src/output.rs`: `SpanResult`, `SymbolMatch`, `QueryResult` (needs `symbol_id` field)
+- `src/context.rs`: Context extraction (HIGH confidence, used by queries)
+- `src/ingest/semantic_kind.rs`: Semantic kind detection (HIGH confidence)
+- `src/hints.rs`: Tool hints derivation (HIGH confidence)
+- `src/action.rs`: Suggested actions (HIGH confidence)
 
-**1. SQLiteGraph Integration (No Changes Required)**
-- Current: Stores symbol nodes with `kind`, `byte_start`, `byte_end`, `language`, `line_start`, `line_end`, `col_start`, `col_end`, `file_path`
-- Extension: Add `semantic_kind` as additional node property (JSON data field)
-- Compatibility: Fully backward compatible — old queries ignore new property
+### Optional (For Full Feature Set)
+- `src/resolve/relationships.rs`: Cross-file relationships (needed for `--relationships` flag)
+- `src/checksum.rs`: Span checksums (needed for checksum fields in output)
+- `src/expand.rs`: Symbol expansion (needed for `--expand` flag)
 
-**2. Tree-Sitter Parsing (No Changes Required)**
-- Current: Parse AST, extract symbols via language-specific modules
-- Extension: Add semantic kind detection as post-processing step on `tree_sitter::Node`
-- Compatibility: No changes to parsing logic, purely additive metadata extraction
+## Database Schema Considerations
 
-**3. Validation Gates (No Changes Required)**
-- Current: Tree-sitter reparse + compiler validation
-- Extension: None required — rich span output doesn't affect validation logic
-- Compatibility: Independent concern
+### Magellan Database (Separate from Splice Graph)
 
-**4. Execution Logging (No Changes Required)**
-- Current: Log operations to `.splice/operations.db` with execution_id
-- Extension: Rich span data is output-only, not persisted to execution log
-- Compatibility: Execution log schema unchanged
+**Location:** User-specified via `--db` flag
 
-**5. Patch Application (No Changes Required)**
-- Current: `SpanReplacement` with file, start, end, content
-- Extension: Checksums computed before/after patch, but doesn't affect patch logic
-- Compatibility: Patch module unchanged, checksums are computed in parallel
+**Contents:**
+- Indexed symbols with labels (language, kind)
+- Code chunks (source code stored by byte span)
+- Entity graph (nodes and edges)
 
-## Success Criteria
+**Access pattern:** Read-only for queries (Splice never writes to Magellan database)
 
-Rich span extensions are complete when:
+### Splice Graph Database (Separate from Magellan)
 
-1. **Context extraction (RICHSPAN-01):**
-   - [ ] `--context <n>` flag works for query, get, delete, patch commands
-   - [ ] JSON output includes `context_before`, `context_selected`, `context_after` arrays
-   - [ ] Context respects `-A`/`-B`/`-C` flags (CLI-02 requirement)
-   - [ ] UTF-8 and CRLF line endings handled correctly
+**Location:** `.splice_graph.db` or project-specific
 
-2. **Semantic kind detection (RICHSPAN-02):**
-   - [ ] All 7 languages have semantic kind mappings for common node types
-   - [ ] JSON output includes `semantic_kind` field
-   - [ ] Coverage for: function, method, class, variable, parameter, type, constant, module
+**Contents:**
+- Symbol nodes with DEFINES edges from File nodes
+- Span metadata (byte_start, byte_end, line/col)
+- Relationship edges (callers, callees, imports, exports)
 
-3. **Cross-file relationships (RICHSPAN-03):**
-   - [ ] `--relationships` flag triggers relationship building
-   - [ ] JSON output includes `relationships` with callers, callees, imports, exports arrays
-   - [ ] Relationship traversal depth limited with `--max-depth <n>` flag
-   - [ ] Performance acceptable on 1K file codebase (< 1s for shallow traversal)
+**Access pattern:** Read-write for edits, read-only for relationships
 
-4. **Span checksums (RICHSPAN-04):**
-   - [ ] Patch/delete operations include `checksum_before`, `checksum_after`
-   - [ ] All operations include `file_checksum_before`
-   - [ ] Checksums verified to match SHA-256 of actual span content
-   - [ ] Race protection: checksum mismatch returns error
-
-5. **Suggested actions (RICHSPAN-05):**
-   - [ ] Query/get operations include `suggested_action` field
-   - [ ] Action types include: rename, extract, inline, move, delete
-   - [ ] Confidence scores populated (0.0 - 1.0 range)
-   - [ ] Params field includes action-specific parameters
-
-6. **Tool hints (RICHSPAN-06):**
-   - [ ] All span output includes `tool_hints` field
-   - [ ] Hints include: `requires_full_context`, `apply_atomically`, `verify_after`
-   - [ ] Hints based on span properties (size, location, language)
-
-7. **Error codes (RICHSPAN-07):**
-   - [ ] All errors include stable `SPL-E###` code
-   - [ ] `splice explain <code>` command returns documentation
-   - [ ] Error taxonomy documented (ParseError, ValidationError, etc.)
-   - [ ] Compiler error codes extracted (Rust E0XXX, TypeScript TSXXXX)
+**Key insight:** Splice and Magella maintain separate databases. Splice does NOT write to Magella's database. Delegation is query-only.
 
 ## Confidence Assessment
 
 | Area | Confidence | Reason |
 |------|------------|--------|
-| Integration points | HIGH | Read all existing source files (src/lib.rs, src/output.rs, src/resolve/mod.rs, src/graph/mod.rs, src/checksum.rs, src/error.rs) — clear extension points identified |
-| New components design | HIGH | Follows existing patterns (e.g., `src/ingest/` language modules, `src/resolve/` for reference finding) — modular design with clear boundaries |
-| Data flow changes | HIGH | Rich span enrichment is a "side channel" to existing flow — doesn't break core validation pipeline |
-| Build order rationale | HIGH | Based on explicit dependency analysis — Phase 1 (foundation) → Phase 2 (extraction) → Phase 3 (relationships) → Phase 4 (integration) |
-| Performance impact | HIGH | Analyzed each feature independently — only relationships have HIGH risk, with clear mitigation strategies |
-| Backward compatibility | HIGH | All extensions use optional fields with `skip_serializing_if — JSON output evolves without breaking existing consumers |
+| Delegation pattern | HIGH | Read `src/graph/magellan_integration.rs` (256 lines) — library delegation already implemented and working |
+| Query executor design | HIGH | Based on existing `execute_query()` and `execute_get()` patterns — clear extraction path |
+| Symbol ID generation | MEDIUM | Inferred from Magell usage; LOW confidence on exact algorithm without Magell source verification |
+| Format alignment | HIGH | Read `src/output.rs` — schema differences clear, alignment strategy straightforward |
+| Main.rs refactoring | HIGH | Existing functions are modular; extraction to module low-risk |
+| CLI flag additions | HIGH | Clap pattern established; additive changes only |
+| Database separation | HIGH | Confirmed by reading `src/graph/mod.rs` — Splice uses SQLiteGraph, Magell uses its own storage |
 
 **Overall confidence: HIGH**
 
-The architecture for rich span extensions is well-defined, minimally invasive, and follows established patterns in the Splice codebase. The primary risk is graph traversal performance for relationships, which has multiple mitigation strategies. All other features are low-risk additive extensions.
+The delegation pattern is already implemented and working in production. The remaining work is refactoring for clarity, adding pagination, and ensuring format alignment. The primary uncertainty is Magell's exact symbol ID generation algorithm, which can be verified through testing.
 
 ## Gaps to Address
 
-1. **Relationship graph schema:** Need to define edge types for callers/callees/imports/exports in SQLiteGraph
-   - **Phase 3 research:** Map out edge type taxonomy and traversal queries
+1. **Magella symbol ID algorithm:** Need to verify exact hash input for 16-char symbol IDs
+   - **Validation:** Test against real Magella database with known symbols
+   - **Fallback:** Use Splice's content-based hash if algorithm differs
 
-2. **Semantic kind mapping coverage:** Need comprehensive mapping of tree-sitter node types → semantic kinds for all 7 languages
-   - **Phase 2 research:** Document node type coverage per language
+2. **Pagination behavior:** Need to define Magella's pagination semantics
+   - **Question:** Does Magella support offset/limit natively?
+   - **Fallback:** Implement client-side pagination if Magella lacks it
 
-3. **LLM action taxonomy:** Need to define action_type vocabulary and param schemas for LLM guidance
-   - **Phase 2 research:** Survey LLM refactoring tools (GitHub Copilot, CodeLlama) for action conventions
+3. **Error code alignment:** Magella may have different error codes
+   - **Action:** Map Magella errors to Splice error codes
+   - **Document:** Error code translation table
 
-4. **Performance testing:** Need benchmarks for relationship building at scale
-   - **Phase 3 testing:** Test on 10K+ file codebases to validate mitigation strategies
+4. **Performance benchmarks:** Need baseline query performance
+   - **Action:** Benchmark `execute_query()` on 1K/10K file codebases
+   - **Target:** < 100ms for typical queries
+
+## Sources
+
+- **Source code analysis:** Read `/home/feanor/Projects/splice/src/main.rs` (lines 1982-2750) — query/get command implementation
+- **Source code analysis:** Read `/home/feanor/Projects/splice/src/graph/magellan_integration.rs` (256 lines) — Magella wrapper
+- **Source code analysis:** Read `/home/feanor/Projects/splice/src/output.rs` (1090 lines) — JSON output types
+- **Source code analysis:** Read `/home/feanor/Projects/splice/src/cli/mod.rs` (728 lines) — CLI argument structure
+- **Source code analysis:** Read `/home/feanor/Projects/splice/src/resolve/mod.rs` (543 lines) — symbol resolution
+- **Dependency check:** `/home/feanor/Projects/splice/Cargo.toml` — `magellan = "0.5.3"` dependency confirmed
+- **Existing research:** `/home/feanor/Projects/splice/.planning/research/ARCHITECTURE.md` — Rich span architecture context
 
 ---
 
-*Architecture research complete: 2026-01-22*
+*Architecture research complete: 2026-01-24*
+*Focus: Magellan query delegation integration with existing Splice architecture*
 *Ready for roadmap phase creation*

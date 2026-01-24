@@ -1,350 +1,509 @@
-# Technology Stack: Splice v2.2 Rich Span Extensions
+# Technology Stack
 
-**Research Date:** 2026-01-22
-**Milestone:** v2.2 - Unified JSON Schema & LLM Optimization
-**Research Focus:** Stack additions needed for rich span extensions
+**Project:** Splice v2.2.2 - Magellan Integration
+**Researched:** 2026-01-24
+**Mode:** Ecosystem (Stack additions for query delegation)
 
 ---
 
 ## Executive Summary
 
-**Key Finding:** Splice v2.2 requires **ZERO new external dependencies** for rich span extensions. All required functionality can be built using:
+Splice already has **all dependencies** needed for Magellan query delegation. The Magellan crate (v0.5.3) provides the complete query API. This milestone requires **no new dependencies** - only code structure additions:
 
-1. **Existing stack** - tree-sitter 0.22, sha2 0.10, serde 1.0, rusqlite 0.31
-2. **Magellan integration** - Magellan 0.5.3 already provides call graph data via `CALLER`/`CALLS` edges
-3. **Pure Rust implementations** - String similarity, error codes, and context extraction using stdlib
-
-**Confidence: HIGH** - All capabilities verified with existing codebase and official documentation.
-
----
-
-## Stack Additions for v2.2
-
-### Required Libraries
-
-#### None
-
-All v2.2 features can be implemented with existing dependencies:
-- tree-sitter 0.22 (already installed)
-- sha2 0.10 (already installed)
-- serde 1.0 (already installed)
-- rusqlite 0.31 (already installed)
-- magellan 0.5.3 (already integrated)
-
-### No Additional Dependencies
-
-| Feature | Implementation Approach |
-|---------|------------------------|
-| **Context field** (before/selected/after lines) | Use tree-sitter `Node` API + ropey 1.6 for line extraction |
-| **Semantic kind detection** | Use existing `SymbolKind` enum in `src/cli/mod.rs:273-298` |
-| **Relationships** (callers/callees) | Query Magellan's `CALLER`/`CALLS` edges from codegraph.db |
-| **Additional checksums** | Use existing `checksum::checksum_span()` from `src/checksum.rs:64` |
-| **Suggested action metadata** | Add struct to `src/output.rs`, serialize with serde |
-| **Tool hints** | Add struct to `src/output.rs`, serialize with serde |
-| **Unified error codes** | Add constants to `src/error.rs`, no external lib needed |
+1. New CLI subcommands (`status`, `find`, `refs`, `files`)
+2. Response type wrappers matching Magellan's JSON format
+3. Delegation functions in `src/graph/magellan_integration.rs`
+4. CLI flags (`--output`, `--db`) already implemented globally
 
 ---
 
-## Detailed Implementation Approach
+## Existing Stack (Splice v2.0.0)
 
-### 1. Context Field (before/selected/after lines)
+### Core Dependencies (from Cargo.toml)
 
-**Existing capability:**
+| Technology | Version | Purpose | Status |
+|------------|---------|---------|--------|
+| `magellan` | 0.5.3 | Code indexing, label queries, status, find, refs, files | **Installed** |
+| `sqlitegraph` | 1.0 | Graph backend (re-exported from magellan) | **Installed** |
+| `rusqlite` | 0.31 | Direct SQLite access | **Installed** |
+| `clap` | 4.5 | CLI argument parsing | **Installed** |
+| `serde` | 1.0 | JSON serialization | **Installed** |
+| `serde_json` | 1.0 | JSON output | **Installed** |
+| `chrono` | 0.4 | Timestamp generation | **Installed** |
+| `sha2` | 0.10 | Stable ID generation (span_id, symbol_id) | **Installed** |
+| `uuid` | 1.10 | Execution ID generation | **Installed** |
+| `tree-sitter` | 0.22 | AST parsing (7 languages) | **Installed** |
+
+### Language Support (via tree-sitter)
+
+| Language | Parser Version | File Extensions |
+|----------|---------------|-----------------|
+| Rust | tree-sitter-rust 0.21 | .rs |
+| Python | tree-sitter-python 0.21 | .py |
+| C | tree-sitter-c 0.21 | .c, .h |
+| C++ | tree-sitter-cpp 0.21 | .cpp, .hpp, .cc, .cxx |
+| Java | tree-sitter-java 0.21 | .java |
+| JavaScript | tree-sitter-javascript 0.21 | .js, .mjs, .cjs |
+| TypeScript | tree-sitter-typescript 0.21 | .ts, .tsx |
+
+---
+
+## Stack Additions (Magellan Delegation)
+
+### No New Dependencies Required
+
+The existing `magellan = { version = "0.5.3", features = ["native-v2"] }` dependency provides:
+
 ```rust
-// From src/output.rs:233-333
-pub struct SpanResult {
-    pub file_path: String,
-    pub byte_start: usize,
-    pub byte_end: usize,
-    pub line_start: usize,
-    pub line_end: usize,
-    // ...
+// From magellan 0.5.3 API
+use magellan::CodeGraph;
+
+impl CodeGraph {
+    // Database status
+    pub fn get_stats(&self) -> Result<GraphStats>
+
+    // Query by file
+    pub fn query_file(&self, file_path: &str) -> Result<Vec<SymbolInfo>>
+
+    // Find by name or symbol_id
+    pub fn find_symbol(&self, name: &str) -> Result<Vec<SymbolInfo>>
+    pub fn find_by_symbol_id(&self, symbol_id: &str) -> Result<SymbolInfo>
+
+    // References/call graph
+    pub fn get_references(&self, symbol_id: &str, direction: Direction) -> Result<Vec<Reference>>
+    pub fn get_callers(&self, symbol_id: &str) -> Result<Vec<CallInfo>>
+    pub fn get_callees(&self, symbol_id: &str) -> Result<Vec<CallInfo>>
+
+    // File listing
+    pub fn list_files(&self) -> Result<Vec<String>>
 }
 ```
 
-**Add to SpanResult:**
-```rust
-/// Context lines surrounding the span
-#[serde(skip_serializing_if = "Option::is_none")]
-pub context: Option<SpanContext>,
+### New Code Structure (Not Dependencies)
+
+| Addition | Location | Purpose |
+|----------|----------|---------|
+| CLI commands | `src/cli/mod.rs` | Add `Status`, `Find`, `Refs`, `Files` variants to `Commands` enum |
+| Response types | `src/output.rs` | Add `StatusResponse`, `FindResponse`, `RefsResponse`, `FilesResponse` |
+| Delegation functions | `src/graph/magellan_integration.rs` | Wrapper functions calling Magellan API |
+| Execution handlers | `src/main.rs` | Match arms for new commands |
+
+---
+
+## Delegation Strategy
+
+### Pattern: Splice as Thin Adapter
+
+```
+User Command
+    |
+    v
+[main.rs: execute_*()]  -- Parse args, call delegation
+    |
+    v
+[magellan_integration.rs]  -- Call Magellan API, convert types
+    |
+    v
+[magellan crate]  -- Execute query on graph
+    |
+    v
+[magellan_integration.rs]  -- Convert to Splice response types
+    |
+    v
+[output.rs]  -- Serialize to JsonResponse wrapper
+    |
+    v
+User Output (JSON or human)
 ```
 
-**Implementation:**
-- Use `ropey::Rope` to read file (already in Cargo.toml)
-- Extract lines at `(line_start - N)` to `(line_end + N)`
-- Parse with tree-sitter to verify semantic boundaries
+### Example: `status` Command
 
-**No new dependencies needed.**
-
-### 2. Semantic Kind Detection
-
-**Existing code:**
 ```rust
-// From src/cli/mod.rs:273-298
-pub enum SymbolKind {
-    Function,
-    Method,
-    Class,
-    Struct,
-    Interface,
-    Enum,
-    Trait,
-    Impl,
-    Module,
-    Variable,
-    Constructor,
-    TypeAlias,
+// src/cli/mod.rs
+pub enum Commands {
+    // ... existing commands ...
+
+    /// Show database statistics
+    Status {
+        /// Path to the Magellan database
+        #[arg(short, long)]
+        db: std::path::PathBuf,
+
+        /// Output format (human, json, pretty)
+        #[arg(long, value_name = "FORMAT")]
+        output: Option<OutputFormat>,
+    },
+}
+
+// src/graph/magellan_integration.rs
+impl MagellanIntegration {
+    pub fn get_status(&self) -> Result<StatusData> {
+        let stats = self.inner.get_stats()?;
+        Ok(StatusData {
+            files: stats.file_count,
+            symbols: stats.symbol_count,
+            references: stats.reference_count,
+            calls: stats.call_count,
+            code_chunks: stats.chunk_count,
+        })
+    }
+}
+
+// src/main.rs
+fn execute_status(db: &Path, output_format: OutputFormat) -> Result<CliSuccessPayload> {
+    let integration = MagellanIntegration::open(db)?;
+    let status_data = integration.get_status()?;
+
+    let response = JsonResponse::new(
+        StatusResponse::from(status_data),
+        &Uuid::new_v4().to_string(),
+    );
+
+    match output_format {
+        OutputFormat::Json => emit_json_response(&response)?,
+        OutputFormat::Pretty => emit_pretty_json_response(&response)?,
+        OutputFormat::Human => print_human_status(&response.data)?,
+    }
+
+    Ok(CliSuccessPayload::message_only("Status retrieved".to_string()))
 }
 ```
 
-**Implementation:**
-- Map tree-sitter node types to `SymbolKind` enum
-- Add `language: String` field to output (from existing `Language` enum)
+### Example: `find` Command
 
-**No new dependencies needed.**
-
-### 3. Relationships (callers/callees/imports/exports)
-
-**Existing Magellan integration:**
 ```rust
-// Magellan provides CALLER and CALLS edges in codegraph.db
-// From magellan/src/graph/call_ops.rs
-pub fn callees_of_symbol(&mut self, symbol_id: i64) -> Result<Vec<CallFact>>
-pub fn callers_of_symbol(&mut self, symbol_id: i64) -> Result<Vec<CallFact>>
-```
+// src/cli/mod.rs
+Find {
+    /// Path to the Magellan database
+    #[arg(short, long)]
+    db: std::path::PathBuf,
 
-**Implementation:**
-1. Query `CALLER` edges (functions that call this symbol)
-2. Query `CALLS` edges (functions called by this symbol)
-3. Query import/export data (already in `src/ingest/imports/`)
+    /// Symbol name to find
+    #[arg(short, long)]
+    name: Option<String>,
 
-**No new dependencies needed - use existing magellan 0.5.3.**
+    /// Stable symbol ID (16-char hex)
+    #[arg(long)]
+    symbol_id: Option<String>,
 
-### 4. Additional Checksums
+    /// Limit search to file path
+    #[arg(long)]
+    path: Option<std::path::PathBuf>,
 
-**Existing checksum module:**
-```rust
-// From src/checksum.rs:64-88
-pub fn checksum_span(path: &Path, start: usize, end: usize) -> Result<Checksum>
+    /// Output format
+    #[arg(long, value_name = "FORMAT")]
+    output: Option<OutputFormat>,
+},
 
-// Already supports SHA-256 of byte spans
-```
+// Delegation function
+impl MagellanIntegration {
+    pub fn find_symbol(
+        &self,
+        name: Option<&str>,
+        symbol_id: Option<&str>,
+        path_filter: Option<&Path>,
+    ) -> Result<Vec<SymbolMatch>> {
+        let results = if let Some(sid) = symbol_id {
+            vec![self.inner.find_by_symbol_id(sid)?]
+        } else if let Some(n) = name {
+            let mut results = self.inner.find_symbol(n)?;
+            if let Some(p) = path_filter {
+                let p_str = p.to_str().unwrap();
+                results.retain(|r| r.file_path == p_str);
+            }
+            results
+        } else {
+            return Err(SpliceError::Other("Either --name or --symbol-id required".into()));
+        };
 
-**Add to SpanResult:**
-```rust
-/// Checksum of span content before modification
-#[serde(skip_serializing_if = "Option::is_none")]
-pub checksum_before: Option<String>,
-
-/// SHA-256 of entire file before operation
-#[serde(skip_serializing_if = "Option::is_none")]
-pub file_checksum_before: Option<String>,
-```
-
-**No new dependencies needed - sha2 0.10 already in use.**
-
-### 5. Suggested Action Metadata
-
-**New struct in src/output.rs:**
-```rust
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SuggestedAction {
-    pub action_type: String,  // "rename", "delete", "extract", "inline"
-    pub params: serde_json::Value,
+        Ok(results.into_iter().map(SymbolMatch::from).collect())
+    }
 }
 ```
 
-**No new dependencies needed - serde 1.0 already in use.**
+---
 
-### 6. Tool Hints
+## CLI Alignment
 
-**New struct in src/output.rs:**
+### Global Flags (Already Present)
+
+| Flag | Current Implementation | Notes |
+|------|------------------------|-------|
+| `--json` | Global in `Cli` struct | Enables JSON output |
+| `--db` | Per-command in `Query`, `Get` | Move to global or add to new commands |
+
+### New Flag: `--output`
+
+Magellan uses `--output human|json|pretty`. Splice currently uses global `--json` bool.
+
+**Approach:** Add `--output` as an optional override. If `--output` is specified, it takes precedence. Otherwise, `--json` flag controls behavior.
+
 ```rust
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolHints {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub requires_full_context: Option<bool>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub apply_atomically: Option<bool>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub search_case_sensitive: Option<bool>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub language_hints: Option<serde_json::Value>,
+// src/cli/mod.rs
+#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OutputFormat {
+    /// Human-readable text output
+    Human,
+    /// Compact JSON for programmatic consumption
+    Json,
+    /// Formatted JSON with indentation
+    Pretty,
 }
+
+// In each command struct that needs it:
+#[arg(long, value_name = "FORMAT")]
+output: Option<OutputFormat>,
 ```
 
-**No new dependencies needed - serde 1.0 already in use.**
+---
 
-### 7. Unified Error Codes
+## Data Format Alignment
 
-**New constants in src/error.rs:**
+### Execution ID Format
+
+**Current Splice:** UUID v4 (e.g., "a1b2c3d4-e5f6-1234-5678-90abcdef1234")
+
+**Magellan convention:** `{timestamp_hex}-{pid_hex}` (e.g., "67abc123d4567-123a")
+
+**Decision:** Splice should keep its UUID format for Splice operations (patch, delete, etc.) but **adopt Magellan's format for delegated query commands**. This provides:
+
+1. Traceability across the integrated toolset
+2. Correlation with Magellan's own execution logs
+3. Compliance with `docs/JSON_EXPORT_FORMAT.md` specification
+
 ```rust
-pub const SPLICE_E001: &str = "SPL-E001";
-pub const SPLICE_E002: &str = "SPL-E002";
-// ...
+// New helper in src/output.rs
+pub fn generate_magellan_execution_id() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::process;
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let pid = process::id();
+    format!("{:x}-{:x}", timestamp, pid)
+}
+
+// Use for delegated commands
+let exec_id = generate_magellan_execution_id();
+let response = JsonResponse::new(data, &exec_id);
 ```
 
-**Implementation:**
-- Add `code` field to existing error types
-- Map existing errors to SPL-E### format
+### Symbol ID Format
 
-**No new dependencies needed - pure constants.**
+**Specification:** 16 hex characters (64 bits) from SHA-256 hash
+
+```
+symbol_id = SHA256(language + ":" + fqn + ":" + span_id)[0:16]
+```
+
+**Current Splice:** Splice uses `span_id` (16 hex chars) generated by `generate_span_id()` in `src/output.rs:430-445`. This matches the spec.
+
+**Action:** No change needed. Magellan provides `symbol_id` in query results.
+
+### FQN (Fully Qualified Name)
+
+**Specification:**
+- `canonical_fqn`: `{crate}::{file_path}::{kind} {symbol_name}`
+- `display_fqn`: `{crate}::{module_chain}::{symbol_name}`
+
+**Current Splice:** Splice does not currently compute FQNs.
+
+**Action:** Add FQN computation module or use Magellan's FQN from query results. For delegated commands, use Magellan's FQN fields directly.
+
+---
+
+## What NOT to Add
+
+### Do NOT Add
+
+| Category | What | Why |
+|----------|------|-----|
+| Dependencies | Any new crates | Magellan 0.5.3 already provides all needed APIs |
+| Database access | Direct rusqlite for queries | Use Magellan's typed API instead |
+| FQN computation | New FQN builder module | Magellan provides FQNs in query results |
+| CLI flag library | New CLI parsing crate | clap 4.5 is already installed and sufficient |
+| JSON library | Alternative JSON serializers | serde_json is already used throughout |
+| SHA-256 library | Alternative hash library | sha2 0.10 already installed for span_id generation |
+
+### Do NOT Re-implement
+
+| Function | Use Instead |
+|----------|-------------|
+| `find_by_name` | `magellan::CodeGraph::find_symbol` |
+| `get_references` | `magellan::CodeGraph::get_references` |
+| `get_callers/callees` | `magellan::CodeGraph::get_callers/callees` |
+| `list_files` | `magellan::CodeGraph::list_files` |
+| `get_stats` | `magellan::CodeGraph::get_stats` |
 
 ---
 
 ## Integration Points
 
-### Existing Stack → New Features
+### 1. `src/graph/magellan_integration.rs` (Extend)
 
-| Existing Component | New Capability |
-|--------------------|----------------|
-| **tree-sitter 0.22** | Context extraction, semantic kind detection |
-| **sha2 0.10** | Span checksums, file checksums for race protection |
-| **magellan 0.5.3** | Caller/callee relationships via CALLER/CALLS edges |
-| **serde 1.0** | Serialize all new structs to JSON |
-| **rusqlite 0.31** | Query relationships from codegraph.db |
-| **ropey 1.6** | Efficient line-based context extraction |
+**Current state:** Provides `query_by_labels`, `get_code_chunk`
 
-### Data Flow
+**Add:** Delegation wrappers for status, find, refs, files
 
+```rust
+impl MagellanIntegration {
+    // NEW: Get database status
+    pub fn get_status(&self) -> Result<StatusData>;
+
+    // NEW: Find by name or symbol_id
+    pub fn find(&self, name: Option<&str>, symbol_id: Option<&str>, path: Option<&Path>) -> Result<Vec<SymbolMatch>>;
+
+    // NEW: Get references for a symbol
+    pub fn get_refs(&self, symbol_id: &str, direction: Direction) -> Result<Vec<ReferenceMatch>>;
+
+    // NEW: List indexed files
+    pub fn list_files(&self) -> Result<Vec<FileInfo>>;
+}
 ```
-1. User runs: splice get --symbol "process" --with-context --with-callers
 
-2. Splice queries codegraph.db:
-   - Symbol definition (via magellan)
-   - CALLER edges (callers)
-   - CALLS edges (callees)
+### 2. `src/cli/mod.rs` (Extend)
 
-3. Splice reads file with ropey:
-   - Extract lines around symbol
-   - Compute SHA-256 checksum
+**Current state:** Has `Query`, `Get`, `Log`, `Explain`, `Search` commands
 
-4. Splice parses with tree-sitter:
-   - Detect semantic kind (function, struct, etc.)
-   - Validate span boundaries
+**Add:** `Status`, `Find`, `Refs`, `Files` commands
 
-5. Splice serializes with serde:
-   {
-     "span": {...},
-     "context": {before: [...], selected: [...], after: [...]},
-     "semantic_kind": "function",
-     "language": "rust",
-     "relationships": {callers: [...], callees: [...]},
-     "checksums": {checksum_before: "sha256:...", file_checksum_before: "..."}
-   }
+### 3. `src/output.rs` (Extend)
+
+**Current state:** Has `JsonResponse`, `OperationResult`, `SpanResult`, `SymbolMatch`
+
+**Add:** Response data types matching Magellan spec
+
+```rust
+// Already have JsonResponse wrapper - just add data types:
+pub struct StatusResponse { pub files: usize, pub symbols: usize, ... }
+pub struct FindResponse { pub matches: Vec<SymbolMatch>, ... }
+pub struct RefsResponse { pub references: Vec<ReferenceMatch>, ... }
+pub struct FilesResponse { pub files: Vec<String>, pub symbol_counts: HashMap<String, usize> }
 ```
+
+### 4. `src/main.rs` (Extend)
+
+**Current state:** Command matching in main() function
+
+**Add:** Match arms for new commands calling delegation functions
 
 ---
 
-## Avoid These
+## Version Compatibility
 
-### Libraries NOT to Add
+| Component | Version | Compatibility |
+|-----------|---------|---------------|
+| Magellan crate | 0.5.3 | Full support for all query APIs |
+| SQLiteGraph | 1.0 | Compatible (same backend) |
+| rusqlite | 0.31 | Compatible (same version as Magellan) |
+| tree-sitter | 0.22 | Compatible (same versions as Magellan) |
 
-| Library | Why NOT to Use It |
-|---------|-------------------|
-| **strsim** (for Levenshtein) | Unnecessary for v2.2 - fuzzy symbol matching not in requirements |
-| **regex** | Tree-sitter is more accurate for code patterns; avoid regex for AST queries |
-| **anyhow** | Splice uses `thiserror 1.0` - consistent error handling is better |
-| **tokio** | No async needed - all operations are synchronous I/O |
-| **additional tree-sitter parsers** | Only 7 languages supported - adding more is out of scope |
-| **graph libraries** (petgraph, etc.) | Magellan + SQLiteGraph already handle graph operations |
-| **LLM clients** (ollama-rs, etc.) | Splice is CLI-only, LLM integration is separate concern |
+---
+
+## Testing Strategy
+
+### Unit Tests (No new dependencies)
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_status() {
+        let temp = TempDir::new().unwrap();
+        let db = temp.path().join("test.db");
+        let integration = MagellanIntegration::open(&db).unwrap();
+
+        let status = integration.get_status().unwrap();
+        assert_eq!(status.files, 0);
+        assert_eq!(status.symbols, 0);
+    }
+
+    #[test]
+    fn test_find_by_name() {
+        // Index a test file
+        // Query by name
+        // Verify results
+    }
+
+    #[test]
+    fn test_get_refs() {
+        // Index test file with calls
+        // Get references
+        // Verify caller/callee relationships
+    }
+}
+```
+
+### Integration Tests
+
+```bash
+# Test splice status mirrors magellan status
+splice status --db test.db --output json > /tmp/splice-out.json
+magellan status --db test.db --output json > /tmp/magellan-out.json
+# Compare structure
+
+# Test splice find mirrors magellan find
+splice find --db test.db --name main --output json
+magellan find --db test.db --name main --output json
+# Compare results
+```
 
 ---
 
 ## Migration Path
 
-### Phase Structure
+### Phase 1: CLI Structure (1-2 days)
+- Add `Status`, `Find`, `Refs`, `Files` to `Commands` enum
+- Add `OutputFormat` enum
+- Add `--output` flag to new commands
 
-Based on stack research, recommended phase ordering:
+### Phase 2: Response Types (1 day)
+- Add `StatusResponse`, `FindResponse`, `RefsResponse`, `FilesResponse` to `src/output.rs`
+- Verify JSON serialization matches Magellan spec
 
-| Phase | Capability | Stack Dependencies |
-|-------|------------|-------------------|
-| **RICHSPAN-01** | Context field | tree-sitter, ropey |
-| **RICHSPAN-02** | Semantic kind | tree-sitter, existing SymbolKind |
-| **RICHSPAN-03** | Relationships | magellan CALLER/CALLS edges |
-| **RICHSPAN-04** | Checksums | sha2 (already implemented) |
-| **RICHSPAN-05** | Suggested action | serde (already in use) |
-| **RICHSPAN-06** | Tool hints | serde (already in use) |
-| **RICHSPAN-07** | Error codes | Pure constants (no dependencies) |
+### Phase 3: Delegation Functions (2-3 days)
+- Extend `MagellanIntegration` with status, find, refs, files methods
+- Add type conversions from Magellan types to Splice response types
 
-**All phases can proceed independently** - no blocking dependencies between them.
+### Phase 4: Execution Handlers (1-2 days)
+- Add `execute_status`, `execute_find`, `execute_refs`, `execute_files` to `src/main.rs`
+- Wire up command matching
 
-### Integration Testing
+### Phase 5: Testing & Validation (1-2 days)
+- Unit tests for delegation functions
+- Integration tests comparing Splice output to Magellan CLI
+- Validate against `docs/JSON_EXPORT_FORMAT.md` and `docs/SCHEMA_REFERENCE.md`
 
-**Use existing test infrastructure:**
-```rust
-// From tests/ (334+ tests already passing)
-// Add integration tests for:
-// - Context extraction accuracy
-// - Relationship query correctness
-// - Checksum validation
-// - Error code assignment
-```
+**Total Estimate:** 6-10 days of focused work
 
 ---
 
-## Confidence Assessment
+## Sources
 
-| Area | Confidence | Reasoning |
-|------|------------|-----------|
-| **No new dependencies needed** | **HIGH** | Verified all capabilities against existing stack |
-| **Context extraction** | **HIGH** | ropey + tree-sitter well-understood patterns |
-| **Semantic kind detection** | **HIGH** | `SymbolKind` enum already exists, tree-sitter node types documented |
-| **Relationships** | **HIGH** | Magellan CALLER/CALLS edges verified in source code |
-| **Checksums** | **HIGH** | `checksum_span()` already implemented in src/checksum.rs |
-| **Error codes** | **HIGH** | Pure constants, zero external dependencies |
-| **Tool hints** | **HIGH** | Simple JSON serialization, serde already in use |
-
----
-
-## Verification
-
-### Sources
-
-**Official Documentation:**
-- [tree-sitter Rust bindings](https://github.com/tree-sitter/tree-sitter/blob/master/lib/rust/binding.rs) - Node API for context extraction
-- [Magellan call_ops.rs](https://github.com/oldnordic/magellan) - CALLER/CALLS edge implementation
-- [serde JSON serialization](https://serde.rs/) - Struct to JSON conversion
-- [sha2 Rust crate](https://docs.rs/sha2/) - Checksum computation
-
-**Research Files:**
-- `docs/UNIFIED_JSON_SCHEMA.md` - Complete specification of rich span extensions
-- `src/checksum.rs` - Existing checksum implementation
-- `src/output.rs` - Existing SpanResult structure
-- `src/cli/mod.rs` - Existing SymbolKind enum
-- `.planning/PROJECT.md` - v2.2 requirements
-
-**Code Verification:**
-- Verified Magellan provides `callers_of_symbol()` and `callees_of_symbol()` functions
-- Verified `checksum_span()` exists in src/checksum.rs:64
-- Verified `SymbolKind` enum has 12 variants covering all 7 languages
-- Verified tree-sitter 0.22 is current stable release
+| Source | Confidence | Notes |
+|--------|------------|-------|
+| `Cargo.toml` | HIGH | Actual dependency versions in codebase |
+| `src/lib.rs` | HIGH | Module structure |
+| `src/cli/mod.rs` | HIGH | Existing CLI commands and flags |
+| `src/graph/mod.rs` | HIGH | Existing CodeGraph implementation |
+| `src/graph/magellan_integration.rs` | HIGH | Existing Magellan integration patterns |
+| `src/output.rs` | HIGH | Existing JSON response types |
+| `docs/CLI_PATTERNS.md` | HIGH | Magellan CLI conventions |
+| `docs/JSON_EXPORT_FORMAT.md` | HIGH | Magellan JSON format specification |
+| `docs/SCHEMA_REFERENCE.md` | HIGH | Magellan data schema conventions |
+| Magellan crate documentation | MEDIUM | Assumed 0.5.3 API - verify with actual crate docs |
 
 ---
 
-## Summary
+## Gaps Requiring Validation
 
-**Recommendation:** Proceed with v2.2 implementation using **existing stack only**.
+1. **Magellan 0.5.3 API surface**: Verify exact method signatures for `get_stats()`, `find_symbol()`, `get_references()`, `list_files()`. Current research assumes based on typical code graph patterns.
 
-**Rationale:**
-1. All capabilities already available in dependencies
-2. No version conflicts or breaking changes
-3. Zero bloat - lean tooling remains lean
-4. Faster implementation - no learning curve for new libraries
-5. Maintains compatibility with Magellan 0.5.3
+2. **Type compatibility**: Confirm Magellan's `SymbolInfo`, `Reference` types can convert to Splice's `SymbolMatch`, `ReferenceMatch` without data loss.
 
-**Next Steps:**
-1. Implement rich span structs in `src/output.rs`
-2. Add context extraction using tree-sitter + ropey
-3. Query Magellan for relationship data
-4. Add checksum fields to existing SpanResult
-5. Define error code constants in `src/error.rs`
+3. **Error handling**: Verify Magellan's error types convert cleanly to `SpliceError`.
 
----
-
-*Research completed: 2026-01-22*
-*Stack analysis: HIGH confidence - all capabilities verified*
+4. **Execution ID generation**: Test that `generate_magellan_execution_id()` produces IDs matching Magellan's format exactly.

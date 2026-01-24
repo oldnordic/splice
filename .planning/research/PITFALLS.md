@@ -43,7 +43,7 @@
 
 ### 2. Full-Codebase Relationship Graph Scalability
 
-**What goes wrong:** Callers/callees/imports/exports queries across entire codebase become O(n²) or worse, causing exponential slowdown as project grows.
+**What goes wrong:** Callers/callees/imports/exports queries across entire codebase become O(n) or worse, causing exponential slowdown as project grows.
 
 **Why it happens:**
 - Naive graph traversal without pruning explores all possible paths
@@ -323,16 +323,48 @@
 
 ---
 
+## Magellan Integration Pitfalls
+
+**Note:** For detailed Magellan-specific pitfalls, see `MAGELLAN_INTEGRATION_PITFALLS.md`.
+
+### 10. Magellan Query Command Delegation Risks
+
+**What goes wrong:** Adding query command delegation to Magellan introduces flag conflicts, data format misalignment, and database path confusion.
+
+**Key risks:**
+- **Flag namespace collision** between Splice and Magellan CLI flags
+- **Data format misalignment** breaking LLM consumption (Magellan's `SymbolQueryResult` vs Splice's `SpanResult`)
+- **Database path confusion** — users don't know which `magellan.db` is being used
+- **Performance collapse** on relationship queries without depth limiting
+- **Test coverage gaps** at the Splice-Magellan integration boundary
+
+**Prevention:**
+- Use explicit flag namespacing (`--magellan-*` prefix) for delegated flags
+- Ensure Splice's JSON output is a superset of Magellan's format
+- Auto-detect Magellan database location with clear error messages
+- Default to shallow relationship queries (depth=1)
+- Add end-to-end tests for full delegation path
+
+**Address in:** Phase 18 (Error Code Integration) and earlier phases
+
+**Sources:**
+- `src/graph/magellan_integration.rs` — Current Magellan integration
+- `src/ingest/magellan.rs` — Magellan-based ingestion
+- `.planning/research/MAGELLAN_INTEGRATION_PITFALLS.md` — Detailed analysis
+
+---
+
 ## Summary: Phase-Specific Warnings
 
 | Phase | Topic | Critical Pitfall | Mitigation Priority |
 |-------|-------|------------------|---------------------|
 | 11 | Context Extraction | Large file performance | HIGH - cache + lazy loading |
-| 12 | Relationship Graph | O(n²) scalability | HIGH - indexing + scope limits |
+| 12 | Relationship Graph | O(n) scalability | HIGH - indexing + scope limits |
 | 13 | Checksums | Race conditions | MEDIUM - optimistic locking |
 | 14 | Semantic Kinds | Edge case misclassification | MEDIUM - extended taxonomy |
 | 15 | Suggested Actions | Over-engineering | HIGH - start with 3 primitives |
 | 16 | Error Codes | Taxonomy gaps | MEDIUM - plan ranges upfront |
+| 18 | Magellan Integration | Flag conflicts + data alignment | HIGH - namespace + schema superset |
 
 ---
 
@@ -348,6 +380,7 @@
 | Over-engineering | HIGH | LLM anti-patterns widely documented |
 | Error code taxonomy | MEDIUM | Research shows taxonomies but Splice-specific needs unknown |
 | LLM compat breaking | HIGH | Common API design mistake, preventable |
+| Magellan integration | HIGH | Reviewed all integration source code |
 
 ---
 
@@ -358,6 +391,7 @@
 3. **LLM field usage:** Survey real LLM agents to see which JSON fields they actually use
 4. **Checksum performance:** Benchmark SHA-256 overhead on large files (>1MB)
 5. **Relationship indexing:** Prototype SQLiteGraph indexes and measure query speedup
+6. **Magellan CLI semantics:** Verify Magellan's actual flag behavior with `magellan --help`
 
 ---
 
@@ -380,9 +414,11 @@
 **Codebase Analysis:**
 - `/home/feanor/Projects/splice/src/symbol/mod.rs` - Symbol trait implementation
 - `/home/feanor/Projects/splice/src/error.rs` - Error type definitions
+- `/home/feanor/Projects/splice/src/graph/magellan_integration.rs` - Magellan integration layer
 - `/home/feanor/Projects/splice/.planning/research/SUMMARY.md` - v2.1 research findings
 
 ---
 
 *Research compiled: 2026-01-22*
+*Updated: 2026-01-24 (added Magellan integration section)*
 *Target milestone: Splice v2.2*

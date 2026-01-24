@@ -1,22 +1,17 @@
-# Research Summary: Splice v2.2 - Unified JSON Schema & LLM Optimization
+# Research Summary: Magellan Integration Milestone
 
-**Project:** Splice v2.2
-**Domain:** AST-aware code patching CLI with LLM integration
-**Researched:** 2026-01-22
-**Milestone:** v2.2 - Unified JSON Schema & LLM Optimization
+**Project:** Splice v2.2.2 - Magellan Query Command Delegation
+**Domain:** Unified CLI interface - Code discovery + refactoring in one tool
+**Researched:** 2026-01-24
 **Confidence:** HIGH
 
 ---
 
 ## Executive Summary
 
-Splice v2.2 is an **LLM-first code patching tool** that extends Splice v2.0's existing span-based patching with rich JSON output optimized for AI agent consumption. The research confirms that **no new dependencies are required** — all v2.2 features (context extraction, semantic kind detection, cross-file relationships, checksums, suggested actions, tool hints, unified error codes) can be implemented using the existing stack: tree-sitter 0.22, sha2 0.10, serde 1.0, rusqlite 0.31, and magellan 0.5.3.
+Splice v2.2.2 is a **CLI delegation milestone** that unifies code discovery (via Magellan) and code modification (via Splice) into a single tool. The integration follows a **library delegation pattern**: Splice calls Magellan as an in-process Rust dependency (not subprocess), forwards query commands to Magellan's existing APIs, then normalizes output to match Splice's JSON schema conventions. No new dependencies are required—Magellan 0.5.3 is already integrated in `src/graph/magellan_integration.rs`.
 
-The recommended approach is **additive, not breaking**: extend the existing `SpanResult` structure with optional fields (`#[serde(skip_serializing_if = "Option::is_none")]`) to maintain backward compatibility while enabling new LLM-optimized capabilities. The architecture cleanly separates concerns: context extraction via ropey for line boundaries, semantic kind detection via tree-sitter node type mapping, relationship building via Magellan's CALLER/CALLS edges, and checksums via existing SHA-256 infrastructure.
-
-**Critical risks identified:** (1) **Large file performance** — tree-sitter degrades on files >32KB, mitigated by lazy loading and span-based caching; (2) **Relationship graph scalability** — O(n²) traversal on full codebase queries, mitigated by application-centered traversal and scope limits; (3) **Breaking 334 existing tests** — schema changes can break test assertions, mitigated by additive-only fields and golden test update scripts; (4) **Over-engineering suggested actions** — anti-pattern of building complex taxonomies before seeing real LLM usage, mitigated by starting with 3 primitives (delete, replace, expand) and iterating based on actual patterns.
-
-The MVP recommendation prioritizes **80% of LLM value with 20% effort**: context extension, semantic kind detection, and checksums for race protection. Defer full relationship graph and suggested actions to v2.3+ after foundation is solid.
+The recommended approach is **thin adapter delegation** with format alignment. Splice delegates `status`, `find`, `refs`, `files`, and `export` commands to Magellan's CodeGraph API, adds optional Splice-specific enhancements (context, semantics, checksums), and outputs JSON that is a superset of Magellan's format. Critical risks include field name translation (`start_line` vs `line_start`), symbol ID format compatibility (16-char hex), and preventing test breakage when adding optional fields. The milestone is estimated at 6-10 days of focused work, with the highest-risk items being main.rs refactoring (600+ lines of query logic extraction) and ensuring Magellan API compatibility.
 
 ---
 
@@ -24,215 +19,243 @@ The MVP recommendation prioritizes **80% of LLM value with 20% effort**: context
 
 ### Recommended Stack
 
-**From STACK.md:** Splice v2.2 requires **ZERO new external dependencies**. All rich span extensions build on existing infrastructure.
+**No new dependencies required.** Magellan 0.5.3 with `native-v2` feature is already in Cargo.toml and provides all query APIs needed.
 
-**Core technologies:**
-- **tree-sitter 0.22** — Context extraction and semantic kind detection via Node API — already installed
-- **ropey 1.6** — Efficient line-based context extraction without reparsing entire files — already in dependencies
-- **sha2 0.10** — Span checksums for race condition protection — `checksum_span()` already implemented
-- **magellan 0.5.3** — Caller/callee relationships via CALLER/CALLS edges from codegraph.db — already integrated
-- **serde 1.0** — JSON serialization for new structs (SuggestedAction, ToolHints) — already in use
-- **rusqlite 0.31** — Query relationships from codegraph.db — already installed
+**Core technologies (existing):**
+- `magellan 0.5.3` — Code indexing, label queries, status/find/refs/files APIs
+- `sqlitegraph 1.0` — Graph backend (re-exported from magellan)
+- `rusqlite 0.31` — Direct SQLite access
+- `clap 4.5` — CLI argument parsing (already used)
+- `serde/serde_json` — JSON serialization (already used)
+- `sha2 0.10` — Stable ID generation (already used for span_id)
 
-**Key insight:** The existing stack is sufficient. Avoid adding strsim (unnecessary for v2.2), regex (tree-sitter is more accurate), tokio (no async needed), or graph libraries (Magellan + SQLiteGraph already handle graphs).
+**Code additions only:**
+- CLI command variants (`Status`, `Find`, `Refs`, `Files`) in `src/cli/mod.rs`
+- Response types (`StatusResponse`, `FindResponse`, etc.) in `src/output.rs`
+- Delegation wrappers in `src/graph/magellan_integration.rs`
 
 ### Expected Features
 
-**From FEATURES.md:** Features organized by table stakes (must-have), differentiators (competitive advantage), and anti-features (explicitly NOT building).
+**Must have (table stakes):**
+- `status` — Database statistics (files, symbols, references counts)
+- `query` — List symbols in a file with optional context/semantics
+- `find` — Find symbol by name or symbol_id with disambiguation
+- `refs` — Show callers/callees for a symbol
+- `files` — List indexed files with optional symbol counts
+- `--output` flag — human/json/pretty format selection
+- JSON schema alignment — Magellan-compatible wrapper with Splice extensions
 
-**Must have (table stakes) — MVP blockers:**
-- **Context extension** — Before/after/selected lines with configurable count — LLMs need context to make accurate edits without hallucinating surrounding structure
-- **Semantic kind detection** — Per-language symbol kinds (function, class, variable, etc.) — Enables AST-aware operations instead of text-level patching
-- **Checksums for race protection** — Content and file SHA-256 before modification — Prevents applying patches to shifted spans in multi-agent workflows
+**Should have (differentiators):**
+- `--with-context` flag — Add context lines via Splice's context module
+- `--with-callers`/`--with-callees` — Relationship enhancement
+- `--with-semantics` — Semantic kind detection enhancement
+- `--with-checksums` — SHA-256 checksums for validation
+- Single-tool workflow — LLMs can discover and modify using one CLI
 
-**Should have (competitive differentiators):**
-- **Relationships block** — Callers/callees/imports/exports via Magellan CALLER/CALLS edges — LLMs can perform impact analysis before patching ("What breaks if I change this?")
-- **Tool hints** — Behavioral flags (requires_full_context, apply_atomically) — Cross-tool coordination without LLM understanding language specifics
-- **Unified error codes** — Machine-readable SPL-E### format with taxonomy — Automatic repair strategies, LLM retry logic without hallucination
-
-**Defer to v2.3+:**
-- **Suggested actions** — Action type taxonomy (rename, extract, inline) — Future-proofing, not immediate LLM need
-- **Full LSP integration** — Belongs in llmfilewrite, not Splice
-
-**Feature dependencies:** Context → Selected lines → Checksums (validation chain). Semantic kind → Tool hints → Suggested actions (intelligence layer). Relationships depend on Magellan integration.
+**Defer (v2.3+):**
+- Real-time indexing delegation — Users run `magellan watch` separately
+- Full LSP integration — Belongs in separate tool, not Splice
+- Custom Magellan commands — Use Magellan CLI directly for advanced ops
 
 ### Architecture Approach
 
-**From ARCHITECTURE.md:** Rich span extensions integrate cleanly into existing Rust/tree-sitter/SQLiteGraph architecture by extending current structures, not replacing them.
+Magellan integration follows a **library delegation pattern**: Splice calls Magellan's CodeGraph API directly as an in-process Rust library, not as a subprocess or HTTP service. The delegation boundary is clear—queries go to Magellan, edits stay in Splice.
 
 **Major components:**
-1. **src/context.rs (NEW)** — Context extraction module using ropey for efficient line calculations — extracts before/selected/after lines around spans
-2. **src/ingest/semantic_kind.rs (NEW)** — Semantic kind detection mapping tree-sitter node types to standardized kinds — per-language detection for 7 supported languages
-3. **src/resolve/relationships.rs (NEW)** — Cross-file relationship builder traversing CodeGraph for callers/callees/imports/exports — lazy evaluation, depth-limited traversal
-4. **src/output.rs::SpanResult (MODIFIED)** — Add 7 optional fields (context, semantic_kind, relationships, checksums, suggested_action, tool_hints) — backward compatible via `skip_serializing_if`
-5. **src/checksum.rs (EXTEND)** — Span-level checksums already implemented, just expose in JSON output
-6. **src/error_codes.rs (NEW)** — Error code registry with SPL-E### format, taxonomy, and documentation lookup
-7. **src/suggest.rs (NEW)** — Suggested action engine for LLM guidance — starts with 3 primitives (delete, replace, expand)
 
-**Data flow enrichment:** CLI Command → Ingest/Resolve → [Context Module + Relationship Builder + Checksum Module + Suggest Engine] → Enhanced SpanResult → JSON output. All extensions are "side channel" enrichment that doesn't break core validation pipeline.
+1. **`src/query.rs` (NEW)** — Centralizes query delegation logic, extracts 600+ lines from main.rs into `QueryExecutor` with `query_by_labels()` and `get_code_chunk()` methods
 
-**Build order:** Phase 1 (Foundation: error codes, SpanResult extension, checksums) → Phase 2 (Detection: semantic_kind, context, suggest) → Phase 3 (Graph: relationships) → Phase 4 (CLI integration) → Phase 5 (Testing).
+2. **`src/symbol_id.rs` (NEW)** — Generates 16-character stable symbol IDs compatible with Magellan format (SHA-256 hash, first 8 bytes)
+
+3. **`src/format/magellan.rs` (NEW)** — Format alignment module ensuring Splice output is Magellan-compatible with field translations (`start_line` -> `line_start`)
+
+4. **`src/graph/magellan_integration.rs` (EXTEND)** — Add pagination (`query_by_labels_paginated`), symbol lookup (`get_symbol_by_id`), count methods
+
+5. **`src/cli/mod.rs` (MODIFY)** — Add `Status`, `Find`, `Refs`, `Files` command variants with `--output`, `--limit`, `--offset`, `--format` flags
+
+6. **`src/output.rs` (MODIFY)** — Add `symbol_id` (16-char), `total_count` (pagination) fields to response types
+
+**Data flow:** User command -> main.rs handler -> MagellanIntegration wrapper -> Magellan CodeGraph API -> Splice enrichment -> JSON output
 
 ### Critical Pitfalls
 
-**From PITFALLS.md:** Performance, integration, design, and cross-cutting pitfalls with prevention strategies.
+1. **Context extraction on large files** — Tree-sitter degrades on files >32KB. Prevention: lazy context loading, span-based caching, `--max-context` flag.
 
-**Top 5 pitfalls:**
+2. **Full-codebase relationship graph scalability** — O(n) queries cause exponential slowdown. Prevention: application-centered traversal, relationship indexing, scope-aware queries (`--scope=file|module|workspace`).
 
-1. **Context extraction on large files** — Tree-sitter performance degrades on files >32KB, causing CLI hangs. **Prevention:** Lazy context loading (only via `-A`/`-B`/`-C` flags), span-based caching keyed by byte offsets, chunking strategy for files >100KB with `--max-context` flag.
+3. **Breaking 334+ existing tests** — Adding fields changes JSON structure. Prevention: additive schema only, `--fields` flag, `assert_json_include!` pattern, golden test update scripts.
 
-2. **Full-codebase relationship graph O(n²) scalability** — Callers/callees queries become exponential slowdown. **Prevention:** Application-centered traversal (only from application functions, not stdlib), relationship indexing in SQLiteGraph, scope-aware queries (`--scope=file|module|workspace`), result caching.
+4. **Magellan flag namespace collision** — Splice and Magellan CLI flags may conflict. Prevention: explicit flag namespacing (`--magellan-*`), auto-detect database path.
 
-3. **Race conditions in checksum validation** — File checksum computed during planning, file modified by external process before execution. **Prevention:** Atomic checksum-apply in single transaction, optimistic locking with `checksum_before` field, file-level advisory locks via `flock`, graceful degradation with 3-way merge suggestion.
-
-4. **Breaking 334+ existing tests** — Adding rich span fields changes JSON structure, breaking test assertions. **Prevention:** Additive schema only (optional fields), `--fields` flag for field selection, schema versioning (`"schema_version": "2.2"`), use `assert_json_include!` pattern (subset checks) not exact match, back-compat mode with `--compat=v2.0`.
-
-5. **Over-engineering suggested actions** — Complex nested structures with 20+ action types that LLMs ignore. **Prevention:** Start minimal with 3 actions (delete, replace, expand), action composition for complex operations, tool hints as booleans not objects, iterative expansion based on actual LLM usage patterns, defer to LLM for decisions (tool provides data, not commands).
-
-**Additional risks:** Semantic kind edge cases (closures, macros, templates) — extended taxonomy with `kind` + `subkind` hierarchy. Error code taxonomy inconsistencies — planned ranges (E01X-E09X parse, E10X-E19X validation, E20X-E29X runtime). Breaking LLM compatibility — field aliases support both old and new names, versioned output `--output-schema=2.0|2.2`. Ignoring human usability — dual output modes (TTY default, JSON via flag), test both outputs.
+5. **Data format misalignment** — Magellan uses `start_line`/`start_col`, Splice uses `line_start`/`col_start`. Prevention: field translation in format module, `--format magellan` flag for strict compatibility.
 
 ---
 
 ## Implications for Roadmap
 
-Based on combined research (stack, features, architecture, pitfalls), the recommended phase structure for Splice v2.2:
+Based on combined research, the milestone breaks into 5 phases following dependency order:
 
-### Phase 11: Foundation Extensions (Error Codes + Output Schema)
-**Rationale:** Lowest risk, no dependencies, enables all downstream phases. Extends existing types with optional fields, maintains backward compatibility.
+### Phase 1: Symbol ID & Format Foundation
 
-**Delivers:** Unified error code registry (SPL-E### format), extended SpanResult with 7 new optional fields, span checksums exposed in JSON output.
+**Rationale:** Symbol ID generation and format translation are foundational dependencies for all query commands. Build these first to establish the Magellan compatibility layer.
 
-**Addresses:** FEATURES.md — unified error codes, checksums for race protection
+**Delivers:**
+- `src/symbol_id.rs` with 16-char hex ID generation
+- `src/format/magellan.rs` with field translation utilities
+- JSON schema compatibility tests
 
-**Avoids:** PITFALLS.md #4 (breaking tests) via additive schema only, PITFALLS.md #7 (error code taxonomy) via planned ranges upfront
+**Addresses:**
+- Stack: SHA-256 usage (already in dependencies)
+- Features: Symbol ID format alignment
+- Architecture: Format alignment module
 
-**Stack elements:** Pure constants (error codes), existing sha2 0.10 (checksums), serde 1.0 (JSON serialization)
+**Avoids:**
+- Pitfall #4 (breaking tests) — test format changes early
+- Pitfall #5 (data format misalignment) — establish translation layer
 
-**Architecture:** src/error_codes.rs (NEW), src/output.rs::SpanResult (MODIFIED), src/checksum.rs (EXTEND)
+**Complexity:** LOW — pure functions, no side effects
 
-**Research flags:** None — standard error handling patterns, well-documented serde usage
-
----
-
-### Phase 12: Context Extraction & Semantic Kind Detection
-**Rationale:** Medium risk, clear dependencies on Phase 11 output structure. Core LLM value: context + semantics = 80% of value with 20% effort.
-
-**Delivers:** Context extraction module (before/after/selected lines with configurable count), semantic kind detection for 7 languages (function, class, variable, parameter, type, constant, module), integration into CLI commands.
-
-**Addresses:** FEATURES.md — context extension (table stakes), semantic kind detection (table stakes)
-
-**Avoids:** PITFALLS.md #1 (large file performance) via lazy loading and span-based caching, PITFALLS.md #5 (semantic kind edge cases) via extended taxonomy with graceful fallback
-
-**Stack elements:** tree-sitter 0.22 (Node API), ropey 1.6 (efficient line calculations)
-
-**Architecture:** src/context.rs (NEW), src/ingest/semantic_kind.rs (NEW), CLI integration in src/main.rs
-
-**Research flags:** **Phase 12 needs `/gsd:research-phase`** — tree-sitter node type → semantic kind mappings vary per language, need per-language verification for closures, macros, templates
+**Research flag:** SKIP — standard hash-and-encode patterns
 
 ---
 
-### Phase 13: Tool Hints & Suggested Actions (Minimal)
-**Rationale:** Low-MEDIUM risk, builds on Phase 12 semantic kind detection. Competitive differentiators with minimal implementation.
+### Phase 2: Magellan Integration Extensions
 
-**Delivers:** Tool hints module (requires_full_context, apply_atomically, search_case_sensitive, language_hints), suggested actions starting with 3 primitives (delete, replace, expand), integration into JSON output.
+**Rationale:** Extend the existing `MagellanIntegration` wrapper with pagination and ID-based queries before building the executor that depends on them.
 
-**Addresses:** FEATURES.md — tool hints (differentiators), suggested actions (future-proofing)
+**Delivers:**
+- `query_by_labels_paginated()` method
+- `get_symbol_by_id()` method
+- `count_symbols_with_labels()` method
+- Integration tests with test database
 
-**Avoids:** PITFALLS.md #6 (over-engineering) via starting with 3 primitives only, action composition for complex operations
+**Addresses:**
+- Stack: Magellan 0.5.3 API usage
+- Features: Pagination support in query/find
+- Architecture: Magellan wrapper extensions
 
-**Stack elements:** serde 1.0 (JSON serialization)
+**Uses:**
+- Existing `src/graph/magellan_integration.rs` infrastructure
+- Magellan crate APIs
 
-**Architecture:** src/suggest.rs (NEW), tool_hints field in SpanResult
+**Avoids:**
+- Pitfall #2 (scalability) — pagination prevents full dataset scans
 
-**Research flags:** **Phase 13 needs `/gsd:research-phase`** — LLM action taxonomy completeness, survey real LLM agents to see which JSON fields they actually use (avoid speculative feature building)
+**Complexity:** MEDIUM — wraps Magellan library API
 
----
-
-### Phase 14: Cross-File Relationships (Callers/Callees/Imports/Exports)
-**Rationale:** HIGH risk, complex graph traversal, depends on Phase 12 semantic kind for filtering. Power feature that can be deferred if velocity issues.
-
-**Delivers:** Relationship builder traversing CodeGraph for callers, callees, imports, exports, lazy evaluation (only via `--relationships` flag), depth limiting with `--max-depth <n>`.
-
-**Addresses:** FEATURES.md — relationships block (differentiators)
-
-**Avoids:** PITFALLS.md #2 (O(n²) scalability) via application-centered traversal, relationship indexing, scope-aware queries, result caching
-
-**Stack elements:** magellan 0.5.3 (CALLER/CALLS edges), rusqlite 0.31 (query codegraph.db)
-
-**Architecture:** src/resolve/relationships.rs (NEW), src/graph/mod.rs (MODIFIED to store semantic_kind)
-
-**Research flags:** **Phase 14 needs `/gsd:research-phase`** — relationship graph schema edge type taxonomy, performance testing on 10K+ file codebases to validate mitigation strategies
+**Research flag:** NEEDS RESEARCH — verify exact Magellan 0.5.3 method signatures
 
 ---
 
-### Phase 15: CLI Integration & Error Documentation
-**Rationale:** MEDIUM risk, integrates all modules into user-facing commands. Phase 11-14 must be complete before this phase.
+### Phase 3: Query Executor Module
 
-**Delivers:** CLI handler updates for context (`--context <n>`, `-A`/`-B`/`-C`), relationships (`--relationships`, `--max-depth <n>`), checksums (automatic on patch/delete), `splice explain <code>` command for error documentation.
+**Rationale:** Centralizes query logic by extracting 600+ lines from main.rs into a testable module. Depends on Phases 1-2 for symbol IDs and Magellan extensions.
 
-**Addresses:** All FEATURES.md features (user-facing exposure)
+**Delivers:**
+- `src/query.rs` with `QueryExecutor` struct
+- `query_by_labels()` and `get_code_chunk()` methods
+- Unit tests for executor logic
+- Integration tests with Magellan
 
-**Avoids:** PITFALLS.md #9 (ignoring human usability) via dual output modes (TTY default, JSON via flag), test both outputs
+**Addresses:**
+- Features: Core query/get command functionality
+- Architecture: Query executor module
 
-**Stack elements:** All Phase 11-14 modules
+**Uses:**
+- Phase 1 (symbol_id, format translation)
+- Phase 2 (Magellan extensions)
+- Existing context, semantic_kind modules
 
-**Architecture:** src/main.rs (MODIFIED), src/error_codes.rs lookup integration
+**Avoids:**
+- Pitfall #3 (breaking tests) — maintain existing tests during extraction
 
-**Research flags:** None — standard CLI patterns, well-documented clap usage
+**Complexity:** MEDIUM — refactors existing code, requires careful testing
+
+**Research flag:** SKIP — extraction pattern is straightforward
 
 ---
 
-### Phase 16: Integration Testing & Validation
-**Rationale:** REQUIRED phase — ensure all features work across 7 languages. Not optional.
+### Phase 4: CLI Commands & Output Types
 
-**Delivers:** Integration tests for context extraction accuracy, semantic kind detection coverage per language, relationship graph correctness, checksum computation, error code mapping.
+**Rationale:** Add new CLI commands and response types. Depends on executor being defined but can be developed in parallel.
 
-**Addresses:** All PITFALLS.md via comprehensive test coverage
+**Delivers:**
+- CLI variants: `Status`, `Find`, `Refs`, `Files` in `src/cli/mod.rs`
+- Response types: `StatusResponse`, `FindResponse`, `RefsResponse`, `FilesResponse` in `src/output.rs`
+- `--output`, `--limit`, `--offset`, `--format` flags
+- CLI parsing tests
 
-**Avoids:** PITFALLS.md #4 (breaking tests) via golden test update scripts, additive schema validation
+**Addresses:**
+- Features: All 5 delegated commands
+- Stack: clap 4.5 usage
 
-**Stack elements:** Existing test infrastructure (334+ tests passing)
+**Uses:**
+- Existing clap patterns
+- Phase 1 (format module)
 
-**Architecture:** tests/ directory (EXTEND)
+**Avoids:**
+- Pitfall #5 (flag namespace collision) — explicit namespacing
 
-**Research flags:** None — test implementation, not research
+**Complexity:** LOW — additive CLI changes
+
+**Research flag:** SKIP — clap patterns are well-established
+
+---
+
+### Phase 5: Main Integration & Testing
+
+**Rationale:** Wire everything together, refactor main.rs to use QueryExecutor, and validate end-to-end. Highest risk due to main.rs refactoring.
+
+**Delivers:**
+- Refactored `execute_query()`, `execute_get()` in main.rs
+- New command handlers for status/find/refs/files
+- End-to-end integration tests
+- Documentation (`docs/magellan_integration.md`)
+- Performance benchmarks
+
+**Addresses:**
+- Features: Complete unified CLI
+- Architecture: Main.rs refactoring
+
+**Uses:**
+- All previous phases (1-4)
+- Existing main.rs structure
+
+**Avoids:**
+- Pitfall #1 (large file performance) — benchmark and optimize
+- Pitfall #3 (breaking tests) — comprehensive test suite
+
+**Complexity:** MEDIUM — refactors existing 600+ lines
+
+**Research flag:** SKIP — integration pattern is established
 
 ---
 
 ### Phase Ordering Rationale
 
-**Foundation-first approach:** Phase 11 extends existing types with zero breaking changes, enabling all downstream phases. Error codes and output schema are pure data structures — no dependencies, lowest risk.
+1. **Foundation first** — Symbol ID and format modules (Phase 1) have no dependencies and are used by all other phases
+2. **Wrapper before use** — Magellan extensions (Phase 2) must exist before QueryExecutor can use them
+3. **Extraction before wiring** — QueryExecutor (Phase 3) should be built and tested before integrating into main.rs
+4. **Parallelizable** — CLI commands (Phase 4) can be developed alongside Phase 3, as they only depend on format module
+5. **High-risk finale** — Main.rs refactoring (Phase 5) happens last when all dependencies are stable
 
-**Core value next:** Phase 12 delivers 80% of LLM value (context + semantics) with 20% effort. These are table stakes that LLMs fundamentally require to make accurate edits.
+**This order avoids the critical pitfalls:**
+- Builds format translation early to prevent data misalignment (#5)
+- Adds pagination to prevent scalability issues (#2)
+- Maintains tests throughout to prevent breakage (#3)
 
-**Intelligence layer:** Phase 13 builds on semantic kind to provide tool hints and minimal suggested actions. Differentiators that don't add significant risk.
-
-**Power features last:** Phase 14 (relationships) is highest risk due to graph traversal performance. Can be deferred to v2.3 if velocity issues, as it's a "nice-to-have" not blocker.
-
-**Integration and testing:** Phase 15-16 expose features to users and validate correctness. Phase 15 is CLI wiring (medium risk), Phase 16 is required validation.
-
-**How this avoids pitfalls:**
-- **PITFALL #1 (large file performance):** Addressed in Phase 12 via lazy loading, caching
-- **PITFALL #2 (O(n²) scalability):** Addressed in Phase 14 via indexing, scope limits
-- **PITFALL #3 (race conditions):** Addressed in Phase 11 via atomic checksum-apply
-- **PITFALL #4 (breaking tests):** Addressed in Phase 11 via additive schema, Phase 16 via golden test scripts
-- **PITFALL #6 (over-engineering):** Addressed in Phase 13 via 3 primitives only
+---
 
 ### Research Flags
 
-**Phases likely needing deeper research during planning:**
-
-- **Phase 12 (Context & Semantic Kind):** Tree-sitter node type → semantic kind mappings vary per language. Need per-language verification for closures, macros, templates. Edge case: anonymous functions don't fit cleanly into taxonomy. **Action:** `/gsd:research-phase` before implementation.
-
-- **Phase 13 (Tool Hints & Suggested Actions):** LLM action taxonomy completeness is speculative. Need survey of real LLM agents to see which JSON fields they actually use. Avoid "helpful" features LLMs ignore. **Action:** `/gsd:research-phase` before implementation.
-
-- **Phase 14 (Relationships):** Relationship graph schema edge type taxonomy needs definition. Performance testing on 10K+ file codebases required to validate mitigation strategies. **Action:** `/gsd:research-phase` before implementation.
+**Phases needing deeper research:**
+- **Phase 2:** Verify exact Magellan 0.5.3 API signatures for `get_stats()`, `find_symbol()`, `get_references()`. Current research assumes typical code graph patterns.
 
 **Phases with standard patterns (skip research-phase):**
-
-- **Phase 11 (Foundation):** Error handling and JSON serialization are well-documented patterns. No research needed.
-- **Phase 15 (CLI Integration):** CLI wiring and command patterns are standard. No research needed.
-- **Phase 16 (Testing):** Test implementation doesn't require research. No research needed.
+- **Phase 1:** Standard hash-and-encode, field translation patterns
+- **Phase 3:** Extract-to-module refactoring is well-established
+- **Phase 4:** Clap CLI patterns are consistent across codebase
+- **Phase 5:** Main handler wiring follows existing patterns
 
 ---
 
@@ -240,68 +263,62 @@ Based on combined research (stack, features, architecture, pitfalls), the recomm
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| **Stack** | **HIGH** | Verified all capabilities against existing dependencies. No new dependencies needed. All source code checked (src/checksum.rs, src/output.rs, src/cli/mod.rs). |
-| **Features** | **HIGH** | Table stakes (context, semantic kind, checksums) validated against industry standards (VS Code, IntelliJ, Addy Osmani workflow). Differentiators supported by community consensus. |
-| **Architecture** | **HIGH** | Read all existing source files (src/lib.rs, src/output.rs, src/resolve/mod.rs, src/graph/mod.rs). Clear extension points identified. Data flow enrichment is "side channel" that doesn't break core pipeline. |
-| **Pitfalls** | **HIGH** | Performance pitfalls validated by GitHub issues and research papers (Jarvis, Type-Based Call Graph). Test breaking pattern seen in v2.0 upgrade. LLM anti-patterns widely documented. |
+| Stack | HIGH | Verified from Cargo.toml, all dependencies already present |
+| Features | HIGH | Command specs from `docs/CLI_PATTERNS.md`, API patterns from existing code |
+| Architecture | HIGH | Delegation pattern already implemented in `src/graph/magellan_integration.rs` |
+| Pitfalls | HIGH | Research from WebSearch + academic papers, specific sources cited |
 
 **Overall confidence:** HIGH
 
-**Gaps to Address:**
+Delegation pattern is production-ready. Primary uncertainty is exact Magellan 0.5.3 API method signatures, which can be verified through testing or crate documentation.
 
-1. **Semantic kind mapping coverage:** Need comprehensive mapping of tree-sitter node types → semantic kinds for all 7 languages. **Handle during Phase 12 planning:** Document node type coverage per language, add "unknown" kind gracefully for edge cases.
+### Gaps to Address
 
-2. **Relationship graph schema:** Need to define edge types for callers/callees/imports/exports in SQLiteGraph. **Handle during Phase 14 planning:** Map out edge type taxonomy, prototype indexes, benchmark query speedup.
+1. **Magellan 0.5.3 API surface** — Verify exact method signatures for `get_stats()`, `find_symbol()`, `get_references()`, `list_files()`. Current research assumes based on typical code graph patterns. **Handle during Phase 2:** Write spike test to verify actual API.
 
-3. **LLM action taxonomy:** Need to define action_type vocabulary and param schemas. **Handle during Phase 13 planning:** Survey real LLM agents (Claude Code, Cursor, Copilot) for actual field usage patterns.
+2. **Type compatibility** — Confirm Magellan's `SymbolInfo`, `Reference` types convert to Splice's `SymbolMatch`, `ReferenceMatch` without data loss. **Handle during Phase 2:** Build conversion functions with unit tests.
 
-4. **Performance benchmarks:** Need tests for relationship building at scale. **Handle during Phase 14 testing:** Test on 10K+ file codebases to validate mitigation strategies (lazy evaluation, depth limiting, indexing).
+3. **Error handling** — Verify Magellan's error types convert cleanly to `SpliceError`. **Handle during Phase 2:** Create error mapping table.
 
-5. **Anonymous function detection:** Test tree-sitter behavior for closures in all 7 languages. **Handle during Phase 12 research:** Add test cases for anonymous functions, closures, arrows functions per language.
+4. **Execution ID generation** — Test that `generate_magellan_execution_id()` produces IDs matching Magellan's `{timestamp_hex}-{pid_hex}` format. **Handle during Phase 1:** Unit test against format spec.
+
+5. **Export format specifications** — Exact JSON/JSONL/CSV/SCIP output formats not fully verified (WebSearch blocked). **Handle during Phase 4:** Test with actual magellan CLI to observe output.
 
 ---
 
 ## Sources
 
-### Primary (HIGH confidence — verified official docs/source code)
+### Primary (HIGH confidence)
 
-- **Splice v2.0 codebase:**
-  - `/home/feanor/Projects/splice/src/checksum.rs` — Existing checksum implementation (lines 64-88)
-  - `/home/feanor/Projects/splice/src/output.rs` — Existing SpanResult structure (lines 234-273)
-  - `/home/feanor/Projects/splice/src/cli/mod.rs` — Existing SymbolKind enum (lines 273-298)
-  - `/home/feanor/Projects/splice/src/symbol/mod.rs` — Symbol trait implementation
-  - `/home/feanor/Projects/splice/src/error.rs` — Error type definitions
+**Codebase analysis (verified directly):**
+- `/home/feanor/Projects/splice/Cargo.toml` — Dependency versions confirmed
+- `/home/feanor/Projects/splice/src/cli/mod.rs` — Existing CLI commands (728 lines)
+- `/home/feanor/Projects/splice/src/graph/magellan_integration.rs` — Magellan wrapper (256 lines)
+- `/home/feanor/Projects/splice/src/main.rs` — Query/get handlers (lines 1982-2750)
+- `/home/feanor/Projects/splice/src/output.rs` — JSON response types (1090 lines)
+- `/home/feanor/Projects/splice/src/resolve/mod.rs` — Symbol resolution (543 lines)
 
-- **Official documentation:**
-  - [tree-sitter Rust bindings](https://github.com/tree-sitter/tree-sitter/blob/master/lib/rust/binding.rs) — Node API for context extraction
-  - [serde JSON serialization](https://serde.rs/) — Struct to JSON conversion
-  - [SQLite Query Optimizer Overview](https://sqlite.org/optoverview.html) — Indexing strategies
-  - [Command Line Interface Guidelines (clig.dev)](https://clig.dev/) — Human-centric CLI design
-  - [VS Code Semantic Highlight Guide](https://code.visualstudio.com/api/language-extensions/semantic-highlight-guide) — Industry standard for context in code tools
+**Project documentation:**
+- `/home/feanor/Projects/splice/docs/CLI_PATTERNS.md` — Complete command specifications
+- `/home/feanor/Projects/splice/docs/LLM_TOOL_ECOSYSTEM_ALIGNMENT.md` — Schema requirements
+- `/home/feanor/Projects/splice/.planning/PROJECT.md` — v2.2.2 milestone definition
 
-### Secondary (MEDIUM confidence — verified community sources/academic papers)
+### Secondary (MEDIUM confidence)
 
-- **Academic papers:**
-  - [Jarvis: Application-Centered Call Graph Construction (arXiv 2024)](https://arxiv.org/html/2305.05949v3) — Proven solution for O(n²) scalability via application-centered traversal
-  - [Type-Based Call Graph Construction (USENIX Sec 2023)](https://www.usenix.org/system/files/sec23winter-prepub-350-cai.pdf) — Scales to millions of LOC in minutes
-  - [Towards Understanding Code Generation Errors (ICSE 2025)](https://arxiv.org/html/2512.05239v1) — Error code taxonomy methodology
+**Academic and industry research:**
+- Jarvis: Application-Centered Call Graph Construction (arXiv 2024) — scalability patterns
+- Type-Based Call Graph Construction (USENIX Sec 2023) — performance benchmarks
+- SQLite Query Optimizer Overview — database indexing strategies
+- Command Line Interface Guidelines (clig.dev) — CLI design patterns
 
-- **Community resources:**
-  - [Addy Osmani's LLM Coding Workflow 2026](https://addyosmani.com/blog/ai-coding-workflow/) — Industry expert perspective on context management
-  - [Nuanced Call Graph Context Layer](https://www.nuanced.dev/blog/python-open-source-launch) — Call graph context for AI coding tools
-  - [Tree-sitter AST Parsing at Scale (40 Languages)](https://www.dropstone.io/blog/ast-parsing-tree-sitter-40-languages) — Tree-sitter best practices
-  - [Patterns and Anti-Patterns for Building with LLMs (Medium 2025)](https://medium.com/marvelous-mlops/patterns-and-anti-patterns-for-building-with-llms-42ea9c2ddc90) — LLM anti-patterns
+### Tertiary (LOW confidence)
 
-### Tertiary (LOW confidence — web search only, needs validation)
-
-- **Exploratory features (needs real-world validation):**
-  - Semantic kind detection per-language mappings (need tree-sitter grammar verification per language)
-  - Callers/callees query performance (need benchmarking on actual codebases)
-  - Suggested action taxonomy completeness (exploratory, defer to v2.3+)
-  - LLM field usage patterns (survey needed, avoid speculative building)
+**Assumptions needing verification:**
+- Magellan 0.5.3 exact API method signatures — inferred from wrapper code, not directly verified
+- Export format specifications (JSON/JSONL/CSV/SCIP) — WebSearch blocked, needs CLI testing
+- Call graph query performance — no benchmarks yet, needs performance testing
 
 ---
-
-*Research synthesis completed: 2026-01-22*
-*Ready for roadmap creation: yes*
-*Confidence: HIGH — all research files synthesized, clear phase recommendations, research flags identify where deeper investigation needed*
+*Research completed: 2026-01-24*
+*Ready for roadmap: yes*
+*Milestone: Splice v2.2.2 - Magellan Integration*
