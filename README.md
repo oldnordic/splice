@@ -423,6 +423,7 @@ splice log --format json
 
 ## Documentation
 
+- **[docs/magellan_integration.md](docs/magellan_integration.md)** - Magellan integration guide (query commands, export formats, LLM usage)
 - **manual.md** - Complete user manual
 - **CHANGELOG.md** - Version history
 - **docs/DIAGNOSTICS_HUMAN_LLM.md** - CLI diagnostics contract for humans and LLMs, including rust-analyzer and multi-language validation output
