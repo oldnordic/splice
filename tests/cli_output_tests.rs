@@ -1178,4 +1178,178 @@ def helper():
         assert!(data_lines.len() >= 2,
                "should have at least 2 data rows (files + symbols)");
     }
+
+    #[test]
+    fn test_export_error_handling() {
+        // Test 1: Invalid format option (if CLI validates it)
+        {
+            let temp_dir = TempDir::new().unwrap();
+            let db_path = temp_dir.path().join("test.db");
+
+            // Create a test file and index it
+            let test_file = temp_dir.path().join("test.rs");
+            std::fs::write(&test_file, "fn test() {}").unwrap();
+
+            let mut integration = MagellanIntegration::open(&db_path).unwrap();
+            integration.index_file(&test_file).unwrap();
+
+            let splice_binary = get_splice_binary();
+            let output = Command::new(&splice_binary)
+                .arg("export")
+                .arg("--db")
+                .arg(&db_path)
+                .arg("--format")
+                .arg("invalid_format")
+                .output();
+
+            assert!(output.is_ok(), "command should execute");
+            let output = output.unwrap();
+
+            // Should fail - clap validates the format enum
+            assert!(!output.status.success(),
+                   "export should fail with invalid format");
+
+            // Exit code should be 2 (usage error) from clap
+            let exit_code = output.status.code();
+            assert!(exit_code == Some(2),
+                   "Expected exit code 2 for invalid argument, got {:?}", exit_code);
+
+            // stderr should mention the invalid value
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert!(stderr.contains("invalid_format") ||
+                   stderr.contains("invalid") ||
+                   stderr.contains("possible values") ||
+                   stderr.contains("one of"),
+                   "stderr should mention invalid value or show possible values");
+        }
+
+        // Test 2: Valid export with empty database (edge case - Magellan creates db if nonexistent)
+        {
+            let temp_dir = TempDir::new().unwrap();
+            let db_path = temp_dir.path().join("empty.db");
+            let output_path = temp_dir.path().join("export.json");
+
+            // Create empty database
+            let _integration = MagellanIntegration::open(&db_path).unwrap();
+
+            let splice_binary = get_splice_binary();
+            let output = Command::new(&splice_binary)
+                .arg("export")
+                .arg("--db")
+                .arg(&db_path)
+                .arg("--format")
+                .arg("json")
+                .arg("--file")
+                .arg(&output_path)
+                .output();
+
+            assert!(output.is_ok(), "command should execute");
+            let output = output.unwrap();
+
+            // Should succeed with empty data
+            assert!(output.status.success(),
+                   "export should succeed with empty database");
+
+            // Output should be valid JSON with empty arrays
+            let json_content = std::fs::read_to_string(&output_path).unwrap();
+            let value: Value = serde_json::from_str(&json_content)
+                .expect("export should produce valid JSON");
+
+            assert!(value.get("schema_version").is_some(),
+                   "should have schema_version");
+            assert!(value["data"]["files"].as_array().unwrap().is_empty(),
+                   "files array should be empty");
+            assert!(value["data"]["symbols"].as_array().unwrap().is_empty(),
+                   "symbols array should be empty");
+        }
+
+        // Test 3: File write permission error (read-only directory) - Unix only
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            let temp_dir = TempDir::new().unwrap();
+            let db_path = temp_dir.path().join("test.db");
+            let readonly_dir = temp_dir.path().join("readonly");
+
+            // Create a test file and index it
+            let test_file = temp_dir.path().join("test.rs");
+            std::fs::write(&test_file, "fn test() {}").unwrap();
+
+            let mut integration = MagellanIntegration::open(&db_path).unwrap();
+            integration.index_file(&test_file).unwrap();
+
+            // Create read-only directory
+            std::fs::create_dir(&readonly_dir).unwrap();
+            let mut perms = std::fs::metadata(&readonly_dir).unwrap().permissions();
+            perms.set_mode(0o444); // read-only
+            std::fs::set_permissions(&readonly_dir, perms).unwrap();
+
+            let readonly_file = readonly_dir.join("export.json");
+
+            let splice_binary = get_splice_binary();
+            let output = Command::new(&splice_binary)
+                .arg("export")
+                .arg("--db")
+                .arg(&db_path)
+                .arg("--format")
+                .arg("json")
+                .arg("--file")
+                .arg(&readonly_file)
+                .output();
+
+            assert!(output.is_ok(), "command should execute");
+            let output = output.unwrap();
+
+            // Should fail due to permission error
+            assert!(!output.status.success(),
+                   "export should fail with read-only directory");
+
+            // Exit code should be 1 (error)
+            let exit_code = output.status.code();
+            assert!(exit_code == Some(1),
+                   "Expected exit code 1 for permission error, got {:?}", exit_code);
+
+            // stderr should contain error message
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert!(!stderr.is_empty() || !output.stdout.is_empty(),
+                   "should have some error output");
+        }
+
+        // Test 4: Export to stdout succeeds
+        {
+            let temp_dir = TempDir::new().unwrap();
+            let db_path = temp_dir.path().join("test.db");
+
+            // Create a test file and index it
+            let test_file = temp_dir.path().join("test.rs");
+            std::fs::write(&test_file, "fn test() {}").unwrap();
+
+            let mut integration = MagellanIntegration::open(&db_path).unwrap();
+            integration.index_file(&test_file).unwrap();
+
+            let splice_binary = get_splice_binary();
+            let output = Command::new(&splice_binary)
+                .arg("export")
+                .arg("--db")
+                .arg(&db_path)
+                .arg("--format")
+                .arg("json")
+                .output();
+
+            assert!(output.is_ok(), "command should execute");
+            let output = output.unwrap();
+
+            // Should succeed (writing to stdout is valid)
+            assert!(output.status.success(),
+                   "export to stdout should succeed");
+
+            // stdout should contain export data
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert!(stdout.contains("schema_version"),
+                   "stdout should contain schema_version");
+            assert!(stdout.contains("\"status\""),
+                   "stdout should contain success status");
+        }
+    }
 }
