@@ -29,6 +29,65 @@ const EXECUTION_LOG_ENV: &str = "SPLICE_EXECUTION_LOG";
 /// Splice directory name.
 const SPLICE_DIR: &str = ".splice";
 
+/// Configuration for execution logging behavior.
+///
+/// This struct allows dependency injection for testing and programmatic
+/// control of execution logging without relying on environment variables.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExecutionLogConfig {
+    /// Whether execution logging is enabled.
+    ///
+    /// If None, reads from SPLICE_EXECUTION_LOG environment variable.
+    /// If Some(bool), uses the provided value explicitly.
+    pub enabled: Option<bool>,
+}
+
+impl ExecutionLogConfig {
+    /// Create a config that explicitly enables logging.
+    #[must_use]
+    pub fn enabled() -> Self {
+        Self { enabled: Some(true) }
+    }
+
+    /// Create a config that explicitly disables logging.
+    #[must_use]
+    pub fn disabled() -> Self {
+        Self { enabled: Some(false) }
+    }
+
+    /// Create a config that respects the environment variable.
+    #[must_use]
+    pub fn from_env() -> Self {
+        Self { enabled: None }
+    }
+
+    /// Check if logging is enabled with this configuration.
+    ///
+    /// - If `enabled` is `Some(bool)`, returns that value
+    /// - If `enabled` is `None`, reads from SPLICE_EXECUTION_LOG environment variable
+    #[must_use]
+    pub fn is_enabled(&self) -> bool {
+        match self.enabled {
+            Some(explicit) => explicit,
+            None => {
+                // Read from environment variable
+                std::env::var(EXECUTION_LOG_ENV)
+                    .map(|v| {
+                        let v_lower = v.to_lowercase();
+                        v_lower != "false" && v_lower != "0" && v_lower != "no"
+                    })
+                    .unwrap_or(true) // Default: enabled
+            }
+        }
+    }
+}
+
+impl Default for ExecutionLogConfig {
+    fn default() -> Self {
+        Self::from_env()
+    }
+}
+
 /// Get execution log database path.
 ///
 /// Returns the path to `.splice/operations.db` in the current directory.
