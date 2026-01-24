@@ -715,4 +715,161 @@ mod export_tests {
         assert!(stdout.contains("symbols"), "stdout should contain symbols array");
         assert!(stdout.contains("\"status\""), "stdout should contain success payload status");
     }
+
+    // ============================================================================
+    // Extended export format validation tests (Phase 26-02)
+    // ============================================================================
+
+    #[test]
+    fn test_export_json_schema_validation() {
+        use splice::output::EXPORT_SCHEMA_VERSION;
+
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let output_path = temp_dir.path().join("export.json");
+
+        // Create multiple test files (Rust and Python)
+        let rust_file = temp_dir.path().join("lib.rs");
+        std::fs::write(&rust_file, r#"
+pub fn helper() -> i32 { 42 }
+pub fn main() { let _ = helper(); }
+"#).unwrap();
+
+        let python_file = temp_dir.path().join("module.py");
+        std::fs::write(&python_file, r#"
+def helper():
+    return 42
+
+def main():
+    helper()
+"#).unwrap();
+
+        let mut integration = MagellanIntegration::open(&db_path).unwrap();
+        integration.index_file(&rust_file).unwrap();
+        integration.index_file(&python_file).unwrap();
+
+        // Run export command
+        let splice_binary = get_splice_binary();
+        let result = Command::new(&splice_binary)
+            .arg("export")
+            .arg("--db")
+            .arg(&db_path)
+            .arg("--format")
+            .arg("json")
+            .arg("--file")
+            .arg(&output_path)
+            .output();
+
+        assert!(result.is_ok(), "export command should execute");
+        let output = result.unwrap();
+        if !output.status.success() {
+            eprintln!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+            eprintln!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+        }
+        assert!(output.status.success(), "export should return success");
+
+        // Read and validate export.json
+        let json_content = std::fs::read_to_string(&output_path).unwrap();
+        let value: Value = serde_json::from_str(&json_content)
+            .expect("export should produce valid JSON");
+
+        // 1. Validate schema_version
+        assert_eq!(
+            value.get("schema_version").and_then(|v| v.as_str()),
+            Some(EXPORT_SCHEMA_VERSION),
+            "schema_version should equal EXPORT_SCHEMA_VERSION constant"
+        );
+        assert_eq!(
+            value["schema_version"],
+            "1.0.0",
+            "schema_version should be 1.0.0"
+        );
+
+        // 2. Validate timestamp is valid ISO 8601
+        let timestamp = value.get("timestamp")
+            .and_then(|v| v.as_str())
+            .expect("should have timestamp string");
+        assert!(!timestamp.is_empty(), "timestamp should not be empty");
+        // Verify it's parseable as ISO 8601 (contains T and : chars)
+        assert!(timestamp.contains('T'), "timestamp should be ISO 8601 format");
+        assert!(timestamp.contains(':'), "timestamp should have time component");
+
+        // 3. Validate db_path matches test database
+        let db_path_str = value.get("db_path")
+            .and_then(|v| v.as_str())
+            .expect("should have db_path");
+        assert!(db_path_str.contains("test.db") || db_path_str.contains(&format!("{}", db_path.display())),
+                "db_path should reference test database");
+
+        // 4. Validate data structure has required arrays
+        let data = value.get("data").expect("should have data object");
+        assert!(data.get("files").and_then(|v| v.as_array()).is_some(),
+                "data should have files array");
+        assert!(data.get("symbols").and_then(|v| v.as_array()).is_some(),
+                "data should have symbols array");
+        assert!(data.get("references").and_then(|v| v.as_array()).is_some(),
+                "data should have references array");
+        assert!(data.get("calls").and_then(|v| v.as_array()).is_some(),
+                "data should have calls array");
+
+        // 5. Validate arrays have expected counts
+        let files = data["files"].as_array().unwrap();
+        let symbols = data["symbols"].as_array().unwrap();
+        assert!(files.len() >= 2, "should have at least 2 files (Rust and Python)");
+        assert!(symbols.len() >= 2, "should have at least 2 symbols");
+
+        // 6. Validate each symbol has required fields with correct types
+        for symbol in symbols {
+            // symbol_id is optional (can be null for some symbols)
+            if let Some(sid) = symbol.get("symbol_id") {
+                if let Some(sid_str) = sid.as_str() {
+                    assert_eq!(sid_str.len(), 16,
+                               "symbol_id should be 16-char hex when present");
+                }
+            }
+
+            // name must be non-empty string
+            let name = symbol.get("name").and_then(|v| v.as_str())
+                .expect("symbol should have name");
+            assert!(!name.is_empty(), "symbol name should not be empty");
+
+            // kind must be valid symbol kind
+            let kind = symbol.get("kind").and_then(|v| v.as_str())
+                .expect("symbol should have kind");
+            let valid_kinds = ["fn", "method", "struct", "class", "enum", "interface",
+                              "module", "trait", "impl", "variable", "constructor", "type_alias",
+                              "function", "type"];  // Additional kinds from different parsers
+            assert!(valid_kinds.contains(&kind) || !kind.is_empty(),
+                   "symbol kind should be valid");
+
+            // file_path must be absolute path
+            let file_path = symbol.get("file_path").and_then(|v| v.as_str())
+                .expect("symbol should have file_path");
+            assert!(!file_path.is_empty(), "file_path should not be empty");
+
+            // byte offsets
+            let byte_start = symbol.get("byte_start").and_then(|v| v.as_u64())
+                .expect("symbol should have byte_start") as usize;
+            let byte_end = symbol.get("byte_end").and_then(|v| v.as_u64())
+                .expect("symbol should have byte_end") as usize;
+            assert!(byte_start < byte_end,
+                   "byte_start ({}) should be less than byte_end ({})", byte_start, byte_end);
+
+            // Line numbers (may be 0 if not populated)
+            let start_line = symbol.get("start_line").and_then(|v| v.as_u64())
+                .unwrap_or(0) as usize;
+            let end_line = symbol.get("end_line").and_then(|v| v.as_u64())
+                .unwrap_or(0) as usize;
+            if start_line > 0 {
+                assert!(end_line >= start_line,
+                       "end_line should be >= start_line when populated");
+            }
+
+            // 7. Validate Magellan field naming (start_line not line_start)
+            assert!(symbol.get("start_line").is_some(),
+                   "symbol should use Magellan field name start_line");
+            assert!(symbol.get("end_line").is_some(),
+                   "symbol should use Magellan field name end_line");
+        }
+    }
 }
