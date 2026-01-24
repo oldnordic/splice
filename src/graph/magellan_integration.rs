@@ -483,6 +483,131 @@ impl MagellanIntegration {
 
         Ok(None)
     }
+
+    /// Get call relationships for a symbol.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to file containing the symbol
+    /// * `name` - Symbol name
+    /// * `direction` - Which relationships to fetch (In/Out/Both)
+    ///
+    /// # Returns
+    /// CallRelationships containing the symbol and its relationships.
+    pub fn get_call_relationships(
+        &mut self,
+        file_path: &Path,
+        name: &str,
+        direction: CallDirection,
+    ) -> Result<CallRelationships> {
+        let path_str = file_path
+            .to_str()
+            .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
+
+        // Get the target symbol info first
+        let symbol_facts = self
+            .inner
+            .symbol_extents(path_str, name)
+            .map_err(|e| SpliceError::Other(format!("Failed to find symbol {} in {}: {}", name, path_str, e)))?;
+
+        if symbol_facts.is_empty() {
+            return Err(SpliceError::Other(format!(
+                "Symbol '{}' not found in file '{}'",
+                name, path_str
+            )));
+        }
+
+        let (entity_id, fact) = &symbol_facts[0];
+        let target_symbol = SymbolInfo {
+            entity_id: *entity_id,
+            name: fact.name.clone().unwrap_or_else(|| name.to_string()),
+            file_path: fact.file_path.to_string_lossy().to_string(),
+            kind: fact.kind_normalized.clone(),
+            byte_start: fact.byte_start,
+            byte_end: fact.byte_end,
+        };
+
+        let (callers, callees) = match direction {
+            CallDirection::In => {
+                let calls = self
+                    .inner
+                    .callers_of_symbol(path_str, name)
+                    .map_err(|e| SpliceError::Other(format!("Failed to get callers: {}", e)))?;
+                (self.resolve_call_facts_to_references(calls)?, Vec::new())
+            }
+            CallDirection::Out => {
+                let calls = self
+                    .inner
+                    .calls_from_symbol(path_str, name)
+                    .map_err(|e| SpliceError::Other(format!("Failed to get callees: {}", e)))?;
+                (Vec::new(), self.resolve_call_facts_to_references(calls)?)
+            }
+            CallDirection::Both => {
+                let callers_facts = self
+                    .inner
+                    .callers_of_symbol(path_str, name)
+                    .map_err(|e| SpliceError::Other(format!("Failed to get callers: {}", e)))?;
+                let callees_facts = self
+                    .inner
+                    .calls_from_symbol(path_str, name)
+                    .map_err(|e| SpliceError::Other(format!("Failed to get callees: {}", e)))?;
+                (
+                    self.resolve_call_facts_to_references(callers_facts)?,
+                    self.resolve_call_facts_to_references(callees_facts)?,
+                )
+            }
+        };
+
+        Ok(CallRelationships {
+            symbol: target_symbol,
+            callers,
+            callees,
+        })
+    }
+
+    /// Resolve CallFact vectors to CallReference vectors with symbol info.
+    fn resolve_call_facts_to_references(
+        &mut self,
+        call_facts: Vec<magellan::references::CallFact>,
+    ) -> Result<Vec<CallReference>> {
+        let mut references = Vec::new();
+
+        for fact in call_facts {
+            // Resolve the referenced symbol (caller or callee depending on context)
+            let ref_name = &fact.callee;
+            let ref_path_str = fact.file_path.to_string_lossy();
+
+            // Get symbol info for the referenced symbol
+            let symbol_infos = self
+                .inner
+                .symbol_extents(&ref_path_str, ref_name)
+                .map_err(|e| SpliceError::Other(format!("Failed to resolve symbol {}: {}", ref_name, e)))?;
+
+            for (entity_id, symbol_fact) in symbol_infos {
+                let symbol = SymbolInfo {
+                    entity_id,
+                    name: symbol_fact.name.clone().unwrap_or_else(|| ref_name.clone()),
+                    file_path: symbol_fact.file_path.to_string_lossy().to_string(),
+                    kind: symbol_fact.kind_normalized.clone(),
+                    byte_start: symbol_fact.byte_start,
+                    byte_end: symbol_fact.byte_end,
+                };
+
+                let call_site = CallSite {
+                    file_path: fact.file_path.to_string_lossy().to_string(),
+                    byte_start: fact.byte_start,
+                    byte_end: fact.byte_end,
+                    start_line: fact.start_line,
+                    start_col: fact.start_col,
+                    end_line: fact.end_line,
+                    end_col: fact.end_col,
+                };
+
+                references.push(CallReference { symbol, call_site });
+            }
+        }
+
+        Ok(references)
+    }
 }
 
 /// Symbol information extracted from Magellan's SymbolQueryResult.
@@ -511,6 +636,56 @@ pub struct SymbolWithRelations {
     pub callers: Vec<SymbolInfo>,
     /// Symbols that this symbol calls (if --with-callees flag).
     pub callees: Vec<SymbolInfo>,
+}
+
+/// Direction for call relationship traversal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallDirection {
+    /// Get callers only (symbols that call this symbol).
+    In,
+    /// Get callees only (symbols that this symbol calls).
+    Out,
+    /// Get both callers and callees.
+    Both,
+}
+
+/// Location of a call in source code.
+#[derive(Debug, Clone)]
+pub struct CallSite {
+    /// File path containing the call.
+    pub file_path: String,
+    /// Byte offset where call starts.
+    pub byte_start: usize,
+    /// Byte offset where call ends.
+    pub byte_end: usize,
+    /// Line number where call starts (1-indexed).
+    pub start_line: usize,
+    /// Column number where call starts (0-indexed).
+    pub start_col: usize,
+    /// Line number where call ends (1-indexed).
+    pub end_line: usize,
+    /// Column number where call ends (0-indexed).
+    pub end_col: usize,
+}
+
+/// A call relationship reference with symbol and call site.
+#[derive(Debug, Clone)]
+pub struct CallReference {
+    /// The symbol being referenced (caller or callee).
+    pub symbol: SymbolInfo,
+    /// Location of the call site.
+    pub call_site: CallSite,
+}
+
+/// Call relationships for a symbol.
+#[derive(Debug, Clone)]
+pub struct CallRelationships {
+    /// The symbol whose relationships are being queried.
+    pub symbol: SymbolInfo,
+    /// Symbols that call this symbol (if direction is In or Both).
+    pub callers: Vec<CallReference>,
+    /// Symbols that this symbol calls (if direction is Out or Both).
+    pub callees: Vec<CallReference>,
 }
 
 impl From<SymbolQueryResult> for SymbolInfo {
