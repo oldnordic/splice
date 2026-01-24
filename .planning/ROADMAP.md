@@ -144,10 +144,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 25-01-PLAN.md — Export command infrastructure (CLI variant, ExportFormat enum, csv dependency)
-- [ ] 25-02-PLAN.md — Magellan error mapping (SpliceError::Magellan variant, SPL-E091 code)
-- [ ] 25-03-PLAN.md — Export data types and execute_export function
-- [ ] 25-04-PLAN.md — Export command integration tests
+- [x] 25-01-PLAN.md — Export command infrastructure (CLI variant, ExportFormat enum, csv dependency)
+- [x] 25-02-PLAN.md — Magellan error mapping (SpliceError::Magellan variant, SPL-E091 code)
+- [x] 25-03-PLAN.md — Export data types and execute_export function
+- [x] 25-04-PLAN.md — Export command integration tests
 
 #### Phase 26: Integration Testing
 **Goal**: End-to-end validation of unified CLI interface
@@ -186,14 +186,14 @@ Phases execute in numeric order: 22 → 23 → 24 → 25 → 26
 | 22. Symbol ID & Format Foundation | v2.2.2 | 4/4 | Complete | 2026-01-24 |
 | 23. Magellan Integration Extensions | v2.2.2 | 5/5 | Complete | 2026-01-24 |
 | 24. CLI Commands & Response Types | v2.2.2 | 5/5 | Complete | 2026-01-24 |
-| 25. Export Command & Error Mapping | v2.2.2 | 0/4 | Not started | - |
+| 25. Export Command & Error Mapping | v2.2.2 | 4/4 | Complete | 2026-01-24 |
 | 26. Integration Testing | v2.2.2 | 0/6 | Not started | - |
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%)
 - v2.2: 55/55 plans complete (100%)
 - v2.2.1: 20/20 plans complete (100%)
-- v2.2.2: 14/24 plans complete (58%)
+- v2.2.2: 18/24 plans complete (75%)
 
 ---
 *Last updated: 2026-01-24*

@@ -32,12 +32,12 @@ Requirements for Magellan query command delegation and CLI/data format alignment
 
 ### Export (EXPORT-01 through EXPORT-02)
 
-- [ ] **EXPORT-01**: export command exports graph data (--format json|jsonl|csv, --output flag)
-- [ ] **EXPORT-02**: Export includes files, symbols, references, calls with proper schema version
+- [x] **EXPORT-01**: export command exports graph data (--format json|jsonl|csv, --output flag)
+- [x] **EXPORT-02**: Export includes files, symbols, references, calls with proper schema version
 
 ### Error Handling (ERROR-01)
 
-- [ ] **ERROR-01**: Magellan errors mapped to Splice SPL-E### codes with original error preserved in chain
+- [x] **ERROR-01**: Magellan errors mapped to Splice SPL-E### codes with original error preserved in chain
 
 ## v2.3 Requirements
 
@@ -83,9 +83,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLI-04 | Phase 24 | Complete |
 | DATA-03 | Phase 24 | Complete |
 | DATA-04 | Phase 24 | Complete |
-| EXPORT-01 | Phase 25 | Pending |
-| EXPORT-02 | Phase 25 | Pending |
-| ERROR-01 | Phase 25 | Pending |
+| EXPORT-01 | Phase 25 | Complete |
+| EXPORT-02 | Phase 25 | Complete |
+| ERROR-01 | Phase 25 | Complete |
 | Integration validation | Phase 26 | Pending |
 
 **Coverage:**
