@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 23 of 26 (Magellan Integration Extensions)
-Plan: 02 of 6 (File-Scoped Symbol Query)
+Plan: 03 of 6 (Symbol Lookup Methods)
 Status: In progress
-Last activity: 2026-01-24 — Completed 23-02: File-Scoped Symbol Query
+Last activity: 2026-01-24 — Completed 23-03: Symbol Lookup Methods
 
-Progress: [████████░░] 86% (112/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 6/24 v2.2.2)
+Progress: [████████░░] 86% (113/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 7/24 v2.2.2)
 
 ## Current Milestone: v2.2.2 Magellan Integration
 
@@ -72,6 +72,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - 23-02: parse_symbol_kind() helper maps kind strings (fn, struct) to SymbolKind enum since Magellan lacks FromStr
 - 23-02: Skip unnamed symbols (impl blocks) in query results as SymbolFact.name is Option<String>
 - 23-02: SymbolWithRelations composes SymbolInfo with caller/callee vectors for rich query context
+- 23-03: find_symbol_by_id() uses direct SQL entity scan because Magellan doesn't expose entity_ids()/get_node() publicly
+- 23-03: Accept O(N) performance for symbol lookups - will optimize and add symbol_id index if profiling indicates need
+- 23-03: Symbol ID regeneration during entity scan for reverse lookup (SHA-256(name:path:byte_start) match)
 
 ### Pending Todos
 
@@ -86,11 +89,16 @@ None yet.
 - Magellan lacks FromStr implementation for SymbolKind - required custom parse_symbol_kind() helper
 - SymbolFact.name is Option<String> (not String) - required handling for unnamed symbols like impl blocks
 
+**Phase 23 Performance Concerns:**
+- find_symbol_by_name() is O(N) file queries where N = number of indexed files (no global name index)
+- find_symbol_by_id() is O(N) entity iteration where N = total symbols (no reverse ID index)
+- Both methods acceptable for MVP but may need optimization for large codebases (consider symbol_id index)
+
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed 23-02 (File-Scoped Symbol Query), Phase 23 in progress
+Stopped at: Completed 23-03 (Symbol Lookup Methods), Phase 23 in progress
 Resume file: None
 
 ---
-*Last updated: 2026-01-24 — Phase 23 Plan 02 complete*
+*Last updated: 2026-01-24 — Phase 23 Plan 03 complete*
