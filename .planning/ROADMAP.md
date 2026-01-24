@@ -8,7 +8,7 @@ Splice is a span-safe refactoring tool for 7 programming languages (Rust, Python
 
 - ✅ **v2.0 Production Safety** — Phases 1-10 (shipped 2026-01-18)
 - ✅ **v2.2 Unified JSON & LLM Optimization** — Phases 11-18 (shipped 2026-01-23)
-- 🚧 **v2.2.1 Code Quality & Bug Fixes** — Phases 19-21 (in progress)
+- ✅ **v2.2.1 Code Quality & Bug Fixes** — Phases 19-21 (shipped 2026-01-24)
 
 ## Phases
 
@@ -51,11 +51,26 @@ See `.planning/milestones/v2.2-ROADMAP.md` for complete details of phases 11-18.
 
 </details>
 
-### v2.2.1 Code Quality & Bug Fixes (IN PROGRESS)
+### v2.2.1 Code Quality & Bug Fixes (COMPLETE)
 
 **Milestone Goal:** Fix all 67 issues identified in comprehensive bug analysis, improving code reliability and safety
 
 **Bug Analysis:** docs/BUG_ANALYSIS.md
+
+**v2.2.1 Status:** COMPLETE - 2026-01-24
+
+**Summary:**
+- Fixed 67 issues across 11 bug categories
+- Eliminated all unsafe unwrap() patterns in production code
+- Improved UTF-8 handling across all language modules
+- Consolidated duplicate APIs (parser creation, import extraction, resolve symbol)
+- Introduced testable configuration for execution logging
+- All 340+ tests passing
+
+**Delivered Plans:** 20/20
+- Phase 19: 7 plans (Critical Error Handling)
+- Phase 20: 7 plans (Lifetime & Resource Safety)
+- Phase 21: 6 plans (API Consolidation & Code Quality)
 
 ---
 
@@ -125,12 +140,12 @@ See `.planning/milestones/v2.2-ROADMAP.md` for complete details of phases 11-18.
 5. All 67 issues from bug analysis verified fixed
 
 **Plans**:
-- [ ] 21-01-PLAN.md — Consolidate duplicate parser_for_language functions
-- [ ] 21-02-PLAN.md — Extract common import extraction patterns into trait
-- [ ] 21-03-PLAN.md — Simplify resolve symbol API surface
-- [ ] 21-04-PLAN.md — Refactor environment variable feature toggle
-- [ ] 21-05-PLAN.md — Run comprehensive tests to verify all fixes
-- [ ] 21-06-PLAN.md — Update bug analysis document with verification status
+- [x] 21-01-PLAN.md — Consolidate duplicate parser_for_language functions
+- [x] 21-02-PLAN.md — Extract common import extraction patterns into trait
+- [x] 21-03-PLAN.md — Simplify resolve symbol API surface
+- [x] 21-04-PLAN.md — Refactor environment variable feature toggle
+- [x] 21-05-PLAN.md — Run comprehensive tests to verify all fixes
+- [x] 21-06-PLAN.md — Update bug analysis document with verification status
 
 ---
 
@@ -142,9 +157,9 @@ See `.planning/milestones/v2.2-ROADMAP.md` for complete details of phases 11-18.
 | 11-18 | v2.2 | 55/55 | Complete | 2026-01-23 |
 | 19. Critical Error Handling | v2.2.1 | 7/7 | Complete | 2026-01-23 |
 | 20. Lifetime & Resource Safety | v2.2.1 | 7/7 | Complete | 2026-01-24 |
-| 21. API Consolidation | v2.2.1 | 0/6 | Not started | - |
+| 21. API Consolidation | v2.2.1 | 6/6 | Complete | 2026-01-24 |
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%)
 - v2.2: 55/55 plans complete (100%)
-- v2.2.1: 14/20 plans complete (70%)
+- v2.2.1: 20/20 plans complete (100%)

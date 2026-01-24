@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 ## Current Position
 
 Phase: 21 of 21 (API Consolidation)
-Plan: 02 of 10
-Status: In progress
-Last activity: 2026-01-24 — Completed Plan 21-02: Import Extraction Trait-Based API
+Plan: 06 of 6
+Status: Phase complete
+Last activity: 2026-01-24 — Completed Plan 21-06: Documentation Updates & Milestone Completion
 
-Progress: [████████░] 91% (98/106 plans total: 31 v2.0 + 55 v2.2 + 10 v2.2.1 + 2 in Phase 21)
+Progress: [█████████] 100% (106/106 plans total: 31 v2.0 + 55 v2.2 + 20 v2.2.1)
 
 ## Current Milestone: v2.2.1 Code Quality & Bug Fixes
 
@@ -132,12 +132,15 @@ All blockers from v2.2 were resolved during gap closure:
 | 21-03 | resolve_symbol_with_rust_kind deprecated with migration guide to string-based kinds (removed in v3.0) |
 | 21-03 | Module-level documentation should include API comparison table for quick reference |
 | 21-03 | Deprecation notices should include since version, removal timeline, and migration guide |
+| 21-04 | Use dependency injection (ExecutionLogConfig) for testability of execution logging |
+| 21-04 | Environment variables remain as default behavior for compatibility |
+| 21-04 | Option<bool> for enabled field distinguishes explicit control from environment-based behavior |
 
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed Plan 21-02: Import Extraction Trait-Based API
+Stopped at: Completed Phase 21 - v2.2.1 Milestone Complete
 Resume file: None
 
 ---
-*Last updated: 2026-01-24 — v2.2.1 milestone in progress*
+*Last updated: 2026-01-24 — v2.2.1 milestone complete*
