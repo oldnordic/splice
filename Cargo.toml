@@ -5,7 +5,10 @@ edition = "2021"
 description = "Span-safe refactoring kernel for 7 languages with Magellan code graph integration"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/oldnordic/splice"
+documentation = "https://github.com/oldnordic/splice/blob/main/README.md"
 readme = "README.md"
+keywords = ["refactoring", "cli", "code-analysis", "ast", "tree-sitter"]
+categories = ["command-line-utilities", "development-tools", "development-tools::build-utils"]
 exclude = [
     ".planning/",
     "CLAUDE.md",
