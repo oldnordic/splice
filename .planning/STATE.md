@@ -5,150 +5,75 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** Post-v2.2.1 — Ready to define next milestone
+**Current focus:** v2.2.2 Magellan Integration — Phase 22: Symbol ID & Format Foundation
 
 ## Current Position
 
-Phase: Not started (defining next milestone)
-Plan: —
-Status: Milestone v2.2.1 complete
-Last activity: 2026-01-24 — Completed Milestone v2.2.1: Code Quality & Bug Fixes
+Phase: 22 of 26 (Symbol ID & Format Foundation)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-01-24 — Roadmap created for v2.2.2 milestone
 
-Progress: [█████████] 100% (106/106 plans total: 31 v2.0 + 55 v2.2 + 20 v2.2.1)
+Progress: [████████░░] 81% (106/130 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 0/24 v2.2.2)
 
-## Completed Milestone: v2.2.1 Code Quality & Bug Fixes
+## Current Milestone: v2.2.2 Magellan Integration
 
-**Goal:** Fixed all 67 issues identified in comprehensive bug analysis
+**Goal:** Unified CLI interface - Splice provides both Magellan query commands and span-safe editing
 
-**Achievements:**
-- 57 issues fixed through code changes
-- 10 issues documented as acceptable or by design
-- Eliminated all unsafe unwrap() patterns in production code
-- Improved UTF-8 handling across all language modules
-- Consolidated duplicate APIs (parser creation, import extraction, resolve symbol)
-- Introduced testable configuration for execution logging
-- All 312 unit tests passing
+**Integration approach:**
+- Magellan provides code graph (indexing, symbol storage, relationships)
+- Splice provides unified interface - queries delegate to Magellan, edits use Splice's span-safe operations
+- LLMs can use single tool for both discovery and modification
 
-**Bug Analysis:** docs/BUG_ANALYSIS.md (includes verification status)
+**Target features:**
+- Query commands (status, query, find, refs, files)
+- CLI alignment (--output, --db flags)
+- Data format alignment (16-char IDs, canonical/display FQNs, execution_id format)
+- Export command for graph data
 
-## Next Steps
+## Performance Metrics
 
-**Start new milestone:** `/gsd:new-milestone`
+**Velocity:**
+- Total plans completed: 106
+- Total execution time: ~40 hours (estimated)
 
-Potential areas:
-- Performance optimization for large codebases
-- Additional language support (Go, Ruby, PHP)
-- Enhanced undo/redo capabilities
-- IDE integration (LSP support)
-- Parallel batch processing
+**By Phase:**
 
-## Tech Stack
+| Phase | Plans | Status |
+|-------|-------|--------|
+| 1-10 | 31 | Complete |
+| 11-18 | 55 | Complete |
+| 19-21 | 20 | Complete |
+| 22-26 | 0/24 | Not started |
 
-**Core:**
-- Rust 2021 edition
-- tree-sitter 0.21+ (parsers for 7 languages)
-- SQLiteGraph 1.0 (code graph storage)
-- ropey (rope data structure for text)
-- serde (JSON serialization)
+*Updated after each plan completion*
 
-**Added in v2.2:**
-- similar (unified diff generation)
-- nu-ansi-term (terminal colors)
-- is-terminal (TTY detection)
+## Accumulated Context
 
-## Design Principles
+### Decisions
 
-1. **Additive schema evolution** — All new fields optional with skip_serializing_if
-2. **Builder pattern** — Fluent API for optional field population
-3. **CLI conventions** — Follow Unix/Git standards (`-n`, `-A`/`-B`/`-C`, exit codes)
-4. **AST-aware operations** — Use tree-sitter for accurate symbol boundaries
-5. **Lazy evaluation** — Optional features only execute when requested
-6. **Zero breaking changes** — Maintain backward compatibility at all times
+Decisions are logged in PROJECT.md Key Decisions table.
 
-## Open Blockers
+**Recent decisions affecting v2.2.2:**
+- v2.2.2: Use library delegation pattern (in-process Rust, not subprocess)
+- v2.2.2: Field translation layer for Magellan compatibility (start_line -> line_start)
+- v2.2.2: 16-char symbol IDs (SHA-256, first 8 bytes) for Magellan alignment
 
-None — v2.2.1 complete
+### Pending Todos
 
-## Resolved Blockers (v2.2.1)
+None yet.
 
-All 67 bug analysis issues resolved:
-- Error-Handling Amnesia (45 findings) — 7 fixed, 2 acceptable
-- Data Lifetime Issues (5 findings) — 3 fixed, 1 acceptable
-- Boundary Bugs (6 findings) — 2 fixed, 4 acceptable
-- Concurrency Issues (3 findings) — 2 fixed, 1 acceptable
-- API Fragmentation (3 findings) — 3 fixed
-- State Drift (2 findings) — 1 documented, 1 acceptable
-- Resource Cleanup (1 finding) — 1 fixed
-- Math Issues (1 finding) — 1 fixed
-- Global State (1 finding) — 1 fixed
+### Blockers/Concerns
 
-## Resolved Blockers (v2.2)
-
-All blockers from v2.2 were resolved during gap closure:
-- Error codes fully wired through CLI (Phase 18)
-- Rich span fields integrated into JSON output (Phases 11-14)
-- Context flags respect expanded boundaries (Phase 16)
-- All cross-phase integration verified working (Phase 17)
-
-## Decisions from Phase 19
-
-| Plan | Decision |
-|------|----------|
-| 19-01 | Use if-let pattern instead of unwrap() on last() calls |
-| 19-01 | Use cloned().expect() with descriptive message instead of unwrap() on first() |
-| 19-02 | Replace unwrap() in test code with ? operator returning std::result::Result |
-| 19-02 | Use char-based iteration (Vec<char>) instead of byte slicing for UTF-8 string manipulation |
-| 19-06 | Keep UTF-8 helper functions in each module rather than creating shared module |
-| 19-06 | Use chars.len() >= 2 check instead of > 2 for safer boundary handling |
-| 19-07 | Use 3x multiplier for disk space estimation to account for CoW filesystem overhead |
-| 19-07 | Add 4KB per-file overhead for filesystem metadata and journaling |
-
-## Decisions from Phase 20
-
-| Plan | Decision |
-|------|----------|
-| 20-01 | Use if-let pattern instead of unwrap() on Path::parent() to handle None case safely |
-| 20-01 | Add descriptive messages to test expect() calls for better failure debugging |
-| 20-02 | Use and_then(to_str()) instead of map(to_string_lossy()) for path serialization |
-| 20-02 | Invalid UTF-8 paths should be omitted from JSON (None) rather than corrupted |
-| 20-03 | Use to_str().expect() for glob patterns in test code (TempDir paths always valid UTF-8) |
-| 20-03 | Use and_then/to_str with unwrap_or_default() for file name extraction |
-| 20-03 | Use to_str().unwrap_or("<invalid-utf-8>") for JSON serialization of file paths |
-| 20-04 | Execution log .err() patterns in test code are correct (used for assertion error messages) |
-| 20-04 | No code changes needed - documentation added to explain error handling philosophy |
-| 20-05 | Use helper function log_execution_error() for consistent error message formatting with operation context |
-| 20-05 | Error messages include operation type (delete, patch, batch, plan, apply-files, query) for debugging |
-| 20-06 | env_lock() Mutex must be held for entire test duration to prevent race conditions |
-| 20-06 | Add comprehensive documentation to env_lock() to prevent future regressions |
-| 20-07 | Use HashSet for test command filtering instead of sorting/de-duplicating in shell |
-| 20-07 | Document TempDir's Drop trait behavior explicitly for future maintainers |
-| 20-07 | Clean up stale test files before write test to prevent accumulation from crashes |
-| 20-07 | Rope mutation state tracking (before_hash, replaced, after_hash) already exists and is documented |
-
-## Decisions from Phase 21
-
-| Plan | Decision |
-|------|----------|
-| 21-01 | Place parser_for_language in symbol module alongside Language enum for single source of truth |
-| 21-01 | Use crate::symbol::parser_for_language as centralized parser creation API |
-| 21-01 | Make parser_for_language public for cross-module reuse while maintaining encapsulation |
-| 21-02 | Use trait with default implementation for common import extraction flow |
-| 21-02 | Unit struct pattern for language extractors (PythonExtractor, CppExtractor) |
-| 21-02 | Preserve existing public API functions for backward compatibility |
-| 21-03 | resolve_symbol is the PRIMARY API for symbol resolution (documented explicitly) |
-| 21-03 | find_symbol_or_suggest is specifically for user-facing commands needing suggestions |
-| 21-03 | resolve_symbol_with_rust_kind deprecated with migration guide to string-based kinds (removed in v3.0) |
-| 21-03 | Module-level documentation should include API comparison table for quick reference |
-| 21-03 | Deprecation notices should include since version, removal timeline, and migration guide |
-| 21-04 | Use dependency injection (ExecutionLogConfig) for testability of execution logging |
-| 21-04 | Environment variables remain as default behavior for compatibility |
-| 21-04 | Option<bool> for enabled field distinguishes explicit control from environment-based behavior |
+**Phase 22 Research Gaps:**
+- Magellan 0.5.3 exact API method signatures need verification during implementation
+- Type compatibility between Magellan SymbolInfo and Splice SymbolMatch needs testing
 
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed and archived Milestone v2.2.1
+Stopped at: Roadmap created, ready for Phase 22 planning
 Resume file: None
 
 ---
-*Last updated: 2026-01-24 — v2.2.1 milestone archived, ready for next milestone*
+*Last updated: 2026-01-24 — v2.2.2 roadmap created*

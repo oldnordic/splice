@@ -9,6 +9,7 @@ Splice is a span-safe refactoring tool for 7 programming languages (Rust, Python
 - ✅ **v2.0 Production Safety** — Phases 1-10 (shipped 2026-01-18)
 - ✅ **v2.2 Unified JSON & LLM Optimization** — Phases 11-18 (shipped 2026-01-23)
 - ✅ **v2.2.1 Code Quality & Bug Fixes** — Phases 19-21 (shipped 2026-01-24)
+- 🚧 **v2.2.2 Magellan Integration** — Phases 22-26 (in progress)
 
 ## Phases
 
@@ -51,13 +52,12 @@ See `.planning/milestones/v2.2-ROADMAP.md` for complete details of phases 11-18.
 
 </details>
 
-### v2.2.1 Code Quality & Bug Fixes (COMPLETE)
+<details>
+<summary>✅ v2.2.1 Code Quality & Bug Fixes (Phases 19-21) — SHIPPED 2026-01-24</summary>
 
 **Milestone Goal:** Fix all 67 issues identified in comprehensive bug analysis, improving code reliability and safety
 
 **Bug Analysis:** docs/BUG_ANALYSIS.md
-
-**v2.2.1 Status:** COMPLETE - 2026-01-24
 
 **Summary:**
 - Fixed 67 issues across 11 bug categories
@@ -72,94 +72,126 @@ See `.planning/milestones/v2.2-ROADMAP.md` for complete details of phases 11-18.
 - Phase 20: 7 plans (Lifetime & Resource Safety)
 - Phase 21: 6 plans (API Consolidation & Code Quality)
 
----
+</details>
 
-#### Phase 19: Critical & High-Priority Error Handling
+### 🚧 v2.2.2 Magellan Integration (In Progress)
 
-**Goal**: Fix panic-risk bugs and unsafe unwrap/expect patterns in import extraction modules
+**Milestone Goal:** Unified CLI interface - Splice provides both Magellan query commands and span-safe editing
 
-**Depends on**: Phase 18
-**Requirements**: ERROR-01 through ERROR-07, LIFETIME-01 through LIFETIME-04, BOUNDARY-01 through BOUNDARY-06, MATH-01
+#### Phase 22: Symbol ID & Format Foundation
+**Goal**: Establish Magellan-compatible ID formats and field translation
+**Depends on**: Phase 21
+**Requirements**: DATA-01, DATA-02
+**Success Criteria** (what must be TRUE):
+  1. Symbol IDs are generated as 16-character hex strings (SHA-256, first 8 bytes)
+  2. Execution IDs follow {timestamp_hex}-{pid_hex} format for delegated queries
+  3. Field translation utilities convert between Magellan (start_line) and Splice (line_start) conventions
+  4. JSON schema compatibility tests verify format alignment
+**Plans**: TBD
 
-**Success Criteria**:
-1. No unwrap() on first()/last() without proper empty checks
-2. All string slicing operations handle UTF-8 correctly
-3. All test code unwrap() calls replaced with proper error handling
-4. Boundary checks added for all slice operations
-5. Disk space calculation improved
+Plans:
+- [ ] 22-01: Create src/symbol_id.rs with 16-char hex ID generation
+- [ ] 22-02: Create src/format/magellan.rs with field translation utilities
+- [ ] 22-03: Execution ID generation matching Magellan format
+- [ ] 22-04: JSON schema compatibility tests
 
-**Plans**: 7 plans in 2 waves
-- [ ] 19-01-PLAN.md — Fix unwrap() on first()/last() in python.rs (wave 1)
-- [ ] 19-02-PLAN.md — Replace unwrap() calls in cpp.rs test code (wave 1)
-- [ ] 19-03-PLAN.md — Replace unwrap() calls in javascript.rs test code (wave 1)
-- [ ] 19-04-PLAN.md — Replace unwrap() calls in java.rs test code (wave 1)
-- [ ] 19-05-PLAN.md — Replace unwrap() calls in typescript.rs test code (wave 1)
-- [ ] 19-06-PLAN.md — Fix UTF-8 string slicing across all import modules (wave 2)
-- [ ] 19-07-PLAN.md — Add boundary checks and improve disk space calculation (wave 2)
+#### Phase 23: Magellan Integration Extensions
+**Goal**: Extend MagellanIntegration wrapper with pagination and ID-based queries
+**Depends on**: Phase 22
+**Requirements**: QUERY-01, QUERY-02, QUERY-03, QUERY-04, QUERY-05
+**Success Criteria** (what must be TRUE):
+  1. status command displays database statistics (files, symbols, references, calls, code_chunks counts)
+  2. query command lists symbols in a file with optional context/relationship flags
+  3. find command locates symbols by name or symbol_id with disambiguation support
+  4. refs command shows callers/callees for a symbol with bidirectional traversal
+  5. files command lists indexed files with optional symbol counts per file
+**Plans**: TBD
 
----
+Plans:
+- [ ] 23-01: query_by_labels_paginated() method for large result sets
+- [ ] 23-02: get_symbol_by_id() method for ID-based symbol lookup
+- [ ] 23-03: count_symbols_with_labels() for statistics
+- [ ] 23-04: get_references() and get_call_graph() methods
+- [ ] 23-05: Integration tests with test database
 
-#### Phase 20: Lifetime & Resource Safety
+#### Phase 24: CLI Commands & Response Types
+**Goal**: Add CLI command variants and response types for delegated queries
+**Depends on**: Phase 22
+**Requirements**: CLI-01, CLI-02, CLI-03, CLI-04, DATA-03, DATA-04
+**Success Criteria** (what must be TRUE):
+  1. --output flag supports human (default), json, and pretty formats
+  2. --db flag specifies database path and delegates to Magellan
+  3. Exit codes match Magellan conventions (0=success, 1=error, 2=usage, 3=database, 4=file not found, 5=validation)
+  4. --help shows command categories (Query, Edit, Export, Validation)
+  5. Response types (StatusResponse, FindResponse, RefsResponse, FilesResponse) use translated field names
+**Plans**: TBD
 
-**Goal**: Fix data lifetime issues, improve path handling, and fix concurrency issues
+Plans:
+- [ ] 24-01: CLI variants (Status, Find, Refs, Files) in src/cli/mod.rs
+- [ ] 24-02: --output and --db flag implementation
+- [ ] 24-03: Exit code mapping to Magellan conventions
+- [ ] 24-04: Response types in src/output.rs
+- [ ] 24-05: CLI parsing and help text tests
 
-**Depends on**: Phase 19
-**Requirements**: ERROR-08 through ERROR-12, LIFETIME-05 through LIFETIME-08, BOUNDARY-05 through BOUNDARY-06, CONCURRENCY-01 through CONCURRENCY-03, STATE-01 through STATE-02, RESOURCE-01
+#### Phase 25: Export Command & Error Mapping
+**Goal**: Implement export command and map Magellan errors to Splice codes
+**Depends on**: Phase 23, Phase 24
+**Requirements**: EXPORT-01, EXPORT-02, ERROR-01
+**Success Criteria** (what must be TRUE):
+  1. export command exports graph data in json, jsonl, or csv format
+  2. Export output includes files, symbols, references, and calls with proper schema version
+  3. Magellan errors are mapped to SPL-E### codes with original error preserved in chain
+  4. Export command supports --output flag for file destination
+**Plans**: TBD
 
-**Success Criteria**:
-1. All to_string_lossy() replaced with proper path handling
-2. Execution log errors properly propagated
-3. Test environment variable race condition fixed
-4. SQLite connection sharing improved
-5. TempDir cleanup improved
-6. Rope mutation tracking improved
+Plans:
+- [ ] 25-01: Export command implementation (json/jsonl/csv formats)
+- [ ] 25-02: Export schema definition with version field
+- [ ] 25-03: Error mapping from Magellan to SPL-E### codes
+- [ ] 25-04: Export command tests
 
-**Plans**:
-- [ ] 20-01-PLAN.md — Fix unwrap() on parent() in backup.rs and expect() calls in graph/mod.rs
-- [ ] 20-02-PLAN.md — Replace to_string_lossy() in cli/mod.rs (4 locations)
-- [ ] 20-03-PLAN.md — Replace to_string_lossy() in patch/pattern.rs (14 locations)
-- [ ] 20-04-PLAN.md — Fix execution log error handling in log.rs
-- [ ] 20-05-PLAN.md — Improve main.rs execution logging error handling (16 locations)
-- [ ] 20-06-PLAN.md — Fix test environment variable race condition
-- [ ] 20-07-PLAN.md — Improve temp directory and resource cleanup
+#### Phase 26: Integration Testing
+**Goal**: End-to-end validation of unified CLI interface
+**Depends on**: Phase 23, Phase 24, Phase 25
+**Requirements**: All v2.2.2 requirements (integration validation)
+**Success Criteria** (what must be TRUE):
+  1. All query commands (status, query, find, refs, files) execute end-to-end
+  2. Export command produces valid output in all three formats
+  3. Error codes correctly map from Magellan errors
+  4. LLM consumption tests verify single-tool workflow for discovery and editing
+  5. Performance benchmarks confirm query performance within acceptable limits
+**Plans**: TBD
 
----
-
-#### Phase 21: API Consolidation & Code Quality
-
-**Goal**: Consolidate duplicate functions, improve state management, and refactor global state
-
-**Depends on**: Phase 20
-**Requirements**: API-01 through API-03, STATE-01 through STATE-02, GLOBAL-01
-
-**Success Criteria**:
-1. Single parser_for_language function in shared module
-2. Import extraction uses trait-based approach
-3. Resolve symbol API simplified
-4. Environment variable feature toggle refactored for testability
-5. All 67 issues from bug analysis verified fixed
-
-**Plans**:
-- [x] 21-01-PLAN.md — Consolidate duplicate parser_for_language functions
-- [x] 21-02-PLAN.md — Extract common import extraction patterns into trait
-- [x] 21-03-PLAN.md — Simplify resolve symbol API surface
-- [x] 21-04-PLAN.md — Refactor environment variable feature toggle
-- [x] 21-05-PLAN.md — Run comprehensive tests to verify all fixes
-- [x] 21-06-PLAN.md — Update bug analysis document with verification status
+Plans:
+- [ ] 26-01: End-to-end integration tests for all query commands
+- [ ] 26-02: Export format validation tests
+- [ ] 26-03: Error code mapping tests
+- [ ] 26-04: LLM consumption tests
+- [ ] 26-05: Performance benchmarks
+- [ ] 26-06: Documentation (docs/magellan_integration.md)
 
 ---
 
 ## Progress
 
+**Execution Order:**
+Phases execute in numeric order: 22 → 23 → 24 → 25 → 26
+
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1-10 | v2.0 | 31/31 | Complete | 2026-01-18 |
 | 11-18 | v2.2 | 55/55 | Complete | 2026-01-23 |
-| 19. Critical Error Handling | v2.2.1 | 7/7 | Complete | 2026-01-23 |
-| 20. Lifetime & Resource Safety | v2.2.1 | 7/7 | Complete | 2026-01-24 |
-| 21. API Consolidation | v2.2.1 | 6/6 | Complete | 2026-01-24 |
+| 19 | v2.2.1 | 7/7 | Complete | 2026-01-23 |
+| 20 | v2.2.1 | 7/7 | Complete | 2026-01-24 |
+| 21 | v2.2.1 | 6/6 | Complete | 2026-01-24 |
+| 22. Symbol ID & Format Foundation | v2.2.2 | 0/4 | Not started | - |
+| 23. Magellan Integration Extensions | v2.2.2 | 0/5 | Not started | - |
+| 24. CLI Commands & Response Types | v2.2.2 | 0/5 | Not started | - |
+| 25. Export Command & Error Mapping | v2.2.2 | 0/4 | Not started | - |
+| 26. Integration Testing | v2.2.2 | 0/6 | Not started | - |
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%)
 - v2.2: 55/55 plans complete (100%)
 - v2.2.1: 20/20 plans complete (100%)
+- v2.2.2: 0/24 plans planned (0%)

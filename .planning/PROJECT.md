@@ -140,24 +140,21 @@ Potential areas for future development:
 - Online error documentation (splice.dev/errors/)
 
 ---
-## Current Milestone: Not Started (Post v2.2.1)
+## Current Milestone: v2.2.2 - Magellan Integration
 
-**Status:** v2.2.1 complete — Ready to define next milestone
+**Goal:** Unified CLI interface - Splice provides both Magellan query commands and span-safe editing
 
-**Last milestone achievements:**
-- Fixed all 67 bug analysis issues (57 code fixes + 10 documented as acceptable)
-- Eliminated unsafe unwrap() patterns in production and test code
-- Consolidated APIs across parser creation, import extraction, and symbol resolution
-- All 312 tests passing
+**Target features:**
+- Query commands (status, query, find, refs, files) delegating to Magellan
+- CLI alignment (--output, --db flags matching Magellan)
+- Data format alignment (16-char symbol IDs, canonical/display FQNs, execution_id format)
+- Export command for graph data (json/jsonl/csv formats)
 
-**Potential areas for next work:**
-- Performance optimization for large codebases
-- Additional language support (Go, Ruby, PHP)
-- Enhanced undo/redo capabilities
-- IDE integration (LSP support)
-- Parallel batch processing
+**Integration approach:**
+- Magellan provides the code graph (indexing, symbol storage, relationships)
+- Splice provides unified interface - queries delegate to Magellan, edits use Splice's span-safe operations
+- LLMs can use single tool (Splice) for both discovery and modification
 
 ---
-*Last updated: 2026-01-24 — v2.2.1 milestone complete*
-*See .planning/milestones/v2.2.1-MILESTONE-AUDIT.md for details*
+*Last updated: 2026-01-24 — v2.2.2 milestone started*
 *See .planning/milestones/ for detailed milestone archives*

@@ -1,85 +1,68 @@
-# Requirements: Splice v2.2.1 - Code Quality & Bug Fixes
+# Requirements: Splice v2.2.2 - Magellan Integration
 
-**Defined:** 2026-01-23
+**Defined:** 2026-01-24
 **Core Value:** Span-safe refactoring with validation
-**Milestone:** v2.2.1 - Code Quality & Bug Fixes
+**Milestone:** v2.2.2 - Magellan Integration (Unified CLI Interface)
 
-## v2.2.1 Requirements
+## v2.2.2 Requirements
 
-Requirements for code quality improvements and bug fixes based on comprehensive bug analysis.
+Requirements for Magellan query command delegation and CLI/data format alignment.
 
-### Error Handling (ERROR-01 through ERROR-12)
+### Query Commands (QUERY-01 through QUERY-05)
 
-- [ ] **ERROR-01:** Remove unwrap() on .first() in python.rs:95 - use safer pattern
-- [ ] **ERROR-02:** Remove unwrap() on .last() in python.rs:201 - use safer pattern
-- [ ] **ERROR-03:** Replace all unwrap() calls in python.rs test code with proper error handling
-- [ ] **ERROR-04:** Replace all unwrap() calls in cpp.rs test code with proper error handling
-- [ ] **ERROR-05:** Replace all unwrap() calls in javascript.rs test code with proper error handling
-- [ ] **ERROR-06:** Replace all unwrap() calls in java.rs test code with proper error handling
-- [ ] **ERROR-07:** Replace all unwrap() calls in typescript.rs test code with proper error handling
-- [ ] **ERROR-08:** Fix unwrap() on parent() in backup.rs:417 - handle None case
-- [ ] **ERROR-09:** Review and replace expect() calls in graph/mod.rs production code
-- [ ] **ERROR-10:** Fix execution log errors swallowed in log.rs (insert_result.err())
-- [ ] **ERROR-11:** Improve main.rs execution logging error handling (16 locations)
-- [ ] **ERROR-12:** Add proper error propagation instead of silent logging
+- [ ] **QUERY-01**: status command shows database statistics (files, symbols, references, calls, code_chunks counts)
+- [ ] **QUERY-02**: query command lists symbols in a file (--file, --kind, --with-context, --with-callers, --with-callees flags)
+- [ ] **QUERY-03**: find command finds symbol by name or symbol_id (--name, --symbol-id, --ambiguous flags)
+- [ ] **QUERY-04**: refs command shows callers/callees for a symbol (--name, --path, --direction flags)
+- [ ] **QUERY-05**: files command lists indexed files (--symbols flag for counts)
 
-### Data Lifetime & UTF-8 Safety (LIFETIME-01 through LIFETIME-08)
+### CLI Alignment (CLI-01 through CLI-04)
 
-- [ ] **LIFETIME-01:** Fix string slicing in cpp.rs:86 to handle UTF-8 correctly
-- [ ] **LIFETIME-02:** Fix string slicing in cpp.rs:96 to handle UTF-8 correctly
-- [ ] **LIFETIME-03:** Fix string slicing in javascript.rs:218 to handle UTF-8 correctly
-- [ ] **LIFETIME-04:** Fix string slicing in typescript.rs:266 to handle UTF-8 correctly
-- [ ] **LIFETIME-05:** Replace to_string_lossy() in cli/mod.rs with proper path handling (4 locations)
-- [ ] **LIFETIME-06:** Replace to_string_lossy() in patch/pattern.rs with proper path handling (14 locations)
-- [ ] **LIFETIME-07:** Review tree_walker.rs lifetime annotations for correctness
-- [ ] **LIFETIME-08:** Add UTF-8 safety tests for all string manipulation code
+- [ ] **CLI-01**: --output flag supports human (default), json, pretty formats
+- [ ] **CLI-02**: --db flag specifies database path (delegates to Magellan)
+- [ ] **CLI-03**: Exit codes match Magellan conventions (0=success, 1=error, 2=usage, 3=database, 4=file not found, 5=validation)
+- [ ] **CLI-04**: --help shows command categories (Query, Edit, Export, Validation)
 
-### Boundary Safety (BOUNDARY-01 through BOUNDARY-06)
+### Data Format Alignment (DATA-01 through DATA-04)
 
-- [ ] **BOUNDARY-01:** Add bounds check for text.len() < 2 in cpp.rs before slicing
-- [ ] **BOUNDARY-02:** Review and fix line number calculations in patch/mod.rs:988-993
-- [ ] **BOUNDARY-03:** Add edge case tests for span validation in patch/mod.rs:182-189
-- [ ] **BOUNDARY-04:** Fix array indexing in resolve/mod.rs:140 - use safer pattern
-- [ ] **BOUNDARY-05:** Improve regex capture group handling in validate/mod.rs:243-257
-- [ ] **BOUNDARY-06:** Add byte-to-character conversion edge case handling
+- [ ] **DATA-01**: Symbol ID uses 16-character hex format (SHA-256 hash, first 8 bytes)
+- [ ] **DATA-02**: Execution ID uses {timestamp_hex}-{pid_hex} format for delegated queries
+- [ ] **DATA-03**: Field name translation between Magellan (start_line) and Splice (line_start) conventions
+- [ ] **DATA-04**: Response types defined (StatusResponse, FindResponse, RefsResponse, FilesResponse)
 
-### Concurrency Safety (CONCURRENCY-01 through CONCURRENCY-03)
+### Export (EXPORT-01 through EXPORT-02)
 
-- [ ] **CONCURRENCY-01:** Fix test environment variable race in execution/log.rs:229-234
-- [ ] **CONCURRENCY-02:** Add proper SQLite connection sharing protection in execution/log.rs
-- [ ] **CONCURRENCY-03:** Improve temp directory cleanup race handling in verify.rs
+- [ ] **EXPORT-01**: export command exports graph data (--format json|jsonl|csv, --output flag)
+- [ ] **EXPORT-02**: Export includes files, symbols, references, calls with proper schema version
 
-### API Consolidation (API-01 through API-03)
+### Error Handling (ERROR-01)
 
-- [ ] **API-01:** Consolidate duplicate parser_for_language functions into shared module
-- [ ] **API-02:** Extract common import extraction patterns into trait-based approach
-- [ ] **API-03:** Review and simplify resolve symbol API surface
+- [ ] **ERROR-01**: Magellan errors mapped to Splice SPL-E### codes with original error preserved in chain
 
-### State Management (STATE-01 through STATE-02)
+## v2.3 Requirements
 
-- [ ] **STATE-01:** Improve rope mutation tracking in patch/mod.rs for atomicity
-- [ ] **STATE-02:** Track partial replacement success/failure in batch application
+Deferred to future release.
 
-### Resource Management (RESOURCE-01)
+### Performance Optimization
 
-- [ ] **RESOURCE-01:** Improve TempDir cleanup handling in patch/mod.rs:926-929
+- **PERF-01**: Query performance optimization for large codebases (10K+ files)
+- **PERF-02**: Relationship graph indexing for O(1) lookups
+- **PERF-03**: Lazy context loading for files >32KB
 
-### Mathematical Correctness (MATH-01)
+### Advanced Features
 
-- [ ] **MATH-01:** Improve disk space calculation heuristic in verify.rs:200-213
-
-### Global State (GLOBAL-01)
-
-- [ ] **GLOBAL-01:** Refactor environment variable feature toggle for testability
+- **ADV-01**: Real-time indexing delegation (watch command)
+- **ADV-02**: Full LSP integration
+- **ADV-03**: Custom Magellan commands
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| New features | Milestone is focused on bug fixes only |
-| Performance optimization | Defer to v2.3 |
-| New language support | Defer to v2.3+ |
-| LSP/IDE integration | Defer to v2.3+ |
+| Re-implementing Magellan parsers | Use Magellan as library, don't duplicate |
+| Separate Splice database | Share Magellan's database via delegation |
+| Subprocess delegation | Use in-process library delegation only |
+| Magellan schema migration | Users run `magellan migrate` separately |
 
 ## Traceability
 
@@ -87,22 +70,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ERROR-01 through ERROR-03 | Phase 19 | Pending |
-| ERROR-04 through ERROR-07 | Phase 19 | Pending |
-| ERROR-08 through ERROR-12 | Phase 20 | Pending |
-| LIFETIME-01 through LIFETIME-04 | Phase 19 | Pending |
-| LIFETIME-05 through LIFETIME-08 | Phase 20 | Pending |
-| BOUNDARY-01 through BOUNDARY-06 | Phase 19 | Pending |
-| CONCURRENCY-01 through CONCURRENCY-03 | Phase 20 | Pending |
-| API-01 through API-03 | Phase 21 | Pending |
-| STATE-01 through STATE-02 | Phase 20 | Pending |
-| RESOURCE-01 | Phase 20 | Pending |
-| MATH-01 | Phase 19 | Pending |
-| GLOBAL-01 | Phase 21 | Pending |
+| DATA-01 | Phase 22 | Pending |
+| DATA-02 | Phase 22 | Pending |
+| QUERY-01 | Phase 23 | Pending |
+| QUERY-02 | Phase 23 | Pending |
+| QUERY-03 | Phase 23 | Pending |
+| QUERY-04 | Phase 23 | Pending |
+| QUERY-05 | Phase 23 | Pending |
+| CLI-01 | Phase 24 | Pending |
+| CLI-02 | Phase 24 | Pending |
+| CLI-03 | Phase 24 | Pending |
+| CLI-04 | Phase 24 | Pending |
+| DATA-03 | Phase 24 | Pending |
+| DATA-04 | Phase 24 | Pending |
+| EXPORT-01 | Phase 25 | Pending |
+| EXPORT-02 | Phase 25 | Pending |
+| ERROR-01 | Phase 25 | Pending |
+| Integration validation | Phase 26 | Pending |
 
 **Coverage:**
-- v2.2.1 requirements: 42 total
-- Mapped to phases: 0 (pending roadmap)
+- v2.2.2 requirements: 15 total
+- Mapped to phases: 15 (100%)
 
 ---
-*Requirements defined: 2026-01-23*
+*Requirements defined: 2026-01-24*
