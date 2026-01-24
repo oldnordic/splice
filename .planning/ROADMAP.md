@@ -96,7 +96,7 @@ Plans:
 - [ ] 22-04-PLAN.md — JSON schema compatibility tests
 
 #### Phase 23: Magellan Integration Extensions
-**Goal**: Extend MagellanIntegration wrapper with pagination and ID-based queries
+**Goal**: Extend MagellanIntegration wrapper with query methods for status, query, find, refs, files commands
 **Depends on**: Phase 22
 **Requirements**: QUERY-01, QUERY-02, QUERY-03, QUERY-04, QUERY-05
 **Success Criteria** (what must be TRUE):
@@ -105,14 +105,14 @@ Plans:
   3. find command locates symbols by name or symbol_id with disambiguation support
   4. refs command shows callers/callees for a symbol with bidirectional traversal
   5. files command lists indexed files with optional symbol counts per file
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 23-01: query_by_labels_paginated() method for large result sets
-- [ ] 23-02: get_symbol_by_id() method for ID-based symbol lookup
-- [ ] 23-03: count_symbols_with_labels() for statistics
-- [ ] 23-04: get_references() and get_call_graph() methods
-- [ ] 23-05: Integration tests with test database
+- [ ] 23-01-PLAN.md — Add get_statistics() method for database statistics (QUERY-01)
+- [ ] 23-02-PLAN.md — Add query_symbols_by_file() method with kind filter and relationships (QUERY-02)
+- [ ] 23-03-PLAN.md — Add find_symbol_by_name() and find_symbol_by_id() methods (QUERY-03)
+- [ ] 23-04-PLAN.md — Add get_call_relationships() method with bidirectional traversal (QUERY-04)
+- [ ] 23-05-PLAN.md — Add list_indexed_files() method and integration tests (QUERY-05)
 
 #### Phase 24: CLI Commands & Response Types
 **Goal**: Add CLI command variants and response types for delegated queries
