@@ -942,6 +942,9 @@ struct AppliedFile {
 /// Clone workspace to a temporary directory for preview operations.
 ///
 /// Creates a temporary directory and recursively copies the workspace.
+/// Also copies any local path dependencies (sibling directories referenced
+/// in Cargo.toml) to ensure cargo check works in the preview environment.
+///
 /// If copying fails, the temp directory is automatically cleaned up by Drop.
 ///
 /// # Returns
@@ -949,10 +952,108 @@ struct AppliedFile {
 /// Returns `Ok(TempDir)` which will be cleaned up when dropped.
 fn clone_workspace_for_preview(workspace_root: &Path) -> Result<TempDir> {
     let preview_dir = TempDir::new()?;
+    let preview_path = preview_dir.path();
+
+    // First, copy the workspace itself
     // Note: If copy_dir_recursive fails, preview_dir is dropped here
     // and automatically cleans up the temp directory
-    copy_dir_recursive(workspace_root, preview_dir.path())?;
+    copy_dir_recursive(workspace_root, preview_path)?;
+
+    // Handle local path dependencies from Cargo.toml
+    // Projects with dependencies like `llmgrep = { path = "../llmgrep" }`
+    // need those sibling directories copied to the preview workspace parent
+    if let Ok(local_deps) = extract_local_path_dependencies(workspace_root) {
+        let preview_parent = preview_path
+            .parent()
+            .unwrap_or(preview_path);
+
+        for dep_path in local_deps {
+            let dep_name = dep_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .ok_or_else(|| SpliceError::Other(
+                    format!("Invalid dependency path: {:?}", dep_path)
+                ))?;
+
+            let dep_dest = preview_parent.join(dep_name);
+
+            // Skip if already exists or is the same as workspace
+            if dep_dest.exists() || dep_path == workspace_root {
+                continue;
+            }
+
+            // Copy the dependency directory
+            if let Err(e) = copy_dir_recursive(&dep_path, &dep_dest) {
+                log::warn!(
+                    "Failed to copy local dependency {:?} to {:?}: {}",
+                    dep_path, dep_dest, e
+                );
+                // Non-fatal: preview may still work if dependency isn't used
+            }
+        }
+    }
+
     Ok(preview_dir)
+}
+
+/// Extract local path dependencies from Cargo.toml.
+///
+/// Returns paths to sibling directories that are local dependencies,
+/// e.g., `../llmgrep` from `llmgrep = { path = "../llmgrep" }`.
+fn extract_local_path_dependencies(workspace_root: &Path) -> Result<Vec<PathBuf>> {
+    let cargo_toml_path = workspace_root.join("Cargo.toml");
+    let cargo_content = fs::read_to_string(&cargo_toml_path)?;
+
+    let mut local_deps = Vec::new();
+
+    // Simple string-based parsing for path dependencies
+    // This avoids adding a heavy TOML parser dependency just for this use case
+    // Match patterns like: `dep_name = { path = "../something" }`
+    for line in cargo_content.lines() {
+        let line = line.trim();
+        // Look for inline table dependencies with path
+        if line.contains("{") && line.contains("path") && line.contains("..") {
+            // Extract the path value
+            if let Some(start) = line.find("path = \"") {
+                let start_idx = start + 8; // "path = \"".len()
+                if let Some(end) = line[start_idx..].find('"') {
+                    let rel_path = &line[start_idx..start_idx + end];
+                    if rel_path.starts_with("..") {
+                        let dep_path = workspace_root.join(rel_path);
+                        if dep_path.exists() && dep_path.is_dir() {
+                            local_deps.push(dep_path.canonicalize().unwrap_or(dep_path));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Also check for workspace members and their dependencies
+    if let Some(parent) = workspace_root.parent() {
+        // Check for a workspace Cargo.toml in parent directory
+        let workspace_cargo = parent.join("Cargo.toml");
+        if workspace_cargo.exists() {
+            if let Ok(ws_content) = fs::read_to_string(&workspace_cargo) {
+                // Find workspace members
+                if let Some(start) = ws_content.find("members = [") {
+                    let members_start = start + 11;
+                    if let Some(end) = ws_content[members_start..].find(']') {
+                        let members_str = &ws_content[members_start..members_start + end];
+                        for member in members_str.split(',') {
+                            let member = member.trim().trim_matches('"').trim_matches('\'');
+                            let member_path = parent.join(member);
+                            if member_path.exists() && member_path != workspace_root {
+                                local_deps.push(member_path.canonicalize().unwrap_or(member_path));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(local_deps)
 }
 
 fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
