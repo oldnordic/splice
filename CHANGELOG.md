@@ -3,6 +3,27 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.3] - 2026-02-02
+
+### Fixed
+
+**SQLiteGraph 1.2.7 MVCC API Compatibility**
+- All `get_node()` calls now include `SnapshotId(0)` parameter for latest committed state
+- All `neighbors()` calls now include `SnapshotId(0)` parameter for latest committed state
+- Fixes compatibility with sqlitegraph 1.2.7's snapshot isolation system
+
+### Changed
+
+**Dependencies**
+- sqlitegraph 1.2.7 (was 1.2.5) - requires explicit SnapshotId parameter for graph queries
+
+### Technical Notes
+
+- **Affected files**: `src/graph/mod.rs` (lines 277, 328) and `src/relationships/mod.rs` (lines 201, 267, 318, 340, 377)
+- **SnapshotId(0)** represents the latest committed snapshot in sqlitegraph's MVCC system
+- All graph queries now explicitly specify snapshot isolation level
+- No functional changes to CLI output or behavior
+
 ## [2.2.2] - 2026-01-24
 
 ### Magellan Integration — Unified CLI Interface

@@ -10,7 +10,7 @@ pub mod schema;
 use crate::error::{Result, SpliceError};
 use crate::symbol::Language;
 use serde_json::json;
-use sqlitegraph::{EdgeSpec, GraphBackend, NodeId, NodeSpec};
+use sqlitegraph::{EdgeSpec, GraphBackend, NodeId, NodeSpec, SnapshotId};
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::Path;
@@ -273,7 +273,8 @@ impl CodeGraph {
             if key.ends_with(&format!("::{}", name)) || key == name {
                 for &node_id in ids {
                     // Try to get file_path from the node
-                    if let Ok(node) = self.backend.get_node(node_id.as_i64()) {
+                    // Use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
+                    if let Ok(node) = self.backend.get_node(SnapshotId(0), node_id.as_i64()) {
                         let file_path = node.data.get("file_path").and_then(|v| v.as_str());
                         results.push((node_id, file_path.map(|s| s.to_string())));
                     }
@@ -323,8 +324,8 @@ impl CodeGraph {
     ///
     /// Returns (byte_start, byte_end) from the node's properties.
     pub fn get_span(&self, node_id: NodeId) -> Result<(usize, usize)> {
-        // Get node from graph
-        let node = self.backend.get_node(node_id.as_i64())?;
+        // Get node from graph - use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
+        let node = self.backend.get_node(SnapshotId(0), node_id.as_i64())?;
 
         // Extract byte span from data
         let byte_start = node

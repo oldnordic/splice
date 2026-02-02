@@ -53,7 +53,7 @@ pub mod references;
 use crate::error::{Result, SpliceError};
 use crate::graph::CodeGraph;
 use serde::Serialize;
-use sqlitegraph::NodeId;
+use sqlitegraph::{NodeId, SnapshotId};
 use std::path::Path;
 
 /// A resolved symbol with complete location information.
@@ -207,8 +207,8 @@ pub fn resolve_symbol(
     let file_path_str =
         file_path.ok_or_else(|| SpliceError::Other("Symbol node missing file_path".to_string()))?;
 
-    // Get node data from graph
-    let node = graph.inner().get_node(node_id.as_i64())?;
+    // Get node data from graph - use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
+    let node = graph.inner().get_node(SnapshotId(0), node_id.as_i64())?;
 
     // Extract span data
     let byte_start = node
@@ -316,8 +316,8 @@ fn resolve_symbol_in_file(
         }
     };
 
-    // Get node data from graph
-    let node = graph.inner().get_node(node_id.as_i64())?;
+    // Get node data from graph - use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
+    let node = graph.inner().get_node(SnapshotId(0), node_id.as_i64())?;
 
     // Extract span data
     let byte_start = node

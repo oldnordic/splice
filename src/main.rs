@@ -148,6 +148,7 @@ fn main() -> ExitCode {
             relationships,
             operation_id,
             metadata,
+            db,
         } => {
             match batch {
                 Some(batch_path) => execute_patch_batch(&batch_path, analyzer, language, create_backup, operation_id, metadata, json_output),
@@ -167,6 +168,7 @@ fn main() -> ExitCode {
                     relationships,
                     operation_id,
                     metadata,
+                    db,
                     json_output,
                 ),
             }
@@ -989,6 +991,7 @@ fn execute_single_patch(
     relationships: bool,
     operation_id: Option<String>,
     metadata: Option<String>,
+    db: Option<PathBuf>,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     let file_path = require_patch_arg("--file", file_path)?;
@@ -1011,6 +1014,7 @@ fn execute_single_patch(
         relationships,
         operation_id,
         metadata,
+        db,
         json_output,
     )
 }
@@ -1031,6 +1035,7 @@ fn execute_patch(
     relationships: bool,
     operation_id: Option<String>,
     metadata: Option<String>,
+    db: Option<PathBuf>,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::CodeGraph;
@@ -1067,14 +1072,19 @@ fn execute_patch(
     // Step 2: Extract symbols using language-aware dispatcher
     let symbols = extract_symbols_with_language(file_path, &source, symbol_lang)?;
 
-    // Step 3: Create in-memory graph
-    let graph_db_path = file_path
-        .parent()
-        .ok_or_else(|| splice::SpliceError::Other(format!(
-            "File path has no parent: {}",
-            file_path.display()
-        )))?
-        .join(".splice_graph.db");
+    // Step 3: Use provided db path, or create temp db in file's parent directory
+    let graph_db_path = if let Some(db_path) = db {
+        db_path
+    } else {
+        // Fallback: create .splice_graph.db in the file's parent directory
+        file_path
+            .parent()
+            .ok_or_else(|| splice::SpliceError::Other(format!(
+                "File path has no parent: {}",
+                file_path.display()
+            )))?
+            .join(".splice_graph.db")
+    };
     let mut code_graph = CodeGraph::open(&graph_db_path)?;
 
     // Step 4: Store symbols in graph with language metadata and line/col

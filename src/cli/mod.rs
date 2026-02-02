@@ -196,6 +196,10 @@ pub enum Commands {
         /// Optional JSON metadata to attach to this operation.
         #[arg(long)]
         metadata: Option<String>,
+
+        /// Path to codegraph database (required for symbol resolution).
+        #[arg(short = 'd', long, value_name = "FILE")]
+        db: Option<std::path::PathBuf>,
     },
 
     /// Execute a multi-step refactoring plan.

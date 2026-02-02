@@ -2,16 +2,16 @@
 
 Span-safe refactoring kernel for 7 languages using tree-sitter and SQLiteGraph.
 
-**Version**: 2.2.2
+**Version**: 2.2.3
 **License**: GPL-3.0-or-later
 
 ## What This Is
 
 Splice is a command-line tool that performs byte-accurate, AST-validated refactoring operations on code in 7 languages: Rust, Python, C, C++, Java, JavaScript, and TypeScript. It can replace function bodies, delete symbols, apply batch changes, perform pattern replacements, query code graphs, and undo operations.
 
-## v2.2.2 Features
+## v2.2.3 Features
 
-Splice v2.2.2 delivers a unified CLI interface with Magellan query commands for code discovery alongside span-safe editing:
+Splice v2.2.3 fixes SQLiteGraph 1.2.7 MVCC API compatibility, ensuring the latest dependency versions work correctly:
 
 - **Unified CLI**: Single tool for code graph queries (Magellan) and refactoring (Splice)
 - **Query Commands**: `status`, `query`, `find`, `refs`, `files` for code graph navigation

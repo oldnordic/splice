@@ -19,7 +19,7 @@
 
 use crate::graph::CodeGraph;
 use serde::{Deserialize, Serialize};
-use sqlitegraph::{BackendDirection, NeighborQuery, NodeId};
+use sqlitegraph::{BackendDirection, NeighborQuery, NodeId, SnapshotId};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -195,10 +195,10 @@ pub fn get_callers(
         return Ok(cached.clone());
     }
 
-    // Verify node exists
+    // Verify node exists - use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
     let _node = graph
         .inner()
-        .get_node(symbol_node_id.as_i64())
+        .get_node(SnapshotId(0), symbol_node_id.as_i64())
         .map_err(|_| Relationships::error("NODE_NOT_FOUND"))?;
 
     let call_node_ids = fetch_neighbor_ids(
@@ -261,10 +261,10 @@ pub fn get_callees(
         return Ok(cached.clone());
     }
 
-    // Verify node exists
+    // Verify node exists - use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
     let _node = graph
         .inner()
-        .get_node(symbol_node_id.as_i64())
+        .get_node(SnapshotId(0), symbol_node_id.as_i64())
         .map_err(|_| Relationships::error("NODE_NOT_FOUND"))?;
 
     let call_node_ids = fetch_neighbor_ids(
@@ -311,9 +311,11 @@ fn fetch_neighbor_ids(
 ) -> Result<Vec<i64>, Relationships> {
     let mut ids = Vec::new();
     for edge_type in edge_types {
+        // Use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
         let neighbors = graph
             .inner()
             .neighbors(
+                SnapshotId(0),
                 symbol_node_id.as_i64(),
                 NeighborQuery {
                     direction,
@@ -334,7 +336,8 @@ fn relationship_from_call_node(
     call_node_id: i64,
     rel_type: &str,
 ) -> Result<Option<Relationship>, Relationships> {
-    let node = match graph.inner().get_node(call_node_id) {
+    // Use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
+    let node = match graph.inner().get_node(SnapshotId(0), call_node_id) {
         Ok(value) => value,
         Err(_) => return Ok(None),
     };
@@ -370,7 +373,8 @@ fn relationship_from_symbol_node(
     symbol_node_id: i64,
     rel_type: &str,
 ) -> Result<Option<Relationship>, Relationships> {
-    let node = match graph.inner().get_node(symbol_node_id) {
+    // Use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
+    let node = match graph.inner().get_node(SnapshotId(0), symbol_node_id) {
         Ok(value) => value,
         Err(_) => return Ok(None),
     };
