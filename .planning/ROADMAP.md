@@ -181,10 +181,9 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 27-01-PLAN.md — Remove dead Ingestor struct stub from src/ingest/mod.rs
-- [ ] 27-02-PLAN.md — Audit and remove unused imports across codebase
-- [ ] 27-03-PLAN.md — Update documentation to remove dead code references
-- [ ] 27-04-PLAN.md — Final validation (compilation, tests, lint)
+- [x] 27-01-PLAN.md — Remove dead Ingestor struct stub from src/ingest/mod.rs
+- [x] 27-02-PLAN.md — Update documentation to remove dead code references
+- [x] 27-03-PLAN.md — Final validation (compilation, tests, lint)
 
 ---
 
@@ -205,13 +204,13 @@ Phases execute in numeric order: 22 → 23 → 24 → 25 → 26 → 27
 | 24. CLI Commands & Response Types | v2.2.2 | 5/5 | Complete | 2026-01-24 |
 | 25. Export Command & Error Mapping | v2.2.2 | 4/4 | Complete | 2026-01-24 |
 | 26. Integration Testing | v2.2.2 | 6/6 | Complete | 2026-01-24 |
-| 27. Code Cleanup | v2.2.2 | 0/4 | In Progress | 2026-02-04 |
+| 27. Code Cleanup | v2.2.2 | 3/3 | Complete | 2026-02-04 |
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%)
 - v2.2: 55/55 plans complete (100%)
 - v2.2.1: 20/20 plans complete (100%)
-- v2.2.2: 24/28 plans complete (86%)
+- v2.2.2: 27/27 plans complete (100%)
 
 ---
 *Last updated: 2026-02-04*
