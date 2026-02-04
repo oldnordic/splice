@@ -627,6 +627,62 @@ pub enum Commands {
         #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
         output: OutputFormat,
     },
+
+    /// Detect dead code (unreachable symbols) from entry points
+    #[command(display_order = 110)]
+    DeadCode {
+        /// Entry point symbol name (e.g., "main", "MyApp::run")
+        #[arg(short, long)]
+        entry: String,
+
+        /// File path containing the entry point symbol
+        #[arg(short, long)]
+        path: std::path::PathBuf,
+
+        /// Path to Magellan database (default: .codemcp/codegraph.db)
+        #[arg(short, long, default_value = ".codemcp/codegraph.db")]
+        db: std::path::PathBuf,
+
+        /// Exclude public symbols from dead code list
+        #[arg(long)]
+        exclude_public: bool,
+
+        /// Group results by file (default: true for human output)
+        #[arg(long, default_value = "true")]
+        group_by_file: bool,
+
+        /// Output format (human, json, pretty)
+        #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
+        output: OutputFormat,
+    },
+
+    /// Detect cycles in the call graph
+    #[command(display_order = 111)]
+    Cycles {
+        /// Path to Magellan database (default: .codemcp/codegraph.db)
+        #[arg(short, long, default_value = ".codemcp/codegraph.db")]
+        db: std::path::PathBuf,
+
+        /// Optional: find cycles containing this specific symbol
+        #[arg(short, long)]
+        symbol: Option<String>,
+
+        /// Optional: file path for symbol resolution (required with --symbol)
+        #[arg(short, long)]
+        path: Option<std::path::PathBuf>,
+
+        /// Maximum number of cycles to return (default: 100)
+        #[arg(short, long, default_value = "100")]
+        max_cycles: usize,
+
+        /// Show cycle members (default: true)
+        #[arg(long, default_value = "true")]
+        show_members: bool,
+
+        /// Output format (human, json, pretty)
+        #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
+        output: OutputFormat,
+    },
 }
 
 /// Symbol kind for filtering.
