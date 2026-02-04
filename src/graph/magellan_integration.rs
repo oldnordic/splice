@@ -399,10 +399,10 @@ impl MagellanIntegration {
         Ok(results)
     }
 
-    /// Find symbol by 16-character hex symbol ID.
+    /// Find symbol by 16-char SHA-256 or 32-char BLAKE3 symbol ID.
     ///
     /// # Arguments
-    /// * `symbol_id` - 16-char lowercase hex symbol ID (from Phase 22 format)
+    /// * `symbol_id` - 16-char (V1 SHA-256) or 32-char (V2 BLAKE3) lowercase hex symbol ID
     ///
     /// # Returns
     /// Some(SymbolInfo) if found, None if not found.
@@ -413,10 +413,12 @@ impl MagellanIntegration {
     /// Consider building a symbol_id index in future if performance is inadequate.
     ///
     /// # Note
-    /// Symbol IDs are generated as SHA-256(name:path:byte_start)[0..8].
-    /// We regenerate IDs during iteration to find matches.
+    /// Symbol IDs are generated as:
+    /// - V1: SHA-256(name:path:byte_start)[0..8] -> 16 hex chars
+    /// - V2: BLAKE3(name:path:byte_start)[0..16] -> 32 hex chars
+    /// We regenerate IDs during iteration to find matches, trying V2 first.
     pub fn find_symbol_by_id(&mut self, symbol_id: &str) -> Result<Option<SymbolInfo>> {
-        use crate::symbol_id::generate_symbol_id;
+        use crate::symbol_id::{generate_v1, generate_v2};
         use rusqlite::Connection;
 
         let conn = Connection::open(&self.db_path).map_err(|e| {
@@ -458,10 +460,38 @@ impl MagellanIntegration {
                 })?;
             let byte_start = byte_start as usize;
 
-            // Regenerate symbol_id and compare
-            let generated_id = generate_symbol_id(&name, &file_path, byte_start);
-            if generated_id.as_str() == symbol_id {
-                // Found match - extract remaining fields
+            // Try V2 (32-char BLAKE3) first, then V1 (16-char SHA-256) for backward compatibility
+            let generated_v2 = generate_v2(&name, &file_path, byte_start);
+            if generated_v2.as_str() == symbol_id {
+                // Found V2 match - extract remaining fields
+                let byte_end = data
+                    .get("byte_end")
+                    .and_then(|v| v.as_u64())
+                    .ok_or_else(|| {
+                        SpliceError::Other("Symbol data missing byte_end".to_string())
+                    })?;
+                let byte_end = byte_end as usize;
+
+                let kind = data
+                    .get("kind")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Unknown")
+                    .to_string();
+
+                return Ok(Some(SymbolInfo {
+                    entity_id,
+                    name,
+                    file_path,
+                    kind,
+                    byte_start,
+                    byte_end,
+                }));
+            }
+
+            // Try V1 (16-char SHA-256) for backward compatibility
+            let generated_v1 = generate_v1(&name, &file_path, byte_start);
+            if generated_v1.as_str() == symbol_id {
+                // Found V1 match - extract remaining fields
                 let byte_end = data
                     .get("byte_end")
                     .and_then(|v| v.as_u64())
