@@ -6,6 +6,7 @@
 
 pub mod magellan_integration;
 pub mod migrate;
+pub mod rename;
 pub mod schema;
 
 // Re-export MagellanIntegration for convenient use

@@ -40,6 +40,12 @@ pub use graph::CodeGraph;
 /// Re-export migration types for convenience.
 pub use graph::migrate::{migrate_database, check_schema_version, MigrationResult};
 
+/// Re-export rename types for convenience.
+pub use graph::rename::{
+    replace_at_span, apply_replacements_in_file, group_references_by_file,
+    simulate_replacements,
+};
+
 /// Re-export context types for convenience.
 pub use context::{
     extract_context, extract_context_asymmetric, extract_context_with_before_after,
