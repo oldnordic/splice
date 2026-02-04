@@ -23,6 +23,7 @@ pub mod ingest;
 pub mod output;
 pub mod patch;
 pub mod plan;
+pub mod proof;
 pub mod relationships;
 pub mod resolve;
 pub mod suggestions;
@@ -111,6 +112,17 @@ pub use output::{
 
 /// Re-export CLI enums for programmatic use.
 pub use cli::{ReachabilityDirection, SliceDirection};
+
+// ============================================================================
+// Proof-Based Refactoring Types (Phase 31)
+// ============================================================================
+
+/// Re-export proof types for convenience.
+pub use proof::{
+    RefactoringProof, GraphSnapshot, ProofMetadata, InvariantCheck,
+    InvariantViolation, ViolationSeverity, ProofChecksums,
+    SymbolInfo as ProofSymbolInfo, GraphStats,
+};
 
 /// Splice version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
