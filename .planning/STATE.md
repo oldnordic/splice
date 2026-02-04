@@ -5,37 +5,31 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** v2.2.2 Magellan Integration — Phase 26: Integration Testing
+**Current focus:** v2.2.4 Code Cleanup — Phase 27: Code Cleanup
 
 ## Current Position
 
-Phase: 26 of 26 (Integration Testing)
-Plan: 06 of 6 (Magellan Integration Documentation)
-Status: Phase Complete
-Last activity: 2026-01-24 — Completed 26-06: Magellan Integration Documentation
+Phase: 27 of 27 (Code Cleanup)
+Plan: 01 of 3 (Remove dead Ingestor struct stub)
+Status: In Progress
+Last activity: 2026-02-04 — Completed 27-01: Remove dead Ingestor struct stub
 
-Progress: [████████████████████████████████████████████████████████████████████████████████████████████████] 100% (131/131 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 25/25 v2.2.2)
+Progress: [████████████████████████████████████████████████████████████████████████████████████████████████] 97% (132/134 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 25 v2.2.2 + 1/27 v2.2.4)
 
-## Current Milestone: v2.2.2 Magellan Integration
+## Current Milestone: v2.2.4 Code Cleanup
 
-**Goal:** Unified CLI interface - Splice provides both Magellan query commands and span-safe editing
+**Goal:** Remove vestigial code from early Splice design phase
 
-**Integration approach:**
-- Magellan provides code graph (indexing, symbol storage, relationships)
-- Splice provides unified interface - queries delegate to Magellan, edits use Splice's span-safe operations
-- LLMs can use single tool for both discovery and modification
-
-**Target features:**
-- Query commands (status, query, find, refs, files)
-- CLI alignment (--output, --db flags)
-- Data format alignment (16-char IDs, canonical/display FQNs, execution_id format)
-- Export command for graph data
+**Cleanup scope:**
+- Remove dead Ingestor struct stub (abandoned custom indexing design)
+- Update documentation to reflect Magellan-based architecture
+- Close TODO items related to removed code
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 128
-- Total execution time: ~43.5 hours (estimated)
+- Total plans completed: 132
+- Total execution time: ~43.6 hours (estimated)
 
 **By Phase:**
 
@@ -48,6 +42,7 @@ Progress: [███████████████████████
 | 24 | 5 | Complete |
 | 25 | 4 | Complete |
 | 26 | 6 | Complete |
+| 27 | 1 of 3 | In Progress |
 
 *Updated after each plan completion*
 
@@ -57,7 +52,11 @@ Progress: [███████████████████████
 
 Decisions are logged in PROJECT.md Key Decisions table.
 
-**Recent decisions affecting v2.2.2:**
+**Recent decisions affecting v2.2.4:**
+- Phase 27-01: Dead Ingestor struct removed - it was an abandoned design replaced by Magellan integration
+- Phase 27-01: Unused imports removed alongside dead code (CodeGraph, Path, Result)
+
+**Historical decisions from v2.2.2:**
 - v2.2.2: Use library delegation pattern (in-process Rust, not subprocess)
 - v2.2.2: Field translation layer for Magellan compatibility (start_line -> line_start)
 - v2.2.2: 16-char symbol IDs (SHA-256, first 8 bytes) for Magellan alignment
@@ -173,8 +172,8 @@ None yet.
 
 ### Blockers/Concerns
 
-**Phase 26:**
-- None - Phase 26 progressing as planned
+**Phase 27:**
+- None - Phase 27 progressing as planned
 
 **Discovered Issues:**
 - MagellanIntegration::open() was wrapping errors in SpliceError::Other instead of SpliceError::Magellan; FIXED in Phase 26-03
@@ -185,9 +184,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-24
-Stopped at: Completed 26-06: Magellan Integration Documentation
+Last session: 2026-02-04
+Stopped at: Completed 27-01: Remove dead Ingestor struct stub
 Resume file: None
 
 ---
-*Last updated: 2026-01-24 — Phase 26 complete (all 131 plans finished)*
+*Last updated: 2026-02-04 — Phase 27 in progress (1/3 plans complete)*
