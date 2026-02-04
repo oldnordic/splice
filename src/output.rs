@@ -1298,6 +1298,82 @@ pub struct AffectedFile {
     pub is_root: bool,
 }
 
+// ============================================================================
+// Dead Code Detection Types (Phase 30-02)
+// ============================================================================
+
+/// Dead code detection result.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeadCodeResult {
+    /// The entry point symbol used for analysis.
+    pub entry_point: SymbolInfo,
+    /// Total symbols in the graph.
+    pub total_symbols: usize,
+    /// Number of reachable symbols.
+    pub reachable_count: usize,
+    /// Number of dead (unreachable) symbols.
+    pub dead_count: usize,
+    /// Dead symbols grouped by file.
+    pub dead_by_file: Vec<DeadCodeByFile>,
+    /// Whether public symbols were excluded.
+    pub excluded_public: bool,
+}
+
+/// Dead code in a single file.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeadCodeByFile {
+    /// File path.
+    pub path: String,
+    /// Number of dead symbols in this file.
+    pub count: usize,
+    /// Dead symbols in this file.
+    pub symbols: Vec<DeadSymbol>,
+}
+
+/// A dead (unreachable) symbol.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeadSymbol {
+    /// Symbol information.
+    pub symbol: SymbolInfo,
+    /// Reason this symbol is considered dead.
+    pub reason: String,
+}
+
+// ============================================================================
+// Cycle Detection Types (Phase 30-03)
+// ============================================================================
+
+/// Cycle detection result.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CycleDetectionResult {
+    /// Total number of cycles found.
+    pub total_cycles: usize,
+    /// Maximum cycles limit applied.
+    pub max_cycles: usize,
+    /// Whether result was truncated due to limit.
+    pub truncated: bool,
+    /// Cycles found in the call graph.
+    pub cycles: Vec<CycleInfo>,
+    /// Optional: specific symbol that was queried.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub queried_symbol: Option<SymbolInfo>,
+}
+
+/// Information about a detected cycle.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CycleInfo {
+    /// Unique cycle identifier.
+    pub id: String,
+    /// Number of symbols in the cycle.
+    pub size: usize,
+    /// Symbols in the cycle.
+    pub members: Vec<SymbolInfo>,
+    /// Representative symbol (e.g., alphabetically first).
+    pub representative: SymbolInfo,
+    /// Whether this is a self-loop (single symbol calling itself).
+    pub is_self_loop: bool,
+}
+
 /// Symbol info for reachability results (consistent with MagellanSymbol).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SymbolInfo {
