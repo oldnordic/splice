@@ -148,16 +148,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Integration validation | Phase 26 | Complete |
 | Code cleanup | Phase 27 | Complete |
 
-### v2.3 Requirements (Planned)
+### v2.3 Requirements (In Progress)
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEPS-01 | Phase 28 | Pending |
-| DEPS-02 | Phase 28 | Pending |
-| DEPS-03 | Phase 28 | Pending |
-| SYMBOLID-01 | Phase 28 | Pending |
-| SYMBOLID-02 | Phase 28 | Pending |
-| DATA-05 | Phase 28 | Pending |
+| DEPS-01 | Phase 28 | Complete |
+| DEPS-02 | Phase 28 | Complete |
+| DEPS-03 | Phase 28 | Complete |
+| SYMBOLID-01 | Phase 28 | Complete |
+| SYMBOLID-02 | Phase 28 | Complete |
+| DATA-05 | Phase 28 | Complete |
 | REFACTOR-01 | Phase 29 | Pending |
 | REFACTOR-03 | Phase 29 | Pending |
 | CLI-05 | Phase 29 | Pending |
