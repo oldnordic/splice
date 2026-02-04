@@ -17,6 +17,7 @@ Thumbs.db
 
 # Splice specific
 .splice_graph.db
+.splice_graph.checkpoint
 *.db
 *.db-shm
 *.db-wal
@@ -32,6 +33,14 @@ AGENTS.md
 
 # Local test artifacts
 .tmp-broken-pipe-*/
+validate_integration.sh
+test_splice_magellan_integration.sh
+*_integration.sh
+
+# Backup files
+*.backup-*
+backup-*
+*.bak
 
 # Internal markdown docs (keep only the public set below)
 *.md
