@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-04)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** Phase 31 - Proof-based Refactoring
+**Current focus:** Phase 31 - Proof-based Refactoring (COMPLETE)
 
 ## Current Position
 
 Phase: 31 of 32 (Proof-based Refactoring)
-Plan: 2 of 4
-Status: Plan in progress
-Last activity: 2026-02-04 — Completed plan 31-02 (Proof Generation for Rename Operations)
+Plan: 4 of 4
+Status: Phase complete
+Last activity: 2026-02-04 — Completed Phase 31 with SHA-256 checksums and validate-proof CLI
 
-Progress: [█████████████████████████████████████████████████████████████████████████████████████████████░] 98% (151/155 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 24 v2.2.2 + 3 v2.2.4 + 18 v2.3 est.)
+Progress: [██████████████████████████████████████████████████████████████████████████████████████████████] 99% (155/155 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 24 v2.2.2 + 3 v2.2.4 + 22 v2.3)
 
 ## Performance Metrics
 
@@ -33,7 +33,7 @@ Progress: [███████████████████████
 | 28 | 4 | Complete |
 | 29 | 5 | Complete |
 | 30 | 6 | Complete |
-| 31 | 2 | In Progress |
+| 31 | 4 | Complete |
 | 32 | 0 | Not started |
 
 *Updated after each plan completion*
@@ -90,7 +90,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Phase 30: Delegate graph algorithms to Magellan library (not subprocess)
 - Phase 31 Plan 1: Proof data structures defined (RefactoringProof, GraphSnapshot, InvariantCheck)
 - Phase 31 Plan 2: Proof generation for rename operations with --proof flag, snapshot generation
-- Phase 31: Proof generation as verification layer (not automation)
+- Phase 31 Plan 3: Invariant validation with 4 checks (reference counts, orphaned symbols, ID stability, entry points)
+- Phase 31 Plan 4: SHA-256 checksums for audit trail integrity, validate-proof CLI command
+- Phase 31: Proof generation as verification layer with checksums and CLI validation
 
 **Historical decisions from v2.2.2:**
 - v2.2.2: Use library delegation pattern (in-process Rust, not subprocess)
@@ -118,9 +120,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-04 14:35 UTC
-Stopped at: Completed plan 31-02 (Proof Generation for Rename Operations)
+Last session: 2026-02-04 15:00 UTC
+Stopped at: Completed Phase 31 (Proof-based Refactoring)
 Resume file: None
 
 ---
-*Last updated: 2026-02-04 14:35 UTC*
+*Last updated: 2026-02-04 15:00 UTC*
