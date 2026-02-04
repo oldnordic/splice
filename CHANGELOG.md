@@ -3,6 +3,24 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.4] - 2026-02-04
+
+### Removed
+
+**Dead Code Cleanup**
+- Removed unused `Ingestor` struct from `src/ingest/mod.rs`
+  - This was an abandoned design for custom CodeGraph-based indexing
+  - Replaced by Magellan integration (v0.5.0) which provides production-quality multi-language code graph
+  - Use `MagellanIngestor` or `extract_symbols()` instead
+  - No functional changes - the struct was never implemented
+
+### Changed
+
+**Documentation**
+- Updated `.planning/codebase/ARCHITECTURE.md` to remove Ingestor references
+- Clarified that `MagellanIngestor` is the preferred ingestion API
+- Closed TODO items related to Ingestor cleanup
+
 ## [2.2.3] - 2026-02-02
 
 ### Fixed
