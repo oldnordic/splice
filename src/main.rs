@@ -266,6 +266,10 @@ fn main() -> ExitCode {
         splice::cli::Commands::Export { db, format: export_format, file } => {
             execute_export(&db, export_format, file.as_deref(), json_output)
         }
+
+        splice::cli::Commands::MigrateDb { db_path, backup, dry_run } => {
+            execute_migrate_db(&db_path, backup, dry_run, json_output)
+        }
     };
 
     // Handle result
@@ -3632,6 +3636,80 @@ fn write_export<W: std::io::Write>(
         .map_err(|e| splice::SpliceError::Other(format!("Flush error: {}", e)))?;
 
     Ok(())
+}
+
+/// Execute the migrate-db command.
+///
+/// This function:
+/// 1. Checks migration status in dry-run mode
+/// 2. Creates backup if requested (default: true)
+/// 3. Opens database (triggers Magellan auto-migration)
+/// 4. Reports migration results
+fn execute_migrate_db(
+    db_path: &Path,
+    backup: bool,
+    dry_run: bool,
+    _json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::graph::migrate::{check_schema_version, migrate_database};
+
+    if dry_run {
+        // Check migration status without migrating
+        match check_schema_version(db_path) {
+            Ok(version) => {
+                let needs_migration = version < 6;
+
+                if needs_migration {
+                    println!("Current schema: v{}", version);
+                    println!("Target schema: v6");
+                    println!("Migration required: yes");
+                    println!("\nTo migrate, run: splice migrate-db --db-path {}", db_path.display());
+                } else {
+                    println!("Current schema: v{}", version);
+                    println!("Target schema: v6");
+                    println!("Migration required: no (already on v6 or later)");
+                }
+
+                return Ok(splice::cli::CliSuccessPayload::message_only(
+                    format!("Schema check complete: v{}", version),
+                ));
+            }
+            Err(e) => {
+                return Err(splice::SpliceError::Other(format!(
+                    "Error checking schema version: {}",
+                    e
+                )))
+            }
+        }
+    }
+
+    // Perform migration
+    match migrate_database(db_path, backup, false) {
+        Ok(result) => {
+            if let Some(ref backup_path) = result.backup_path {
+                println!("Backup created: {}", backup_path.display());
+            }
+            println!(
+                "Database migrated: v{} -> v{}",
+                result.previous_version, result.new_version
+            );
+            println!("You can now use Magellan 2.0.0 features");
+
+            Ok(splice::cli::CliSuccessPayload::with_data(
+                format!(
+                    "Migrated database: v{} -> v{}",
+                    result.previous_version, result.new_version
+                ),
+                serde_json::json!({
+                    "previous_version": result.previous_version,
+                    "new_version": result.new_version,
+                    "backup_path": result.backup_path,
+                    "symbols_migrated": result.symbols_migrated,
+                }),
+            ))
+        }
+        Err(e) => Err(splice::SpliceError::Other(format!("Migration failed: {}", e))),
+    }
 }
 
 /// Parse date string to Unix timestamp.
