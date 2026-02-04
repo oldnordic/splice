@@ -2,12 +2,51 @@
 
 Span-safe refactoring kernel for 7 languages using tree-sitter and SQLiteGraph.
 
-**Version**: 2.2.3
+**Version**: 2.3.0
 **License**: GPL-3.0-or-later
 
 ## What This Is
 
-Splice is a command-line tool that performs byte-accurate, AST-validated refactoring operations on code in 7 languages: Rust, Python, C, C++, Java, JavaScript, and TypeScript. It can replace function bodies, delete symbols, apply batch changes, perform pattern replacements, query code graphs, and undo operations.
+Splice is a command-line tool that performs byte-accurate, AST-validated refactoring operations on code in 7 languages: Rust, Python, C, C++, Java, JavaScript, and TypeScript. It can replace function bodies, delete symbols, perform cross-file rename, analyze code graphs, and generate refactoring proofs.
+
+## v2.3.0 Features
+
+Splice v2.3.0 introduces Magellan v2 integration with cross-file rename and semantic program transformation:
+
+- **Cross-File Rename**: Rename symbols across files using Magellan ReferenceFact byte offsets
+  - `splice rename --symbol <id> --file <path> --to <new_name>`
+  - Byte-accurate replacement at exact reference spans
+  - Automatic backup and rollback on validation failures
+  - Preview mode with `--preview` flag
+  - UTF-8 boundary validation for safe multi-byte character handling
+
+- **Impact Analysis**: Analyze call graph impact before refactoring
+  - `splice reachable --symbol <name> --path <file> --max-depth <n>`
+  - `splice slice --target <id> --direction <forward|backward>`
+  - Caller/callee chain analysis
+  - Affected file identification
+
+- **Dead Code Detection**: Find unused symbols from entry points
+  - `splice dead-code --entry <symbol> --path <file>`
+  - BFS traversal from entry point
+  - Public symbol detection heuristics
+
+- **Cycle Detection**: Find circular dependencies in call graph
+  - `splice cycles`
+  - Tarjan's SCC algorithm
+  - Identifies strongly connected components
+
+- **Graph Condensation**: Collapse SCCs to DAG for dependency analysis
+  - `splice condense`
+  - Topological level assignment
+  - Edge weight tracking between SCCs
+
+- **Proof-Based Refactoring**: Generate machine-checkable behavioral equivalence proofs
+  - `splice rename --proof` flag
+  - Before/after graph snapshots
+  - Invariant validation (reference counts, orphan detection)
+  - SHA-256 checksums for audit trail
+  - `splice validate-proof --proof <path>` command
 
 ## v2.2.3 Features
 
@@ -102,6 +141,60 @@ cp target/release/splice ~/.local/bin/
 ```
 
 ## Quick Start
+
+### Cross-File Rename
+
+```bash
+# Ingest your codebase
+splice ingest --root ./src --db .codemcp/codegraph.db
+
+# Find symbol ID
+splice find --name "my_function" --path "src/my_file.rs"
+
+# Preview rename (no changes)
+splice rename --symbol <id> --file "src/my_file.rs" --to "new_name" --preview
+
+# Perform rename with backup
+splice rename --symbol <id> --file "src/my_file.rs" --to "new_name"
+
+# Generate proof for audit trail
+splice rename --symbol <id> --file "src/my_file.rs" --to "new_name" --proof
+```
+
+### Impact Analysis
+
+```bash
+# See what code is reachable from a symbol
+splice reachable --symbol "main" --path "src/main.rs" --max-depth 3
+
+# Find dead code from main entry point
+splice dead-code --entry "main" --path "src/main.rs"
+
+# Detect circular dependencies
+splice cycles
+
+# Slice forward from a target (what it affects)
+splice slice --target <id> --direction forward --max-distance 5
+
+# Slice backward to a target (what affects it)
+splice slice --target <id> --direction backward --max-distance 5
+```
+
+### Query Commands
+
+```bash
+# Display database statistics
+splice status --db .codemcp/codegraph.db
+
+# Find symbol by name
+splice find --name "my_function" --path "src/my_file.rs"
+
+# Show references (callers and callees)
+splice refs --symbol <id> --db .codemcp/codegraph.db
+
+# Export graph data
+splice export --format json --output graph.json
+```
 
 ### Delete a Symbol (Rust)
 
@@ -309,6 +402,126 @@ splice export --db code.db --format json --file export.json
 ```
 
 ## Commands
+
+### splice rename
+
+Rename a symbol across all files using Magellan ReferenceFact data.
+
+```bash
+splice rename --symbol <id> --file <path> --to <new_name> [OPTIONS]
+```
+
+**Required Arguments:**
+- `--symbol <id>`: Symbol ID (16-character hex) or symbol name
+- `--file <path>`: File path containing the symbol definition
+- `--to <new_name>`: New name for the symbol
+
+**Optional Arguments:**
+- `--db <path>`: Path to codegraph.db (default: `.codemcp/codegraph.db`)
+- `--preview`: Show changes without applying (no file modifications)
+- `--proof`: Generate refactoring proof for audit trail
+
+**Features:**
+- Byte-accurate replacement at exact reference spans
+- Automatic backup before modification
+- Rollback on validation failures
+- UTF-8 boundary validation for multi-byte characters
+
+### splice reachable
+
+Show all symbols reachable from a target symbol (impact analysis).
+
+```bash
+splice reachable --symbol <name> --path <file> [OPTIONS]
+```
+
+**Required Arguments:**
+- `--symbol <name>`: Symbol name
+- `--path <file>`: File path for disambiguation
+
+**Optional Arguments:**
+- `--db <path>`: Path to codegraph.db (default: `.codemcp/codegraph.db`)
+- `--direction <forward|backward>`: Traversal direction (default: forward)
+- `--max-depth <n>`: Maximum traversal depth (default: 10)
+- `--output <format>`: Output format (human, json, pretty)
+
+### splice dead-code
+
+Find unused symbols from entry points.
+
+```bash
+splice dead-code --entry <symbol> --path <file> [OPTIONS]
+```
+
+**Required Arguments:**
+- `--entry <symbol>`: Entry point symbol name
+- `--path <file>`: File path for disambiguation
+
+**Optional Arguments:**
+- `--db <path>`: Path to codegraph.db (default: `.codemcp/codegraph.db`)
+- `--exclude-public`: Exclude public symbols from analysis
+- `--output <format>`: Output format (human, json, pretty)
+
+### splice cycles
+
+Find circular dependencies in the call graph.
+
+```bash
+splice cycles [OPTIONS]
+```
+
+**Optional Arguments:**
+- `--db <path>`: Path to codegraph.db (default: `.codemcp/codegraph.db`)
+- `--symbol <name>`: Find cycles containing a specific symbol
+- `--path <file>`: File path for symbol disambiguation
+- `--max-cycles <n>`: Maximum number of cycles to display (default: 100)
+- `--show-members`: Show all members of each cycle
+- `--output <format>`: Output format (human, json, pretty)
+
+### splice condense
+
+Collapse SCCs to DAG for dependency analysis.
+
+```bash
+splice condense [OPTIONS]
+```
+
+**Optional Arguments:**
+- `--db <path>`: Path to codegraph.db (default: `.codemcp/codegraph.db`)
+- `--show-levels`: Show topological levels
+- `--show-members`: Show SCC members
+- `--output <format>`: Output format (human, json, pretty)
+
+### splice slice
+
+Perform forward or backward program slicing.
+
+```bash
+splice slice --target <id> --direction <forward|backward> [OPTIONS]
+```
+
+**Required Arguments:**
+- `--target <id>`: Symbol ID
+- `--direction <forward|backward>`: Slice direction
+
+**Optional Arguments:**
+- `--db <path>`: Path to codegraph.db (default: `.codemcp/codegraph.db`)
+- `--max-distance <n>`: Maximum slice distance (default: 10)
+- `--output <format>`: Output format (human, json, pretty)
+
+### splice validate-proof
+
+Validate a refactoring proof file.
+
+```bash
+splice validate-proof --proof <path> [OPTIONS]
+```
+
+**Required Arguments:**
+- `--proof <path>`: Path to proof JSON file
+
+**Optional Arguments:**
+- `--output <format>`: Output format (human, json, pretty)
 
 ### splice delete
 
@@ -549,7 +762,10 @@ splice log --format json
 ## Documentation
 
 - **[docs/magellan_integration.md](docs/magellan_integration.md)** - Magellan integration guide (query commands, export formats, LLM usage)
-- **manual.md** - Complete user manual
+- **[docs/manual.md](docs/manual.md)** - Complete CLI reference manual with all v2.3 commands
+- **[docs/examples/rename_examples.md](docs/examples/rename_examples.md)** - Cross-file rename usage examples
+- **[docs/examples/graph_algorithm_examples.md](docs/examples/graph_algorithm_examples.md)** - Graph algorithm usage examples
+- **[docs/examples/proof_examples.md](docs/examples/proof_examples.md)** - Proof-based refactoring examples
 - **CHANGELOG.md** - Version history
 - **docs/DIAGNOSTICS_HUMAN_LLM.md** - CLI diagnostics contract for humans and LLMs, including rust-analyzer and multi-language validation output
 
