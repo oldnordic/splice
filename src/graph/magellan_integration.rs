@@ -772,6 +772,34 @@ impl MagellanIntegration {
             .references_to_symbol(entity_id)
             .map_err(|e| SpliceError::Other(format!("Failed to get references for entity {}: {}", entity_id, e)))
     }
+
+    /// Index references for a file into the graph.
+    ///
+    /// This extracts all references to known symbols in the file and creates
+    /// Reference nodes with REFERENCES edges to the corresponding symbols.
+    /// This must be called after `index_file` for proper cross-file reference tracking.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to the file to index references for
+    ///
+    /// # Returns
+    /// Number of references indexed
+    ///
+    /// # Errors
+    /// Returns Other error if indexing fails
+    pub fn index_references(&mut self, file_path: &Path) -> Result<usize> {
+        let file_path_str = file_path
+            .to_str()
+            .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
+
+        let source = std::fs::read(file_path).map_err(|e| {
+            SpliceError::Other(format!("Failed to read file {:?}: {}", file_path, e))
+        })?;
+
+        self.inner
+            .index_references(file_path_str, &source)
+            .map_err(|e| SpliceError::Other(format!("Failed to index references for {:?}: {}", file_path, e)))
+    }
 }
 
 /// Symbol information extracted from Magellan's SymbolQueryResult.

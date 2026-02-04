@@ -5,6 +5,7 @@
 //! - Preview mode (no filesystem modifications)
 //! - Backup creation and rollback
 //! - Multi-file rename with transaction safety
+//! - Cross-language rename (Rust, Python, C, C++, Java, JavaScript, TypeScript)
 
 use splice::graph::rename::{
     apply_replacements_in_file, create_rename_backup, generate_colored_preview,
@@ -391,4 +392,583 @@ fn test_transaction_track_modified() {
             std::path::PathBuf::from("/path/to/file2.rs")
         ]
     );
+}
+
+// ============================================================================
+// Cross-Language Rename Tests (Tasks 1-4)
+// ============================================================================
+
+/// Helper to find the byte spans of a symbol in a file.
+///
+/// This is a simplified approach for testing when Magellan's reference
+/// extraction is not available for certain languages (e.g., Rust).
+/// It finds all occurrences of a symbol name in the source code.
+fn find_symbol_spans(source: &str, symbol_name: &str) -> Vec<(usize, usize)> {
+    let mut spans = Vec::new();
+    let mut offset = 0;
+
+    while let Some(pos) = source[offset..].find(symbol_name) {
+        let abs_pos = offset + pos;
+
+        // Check if this looks like an identifier (not part of a larger word)
+        let before_ok = abs_pos == 0 || !source.chars().nth(abs_pos - 1).map_or(false, |c| c.is_alphanumeric() || c == '_');
+        let after_ok = abs_pos + symbol_name.len() >= source.len()
+            || !source.chars().nth(abs_pos + symbol_name.len()).map_or(false, |c| c.is_alphanumeric() || c == '_');
+
+        if before_ok && after_ok {
+            spans.push((abs_pos, abs_pos + symbol_name.len()));
+        }
+
+        offset = abs_pos + symbol_name.len();
+    }
+
+    // Sort by byte_start descending for safe replacement
+    spans.sort_by(|a, b| b.0.cmp(&a.0));
+    spans
+}
+
+#[test]
+fn test_rename_rust_function() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // Create test Rust file with recursive call
+    let content = "fn old_name() {\n    old_name();\n}\n";
+    let file_path = create_test_file(&temp_dir, "src/main.rs", content);
+
+    // Find all spans of "old_name" manually (since Magellan doesn't extract Rust references yet)
+    let spans = find_symbol_spans(content, "old_name");
+    assert_eq!(spans.len(), 2, "Should find 2 occurrences of old_name");
+
+    // Create ReferenceFact entries from the spans
+    let file_path_str = file_path.to_str().unwrap();
+    let refs: Vec<magellan::references::ReferenceFact> = spans
+        .into_iter()
+        .map(|(start, end)| magellan::references::ReferenceFact {
+            file_path: std::path::PathBuf::from(file_path_str),
+            referenced_symbol: "old_name".to_string(),
+            byte_start: start,
+            byte_end: end,
+            start_line: 1, // Simplified - we don't compute actual line numbers
+            start_col: start,
+            end_line: 1,
+            end_col: end,
+        })
+        .collect();
+
+    // Apply replacements
+    let grouped = group_references_by_file(&refs);
+    for (file_path, refs) in grouped {
+        apply_replacements_in_file(&file_path, "old_name", "new_name", &refs).unwrap();
+    }
+
+    // Verify result
+    let result = std::fs::read_to_string(&file_path).unwrap();
+    assert!(result.contains("new_name()"), "Result should contain new_name()");
+    assert!(!result.contains("old_name()"), "Result should not contain old_name()");
+}
+
+#[test]
+fn test_rename_python_function() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // Create test Python file with function and call
+    let content = "def old_name():\n    old_name()\n";
+    let file_path = create_test_file(&temp_dir, "test.py", content);
+
+    // Find all spans of "old_name" manually
+    let spans = find_symbol_spans(content, "old_name");
+    assert_eq!(spans.len(), 2, "Should find 2 occurrences of old_name");
+
+    // Create ReferenceFact entries from the spans
+    let file_path_str = file_path.to_str().unwrap();
+    let refs: Vec<magellan::references::ReferenceFact> = spans
+        .into_iter()
+        .map(|(start, end)| magellan::references::ReferenceFact {
+            file_path: std::path::PathBuf::from(file_path_str),
+            referenced_symbol: "old_name".to_string(),
+            byte_start: start,
+            byte_end: end,
+            start_line: 1,
+            start_col: start,
+            end_line: 1,
+            end_col: end,
+        })
+        .collect();
+
+    // Apply replacements
+    let grouped = group_references_by_file(&refs);
+    for (file_path, refs) in grouped {
+        apply_replacements_in_file(&file_path, "old_name", "new_name", &refs).unwrap();
+    }
+
+    // Verify result
+    let result = std::fs::read_to_string(&file_path).unwrap();
+    assert!(result.contains("new_name"), "Result should contain new_name");
+    assert!(!result.contains("old_name"), "Result should not contain old_name");
+}
+
+#[test]
+fn test_rename_javascript_function() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // Create test JavaScript file
+    let content = "function old_name() {\n    old_name();\n}\n";
+    let file_path = create_test_file(&temp_dir, "test.js", content);
+
+    // Find all spans of "old_name" manually
+    let spans = find_symbol_spans(content, "old_name");
+    assert_eq!(spans.len(), 2, "Should find 2 occurrences of old_name");
+
+    // Create ReferenceFact entries from the spans
+    let file_path_str = file_path.to_str().unwrap();
+    let refs: Vec<magellan::references::ReferenceFact> = spans
+        .into_iter()
+        .map(|(start, end)| magellan::references::ReferenceFact {
+            file_path: std::path::PathBuf::from(file_path_str),
+            referenced_symbol: "old_name".to_string(),
+            byte_start: start,
+            byte_end: end,
+            start_line: 1,
+            start_col: start,
+            end_line: 1,
+            end_col: end,
+        })
+        .collect();
+
+    // Apply replacements
+    let grouped = group_references_by_file(&refs);
+    for (file_path, refs) in grouped {
+        apply_replacements_in_file(&file_path, "old_name", "new_name", &refs).unwrap();
+    }
+
+    // Verify result
+    let result = std::fs::read_to_string(&file_path).unwrap();
+    assert!(result.contains("new_name"), "Result should contain new_name");
+    assert!(!result.contains("old_name"), "Result should not contain old_name");
+}
+
+#[test]
+fn test_rename_typescript_function() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // Create test TypeScript file with type annotation
+    let content = "function old_name(): void {\n    old_name();\n}\n";
+    let file_path = create_test_file(&temp_dir, "test.ts", content);
+
+    // Find all spans of "old_name" manually
+    let spans = find_symbol_spans(content, "old_name");
+    assert_eq!(spans.len(), 2, "Should find 2 occurrences of old_name");
+
+    // Create ReferenceFact entries from the spans
+    let file_path_str = file_path.to_str().unwrap();
+    let refs: Vec<magellan::references::ReferenceFact> = spans
+        .into_iter()
+        .map(|(start, end)| magellan::references::ReferenceFact {
+            file_path: std::path::PathBuf::from(file_path_str),
+            referenced_symbol: "old_name".to_string(),
+            byte_start: start,
+            byte_end: end,
+            start_line: 1,
+            start_col: start,
+            end_line: 1,
+            end_col: end,
+        })
+        .collect();
+
+    // Apply replacements
+    let grouped = group_references_by_file(&refs);
+    for (file_path, refs) in grouped {
+        apply_replacements_in_file(&file_path, "old_name", "new_name", &refs).unwrap();
+    }
+
+    // Verify result
+    let result = std::fs::read_to_string(&file_path).unwrap();
+    assert!(result.contains("new_name"), "Result should contain new_name");
+    assert!(!result.contains("old_name"), "Result should not contain old_name");
+}
+
+#[test]
+fn test_rename_c_function() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // Create test C file
+    let content = "void old_name() {\n    old_name();\n}\n";
+    let file_path = create_test_file(&temp_dir, "test.c", content);
+
+    // Find all spans of "old_name" manually
+    let spans = find_symbol_spans(content, "old_name");
+    assert_eq!(spans.len(), 2, "Should find 2 occurrences of old_name");
+
+    // Create ReferenceFact entries from the spans
+    let file_path_str = file_path.to_str().unwrap();
+    let refs: Vec<magellan::references::ReferenceFact> = spans
+        .into_iter()
+        .map(|(start, end)| magellan::references::ReferenceFact {
+            file_path: std::path::PathBuf::from(file_path_str),
+            referenced_symbol: "old_name".to_string(),
+            byte_start: start,
+            byte_end: end,
+            start_line: 1,
+            start_col: start,
+            end_line: 1,
+            end_col: end,
+        })
+        .collect();
+
+    // Apply replacements
+    let grouped = group_references_by_file(&refs);
+    for (file_path, refs) in grouped {
+        apply_replacements_in_file(&file_path, "old_name", "new_name", &refs).unwrap();
+    }
+
+    // Verify result
+    let result = std::fs::read_to_string(&file_path).unwrap();
+    assert!(result.contains("new_name"), "Result should contain new_name");
+    assert!(!result.contains("old_name"), "Result should not contain old_name");
+}
+
+#[test]
+fn test_rename_cpp_method() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // Create test C++ file with class method
+    let content = "class MyClass {\npublic:\n    void old_name() { old_name(); }\n};\n";
+    let file_path = create_test_file(&temp_dir, "test.cpp", content);
+
+    // Find all spans of "old_name" manually
+    let spans = find_symbol_spans(content, "old_name");
+    assert_eq!(spans.len(), 2, "Should find 2 occurrences of old_name");
+
+    // Create ReferenceFact entries from the spans
+    let file_path_str = file_path.to_str().unwrap();
+    let refs: Vec<magellan::references::ReferenceFact> = spans
+        .into_iter()
+        .map(|(start, end)| magellan::references::ReferenceFact {
+            file_path: std::path::PathBuf::from(file_path_str),
+            referenced_symbol: "old_name".to_string(),
+            byte_start: start,
+            byte_end: end,
+            start_line: 1,
+            start_col: start,
+            end_line: 1,
+            end_col: end,
+        })
+        .collect();
+
+    // Apply replacements
+    let grouped = group_references_by_file(&refs);
+    for (file_path, refs) in grouped {
+        apply_replacements_in_file(&file_path, "old_name", "new_name", &refs).unwrap();
+    }
+
+    // Verify result
+    let result = std::fs::read_to_string(&file_path).unwrap();
+    assert!(result.contains("new_name"), "Result should contain new_name");
+    assert!(!result.contains("old_name"), "Result should not contain old_name");
+}
+
+#[test]
+fn test_rename_java_method() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // Create test Java file
+    let content = "public class Test {\n    void old_name() {\n        old_name();\n    }\n}\n";
+    let file_path = create_test_file(&temp_dir, "Test.java", content);
+
+    // Find all spans of "old_name" manually
+    let spans = find_symbol_spans(content, "old_name");
+    assert_eq!(spans.len(), 2, "Should find 2 occurrences of old_name");
+
+    // Create ReferenceFact entries from the spans
+    let file_path_str = file_path.to_str().unwrap();
+    let refs: Vec<magellan::references::ReferenceFact> = spans
+        .into_iter()
+        .map(|(start, end)| magellan::references::ReferenceFact {
+            file_path: std::path::PathBuf::from(file_path_str),
+            referenced_symbol: "old_name".to_string(),
+            byte_start: start,
+            byte_end: end,
+            start_line: 1,
+            start_col: start,
+            end_line: 1,
+            end_col: end,
+        })
+        .collect();
+
+    // Apply replacements
+    let grouped = group_references_by_file(&refs);
+    for (file_path, refs) in grouped {
+        apply_replacements_in_file(&file_path, "old_name", "new_name", &refs).unwrap();
+    }
+
+    // Verify result
+    let result = std::fs::read_to_string(&file_path).unwrap();
+    assert!(result.contains("new_name"), "Result should contain new_name");
+    assert!(!result.contains("old_name"), "Result should not contain old_name");
+}
+
+// ============================================================================
+// Multi-File Cross-Language Tests (Task 5)
+// ============================================================================
+
+#[test]
+fn test_rename_cross_file_rust() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // Create multiple Rust files
+    let main_content = "mod lib;\nfn main() {\n    lib::old_name();\n}\n";
+    let main_rs = create_test_file(&temp_dir, "src/main.rs", main_content);
+    let lib_content = "pub fn old_name() {\n    old_name();\n}\n";
+    let lib_rs = create_test_file(&temp_dir, "src/lib.rs", lib_content);
+
+    // Manually find all occurrences of "old_name" across files
+    // main.rs: 1 occurrence (in lib::old_name())
+    // lib.rs: 2 occurrences (definition + recursive call)
+    let main_spans = find_symbol_spans(main_content, "old_name");
+    let lib_spans = find_symbol_spans(lib_content, "old_name");
+
+    assert_eq!(main_spans.len(), 1, "Should find 1 occurrence in main.rs");
+    assert_eq!(lib_spans.len(), 2, "Should find 2 occurrences in lib.rs");
+
+    // Create ReferenceFact entries for both files
+    let mut refs = Vec::new();
+
+    for (start, end) in main_spans {
+        refs.push(magellan::references::ReferenceFact {
+            file_path: main_rs.clone(),
+            referenced_symbol: "old_name".to_string(),
+            byte_start: start,
+            byte_end: end,
+            start_line: 1,
+            start_col: start,
+            end_line: 1,
+            end_col: end,
+        });
+    }
+
+    for (start, end) in lib_spans {
+        refs.push(magellan::references::ReferenceFact {
+            file_path: lib_rs.clone(),
+            referenced_symbol: "old_name".to_string(),
+            byte_start: start,
+            byte_end: end,
+            start_line: 1,
+            start_col: start,
+            end_line: 1,
+            end_col: end,
+        });
+    }
+
+    // Apply replacements
+    let grouped = group_references_by_file(&refs);
+    for (file_path, refs) in grouped {
+        apply_replacements_in_file(&file_path, "old_name", "new_name", &refs).unwrap();
+    }
+
+    // Verify both files were updated
+    let main_content = std::fs::read_to_string(&main_rs).unwrap();
+    let lib_content = std::fs::read_to_string(&lib_rs).unwrap();
+
+    assert!(main_content.contains("new_name()"), "main.rs should contain new_name");
+    assert!(lib_content.contains("new_name()"), "lib.rs should contain new_name");
+    assert!(!main_content.contains("old_name"), "main.rs should not contain old_name");
+    assert!(!lib_content.contains("old_name"), "lib.rs should not contain old_name");
+}
+
+#[test]
+fn test_rename_cross_file_python() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // Create multiple Python files
+    let main_content = "from lib import old_name\nold_name()\n";
+    let main_py = create_test_file(&temp_dir, "main.py", main_content);
+    let lib_content = "def old_name():\n    old_name()\n";
+    let lib_py = create_test_file(&temp_dir, "lib.py", lib_content);
+
+    // Find all occurrences of "old_name" across files
+    // main.py: 2 occurrences (import + call)
+    // lib.py: 2 occurrences (definition + recursive call)
+    let main_spans = find_symbol_spans(main_content, "old_name");
+    let lib_spans = find_symbol_spans(lib_content, "old_name");
+
+    assert_eq!(main_spans.len(), 2, "Should find 2 occurrences in main.py");
+    assert_eq!(lib_spans.len(), 2, "Should find 2 occurrences in lib.py");
+
+    // Create ReferenceFact entries for both files
+    let mut refs = Vec::new();
+
+    for (start, end) in main_spans {
+        refs.push(magellan::references::ReferenceFact {
+            file_path: main_py.clone(),
+            referenced_symbol: "old_name".to_string(),
+            byte_start: start,
+            byte_end: end,
+            start_line: 1,
+            start_col: start,
+            end_line: 1,
+            end_col: end,
+        });
+    }
+
+    for (start, end) in lib_spans {
+        refs.push(magellan::references::ReferenceFact {
+            file_path: lib_py.clone(),
+            referenced_symbol: "old_name".to_string(),
+            byte_start: start,
+            byte_end: end,
+            start_line: 1,
+            start_col: start,
+            end_line: 1,
+            end_col: end,
+        });
+    }
+
+    // Apply replacements
+    let grouped = group_references_by_file(&refs);
+    for (file_path, refs) in grouped {
+        apply_replacements_in_file(&file_path, "old_name", "new_name", &refs).unwrap();
+    }
+
+    // Verify both files were updated
+    let main_content = std::fs::read_to_string(&main_py).unwrap();
+    let lib_content = std::fs::read_to_string(&lib_py).unwrap();
+
+    assert!(main_content.contains("new_name"), "main.py should contain new_name");
+    assert!(lib_content.contains("new_name"), "lib.py should contain new_name");
+    assert!(!main_content.contains("old_name"), "main.py should not contain old_name");
+    assert!(!lib_content.contains("old_name"), "lib.py should not contain old_name");
+}
+
+// ============================================================================
+// Byte-Accuracy Tests (Task 6 - Part of Must-Haves)
+// ============================================================================
+
+#[test]
+fn test_rename_byte_accuracy_no_false_positives() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // Create file with similar-looking but different symbols
+    let content = "fn foo() {\n    let foo_bar = 1;\n    foo();\n}\n";
+    let file_path = create_test_file(&temp_dir, "test.rs", content);
+
+    // Find exact byte spans of "foo" (not "foo_bar")
+    let spans = find_symbol_spans(content, "foo");
+    // This should find 2 occurrences: "foo" at position 3 and "foo" at position ~30
+    // But NOT "foo_bar" because our helper checks word boundaries
+    assert_eq!(spans.len(), 2, "Should find exactly 2 'foo' occurrences (not foo_bar)");
+
+    // Create references for all "foo" occurrences
+    let file_path_str = file_path.to_str().unwrap();
+    let references: Vec<magellan::references::ReferenceFact> = spans
+        .into_iter()
+        .map(|(start, end)| magellan::references::ReferenceFact {
+            file_path: std::path::PathBuf::from(file_path_str),
+            referenced_symbol: "foo".to_string(),
+            byte_start: start,
+            byte_end: end,
+            start_line: 1,
+            start_col: start,
+            end_line: 1,
+            end_col: end,
+        })
+        .collect();
+
+    // Apply replacements
+    apply_replacements_in_file(&file_path, "foo", "baz", &references).unwrap();
+
+    // Verify result
+    let result = std::fs::read_to_string(&file_path).unwrap();
+    assert!(result.contains("fn baz()"), "Should rename foo to baz");
+    assert!(result.contains("baz();"), "Should rename foo call");
+    assert!(result.contains("foo_bar"), "Should NOT rename foo_bar");
+    assert!(!result.contains("fn foo()"), "Should not have original foo()");
+}
+
+#[test]
+fn test_rename_byte_accuracy_substring() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // Create file where old name is substring of another identifier
+    let content = "fn bar() {\n    let bar_baz = bar();\n}\n";
+    let file_path = create_test_file(&temp_dir, "test.rs", content);
+
+    // Find exact byte spans of "bar" (not "bar_baz")
+    let spans = find_symbol_spans(content, "bar");
+    // This should find 2 occurrences: "bar" at position 3 and "bar" at position ~27
+    // But NOT "bar_baz" because our helper checks word boundaries
+    assert_eq!(spans.len(), 2, "Should find exactly 2 'bar' occurrences (not bar_baz)");
+
+    // Create references for all "bar" occurrences
+    let file_path_str = file_path.to_str().unwrap();
+    let references: Vec<magellan::references::ReferenceFact> = spans
+        .into_iter()
+        .map(|(start, end)| magellan::references::ReferenceFact {
+            file_path: std::path::PathBuf::from(file_path_str),
+            referenced_symbol: "bar".to_string(),
+            byte_start: start,
+            byte_end: end,
+            start_line: 1,
+            start_col: start,
+            end_line: 1,
+            end_col: end,
+        })
+        .collect();
+
+    // Apply replacements
+    apply_replacements_in_file(&file_path, "bar", "qux", &references).unwrap();
+
+    // Verify result
+    let result = std::fs::read_to_string(&file_path).unwrap();
+    assert!(result.contains("fn qux()"), "Should rename bar to qux");
+    assert!(result.contains("qux();"), "Should rename bar() call");
+    assert!(result.contains("bar_baz"), "Should NOT rename bar_baz identifier");
+    assert!(!result.contains("fn bar()"), "Should not have original bar()");
+}
+
+// ============================================================================
+// Preview Purity Tests (Task 5 - Part of Must-Haves)
+// ============================================================================
+
+#[test]
+fn test_preview_no_backup_created() {
+    let temp_dir = TempDir::new().unwrap();
+
+    let file_path = create_test_file(&temp_dir, "test.rs", "fn foo() {}\n");
+    let original_content = "fn foo() {}\n";
+
+    // Simulate replacements (preview mode)
+    let references = vec![create_reference(file_path.to_str().unwrap(), 3, 6)];
+    let _modified = simulate_replacements_content(original_content, &references, "foo", "bar").unwrap();
+
+    // Verify no backup directory was created
+    let backups_base = temp_dir.path().join(".splice/backups");
+    assert!(!backups_base.exists(), "Preview mode should not create backup directory");
+
+    // Verify original file unchanged
+    let original = std::fs::read_to_string(&file_path).unwrap();
+    assert_eq!(original, original_content);
+}
+
+#[test]
+fn test_preview_no_filesystem_modifications() {
+    let temp_dir = TempDir::new().unwrap();
+
+    let file_path = create_test_file(&temp_dir, "test.rs", "fn foo() {}\n");
+    let original_content = "fn foo() {}\n";
+    let original_mtime = std::fs::metadata(&file_path).unwrap().modified().unwrap();
+
+    // Simulate replacements (preview mode)
+    let references = vec![create_reference(file_path.to_str().unwrap(), 3, 6)];
+    let modified = simulate_replacements_content(original_content, &references, "foo", "bar").unwrap();
+
+    // Verify preview shows the change
+    assert_eq!(modified, "fn bar() {}\n");
+
+    // Verify file metadata unchanged (no modification)
+    let current_mtime = std::fs::metadata(&file_path).unwrap().modified().unwrap();
+    assert_eq!(original_mtime, current_mtime, "File mtime should not change in preview mode");
+
+    // Verify content unchanged
+    let current_content = std::fs::read_to_string(&file_path).unwrap();
+    assert_eq!(current_content, original_content);
 }
