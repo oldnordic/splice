@@ -602,6 +602,10 @@ pub enum Commands {
         #[arg(short = 'n', long = "dry-run")]
         preview: bool,
 
+        /// Generate proof file (requires --preview)
+        #[arg(long)]
+        proof: bool,
+
         /// Override backup directory (default: .splice/backups/)
         #[arg(long)]
         backup_dir: Option<std::path::PathBuf>,
