@@ -137,14 +137,14 @@ Plans:
   3. User can preview rename changes before applying with --preview flag
   4. User can perform rename across all 7 supported languages (Rust, Python, C, C++, Java, JavaScript, TypeScript)
   5. User has automatic backup created before rename is applied
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 29-01: Implement rename command with symbol lookup
-- [ ] 29-02: Add ReferenceFact-based span extraction for cross-file references
-- [ ] 29-03: Implement byte-accurate replacement with UTF-8 safety
-- [ ] 29-04: Add preview mode and automatic backup
-- [ ] 29-05: Cross-language rename testing
+- [ ] 29-01: Rename command with symbol lookup ([29-01-PLAN.md](.planning/phases/29-cross-file-rename/29-01-PLAN.md))
+- [ ] 29-02: ReferenceFact-based span extraction ([29-02-PLAN.md](.planning/phases/29-cross-file-rename/29-02-PLAN.md))
+- [ ] 29-03: Byte-accurate replacement with UTF-8 safety ([29-03-PLAN.md](.planning/phases/29-cross-file-rename/29-03-PLAN.md))
+- [ ] 29-04: Preview mode and automatic backup ([29-04-PLAN.md](.planning/phases/29-cross-file-rename/29-04-PLAN.md))
+- [ ] 29-05: Cross-language rename testing ([29-05-PLAN.md](.planning/phases/29-cross-file-rename/29-05-PLAN.md))
 
 #### Phase 30: Impact Analysis & Graph Algorithms
 **Goal**: Add graph algorithm integration and impact analysis for safer refactoring
@@ -221,8 +221,8 @@ Phases execute in numeric order: 28 → 29 → 30 → 31 → 32
 | 26. Integration Testing | v2.2.2 | 6/6 | Complete | 2026-01-24 |
 | 27. Code Cleanup | v2.2.4 | 3/3 | Complete | 2026-02-04 |
 | 28. Dependency Upgrade | v2.3 | 4/4 | Complete | 2026-02-04 |
-| 29. Cross-File Rename Foundation | v2.3 | 0/5 | Not started | - |
-| 30. Impact Analysis & Graph Algorithms | v2.3 | 0/5 | Not started | - |
+| 29. Cross-File Rename Foundation | v2.3 | 5/5 | Complete | 2026-02-04 |
+| 30. Impact Analysis & Graph Algorithms | v2.3 | 0/5 | Ready to execute | - |
 | 31. Proof-Based Refactoring | v2.3 | 0/4 | Not started | - |
 | 32. Integration Validation & Documentation | v2.3 | 0/4 | Not started | - |
 
@@ -232,7 +232,7 @@ Phases execute in numeric order: 28 → 29 → 30 → 31 → 32
 - v2.2.1: 20/20 plans complete (100%)
 - v2.2.2: 24/24 plans complete (100%)
 - v2.2.4: 3/3 plans complete (100%)
-- v2.3: 0/22 plans complete (0%)
+- v2.3: 5/22 plans complete (23%)
 
 ---
-*Last updated: 2026-02-04 - Phase 28 plans created*
+*Last updated: 2026-02-04 - Phase 29 complete*
