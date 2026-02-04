@@ -16,6 +16,10 @@ Splice: Span-safe refactoring kernel for Rust.
 Query Commands (Magellan-delegated):
   status, find, refs, files, query    Query code graph database
 
+Graph Algorithm Commands:
+  reachable, dead-code, cycles         Analyze code structure
+  condense, slice                      Impact analysis and slicing
+
 Edit Commands:
   delete, patch, plan, apply-files     Modify code with span safety
 
@@ -720,11 +724,11 @@ pub enum Commands {
         db: std::path::PathBuf,
 
         /// Slice direction: forward (what this affects) or backward (what affects this)
-        #[arg(short, long, value_enum, default_value_t = SliceDirection::Forward)]
+        #[arg(long, value_enum, default_value_t = SliceDirection::Forward)]
         direction: SliceDirection,
 
         /// Maximum depth to traverse (default: unlimited)
-        #[arg(short = 'd', long)]
+        #[arg(long)]
         max_depth: Option<usize>,
 
         /// Output format (human, json, pretty)
