@@ -544,6 +544,22 @@ pub enum Commands {
         #[arg(long)]
         file: Option<std::path::PathBuf>,
     },
+
+    /// Migrate Magellan database to latest schema version
+    #[command(display_order = 107)]
+    MigrateDb {
+        /// Path to the Magellan database
+        #[arg(short, long, default_value = ".codemcp/codegraph.db")]
+        db_path: std::path::PathBuf,
+
+        /// Create backup before migrating
+        #[arg(long, default_value = "true")]
+        backup: bool,
+
+        /// Check migration status without migrating
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 /// Symbol kind for filtering.
