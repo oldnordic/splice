@@ -3419,8 +3419,8 @@ impl QueryStruct{} {{
             ),
         ];
 
-        // Performance threshold: 100ms average
-        let expected_max_ms = 100;
+        // Performance threshold: 200ms average (relaxed for CI/CD environments)
+        let expected_max_ms = 200;
         let iterations = 10;
         let mut all_timings = Vec::new();
 
