@@ -291,6 +291,15 @@ pub enum SpliceError {
         #[source]
         source: anyhow::Error,
     },
+
+    /// Rename operation failed (SPL-E040).
+    #[error("Rename failed: {reason}")]
+    RenameFailed {
+        /// Contextual reason for failure
+        reason: String,
+        /// Symbol being renamed
+        symbol: String,
+    },
 }
 
 impl From<std::io::Error> for SpliceError {
@@ -536,6 +545,7 @@ impl SpliceError {
             SpliceError::InvalidDateFormat { .. } => "InvalidDateFormat",
             SpliceError::QueryError { .. } => "QueryError",
             SpliceError::Magellan { .. } => "Magellan",
+            SpliceError::RenameFailed { .. } => "RenameFailed",
         }
     }
 
@@ -546,6 +556,7 @@ impl SpliceError {
             SpliceError::AmbiguousSymbol { name, .. } => Some(name.as_str()),
             SpliceError::ReferenceFailed { name, .. } => Some(name.as_str()),
             SpliceError::AmbiguousReference { name, .. } => Some(name.as_str()),
+            SpliceError::RenameFailed { symbol, .. } => Some(symbol.as_str()),
             _ => None,
         }
     }

@@ -8,6 +8,9 @@ pub mod magellan_integration;
 pub mod migrate;
 pub mod schema;
 
+// Re-export MagellanIntegration for convenient use
+pub use magellan_integration::MagellanIntegration;
+
 use crate::error::{Result, SpliceError};
 use crate::symbol::Language;
 use serde_json::json;

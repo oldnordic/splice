@@ -126,6 +126,8 @@ pub enum SpliceErrorCode {
     FileNotFound,
     /// File was modified externally (SPL-E034)
     FileExternallyModified,
+    /// Rename operation failed (SPL-E040)
+    RenameFailed,
 
     // Warning-level errors (SPL-W001 to SPL-W010)
     /// Symbol exists in multiple files (SPL-W001)
@@ -195,6 +197,7 @@ impl SpliceErrorCode {
             SpliceErrorCode::FileWriteError => "SPL-E032".to_string(),
             SpliceErrorCode::FileNotFound => "SPL-E033".to_string(),
             SpliceErrorCode::FileExternallyModified => "SPL-E034".to_string(),
+            SpliceErrorCode::RenameFailed => "SPL-E040".to_string(),
 
             SpliceErrorCode::AmbiguousSymbolAsWarning => "SPL-W001".to_string(),
             SpliceErrorCode::FileSkipped => "SPL-W002".to_string(),
@@ -247,7 +250,8 @@ impl SpliceErrorCode {
             | SpliceErrorCode::ExecutionNotFound
             | SpliceErrorCode::AnalyzerNotAvailable
             | SpliceErrorCode::AnalyzerFailed
-            | SpliceErrorCode::MagellanError => "error".to_string(),
+            | SpliceErrorCode::MagellanError
+            | SpliceErrorCode::RenameFailed => "error".to_string(),
 
             // Warning-level codes
             SpliceErrorCode::AmbiguousSymbol
@@ -279,6 +283,7 @@ impl SpliceErrorCode {
             SpliceErrorCode::FileWriteError => "Check disk space, file permissions, and ensure the file is not locked by another process.".to_string(),
             SpliceErrorCode::FileNotFound => "The specified file does not exist. Check the file path.".to_string(),
             SpliceErrorCode::FileExternallyModified => "The file was modified by another process. Re-index the codebase and retry.".to_string(),
+            SpliceErrorCode::RenameFailed => "Rename operation failed. Check that the symbol exists, has valid references, and the new name is not already in use.".to_string(),
 
             SpliceErrorCode::AmbiguousSymbolAsWarning => "The symbol name is defined in multiple files. Use --file to specify which file to use.".to_string(),
             SpliceErrorCode::FileSkipped => "File was skipped during ingestion. Check file type and permissions.".to_string(),
@@ -388,6 +393,9 @@ impl SpliceErrorCode {
 
             // Magellan integration errors
             crate::SpliceError::Magellan { .. } => Some(SpliceErrorCode::MagellanError),
+
+            // Rename operation errors
+            crate::SpliceError::RenameFailed { .. } => Some(SpliceErrorCode::RenameFailed),
 
             // Intentionally unmapped errors:
             // - BrokenPipe: terminal state, not user-fixable

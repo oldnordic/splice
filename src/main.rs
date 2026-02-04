@@ -270,6 +270,30 @@ fn main() -> ExitCode {
         splice::cli::Commands::MigrateDb { db_path, backup, dry_run } => {
             execute_migrate_db(&db_path, backup, dry_run, json_output)
         }
+
+        splice::cli::Commands::Rename {
+            symbol,
+            name,
+            file,
+            to,
+            db,
+            preview,
+            backup_dir,
+            no_backup,
+            create_backup: _,
+        } => {
+            execute_rename(
+                symbol.as_deref(),
+                name.as_deref(),
+                file.as_ref(),
+                &to,
+                &db,
+                preview,
+                backup_dir.as_ref(),
+                no_backup,
+                json_output,
+            )
+        }
     };
 
     // Handle result
@@ -3710,6 +3734,197 @@ fn execute_migrate_db(
         }
         Err(e) => Err(splice::SpliceError::Other(format!("Migration failed: {}", e))),
     }
+}
+
+/// Execute the rename command.
+///
+/// This function is a stub for the cross-file rename implementation.
+/// Full implementation will be provided in plan 29-02.
+///
+/// Current stub behavior:
+/// - Validates that either --symbol or --name+--file is provided
+/// - Opens Magellan database
+/// - Resolves symbol (ID-first with name+path fallback)
+/// - Validates symbol exists and has references
+///
+/// # Arguments
+/// * `symbol_id` - Optional 32-char BLAKE3 or 16-char SHA-256 symbol ID
+/// * `name` - Optional symbol name (requires file)
+/// * `file` - Optional file path for symbol name resolution
+/// * `new_name` - New name for the symbol
+/// * `db_path` - Path to Magellan database
+/// * `preview` - Preview changes without applying
+/// * `backup_dir` - Optional override for backup directory
+/// * `no_backup` - Skip backup creation
+/// * `json_output` - Output JSON format
+///
+/// # Returns
+/// Result with success payload or error
+fn execute_rename(
+    symbol_id: Option<&str>,
+    name: Option<&str>,
+    file: Option<&PathBuf>,
+    new_name: &str,
+    db_path: &Path,
+    preview: bool,
+    backup_dir: Option<&PathBuf>,
+    no_backup: bool,
+    _json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::graph::MagellanIntegration;
+
+    // Validate input: either --symbol or (--name AND --file) must be provided
+    let (lookup_id, lookup_name, lookup_file) = match (symbol_id, name, file) {
+        (Some(id), None, None) => (Some(id), None, None),
+        (None, Some(n), Some(f)) => (None, Some(n), Some(f)),
+        (None, None, _) => {
+            return Err(splice::SpliceError::RenameFailed {
+                reason: "Either --symbol or --name (with --file) must be provided".to_string(),
+                symbol: new_name.to_string(),
+            });
+        }
+        (Some(_), Some(_), _) => {
+            return Err(splice::SpliceError::RenameFailed {
+                reason: "--symbol and --name are mutually exclusive".to_string(),
+                symbol: new_name.to_string(),
+            });
+        }
+        (None, Some(_), None) => {
+            return Err(splice::SpliceError::RenameFailed {
+                reason: "--file is required when using --name".to_string(),
+                symbol: name.unwrap().to_string(),
+            });
+        }
+        _ => {
+            return Err(splice::SpliceError::RenameFailed {
+                reason: "Invalid argument combination".to_string(),
+                symbol: new_name.to_string(),
+            });
+        }
+    };
+
+    // Open Magellan database
+    let mut magellan = MagellanIntegration::open(db_path).map_err(|e| {
+        splice::SpliceError::RenameFailed {
+            reason: format!("Failed to open database: {}", e),
+            symbol: new_name.to_string(),
+        }
+    })?;
+
+    // Resolve symbol (ID-first with name+path fallback)
+    let symbol_info = if let Some(id) = lookup_id {
+        // Lookup by symbol ID (32-char BLAKE3 or 16-char SHA-256)
+        magellan
+            .find_symbol_by_id(id)
+            .map_err(|e| splice::SpliceError::RenameFailed {
+                reason: format!("Failed to lookup symbol ID: {}", e),
+                symbol: id.to_string(),
+            })?
+            .ok_or_else(|| splice::SpliceError::RenameFailed {
+                reason: format!("Symbol ID '{}' not found in database", id),
+                symbol: id.to_string(),
+            })?
+    } else {
+        // Lookup by name+path
+        let name_str = lookup_name.unwrap();
+        let file_path = lookup_file.unwrap();
+        let mut matches = magellan
+            .find_symbol_by_name(name_str, false)
+            .map_err(|e| splice::SpliceError::RenameFailed {
+                reason: format!("Failed to lookup symbol name: {}", e),
+                symbol: name_str.to_string(),
+            })?;
+
+        if matches.is_empty() {
+            return Err(splice::SpliceError::RenameFailed {
+                reason: format!(
+                    "Symbol '{}' not found in file '{}'",
+                    name_str,
+                    file_path.display()
+                ),
+                symbol: name_str.to_string(),
+            });
+        }
+
+        // Filter by file path if multiple symbols with same name exist
+        if matches.len() > 1 {
+            matches.retain(|s| s.file_path == file_path.to_string_lossy().as_ref());
+        }
+
+        if matches.is_empty() {
+            return Err(splice::SpliceError::RenameFailed {
+                reason: format!(
+                    "Symbol '{}' not found in file '{}' (found in other files)",
+                    name_str,
+                    file_path.display()
+                ),
+                symbol: name_str.to_string(),
+            });
+        }
+
+        matches.remove(0)
+    };
+
+    // Pre-flight validation: symbol must exist and have references
+    let entity_id = symbol_info.entity_id;
+    let references = magellan
+        .get_all_references(entity_id)
+        .map_err(|e| splice::SpliceError::RenameFailed {
+            reason: format!("Failed to get references: {}", e),
+            symbol: symbol_info.name.clone(),
+        })?;
+
+    if references.is_empty() {
+        return Err(splice::SpliceError::RenameFailed {
+            reason: format!(
+                "Symbol '{}' has no references to rename (only definition exists)",
+                symbol_info.name
+            ),
+            symbol: symbol_info.name,
+        });
+    }
+
+    // Report preview mode or stub status
+    if preview {
+        println!("Rename preview mode:");
+        println!("  Symbol: {} ({})", symbol_info.name, symbol_info.kind);
+        println!("  Location: {}:{}", symbol_info.file_path, symbol_info.byte_start);
+        println!("  New name: {}", new_name);
+        println!("  References found: {}", references.len());
+        println!();
+        println!("References to be updated:");
+        for ref_fact in &references {
+            println!("  - {} (to {})", ref_fact.file_path.display(), ref_fact.referenced_symbol);
+        }
+        println!();
+        println!("Backup directory: {:?}", backup_dir.map(|p| p.as_path()).unwrap_or_else(|| Path::new(".splice/backups/")));
+        println!("Skip backup: {}", no_backup);
+        println!();
+        println!("Note: This is a stub. Full implementation in plan 29-02.");
+        return Ok(splice::cli::CliSuccessPayload::message_only(format!(
+            "Rename preview: {} -> {} ({} references)",
+            symbol_info.name, new_name, references.len()
+        )).with_pending_changes());
+    }
+
+    // Stub: return success without performing actual rename
+    Ok(splice::cli::CliSuccessPayload::with_data(
+        format!(
+            "Rename stub: {} -> {} ({} references)",
+            symbol_info.name, new_name, references.len()
+        ),
+        serde_json::json!({
+            "symbol": symbol_info.name,
+            "new_name": new_name,
+            "file": symbol_info.file_path,
+            "kind": symbol_info.kind,
+            "entity_id": entity_id,
+            "reference_count": references.len(),
+            "preview": preview,
+            "backup_dir": backup_dir,
+            "no_backup": no_backup,
+        }),
+    ))
 }
 
 /// Parse date string to Unix timestamp.

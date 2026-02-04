@@ -682,6 +682,22 @@ impl MagellanIntegration {
             .map_err(|e| SpliceError::Other(format!("Failed to count symbols in {}: {}", path, e)))?;
         Ok(symbols.len())
     }
+
+    /// Get all references for a symbol by entity ID.
+    ///
+    /// Returns ReferenceFact entries for all references to this symbol
+    /// across all indexed files. This is the core data for cross-file rename.
+    ///
+    /// # Arguments
+    /// * `entity_id` - Entity ID of the symbol definition
+    ///
+    /// # Returns
+    /// Vector of ReferenceFact entries with byte spans
+    pub fn get_all_references(&mut self, entity_id: i64) -> Result<Vec<magellan::references::ReferenceFact>> {
+        self.inner
+            .references_to_symbol(entity_id)
+            .map_err(|e| SpliceError::Other(format!("Failed to get references for entity {}: {}", entity_id, e)))
+    }
 }
 
 /// Symbol information extracted from Magellan's SymbolQueryResult.

@@ -560,6 +560,45 @@ pub enum Commands {
         #[arg(long)]
         dry_run: bool,
     },
+
+    /// Rename a symbol across all files using byte-accurate references
+    #[command(display_order = 108)]
+    Rename {
+        /// Symbol ID (32-char BLAKE3 or 16-char SHA-256)
+        #[arg(short, long, conflicts_with = "name")]
+        symbol: Option<String>,
+
+        /// Symbol name (requires --file)
+        #[arg(short, long, conflicts_with = "symbol")]
+        name: Option<String>,
+
+        /// File path for symbol name resolution (required with --name)
+        #[arg(short, long)]
+        file: Option<std::path::PathBuf>,
+
+        /// New name for the symbol
+        #[arg(short, long)]
+        to: String,
+
+        /// Path to Magellan database (default: .codemcp/codegraph.db)
+        #[arg(short, long, default_value = ".codemcp/codegraph.db")]
+        db: std::path::PathBuf,
+
+        /// Preview changes without applying
+        #[arg(short = 'n', long = "dry-run")]
+        preview: bool,
+
+        /// Override backup directory (default: .splice/backups/)
+        #[arg(long)]
+        backup_dir: Option<std::path::PathBuf>,
+
+        /// Skip backup creation
+        #[arg(long)]
+        no_backup: bool,
+        /// Create backup before rename (default: true for safety, use --no-backup to skip)
+        #[arg(long, default_value = "true")]
+        create_backup: bool,
+    },
 }
 
 /// Symbol kind for filtering.
