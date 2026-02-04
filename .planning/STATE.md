@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 30 of 32 (Impact Analysis & Graph Algorithms)
-Plan: 3 of 4
+Plan: 3 of 6
 Status: In progress
-Last activity: 2026-02-04 — Completed plan 30-03 (Cycle Detection Command)
+Last activity: 2026-02-04 — Completed plan 30-02 (Dead Code Detection Command)
 
-Progress: [█████████████████████████████████████████████████████████████████████████████████████████████░] 98% (148/155 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 24 v2.2.2 + 3 v2.2.4 + 15 v2.3 est.)
+Progress: [█████████████████████████████████████████████████████████████████████████████████████████████░] 98% (147/155 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 24 v2.2.2 + 3 v2.2.4 + 14 v2.3 est.)
 
 ## Performance Metrics
 
@@ -73,6 +73,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Phase 29 Plan 5: Preview purity verified by checking both file content and mtime unchanged
 - Phase 30 Plan 1: Use BFS traversal for reachability with visited set to avoid cycles
 - Phase 30 Plan 1: Open database twice for immutable query then mutable operations (borrow checker requirement)
+- Phase 30 Plan 2: Dead code detection uses BFS traversal from entry point, marks visited symbols, returns unvisited as dead
+- Phase 30 Plan 2: Public symbol detection uses heuristics (uppercase first char for Rust functions, kind-based for types)
+- Phase 30 Plan 2: Two-phase database access for dead code: immutable for entry validation, mutable for graph operations
 - Phase 30 Plan 3: Implemented Tarjan's SCC algorithm directly in MagellanIntegration instead of delegating to Mag subprocess
 - Phase 30 Plan 3: Used HashMap<(String, String), HashSet<(String, String)>> for call graph representation with (file_path, symbol_name) keys
 - Phase 30 Plan 3: Cycles defined as SCCs with size > 1 OR self-loops (single node calling itself)
@@ -106,9 +109,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-04 14:00 UTC
-Stopped at: Completed plan 30-03 (Cycle Detection Command)
+Last session: 2026-02-04 13:10 UTC
+Stopped at: Completed plan 30-02 (Dead Code Detection Command)
 Resume file: None
 
 ---
-*Last updated: 2026-02-04 14:00 UTC*
+*Last updated: 2026-02-04 13:10 UTC*
