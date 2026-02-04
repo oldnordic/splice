@@ -1469,6 +1469,64 @@ Use cases:
 - Debugging: trace data flow
 - Testing: identify relevant test cases
 
+### Cross-File Rename
+
+The `rename` command performs byte-accurate cross-file symbol renaming using Magellan ReferenceFact data.
+
+#### Usage
+
+```bash
+splice rename --symbol <id> --file <path> --to <new_name> [OPTIONS]
+```
+
+#### Arguments
+
+- `--symbol <id>`: Symbol ID (16-character hex) or symbol name for disambiguation
+- `--file <path>`: File path containing the symbol definition
+- `--to <new_name>`: New name for the symbol
+
+#### Options
+
+- `--db <path>`: Path to codegraph.db (default: `.codemcp/codegraph.db`)
+- `--preview`: Show changes without applying (no file modifications)
+- `--proof`: Generate refactoring proof for audit trail
+
+#### Example
+
+```bash
+# Rename function across all files
+splice rename \
+  --symbol 1a2b3c4d5e6f7g8h \
+  --file src/utils.rs \
+  --to helper_function_v2
+
+# Preview changes first
+splice rename \
+  --symbol my_function \
+  --file src/lib.rs \
+  --to new_function_name \
+  --preview
+
+# Generate proof
+splice rename \
+  --symbol 1a2b3c4d5e6f7g8h \
+  --file src/utils.rs \
+  --to helper_function_v2 \
+  --proof
+```
+
+#### Backup and Rollback
+
+Rename operations automatically create backups before modification:
+
+- Backup location: `.splice/backups/rename-<timestamp>/`
+- Backup includes: manifest.json with file checksums
+- Rollback on: Validation failures, compilation errors, user interruption
+
+#### See Also
+
+- [docs/examples/rename_examples.md](examples/rename_examples.md) - Detailed rename examples
+
 ### Proof-Based Refactoring
 
 Splice provides machine-checkable behavioral equivalence proofs for refactoring operations. A proof captures before/after graph state and validates that structural invariants are preserved through SHA-256 checksums.
