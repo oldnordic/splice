@@ -15,6 +15,7 @@
 
 use splice::graph::magellan_integration::MagellanIntegration;
 use splice::output::{JsonResponse, LabelQueryResponse, Span, SymbolMatch};
+use sqlitegraph::SnapshotId;
 use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
@@ -246,7 +247,8 @@ impl DemoStruct {
 
     // Verify we can get a node from the graph
     if let Some(symbol) = fn_symbols.first() {
-        let node = graph.inner().get_node(symbol.entity_id)
+        let snapshot_id = SnapshotId::current();
+        let node = graph.inner().get_node(snapshot_id, symbol.entity_id)
             .expect("Should retrieve node by entity_id");
         assert_eq!(node.name, "demo_function");
     }

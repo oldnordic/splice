@@ -20,6 +20,7 @@
 use splice::graph::CodeGraph;
 use splice::relationships::{Relationship, RelationshipCache};
 use splice::symbol::Language;
+use sqlitegraph::SnapshotId;
 use std::io::Write;
 use std::path::Path;
 use std::time::Instant;
@@ -323,10 +324,11 @@ mod tests {
         let first_node = builder.create_call_chain(&file_path, "test_chain", 3);
 
         // Verify the first node exists
+        let snapshot_id = SnapshotId::current();
         let node = builder
             .graph()
             .inner()
-            .get_node(first_node.as_i64())
+            .get_node(snapshot_id, first_node.as_i64())
             .expect("Failed to retrieve node");
 
         assert!(node.name.contains("test_chain"));
@@ -342,10 +344,11 @@ mod tests {
         let target_id = builder.create_many_callers(&file_path, 150);
 
         // Verify the target exists
+        let snapshot_id = SnapshotId::current();
         let node = builder
             .graph()
             .inner()
-            .get_node(target_id.as_i64())
+            .get_node(snapshot_id, target_id.as_i64())
             .expect("Failed to retrieve node");
 
         assert_eq!(node.name, "target_function");
@@ -363,11 +366,12 @@ mod tests {
         assert_eq!(cycle_nodes.len(), 3);
 
         // Verify all nodes exist
+        let snapshot_id = SnapshotId::current();
         for node_id in cycle_nodes {
             let node = builder
                 .graph()
                 .inner()
-                .get_node(node_id.as_i64())
+                .get_node(snapshot_id, node_id.as_i64())
                 .expect("Failed to retrieve node");
             assert!(node.name.contains("cycle_"));
         }

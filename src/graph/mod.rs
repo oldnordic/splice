@@ -386,9 +386,10 @@ mod tests {
             .expect("Failed to store symbol with line/col");
 
         // Retrieve the node and verify line/col were stored
+        let snapshot_id = SnapshotId::current();
         let node = code_graph
             .inner()
-            .get_node(node_id.as_i64())
+            .get_node(snapshot_id, node_id.as_i64())
             .expect("Failed to retrieve node");
 
         assert_eq!(
@@ -429,9 +430,10 @@ mod tests {
             )
             .expect("Failed to store symbol with zeros");
 
+        let snapshot_id = SnapshotId::current();
         let node = code_graph
             .inner()
-            .get_node(node_id.as_i64())
+            .get_node(snapshot_id, node_id.as_i64())
             .expect("Failed to retrieve node");
 
         // Zeros should be stored correctly
@@ -459,9 +461,10 @@ mod tests {
             .store_symbol_with_file(&file_path, "dep_function", "function", 10, 20)
             .expect("Failed to store symbol via deprecated method");
 
+        let snapshot_id = SnapshotId::current();
         let node = code_graph
             .inner()
-            .get_node(node_id.as_i64())
+            .get_node(snapshot_id, node_id.as_i64())
             .expect("Failed to retrieve node");
 
         // All line/col should be 0 from deprecated method
