@@ -1,21 +1,19 @@
-# Splice v2.3 Manual
+# Splice v2.4.0 Manual
 
-Comprehensive guide for Splice v2.3 span-safe refactoring with Magellan v2 integration.
+Comprehensive guide for Splice span-safe refactoring with Magellan integration.
 
 ---
 
-## Splice v2.3 Overview
+## Splice v2.4.0 Overview
 
 ### What is Splice?
 
 Splice is a span-safe code refactoring tool that provides AST-validated code modifications across 7 programming languages (Rust, Python, C, C++, Java, JavaScript, TypeScript). It uses tree-sitter for parsing and SQLiteGraph for code relationship storage, with multi-stage validation (tree-sitter + compiler) before applying changes.
 
-### v2.3 New Features
+### v2.4.0 New Features
 
-- **Cross-File Rename**: Byte-accurate symbol renaming across all files using Magellan ReferenceFact
-- **Graph Algorithms**: Reachability, dead-code detection, cycle detection, condensation, program slicing
-- **Proof-Based Refactoring**: Machine-checkable behavioral equivalence proofs with SHA-256 checksums
-- **Preview JSON Output**: Structured JSON for preview mode with full metrics
+- **Preview JSON Output**: Structured JSON for preview mode with full metrics (line/column, bytes added/removed)
+- **Documentation Updates**: Condensed manual, improved README with toolset references
 
 ### Key Features
 

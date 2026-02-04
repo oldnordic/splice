@@ -42,7 +42,7 @@ Summary:
   "metadata": {
     "operation": "rename",
     "timestamp": 1736035200,
-    "splice_version": "2.3.0",
+    "splice_version": "2.4.0",
     "git_commit": "abc123..."
   },
   "before": {
@@ -416,7 +416,7 @@ Store proofs in version control and verify in CI:
 ```bash
 # Add proofs to repository
 git add .splice/proofs/*.json
-git commit -m "Add refactoring proofs for v2.3.0"
+git commit -m "Add refactoring proofs for v2.4.0"
 
 # Verify in CI
 make validate-proofs  # runs splice validate-proof for all

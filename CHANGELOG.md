@@ -3,7 +3,26 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.3.0] - 2026-02-04
+## [2.4.0] - 2026-02-04
+
+### Fixed
+
+**Preview Mode JSON Output**
+- `splice patch --preview --json` now returns structured JSON response
+  - `data.preview_report` with full PreviewReport struct (file, line_start, line_end, lines_added, lines_removed, bytes_added, bytes_removed)
+  - `data.files` array with affected file entries
+  - `data.symbol` at top level for symbol name
+  - Consistent with CliSuccessPayload pattern used by other commands
+
+### Changed
+
+**Documentation**
+- Updated README.md following llmgrep format with badges, toolset diagram, and references
+- Rewrote MANUAL.md (condensed from 1654 to 342 lines)
+- Added comprehensive command reference and examples
+- Updated .gitignore to only track README.md, CHANGELOG.md, MANUAL.md
+
+## [2.3.0] - Unreleased
 
 ### Magellan v2 Integration — Cross-File Rename and Semantic Program Transformation
 

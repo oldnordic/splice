@@ -158,7 +158,7 @@ splice validate-proof --proof .splice/proofs/rename-<timestamp>.json
   "metadata": {
     "operation": "rename",
     "timestamp": 1736035200,
-    "splice_version": "2.3.0",
+    "splice_version": "2.4.0",
     "git_commit": "abc123..."
   },
   "before": {
