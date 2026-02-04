@@ -1396,6 +1396,66 @@ pub struct SymbolInfo {
 }
 
 // ============================================================================
+// Condensation Graph Types (Phase 30-04)
+// ============================================================================
+
+/// Condensation graph result (SCCs collapsed to DAG).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CondensationResult {
+    /// Total number of SCCs in the condensation.
+    pub scc_count: usize,
+    /// Number of SCCs that are cycles (size > 1).
+    pub cycle_scc_count: usize,
+    /// Number of singleton SCCs (no cycles).
+    pub singleton_count: usize,
+    /// SCCs in the condensation graph.
+    pub sccs: Vec<CondensedScc>,
+    /// Edges between SCCs in the condensed graph.
+    pub edges: Vec<SccEdge>,
+    /// Topological levels (if requested).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub levels: Option<Vec<LevelInfo>>,
+}
+
+/// A strongly connected component in the condensation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CondensedScc {
+    /// SCC identifier.
+    pub id: String,
+    /// Number of symbols in this SCC.
+    pub size: usize,
+    /// Whether this SCC represents a cycle.
+    pub is_cycle: bool,
+    /// Symbols in this SCC (if showing members).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub members: Option<Vec<SymbolInfo>>,
+    /// Representative symbol for display.
+    pub representative: SymbolInfo,
+}
+
+/// An edge between two SCCs in the condensed graph.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SccEdge {
+    /// Source SCC id.
+    pub from: String,
+    /// Target SCC id.
+    pub to: String,
+    /// Number of edges from original graph collapsed into this edge.
+    pub weight: usize,
+}
+
+/// Topological level information.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LevelInfo {
+    /// Level number (0 = no incoming edges).
+    pub level: usize,
+    /// SCCs at this level.
+    pub scc_ids: Vec<String>,
+    /// Number of SCCs at this level.
+    pub count: usize,
+}
+
+// ============================================================================
 // Export Data Types (Phase 25-03)
 // ============================================================================
 
