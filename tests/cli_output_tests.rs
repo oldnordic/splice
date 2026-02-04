@@ -825,10 +825,12 @@ def main():
         // 6. Validate each symbol has required fields with correct types
         for symbol in symbols {
             // symbol_id is optional (can be null for some symbols)
+            // Accept both 16-char SHA-256 (v1) and 32-char BLAKE3 (v2) formats
             if let Some(sid) = symbol.get("symbol_id") {
                 if let Some(sid_str) = sid.as_str() {
-                    assert_eq!(sid_str.len(), 16,
-                               "symbol_id should be 16-char hex when present");
+                    assert!((sid_str.len() == 16 || sid_str.len() == 32) && sid_str.chars().all(|c| c.is_ascii_hexdigit()),
+                               "symbol_id should be 16-char or 32-char hex when present, got: {} ({})",
+                               sid_str.len(), sid_str);
                 }
             }
 
