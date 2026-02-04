@@ -37,6 +37,7 @@ AGENTS.md
 *.md
 !README.md
 !CHANGELOG.md
+!RELEASE_NOTES.md
 !manual.md
 !docs/magellan_integration.md
 !.planning/**/*.md
