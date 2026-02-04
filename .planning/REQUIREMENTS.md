@@ -125,6 +125,8 @@ Deferred to future releases.
 
 Which phases cover which requirements. Updated during roadmap creation.
 
+### v2.2.2 Requirements (Complete)
+
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | DATA-01 | Phase 22 | Complete |
@@ -146,12 +148,33 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Integration validation | Phase 26 | Complete |
 | Code cleanup | Phase 27 | Complete |
 
+### v2.3 Requirements (Planned)
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| DEPS-01 | Phase 28 | Pending |
+| DEPS-02 | Phase 28 | Pending |
+| DEPS-03 | Phase 28 | Pending |
+| SYMBOLID-01 | Phase 28 | Pending |
+| SYMBOLID-02 | Phase 28 | Pending |
+| DATA-05 | Phase 28 | Pending |
+| REFACTOR-01 | Phase 29 | Pending |
+| REFACTOR-03 | Phase 29 | Pending |
+| CLI-05 | Phase 29 | Pending |
+| REFACTOR-02 | Phase 30 | Pending |
+| GRAPH-01 | Phase 30 | Pending |
+| GRAPH-02 | Phase 30 | Pending |
+| GRAPH-03 | Phase 30 | Pending |
+| SLICE-01 | Phase 30 | Pending |
+| CLI-06 | Phase 30 | Pending |
+| CLI-07 | Phase 30 | Pending |
+| REFACTOR-04 | Phase 31 | Pending |
+| Integration validation | Phase 32 | Pending |
+
 **Coverage:**
-- v2.2.2 requirements: 15 total
-- Mapped to phases: 15 (100%)
-- v2.3 requirements: 20 total
-- To be mapped to phases: 20 (0%)
+- v2.2.2 requirements: 15 total, 15 mapped to phases (100%)
+- v2.3 requirements: 20 total, 20 mapped to phases (100%)
 
 ---
 *Requirements defined: 2026-02-04*
-*Updated: 2026-02-04 — v2.3 requirements added*
+*Updated: 2026-02-04 — v2.3 roadmap created with 100% requirement coverage*
