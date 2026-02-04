@@ -683,6 +683,54 @@ pub enum Commands {
         #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
         output: OutputFormat,
     },
+
+    /// Analyze condensation graph (SCCs collapsed to DAG)
+    #[command(display_order = 112)]
+    Condense {
+        /// Path to Magellan database (default: .codemcp/codegraph.db)
+        #[arg(short, long, default_value = ".codemcp/codegraph.db")]
+        db: std::path::PathBuf,
+
+        /// Show SCC members (default: true for human output)
+        #[arg(long, default_value = "true")]
+        show_members: bool,
+
+        /// Show topological levels
+        #[arg(long)]
+        show_levels: bool,
+
+        /// Output format (human, json, pretty)
+        #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
+        output: OutputFormat,
+    },
+
+    /// Perform program slicing (forward/backward impact analysis)
+    #[command(display_order = 113)]
+    Slice {
+        /// Target symbol to slice from
+        #[arg(short, long)]
+        target: String,
+
+        /// File path containing the target symbol
+        #[arg(short, long)]
+        path: std::path::PathBuf,
+
+        /// Path to Magellan database (default: .codemcp/codegraph.db)
+        #[arg(short, long, default_value = ".codemcp/codegraph.db")]
+        db: std::path::PathBuf,
+
+        /// Slice direction: forward (what this affects) or backward (what affects this)
+        #[arg(short, long, value_enum, default_value_t = SliceDirection::Forward)]
+        direction: SliceDirection,
+
+        /// Maximum depth to traverse (default: unlimited)
+        #[arg(short = 'd', long)]
+        max_depth: Option<usize>,
+
+        /// Output format (human, json, pretty)
+        #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
+        output: OutputFormat,
+    },
 }
 
 /// Symbol kind for filtering.
@@ -768,6 +816,15 @@ pub enum ReachabilityDirection {
     Reverse,
     /// Both directions
     Both,
+}
+
+/// Slice direction.
+#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SliceDirection {
+    /// Forward slice: what this symbol affects
+    Forward,
+    /// Backward slice: what affects this symbol
+    Backward,
 }
 
 /// Export format for graph data.
