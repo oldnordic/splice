@@ -683,6 +683,80 @@ impl MagellanIntegration {
         Ok(symbols.len())
     }
 
+    /// Sort references for safe in-order replacement.
+    ///
+    /// References are sorted by (file_path, byte_start) with descending
+    /// byte_start within each file. This ensures that replacing earlier
+    /// references doesn't affect byte offsets of later ones.
+    ///
+    /// This is critical when the new name has different byte length.
+    ///
+    /// # Arguments
+    /// * `references` - References to sort in-place
+    pub fn sort_references_for_replacement(references: &mut [magellan::references::ReferenceFact]) {
+        references.sort_by(|a, b| {
+            // First by file path (ascending) for logical grouping
+            match a.file_path.cmp(&b.file_path) {
+                std::cmp::Ordering::Equal => {
+                    // Then by byte_start within file (descending)
+                    // Descending order prevents offset shifts from affecting later replacements
+                    b.byte_start.cmp(&a.byte_start)
+                }
+                other => other
+            }
+        });
+    }
+
+    /// Validate that a byte span is on UTF-8 character boundaries.
+    ///
+    /// # Arguments
+    /// * `content` - File content as bytes
+    /// * `byte_start` - Start offset
+    /// * `byte_end` - End offset
+    /// * `file_path` - Path to file (for error reporting)
+    ///
+    /// # Returns
+    /// Ok(()) if span is valid, Err with description if invalid
+    pub fn validate_utf8_span(
+        content: &[u8],
+        byte_start: usize,
+        byte_end: usize,
+        file_path: &Path,
+    ) -> Result<()> {
+        if byte_start >= content.len() || byte_end > content.len() {
+            return Err(SpliceError::InvalidSpan {
+                file: file_path.to_path_buf(),
+                start: byte_start,
+                end: byte_end,
+                file_size: content.len(),
+            });
+        }
+
+        // Convert to str for char_boundary checking
+        // SAFETY: We only validate boundaries, not content validity
+        let content_str = std::str::from_utf8(content).map_err(|_| SpliceError::Other(
+            "File content is not valid UTF-8".to_string()
+        ))?;
+
+        // Check start is on character boundary
+        if !content_str.is_char_boundary(byte_start) {
+            return Err(SpliceError::Other(format!(
+                "Byte start {} is not on UTF-8 character boundary",
+                byte_start
+            )));
+        }
+
+        // Check end is on character boundary
+        if !content_str.is_char_boundary(byte_end) {
+            return Err(SpliceError::Other(format!(
+                "Byte end {} is not on UTF-8 character boundary",
+                byte_end
+            )));
+        }
+
+        Ok(())
+    }
+
     /// Get all references for a symbol by entity ID.
     ///
     /// Returns ReferenceFact entries for all references to this symbol
