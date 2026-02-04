@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 29 of 32 (Cross-File Rename Foundation)
-Plan: 3 of 4
+Plan: 4 of 4
 Status: In progress
-Last activity: 2026-02-04 — Completed plan 29-03 (Byte-Accurate Replacement with UTF-8 Safety)
+Last activity: 2026-02-04 — Completed plan 29-04 (Preview Mode and Automatic Backup)
 
-Progress: [█████████████████████████████████████████████████████████████████████████████████████████████░] 96% (143/155 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 24 v2.2.2 + 3 v2.2.4 + 10 v2.3 est.)
+Progress: [█████████████████████████████████████████████████████████████████████████████████████████████░] 97% (144/155 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 24 v2.2.2 + 3 v2.2.4 + 10 v2.3 est.)
 
 ## Performance Metrics
 
@@ -31,7 +31,7 @@ Progress: [███████████████████████
 | 19-21 | 20 | Complete |
 | 22-27 | 27 | Complete |
 | 28 | 4 | Complete |
-| 29 | 3 of 4 | In progress |
+| 29 | 4 of 4 | In progress |
 | 30-32 | 0 | Not started |
 
 *Updated after each plan completion*
@@ -63,6 +63,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Phase 29 Plan 3: Apply replacements end-to-start (descending byte_start) to preserve offset validity
 - Phase 29 Plan 3: Use validate_utf8_span from MagellanIntegration for consistency
 - Phase 29 Plan 3: Group references by file before applying for sequential file processing
+- Phase 29 Plan 4: Preview mode is pure (no filesystem writes, no backup creation)
+- Phase 29 Plan 4: Backup uses .splice/backups/rename-<id>-<timestamp>/ format with manifest.json
+- Phase 29 Plan 4: Transaction rollback restores all files from backup on any error
+- Phase 29 Plan 4: Colored diff auto-detection via NO_COLOR and TTY checking
 - Phase 30: Delegate graph algorithms to Magellan library (not subprocess)
 - Phase 31: Proof generation as verification layer (not automation)
 
@@ -91,9 +95,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-04 12:04 UTC
-Stopped at: Completed plan 29-03 (Byte-Accurate Replacement with UTF-8 Safety)
+Last session: 2026-02-04 14:00 UTC
+Stopped at: Completed plan 29-04 (Preview Mode and Automatic Backup)
 Resume file: None
 
 ---
-*Last updated: 2026-02-04 12:04 UTC*
+*Last updated: 2026-02-04 14:00 UTC*
