@@ -620,7 +620,7 @@ pub enum Commands {
         direction: ReachabilityDirection,
 
         /// Maximum depth to traverse (default: 10)
-        #[arg(short = 'd', long, default_value = "10")]
+        #[arg(long, default_value = "10")]
         max_depth: usize,
 
         /// Output format (human, json, pretty)
