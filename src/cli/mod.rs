@@ -749,6 +749,18 @@ pub enum Commands {
         #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
         output: OutputFormat,
     },
+
+    /// Validate proof checksums for refactoring audit trail
+    #[command(display_order = 114)]
+    ValidateProof {
+        /// Path to the proof JSON file
+        #[arg(short, long)]
+        proof: std::path::PathBuf,
+
+        /// Output format (human, json, pretty)
+        #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
+        output: OutputFormat,
+    },
 }
 
 /// Symbol kind for filtering.

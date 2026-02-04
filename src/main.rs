@@ -468,6 +468,10 @@ fn main() -> ExitCode {
             output,
             json_output,
         ),
+
+        splice::cli::Commands::ValidateProof { proof, output } => {
+            execute_validate_proof(&proof, output, json_output)
+        }
     };
 
     // Handle result
@@ -4196,8 +4200,8 @@ fn execute_rename(
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::MagellanIntegration;
-    use splice::proof::generation::{generate_snapshot, create_metadata, write_proof};
-    use splice::proof::data_structures::RefactoringProof;
+    use splice::proof::{generate_proof, write_proof};
+    use splice::proof::generation::generate_snapshot;
 
     // Validate input: either --symbol or (--name AND --file) must be provided
     let (lookup_id, lookup_name, lookup_file) = match (symbol_id, name, file) {
@@ -4455,14 +4459,29 @@ fn execute_rename(
                 symbol: new_name.to_string(),
             })?;
 
-            let metadata = create_metadata("rename", db_path);
+            // Use generate_proof to create complete proof with invariant validation
+            let proof_data = generate_proof("rename", db_path, before, after_snapshot)
+                .map_err(|e| splice::SpliceError::RenameFailed {
+                    reason: format!("Failed to generate proof: {}", e),
+                    symbol: new_name.to_string(),
+                })?;
 
-            let proof_data = RefactoringProof {
-                metadata,
-                before,
-                after: after_snapshot,
-                invariants: vec![], // Will be populated in 31-03
-                checksums: None,    // Will be populated in 31-04
+            // Check invariant validation results
+            let failed_invariants: Vec<_> = proof_data.invariants.iter()
+                .filter(|c| !c.passed)
+                .collect();
+
+            let invariant_status = if failed_invariants.is_empty() {
+                "All invariants passed".to_string()
+            } else {
+                let failed_names: Vec<&str> = failed_invariants.iter()
+                    .map(|c| c.invariant_name.as_str())
+                    .collect();
+                format!(
+                    "Warning: {} invariant(s) failed: {}",
+                    failed_invariants.len(),
+                    failed_names.join(", ")
+                )
             };
 
             let proof_dir = std::path::PathBuf::from(".splice/proofs");
@@ -4472,7 +4491,7 @@ fn execute_rename(
             })?;
 
             return Ok(splice::cli::CliSuccessPayload::with_data(
-                format!("{}\nProof written to: {}", message, proof_path.display()),
+                format!("{}\nProof written to: {}\nInvariant status: {}", message, proof_path.display(), invariant_status),
                 serde_json::json!({
                     "old_name": symbol_info.name,
                     "new_name": new_name,
@@ -4480,6 +4499,16 @@ fn execute_rename(
                     "total_references": total_references,
                     "backup": backup_dir_path.as_ref().map(|p| p.display().to_string()),
                     "proof": proof_path.display().to_string(),
+                    "invariants": {
+                        "total": proof_data.invariants.len(),
+                        "passed": proof_data.invariants.iter().filter(|c| c.passed).count(),
+                        "failed": failed_invariants.len(),
+                        "details": proof_data.invariants.iter().map(|c| serde_json::json!({
+                            "name": c.invariant_name,
+                            "passed": c.passed,
+                            "violations": c.violations.len()
+                        })).collect::<Vec<_>>()
+                    }
                 }),
             ));
         }
@@ -5185,6 +5214,82 @@ fn execute_slice(
 
         Ok(splice::cli::CliSuccessPayload::message_only(
             "Program slice complete".to_string(),
+        ))
+    }
+}
+
+/// Execute the validate-proof command.
+///
+/// Validates SHA-256 checksums in a refactoring proof file to ensure
+/// audit trail integrity.
+///
+/// This function:
+/// 1. Reads the proof JSON file
+/// 2. Deserializes it into a RefactoringProof
+/// 3. Validates all checksums (before, after, proof hash)
+/// 4. Outputs validation result
+fn execute_validate_proof(
+    proof_path: &Path,
+    output: splice::cli::OutputFormat,
+    json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::proof::validate_proof_file;
+    use serde_json::json;
+
+    // Validate proof file
+    let is_valid = validate_proof_file(proof_path)?;
+
+    // Format output
+    if output.is_json() || json_output {
+        let result = json!({
+            "proof_path": proof_path.to_string_lossy(),
+            "checksums_valid": is_valid,
+            "status": if is_valid { "valid" } else { "no_checksums" }
+        });
+
+        let json_output = output
+            .format_json(&result)
+            .map_err(|e| splice::SpliceError::Other(format!("JSON serialization error: {}", e)))?;
+        println!("{}", json_output);
+
+        Ok(
+            splice::cli::CliSuccessPayload::message_only(
+                if is_valid {
+                    "Proof checksums are valid".to_string()
+                } else {
+                    "Proof has no checksums".to_string()
+                }
+            )
+            .already_emitted(),
+        )
+    } else {
+        // Human-readable output
+        println!("Proof Validation: {}", proof_path.display());
+        println!();
+
+        if is_valid {
+            println!("Status: VALID ✓");
+            println!();
+            println!("All SHA-256 checksums verified:");
+            println!("  ✓ Before snapshot hash");
+            println!("  ✓ After snapshot hash");
+            println!("  ✓ Overall proof hash");
+            println!();
+            println!("Audit trail integrity is confirmed.");
+        } else {
+            println!("Status: NO CHECKSUMS ⚠");
+            println!();
+            println!("This proof does not include checksums.");
+            println!("Checksums were added in Splice 2.2.4.");
+            println!("Proof may have been generated with an older version.");
+        }
+
+        Ok(splice::cli::CliSuccessPayload::message_only(
+            if is_valid {
+                "Proof validation complete".to_string()
+            } else {
+                "Proof validation complete (no checksums)".to_string()
+            },
         ))
     }
 }
