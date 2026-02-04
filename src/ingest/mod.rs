@@ -15,10 +15,6 @@ pub mod rust;
 pub mod semantic_kind;
 pub mod typescript;
 
-use crate::error::Result;
-use crate::graph::CodeGraph;
-use std::path::Path;
-
 /// Re-export common types for convenience.
 pub use cpp::{extract_cpp_symbols, CppSymbol, CppSymbolKind};
 pub use detect::{detect_language, Language};
@@ -34,35 +30,3 @@ pub use python::{extract_python_symbols, PythonSymbol, PythonSymbolKind};
 pub use rust::{extract_rust_symbols, RustSymbol, RustSymbolKind, Visibility};
 pub use semantic_kind::{detect_semantic_kind, SemanticKind};
 pub use typescript::{extract_typescript_symbols, TypeScriptSymbol, TypeScriptSymbolKind};
-
-/// Main ingest orchestrator.
-///
-/// Reads Rust files from the filesystem, parses them with tree-sitter,
-/// and stores symbols/spans in the SQLiteGraph database.
-pub struct Ingestor {
-    /// Graph database handle (not yet used, pending implementation).
-    _graph: CodeGraph,
-}
-
-impl Ingestor {
-    /// Create a new ingestor with the given graph database.
-    pub fn new(graph: CodeGraph) -> Self {
-        Self { _graph: graph }
-    }
-
-    /// Ingest a single Rust source file.
-    pub fn ingest_file(&mut self, _path: &Path) -> Result<()> {
-        // TODO: Implement in Task 1
-        Err(crate::error::SpliceError::Other(
-            "Not implemented yet".to_string(),
-        ))
-    }
-
-    /// Ingest a directory of Rust source files recursively.
-    pub fn ingest_dir(&mut self, _path: &Path) -> Result<()> {
-        // TODO: Implement in Task 1
-        Err(crate::error::SpliceError::Other(
-            "Not implemented yet".to_string(),
-        ))
-    }
-}
