@@ -169,12 +169,29 @@ Plans:
 - [x] 26-05-PLAN.md — Performance benchmarks (4 tests)
 - [x] 26-06-PLAN.md — Documentation (docs/magellan_integration.md)
 
+#### Phase 27: Code Cleanup
+**Goal**: Remove dead code and improve code hygiene before v2.2.2 release
+**Depends on**: Phase 26
+**Requirements**: CLEAN-01, CLEAN-02, CLEAN-03
+**Success Criteria** (what must be TRUE):
+  1. Dead `Ingestor` struct stub removed from src/ingest/mod.rs
+  2. All dead code imports and unused dependencies cleaned
+  3. Documentation updated to reflect current architecture (no references to dead code)
+  4. Codebase compiles and all tests pass after cleanup
+**Plans**: 4 plans
+
+Plans:
+- [ ] 27-01-PLAN.md — Remove dead Ingestor struct stub from src/ingest/mod.rs
+- [ ] 27-02-PLAN.md — Audit and remove unused imports across codebase
+- [ ] 27-03-PLAN.md — Update documentation to remove dead code references
+- [ ] 27-04-PLAN.md — Final validation (compilation, tests, lint)
+
 ---
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 22 → 23 → 24 → 25 → 26
+Phases execute in numeric order: 22 → 23 → 24 → 25 → 26 → 27
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -188,12 +205,13 @@ Phases execute in numeric order: 22 → 23 → 24 → 25 → 26
 | 24. CLI Commands & Response Types | v2.2.2 | 5/5 | Complete | 2026-01-24 |
 | 25. Export Command & Error Mapping | v2.2.2 | 4/4 | Complete | 2026-01-24 |
 | 26. Integration Testing | v2.2.2 | 6/6 | Complete | 2026-01-24 |
+| 27. Code Cleanup | v2.2.2 | 0/4 | In Progress | 2026-02-04 |
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%)
 - v2.2: 55/55 plans complete (100%)
 - v2.2.1: 20/20 plans complete (100%)
-- v2.2.2: 24/24 plans complete (100%)
+- v2.2.2: 24/28 plans complete (86%)
 
 ---
-*Last updated: 2026-01-24*
+*Last updated: 2026-02-04*
