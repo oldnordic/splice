@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 29 of 32 (Cross-File Rename Foundation)
-Plan: 4 of 4
-Status: In progress
-Last activity: 2026-02-04 — Completed plan 29-04 (Preview Mode and Automatic Backup)
+Plan: 5 of 5
+Status: Complete
+Last activity: 2026-02-04 — Completed plan 29-05 (Cross-Language Rename Testing)
 
-Progress: [█████████████████████████████████████████████████████████████████████████████████████████████░] 97% (144/155 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 24 v2.2.2 + 3 v2.2.4 + 10 v2.3 est.)
+Progress: [█████████████████████████████████████████████████████████████████████████████████████████████░] 97% (145/155 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 24 v2.2.2 + 3 v2.2.4 + 11 v2.3 est.)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 137
-- Total execution time: ~44.2 hours (estimated)
+- Total plans completed: 145
+- Total execution time: ~44.7 hours (estimated)
 
 **By Phase:**
 
@@ -31,7 +31,7 @@ Progress: [███████████████████████
 | 19-21 | 20 | Complete |
 | 22-27 | 27 | Complete |
 | 28 | 4 | Complete |
-| 29 | 4 of 4 | In progress |
+| 29 | 5 | Complete |
 | 30-32 | 0 | Not started |
 
 *Updated after each plan completion*
@@ -67,6 +67,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Phase 29 Plan 4: Backup uses .splice/backups/rename-<id>-<timestamp>/ format with manifest.json
 - Phase 29 Plan 4: Transaction rollback restores all files from backup on any error
 - Phase 29 Plan 4: Colored diff auto-detection via NO_COLOR and TTY checking
+- Phase 29 Plan 5: Use manual span detection in tests since Magellan 2.0.0 lacks Rust reference extraction (only C/C++/Java/JS/Python/TS)
+- Phase 29 Plan 5: Word boundary checking in span detection prevents false positives (e.g., "foo" vs "foo_bar")
+- Phase 29 Plan 5: Preview purity verified by checking both file content and mtime unchanged
 - Phase 30: Delegate graph algorithms to Magellan library (not subprocess)
 - Phase 31: Proof generation as verification layer (not automation)
 
@@ -90,14 +93,15 @@ None.
 - LOW RISK: Dual-format SymbolId with JSON output complete. V1 (16-char SHA-256) and V2 (32-char BLAKE3) both tested. id_format field enables client detection. Migration command available in 28-04.
 - LOW RISK: Magellan migration command complete with backup safety and dry-run validation. Users can migrate v5 -> v6 databases explicitly.
 - MEDIUM RISK: Magellan database needs re-indexing to use BLAKE3 format - will be addressed in subsequent phases
-- MEDIUM RISK: Cross-file rename race conditions - mitigated by transactional locks in Phase 29
+- LOW RISK: Cross-file rename foundation complete with comprehensive test coverage. Byte-accuracy verified for all 7 languages.
+- MEDIUM RISK: Magellan 2.0.0 missing Rust reference extraction - tests use manual span detection as workaround. Production rename will need Rust reference extraction or equivalent.
 - MEDIUM RISK: Graph algorithm performance on large codebases - mitigated by depth limits and caching in Phase 30
 
 ## Session Continuity
 
-Last session: 2026-02-04 14:00 UTC
-Stopped at: Completed plan 29-04 (Preview Mode and Automatic Backup)
+Last session: 2026-02-04 12:35 UTC
+Stopped at: Completed plan 29-05 (Cross-Language Rename Testing)
 Resume file: None
 
 ---
-*Last updated: 2026-02-04 14:00 UTC*
+*Last updated: 2026-02-04 12:35 UTC*
