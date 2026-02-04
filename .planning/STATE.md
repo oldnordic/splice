@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 29 of 32 (Cross-File Rename Foundation)
-Plan: 2 of 4
+Plan: 3 of 4
 Status: In progress
-Last activity: 2026-02-04 — Completed plan 29-02 (ReferenceFact-Based Span Extraction)
+Last activity: 2026-02-04 — Completed plan 29-03 (Byte-Accurate Replacement with UTF-8 Safety)
 
 Progress: [█████████████████████████████████████████████████████████████████████████████████████████████░] 96% (143/155 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 24 v2.2.2 + 3 v2.2.4 + 10 v2.3 est.)
 
@@ -31,7 +31,7 @@ Progress: [███████████████████████
 | 19-21 | 20 | Complete |
 | 22-27 | 27 | Complete |
 | 28 | 4 | Complete |
-| 29 | 2 of 4 | In progress |
+| 29 | 3 of 4 | In progress |
 | 30-32 | 0 | Not started |
 
 *Updated after each plan completion*
@@ -59,6 +59,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Phase 29 Plan 2: Sort references by (file_path, byte_start descending) for safe in-order replacement
 - Phase 29 Plan 2: Validate UTF-8 character boundaries before byte manipulation using str::is_char_boundary
 - Phase 29 Plan 2: Return AmbiguousSymbol error with file:kind format for disambiguation
+- Phase 29 Plan 3: Implement byte-accurate replacement at ReferenceFact spans
+- Phase 29 Plan 3: Apply replacements end-to-start (descending byte_start) to preserve offset validity
+- Phase 29 Plan 3: Use validate_utf8_span from MagellanIntegration for consistency
+- Phase 29 Plan 3: Group references by file before applying for sequential file processing
 - Phase 30: Delegate graph algorithms to Magellan library (not subprocess)
 - Phase 31: Proof generation as verification layer (not automation)
 
@@ -87,9 +91,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-04 11:49 UTC
-Stopped at: Completed plan 29-02 (ReferenceFact-Based Span Extraction)
+Last session: 2026-02-04 12:04 UTC
+Stopped at: Completed plan 29-03 (Byte-Accurate Replacement with UTF-8 Safety)
 Resume file: None
 
 ---
-*Last updated: 2026-02-04 11:49 UTC*
+*Last updated: 2026-02-04 12:04 UTC*
