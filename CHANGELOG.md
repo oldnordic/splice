@@ -3,6 +3,124 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-02-04
+
+### Magellan v2 Integration — Cross-File Rename and Semantic Program Transformation
+
+This release delivers Magellan v2 integration with cross-file rename, impact analysis, dead code detection, cycle detection, graph condensation, program slicing, and proof-based refactoring. Five phases with 25 plans bring advanced semantic program transformation capabilities to Splice.
+
+### Added
+
+**Cross-File Rename**
+- `splice rename` command with byte-accurate reference replacement across files
+  - Uses Magellan ReferenceFact byte offsets for precise span targeting
+  - `--symbol <id>` for symbol identification (16-char hex V1 or 32-char hex V2)
+  - `--file <path>` for definition file location
+  - `--to <new_name>` for the new symbol name
+  - `--preview` flag for dry-run mode with colored diff output
+  - `--proof` flag for generating refactoring proofs
+  - Automatic backup and rollback on validation failures
+  - UTF-8 boundary validation for safe multi-byte character handling
+  - Multi-language support (C, C++, Java, JavaScript, Python, TypeScript)
+  - SPL-E040 error code for ambiguous symbol detection
+  - Sorted references by (file_path, byte_start descending) for safe in-order replacement
+
+**Impact Analysis Commands**
+- `splice reachable` — Show all symbols reachable from a target symbol
+  - `--symbol <name>` and `--path <file>` for target specification
+  - `--direction <forward|backward>` for traversal direction
+  - `--max-depth <n>` for depth limiting (default: 10)
+  - BFS traversal with visited set to avoid cycles
+  - Affected file identification
+
+- `splice slice` — Forward or backward program slicing
+  - `--target <id>` for symbol ID
+  - `--direction <forward|backward>` for slice direction
+  - `--max-distance <n>` for maximum slice distance
+  - Distance tracking and affected file analysis
+
+**Dead Code Detection**
+- `splice dead-code` command for finding unused symbols from entry points
+  - `--entry <symbol>` and `--path <file>` for entry point specification
+  - `--exclude-public` flag to exclude public symbols from analysis
+  - BFS traversal from entry point with visited tracking
+  - Public symbol detection heuristics (uppercase first char for Rust functions, kind-based for types)
+
+**Cycle Detection**
+- `splice cycles` command for finding circular dependencies in call graph
+  - Tarjan's SCC algorithm implemented directly in MagellanIntegration
+  - `--max-cycles <n>` for limiting output (default: 100)
+  - `--show-members` flag for displaying all cycle members
+  - Cycles defined as SCCs with size > 1 OR self-loops
+  - Representative symbol selected as alphabetically first member
+
+**Graph Condensation**
+- `splice condense` command for collapsing SCCs to DAG
+  - Kahn's algorithm for topological level assignment
+  - Edge weight tracking between SCCs (coupling strength)
+  - `--show-levels` flag for topological level display
+  - `--show-members` flag for SCC member display
+
+**Proof-Based Refactoring**
+- `splice rename --proof` flag for generating machine-checkable proofs
+  - Before/after graph snapshots with symbol counts
+  - Invariant validation (reference counts, orphan detection, ID stability, entry points)
+  - SHA-256 checksums for audit trail integrity
+  - `splice validate-proof --proof <path>` command for proof validation
+  - RefactoringProof, GraphSnapshot, InvariantCheck data structures
+  - JSON proof file format with version "1.0.0"
+
+**Dual-Format SymbolId Support**
+- V1: 16-character hex (SHA-256, first 8 bytes) — backward compatible
+- V2: 32-character hex (BLAKE3, first 16 bytes) — new default
+- `SymbolId::parse()` for auto-detection (16 or 32 chars)
+- `id_format` field in JSON output ("v1" or "v2")
+- Backward compatibility: find_symbol_by_id tries V2 first, then V1
+
+**Magellan Database Migration**
+- Magellan 2.0.0 auto-migration support (v5 to v6 schema)
+- BLAKE3-based symbol IDs for new databases
+- `--backup` flag defaults to true for migration safety
+- `--dry-run` mode for migration status checking
+
+### Changed
+
+**Dependencies**
+- Magellan 2.1.0 (was 2.0.0) — BLAKE3 symbol IDs, ReferenceFact byte offsets
+- SQLiteGraph 1.4.2 (was 1.2.7) — Native V2 backend with BLAKE3 support
+- sha2 0.10.9 retained for backward compatibility during migration
+- blake3 1.5.0 for new symbol ID generation
+
+**Test Coverage**
+- 407+ passing tests (from 334 in v2.2.4)
+- 18 cross-file rename integration tests with multi-language coverage
+- 6 performance regression tests for graph algorithms (<1s target for 1K symbols)
+- 3 integration tests for invariant validation
+
+**Documentation**
+- Updated README with v2.3 feature highlights
+- Extended manual with cross-file rename and graph algorithm documentation
+- Three new example files: rename_examples.md, graph_algorithm_examples.md, proof_examples.md
+- CI/CD integration patterns and troubleshooting sections
+
+### Performance
+
+Graph algorithm performance benchmarks (Criterion):
+- Reachability (1K symbols): 5-15ms
+- Dead code detection (1K symbols): 10-25ms
+- Cycle detection (1K symbols): 20-40ms
+- Graph condensation (1K symbols): 15-35ms
+- Program slicing (1K symbols): 25-60ms
+
+All algorithms meet the <1s target for 1K symbols.
+
+### Technical Notes
+
+- **Cross-file rename**: Uses Magellan ReferenceFact byte offsets for exact span targeting. Rust reference extraction not yet available in Magellan 2.0.0 — tests use manual span detection as workaround.
+- **Graph algorithms**: Implemented directly in MagellanIntegration using in-process library delegation (not subprocess).
+- **Proof format**: Versioned schema "1.0.0" with before/after snapshots, invariant checks, and checksums.
+- **Migration**: Magellan 2.0.0 databases auto-migrate on open. V5 databases use SHA-256, V6 use BLAKE3.
+
 ## [2.2.4] - 2026-02-04
 
 ### Removed
