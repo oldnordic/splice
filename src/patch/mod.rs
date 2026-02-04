@@ -963,9 +963,7 @@ fn clone_workspace_for_preview(workspace_root: &Path) -> Result<TempDir> {
     // Projects with dependencies like `llmgrep = { path = "../llmgrep" }`
     // need those sibling directories copied to the preview workspace parent
     if let Ok(local_deps) = extract_local_path_dependencies(workspace_root) {
-        let preview_parent = preview_path
-            .parent()
-            .unwrap_or(preview_path);
+        let preview_parent = preview_path.parent().unwrap_or(preview_path);
 
         for dep_path in local_deps {
             // For nested paths like ../sqlitegraph/sqlitegraph, we need to copy
@@ -979,38 +977,52 @@ fn clone_workspace_for_preview(workspace_root: &Path) -> Result<TempDir> {
                             let parent_name = dep_parent
                                 .file_name()
                                 .and_then(|n| n.to_str())
-                                .ok_or_else(|| SpliceError::Other(
-                                    format!("Invalid dependency parent path: {:?}", dep_parent)
-                                ))?;
+                                .ok_or_else(|| {
+                                    SpliceError::Other(format!(
+                                        "Invalid dependency parent path: {:?}",
+                                        dep_parent
+                                    ))
+                                })?;
                             (dep_parent.to_path_buf(), parent_name.to_string())
                         } else {
                             // Normal path: use dep_path as-is
                             let dep_name = dep_path
                                 .file_name()
                                 .and_then(|n| n.to_str())
-                                .ok_or_else(|| SpliceError::Other(
-                                    format!("Invalid dependency path: {:?}", dep_path)
-                                ))?;
+                                .ok_or_else(|| {
+                                    SpliceError::Other(format!(
+                                        "Invalid dependency path: {:?}",
+                                        dep_path
+                                    ))
+                                })?;
                             (dep_path.clone(), dep_name.to_string())
                         }
                     } else {
                         // Can't determine workspace parent, use dep_path as-is
-                        let dep_name = dep_path
-                            .file_name()
-                            .and_then(|n| n.to_str())
-                            .ok_or_else(|| SpliceError::Other(
-                                format!("Invalid dependency path: {:?}", dep_path)
-                            ))?;
+                        let dep_name =
+                            dep_path
+                                .file_name()
+                                .and_then(|n| n.to_str())
+                                .ok_or_else(|| {
+                                    SpliceError::Other(format!(
+                                        "Invalid dependency path: {:?}",
+                                        dep_path
+                                    ))
+                                })?;
                         (dep_path.clone(), dep_name.to_string())
                     }
                 } else {
                     // No grandparent, use dep_path as-is
-                    let dep_name = dep_path
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .ok_or_else(|| SpliceError::Other(
-                            format!("Invalid dependency path: {:?}", dep_path)
-                        ))?;
+                    let dep_name =
+                        dep_path
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .ok_or_else(|| {
+                                SpliceError::Other(format!(
+                                    "Invalid dependency path: {:?}",
+                                    dep_path
+                                ))
+                            })?;
                     (dep_path.clone(), dep_name.to_string())
                 }
             } else {
@@ -1018,9 +1030,9 @@ fn clone_workspace_for_preview(workspace_root: &Path) -> Result<TempDir> {
                 let dep_name = dep_path
                     .file_name()
                     .and_then(|n| n.to_str())
-                    .ok_or_else(|| SpliceError::Other(
-                        format!("Invalid dependency path: {:?}", dep_path)
-                    ))?;
+                    .ok_or_else(|| {
+                        SpliceError::Other(format!("Invalid dependency path: {:?}", dep_path))
+                    })?;
                 (dep_path.clone(), dep_name.to_string())
             };
 
@@ -1035,7 +1047,9 @@ fn clone_workspace_for_preview(workspace_root: &Path) -> Result<TempDir> {
             if let Err(e) = copy_dir_recursive(&source_path, &dep_dest) {
                 log::warn!(
                     "Failed to copy local dependency {:?} to {:?}: {}",
-                    source_path, dep_dest, e
+                    source_path,
+                    dep_dest,
+                    e
                 );
                 // Non-fatal: preview may still work if dependency isn't used
             }

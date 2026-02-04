@@ -221,11 +221,17 @@ impl DemoStruct {
 
     // Query 1: Single Magellan language label
     let rust_symbols = integration.query_by_labels(&["rust"]).unwrap();
-    assert!(!rust_symbols.is_empty(), "Should find symbols with 'rust' label");
+    assert!(
+        !rust_symbols.is_empty(),
+        "Should find symbols with 'rust' label"
+    );
 
     // Query 2: Magellan language + kind labels (AND semantics)
     let fn_symbols = integration.query_by_labels(&["rust", "fn"]).unwrap();
-    assert!(!fn_symbols.is_empty(), "Should find functions with 'rust' AND 'fn' labels");
+    assert!(
+        !fn_symbols.is_empty(),
+        "Should find functions with 'rust' AND 'fn' labels"
+    );
 
     // Verify we found the expected symbols
     let demo_fn = fn_symbols.iter().find(|s| s.name == "demo_function");
@@ -248,7 +254,9 @@ impl DemoStruct {
     // Verify we can get a node from the graph
     if let Some(symbol) = fn_symbols.first() {
         let snapshot_id = SnapshotId::current();
-        let node = graph.inner().get_node(snapshot_id, symbol.entity_id)
+        let node = graph
+            .inner()
+            .get_node(snapshot_id, symbol.entity_id)
             .expect("Should retrieve node by entity_id");
         assert_eq!(node.name, "demo_function");
     }

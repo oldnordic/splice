@@ -10,7 +10,11 @@ use serde_json::Value;
 /// Splice: Span-safe refactoring kernel for Rust.
 #[derive(Parser, Debug)]
 #[command(name = "splice")]
-#[command(author, version, about, long_about = "
+#[command(
+    author,
+    version,
+    about,
+    long_about = "
 Splice: Span-safe refactoring kernel for Rust.
 
 Query Commands (Magellan-delegated):
@@ -38,7 +42,8 @@ Options:
       --strict            Enable strict pre-verification
   -h, --help              Print help
   -V, --version           Print version
-")]
+"
+)]
 #[command(subcommand_required = true)]
 pub struct Cli {
     /// Subcommand to execute.
@@ -178,7 +183,12 @@ pub enum Commands {
         context_both: usize,
 
         /// Preview changes without applying (alias: --dry-run, -n).
-        #[arg(short = 'n', long = "dry-run", alias = "preview", conflicts_with = "batch")]
+        #[arg(
+            short = 'n',
+            long = "dry-run",
+            alias = "preview",
+            conflicts_with = "batch"
+        )]
         preview: bool,
 
         /// Number of context lines in unified diff (default: 3).
@@ -852,10 +862,8 @@ impl OutputFormat {
     /// Format a value as JSON based on this format setting
     pub fn format_json<T: serde::Serialize>(&self, value: &T) -> Result<String, String> {
         match self {
-            Self::Json => serde_json::to_string(value)
-                .map_err(|e| e.to_string()),
-            Self::Pretty => serde_json::to_string_pretty(value)
-                .map_err(|e| e.to_string()),
+            Self::Json => serde_json::to_string(value).map_err(|e| e.to_string()),
+            Self::Pretty => serde_json::to_string_pretty(value).map_err(|e| e.to_string()),
             Self::Human => Err("Human format requested but format_json called".to_string()),
         }
     }
@@ -1043,22 +1051,17 @@ impl CliErrorPayload {
         };
 
         // Try to create structured error code from SpliceError
-        let error_code = crate::error_codes::SpliceErrorCode::from_splice_error(error)
-            .map(|splice_code| {
+        let error_code =
+            crate::error_codes::SpliceErrorCode::from_splice_error(error).map(|splice_code| {
                 // Extract line and column from error using location() helper
                 let (file, line, column) = error.location();
-                crate::ErrorCode::from_splice_code(
-                    splice_code,
-                    file,
-                    line,
-                    column,
-                )
+                crate::ErrorCode::from_splice_code(splice_code, file, line, column)
             });
 
         // Generate explain command if error_code is present
-        let explain_command = error_code.as_ref().map(|ec| {
-            format!("splice explain --code {}", ec.code)
-        });
+        let explain_command = error_code
+            .as_ref()
+            .map(|ec| format!("splice explain --code {}", ec.code));
 
         CliErrorPayload {
             status: "error",
@@ -1117,12 +1120,18 @@ impl From<crate::error::Diagnostic> for DiagnosticPayload {
             tool: diag.tool,
             level: diag.level.as_str().to_string(),
             message: diag.message,
-            file: diag.file.as_ref().and_then(|p| p.to_str().map(|s| s.to_string())),
+            file: diag
+                .file
+                .as_ref()
+                .and_then(|p| p.to_str().map(|s| s.to_string())),
             line: diag.line,
             column: diag.column,
             code: diag.code,
             note: diag.note,
-            tool_path: diag.tool_path.as_ref().and_then(|p| p.to_str().map(|s| s.to_string())),
+            tool_path: diag
+                .tool_path
+                .as_ref()
+                .and_then(|p| p.to_str().map(|s| s.to_string())),
             tool_version: diag.tool_version,
             remediation: diag.remediation,
         }
@@ -1132,6 +1141,6 @@ impl From<crate::error::Diagnostic> for DiagnosticPayload {
 // Re-export Magellan-compatible response types for external use
 pub use crate::output::{
     CallExport, ExportData, ExportResponse, FileExport, FilesResponse, FindResponse,
-    MagellanCallReference, MagellanFileMetadata, MagellanSpan, MagellanSymbol, RefsResponse,
-    ReferenceExport, StatusResponse, SymbolExport, EXPORT_SCHEMA_VERSION,
+    MagellanCallReference, MagellanFileMetadata, MagellanSpan, MagellanSymbol, ReferenceExport,
+    RefsResponse, StatusResponse, SymbolExport, EXPORT_SCHEMA_VERSION,
 };

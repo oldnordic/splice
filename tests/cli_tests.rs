@@ -1610,7 +1610,7 @@ pub fn greet(name: &str) -> String {
             .arg(&db_path)
             .arg("--label")
             .arg("rust")
-            .arg("-C")  // Use -C for context lines (grep convention)
+            .arg("-C") // Use -C for context lines (grep convention)
             .arg("1")
             .arg("--json")
             .output()
@@ -1710,7 +1710,11 @@ pub fn greet(name: &str) -> String {
         let workspace_path = workspace_dir.path();
 
         // Use a nonexistent database path to trigger Magellan error
-        let nonexistent_db = workspace_path.join("nonexistent").join("path").join("to").join("database.db");
+        let nonexistent_db = workspace_path
+            .join("nonexistent")
+            .join("path")
+            .join("to")
+            .join("database.db");
 
         let splice_binary = get_splice_binary();
         let output = Command::new(&splice_binary)
@@ -1778,10 +1782,7 @@ pub fn greet(name: &str) -> String {
         );
 
         // Verify error message contains database path or "open" or "Magellan"
-        let message = error
-            .get("message")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let message = error.get("message").and_then(|v| v.as_str()).unwrap_or("");
         assert!(
             message.to_lowercase().contains("database")
                 || message.to_lowercase().contains("magellan")
@@ -1803,11 +1804,8 @@ pub fn greet(name: &str) -> String {
         // Create a valid database first
         let db_path = workspace_path.join("test.db");
         let file_path = workspace_path.join("lib.rs");
-        std::fs::write(
-            &file_path,
-            r#"pub fn existing_func() -> i32 { 42 }"#,
-        )
-        .expect("Failed to write test file");
+        std::fs::write(&file_path, r#"pub fn existing_func() -> i32 { 42 }"#)
+            .expect("Failed to write test file");
 
         let mut integration =
             MagellanIntegration::open(&db_path).expect("Failed to open Magellan db");
@@ -1824,7 +1822,9 @@ pub fn greet(name: &str) -> String {
             .write(true)
             .open(&db_path)
             .expect("Failed to open database for writing");
-        db_file.set_len(truncated_size).expect("Failed to truncate database");
+        db_file
+            .set_len(truncated_size)
+            .expect("Failed to truncate database");
 
         let splice_binary = get_splice_binary();
         let output = Command::new(&splice_binary)
@@ -1837,7 +1837,10 @@ pub fn greet(name: &str) -> String {
             .expect("Failed to run splice query");
 
         // Should fail
-        assert!(!output.status.success(), "CLI should fail on corrupted database");
+        assert!(
+            !output.status.success(),
+            "CLI should fail on corrupted database"
+        );
 
         // Exit code should be 1 (error) or 3 (database)
         let exit_code = output.status.code();
@@ -1859,7 +1862,10 @@ pub fn greet(name: &str) -> String {
 
         // Check for SPL-E091 (if it's a Magellan error) or appropriate error code
         if let Some(error_code) = error.get("error_code").and_then(|v| v.as_object()) {
-            let code = error_code.get("code").and_then(|v| v.as_str()).unwrap_or("");
+            let code = error_code
+                .get("code")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             // If we get SPL-E091, that's expected for Magellan errors
             // If we get something else, that's also acceptable as long as there's an error
             assert!(!code.is_empty(), "error code should not be empty");
@@ -1871,14 +1877,8 @@ pub fn greet(name: &str) -> String {
         }
 
         // Verify error message contains query context
-        let message = error
-            .get("message")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-        assert!(
-            !message.is_empty(),
-            "error message should not be empty"
-        );
+        let message = error.get("message").and_then(|v| v.as_str()).unwrap_or("");
+        assert!(!message.is_empty(), "error message should not be empty");
     }
 
     /// Test symbol not found uses SPL-E001, not SPL-E091.
@@ -1893,11 +1893,8 @@ pub fn greet(name: &str) -> String {
         // Create a valid database with one indexed file
         let db_path = workspace_path.join("test.db");
         let file_path = workspace_path.join("lib.rs");
-        std::fs::write(
-            &file_path,
-            r#"pub fn existing_func() -> i32 { 42 }"#,
-        )
-        .expect("Failed to write test file");
+        std::fs::write(&file_path, r#"pub fn existing_func() -> i32 { 42 }"#)
+            .expect("Failed to write test file");
 
         let mut integration =
             MagellanIntegration::open(&db_path).expect("Failed to open Magellan db");
@@ -1961,10 +1958,7 @@ pub fn greet(name: &str) -> String {
         );
 
         // Verify error message mentions the symbol name
-        let message = error
-            .get("message")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let message = error.get("message").and_then(|v| v.as_str()).unwrap_or("");
         assert!(
             message.contains("nonexistent_function") || message.contains("not found"),
             "error message should mention the symbol or 'not found': {}",
@@ -1986,8 +1980,7 @@ pub fn greet(name: &str) -> String {
         {
             let db_path = workspace_path.join("test_success.db");
             let file_path = workspace_path.join("lib.rs");
-            std::fs::write(&file_path, "pub fn test() {}\n")
-                .expect("Failed to write test file");
+            std::fs::write(&file_path, "pub fn test() {}\n").expect("Failed to write test file");
 
             let mut integration =
                 MagellanIntegration::open(&db_path).expect("Failed to open Magellan db");
@@ -2013,8 +2006,7 @@ pub fn greet(name: &str) -> String {
         {
             let db_path = workspace_path.join("test_error.db");
             let file_path = workspace_path.join("lib.rs");
-            std::fs::write(&file_path, "pub fn test() {}\n")
-                .expect("Failed to write test file");
+            std::fs::write(&file_path, "pub fn test() {}\n").expect("Failed to write test file");
 
             let mut integration =
                 MagellanIntegration::open(&db_path).expect("Failed to open Magellan db");
@@ -2108,9 +2100,7 @@ pub fn test_func() -> i32 {
         }
 
         // Verify error responses include error_code field (for all error cases)
-        let test_cases = vec![
-            ("find", vec!["--db", "/nonexistent.db", "--name", "test"]),
-        ];
+        let test_cases = vec![("find", vec!["--db", "/nonexistent.db", "--name", "test"])];
 
         for (cmd, args) in test_cases {
             let output = Command::new(&splice_binary)
@@ -2154,12 +2144,12 @@ pub fn test_func() -> i32 {
 
         // Create and index a test file
         let test_file = temp_dir.path().join("test.rs");
-        std::fs::write(&test_file, "pub fn test_func() {}\n")
-            .expect("Failed to write test file");
+        std::fs::write(&test_file, "pub fn test_func() {}\n").expect("Failed to write test file");
 
-        let mut integration = MagellanIntegration::open(&db_path)
-            .expect("Failed to open Magellan db");
-        integration.index_file(&test_file)
+        let mut integration =
+            MagellanIntegration::open(&db_path).expect("Failed to open Magellan db");
+        integration
+            .index_file(&test_file)
             .expect("Failed to index test file");
 
         // Run status command via CLI with --output json to get data field
@@ -2173,30 +2163,43 @@ pub fn test_func() -> i32 {
             .output()
             .expect("Failed to run splice status");
 
-        assert!(output.status.success(), "status command should succeed: {}",
-            String::from_utf8_lossy(&output.stderr));
+        assert!(
+            output.status.success(),
+            "status command should succeed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let json_str = extract_json_from_stdout(&stdout);
-        let payload: Value = serde_json::from_str(&json_str)
-            .expect("stdout should contain valid JSON");
+        let payload: Value =
+            serde_json::from_str(&json_str).expect("stdout should contain valid JSON");
 
         // Verify StatusResponse structure
         assert_eq!(payload.get("status").and_then(|v| v.as_str()), Some("ok"));
 
-        let data = payload.get("data").expect("should have data field when --output json");
+        let data = payload
+            .get("data")
+            .expect("should have data field when --output json");
 
-        let files = data.get("files").and_then(|v| v.as_u64())
+        let files = data
+            .get("files")
+            .and_then(|v| v.as_u64())
             .expect("should have files count");
-        let symbols = data.get("symbols").and_then(|v| v.as_u64())
+        let symbols = data
+            .get("symbols")
+            .and_then(|v| v.as_u64())
             .expect("should have symbols count");
-        let db_path_out = data.get("db_path").and_then(|v| v.as_str())
+        let db_path_out = data
+            .get("db_path")
+            .and_then(|v| v.as_str())
             .expect("should have db_path");
 
         assert!(files >= 1, "should have at least 1 file");
         assert!(symbols >= 1, "should have at least 1 symbol");
-        assert!(db_path_out.contains("test.db") || db_path_out.contains("test"),
-            "db_path should reference test database");
+        assert!(
+            db_path_out.contains("test.db") || db_path_out.contains("test"),
+            "db_path should reference test database"
+        );
 
         // Verify response without --output json returns status but no data field
         let output_human = Command::new(&splice_binary)
@@ -2208,12 +2211,17 @@ pub fn test_func() -> i32 {
 
         assert!(output_human.status.success());
         let stdout_human = String::from_utf8_lossy(&output_human.stdout);
-        let payload_human: Value = serde_json::from_str(&stdout_human)
-            .expect("human format should still be JSON");
-        assert_eq!(payload_human.get("status").and_then(|v| v.as_str()), Some("ok"));
+        let payload_human: Value =
+            serde_json::from_str(&stdout_human).expect("human format should still be JSON");
+        assert_eq!(
+            payload_human.get("status").and_then(|v| v.as_str()),
+            Some("ok")
+        );
         // Without --output json, data field should not be present
-        assert!(payload_human.get("data").is_none(),
-            "without --output json, data field should not be present");
+        assert!(
+            payload_human.get("data").is_none(),
+            "without --output json, data field should not be present"
+        );
     }
 
     /// Test 2: Query command lists symbols with label filtering.
@@ -2224,15 +2232,20 @@ pub fn test_func() -> i32 {
 
         // Create test file with multiple symbols
         let test_file = temp_dir.path().join("lib.rs");
-        std::fs::write(&test_file, r#"
+        std::fs::write(
+            &test_file,
+            r#"
 pub fn helper() {}
 pub fn main() { helper(); }
 pub struct TestStruct;
-"#).expect("Failed to write test file");
+"#,
+        )
+        .expect("Failed to write test file");
 
-        let mut integration = MagellanIntegration::open(&db_path)
-            .expect("Failed to open Magellan db");
-        integration.index_file(&test_file)
+        let mut integration =
+            MagellanIntegration::open(&db_path).expect("Failed to open Magellan db");
+        integration
+            .index_file(&test_file)
             .expect("Failed to index test file");
 
         // Run query command with labels
@@ -2250,13 +2263,16 @@ pub struct TestStruct;
             .output()
             .expect("Failed to run splice query");
 
-        assert!(output.status.success(), "query command should succeed: {}",
-            String::from_utf8_lossy(&output.stderr));
+        assert!(
+            output.status.success(),
+            "query command should succeed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let json_str = extract_json_from_stdout(&stdout);
-        let payload: Value = serde_json::from_str(&json_str)
-            .expect("stdout should contain valid JSON");
+        let payload: Value =
+            serde_json::from_str(&json_str).expect("stdout should contain valid JSON");
 
         // The query command may return different response formats
         // Just verify it succeeds and returns valid JSON with ok status
@@ -2278,14 +2294,16 @@ pub struct TestStruct;
             .output()
             .expect("Failed to run splice query --list");
 
-        assert!(output_list.status.success(),
-            "query --list should succeed");
+        assert!(output_list.status.success(), "query --list should succeed");
 
         let stdout_list = String::from_utf8_lossy(&output_list.stdout);
         let json_list = extract_json_from_stdout(&stdout_list);
-        let payload_list: Value = serde_json::from_str(&json_list)
-            .expect("stdout should contain valid JSON");
-        assert_eq!(payload_list.get("status").and_then(|v| v.as_str()), Some("ok"));
+        let payload_list: Value =
+            serde_json::from_str(&json_list).expect("stdout should contain valid JSON");
+        assert_eq!(
+            payload_list.get("status").and_then(|v| v.as_str()),
+            Some("ok")
+        );
     }
 
     /// Test 3: Find command locates symbols by name.
@@ -2299,9 +2317,10 @@ pub struct TestStruct;
         std::fs::write(&test_file, "pub fn calculate(x: i32) -> i32 { x + 1 }\n")
             .expect("Failed to write test file");
 
-        let mut integration = MagellanIntegration::open(&db_path)
-            .expect("Failed to open Magellan db");
-        integration.index_file(&test_file)
+        let mut integration =
+            MagellanIntegration::open(&db_path).expect("Failed to open Magellan db");
+        integration
+            .index_file(&test_file)
             .expect("Failed to index test file");
 
         // Run find command by name
@@ -2317,39 +2336,62 @@ pub struct TestStruct;
             .output()
             .expect("Failed to run splice find");
 
-        assert!(output.status.success(), "find command should succeed: {}",
-            String::from_utf8_lossy(&output.stderr));
+        assert!(
+            output.status.success(),
+            "find command should succeed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let json_str = extract_json_from_stdout(&stdout);
-        let payload: Value = serde_json::from_str(&json_str)
-            .expect("stdout should contain valid JSON");
+        let payload: Value =
+            serde_json::from_str(&json_str).expect("stdout should contain valid JSON");
 
         // Verify FindResponse structure
         assert_eq!(payload.get("status").and_then(|v| v.as_str()), Some("ok"));
 
         let data = payload.get("data").expect("should have data field");
-        let symbols = data.get("symbols").and_then(|v| v.as_array())
+        let symbols = data
+            .get("symbols")
+            .and_then(|v| v.as_array())
             .expect("data.symbols should be array");
-        let count = data.get("count").and_then(|v| v.as_u64())
+        let count = data
+            .get("count")
+            .and_then(|v| v.as_u64())
             .expect("data.count should be present");
 
         assert_eq!(count, 1, "should find exactly 1 symbol named 'calculate'");
 
         let symbol = symbols.first().expect("should have at least one symbol");
-        assert_eq!(symbol.get("name").and_then(|v| v.as_str()), Some("calculate"),
-            "found symbol should be named 'calculate'");
-        assert_eq!(symbol.get("kind").and_then(|v| v.as_str()), Some("fn"),
-            "symbol should be a function");
-        assert!(symbol.get("file_path").is_some(), "symbol should have file_path");
-        assert!(symbol.get("byte_start").is_some(), "symbol should have byte_start");
-        assert!(symbol.get("byte_end").is_some(), "symbol should have byte_end");
+        assert_eq!(
+            symbol.get("name").and_then(|v| v.as_str()),
+            Some("calculate"),
+            "found symbol should be named 'calculate'"
+        );
+        assert_eq!(
+            symbol.get("kind").and_then(|v| v.as_str()),
+            Some("fn"),
+            "symbol should be a function"
+        );
+        assert!(
+            symbol.get("file_path").is_some(),
+            "symbol should have file_path"
+        );
+        assert!(
+            symbol.get("byte_start").is_some(),
+            "symbol should have byte_start"
+        );
+        assert!(
+            symbol.get("byte_end").is_some(),
+            "symbol should have byte_end"
+        );
 
         // Test --ambiguous flag with duplicate symbol names
         let test_file2 = temp_dir.path().join("other.rs");
         std::fs::write(&test_file2, "pub fn calculate(y: i32) -> i32 { y * 2 }\n")
             .expect("Failed to write second test file");
-        integration.index_file(&test_file2)
+        integration
+            .index_file(&test_file2)
             .expect("Failed to index second test file");
 
         // Without --ambiguous, should still return first match only
@@ -2366,14 +2408,17 @@ pub struct TestStruct;
 
         let stdout_first = String::from_utf8_lossy(&output_first.stdout);
         let json_first = extract_json_from_stdout(&stdout_first);
-        let payload_first: Value = serde_json::from_str(&json_first)
-            .expect("stdout should contain valid JSON");
+        let payload_first: Value =
+            serde_json::from_str(&json_first).expect("stdout should contain valid JSON");
         let count_first = payload_first
             .get("data")
             .and_then(|d| d.get("count"))
             .and_then(|v| v.as_u64())
             .unwrap_or(0);
-        assert_eq!(count_first, 1, "without --ambiguous, should return first match only");
+        assert_eq!(
+            count_first, 1,
+            "without --ambiguous, should return first match only"
+        );
 
         // With --ambiguous, should return all matches
         let output_ambiguous = Command::new(&splice_binary)
@@ -2390,14 +2435,17 @@ pub struct TestStruct;
 
         let stdout_amb = String::from_utf8_lossy(&output_ambiguous.stdout);
         let json_amb = extract_json_from_stdout(&stdout_amb);
-        let payload_amb: Value = serde_json::from_str(&json_amb)
-            .expect("stdout should contain valid JSON");
+        let payload_amb: Value =
+            serde_json::from_str(&json_amb).expect("stdout should contain valid JSON");
         let count_amb = payload_amb
             .get("data")
             .and_then(|d| d.get("count"))
             .and_then(|v| v.as_u64())
             .expect("should have count");
-        assert_eq!(count_amb, 2, "with --ambiguous, should return all 2 matches");
+        assert_eq!(
+            count_amb, 2,
+            "with --ambiguous, should return all 2 matches"
+        );
     }
 
     /// Test 4: Refs command shows callers/callees with bidirectional support.
@@ -2408,16 +2456,21 @@ pub struct TestStruct;
 
         // Create test file with call relationship
         let test_file = temp_dir.path().join("refs.rs");
-        std::fs::write(&test_file, r#"
+        std::fs::write(
+            &test_file,
+            r#"
 pub fn caller() {
     callee();
 }
 pub fn callee() {}
-"#).expect("Failed to write test file");
+"#,
+        )
+        .expect("Failed to write test file");
 
-        let mut integration = MagellanIntegration::open(&db_path)
-            .expect("Failed to open Magellan db");
-        integration.index_file(&test_file)
+        let mut integration =
+            MagellanIntegration::open(&db_path).expect("Failed to open Magellan db");
+        integration
+            .index_file(&test_file)
             .expect("Failed to index test file");
 
         // Run refs command with --direction out (callees)
@@ -2441,18 +2494,22 @@ pub fn callee() {}
         // Either way, it should return valid JSON
         let stdout = String::from_utf8_lossy(&output.stdout);
         let json_str = extract_json_from_stdout(&stdout);
-        let payload: Value = serde_json::from_str(&json_str)
-            .expect("stdout should contain valid JSON");
+        let payload: Value =
+            serde_json::from_str(&json_str).expect("stdout should contain valid JSON");
 
         // Verify we get either ok status with data, or error status
         let status = payload.get("status").and_then(|v| v.as_str());
-        assert!(status == Some("ok") || status == Some("error"),
-            "status should be ok or error");
+        assert!(
+            status == Some("ok") || status == Some("error"),
+            "status should be ok or error"
+        );
 
         // If successful, verify data structure
         if status == Some("ok") {
-            assert!(payload.get("data").is_some(),
-                "ok response should have data field");
+            assert!(
+                payload.get("data").is_some(),
+                "ok response should have data field"
+            );
         }
 
         // Test --direction in (callers of callee)
@@ -2471,8 +2528,10 @@ pub fn callee() {}
             .output()
             .expect("Failed to run splice refs --direction in");
 
-        assert!(output_in.status.success() || output_in.status.code() != Some(0),
-            "refs command should return valid response");
+        assert!(
+            output_in.status.success() || output_in.status.code() != Some(0),
+            "refs command should return valid response"
+        );
 
         // Test --direction both (both callers and callees)
         let output_both = Command::new(&splice_binary)
@@ -2490,8 +2549,10 @@ pub fn callee() {}
             .output()
             .expect("Failed to run splice refs --direction both");
 
-        assert!(output_both.status.success() || output_both.status.code() != Some(0),
-            "refs command should return valid response");
+        assert!(
+            output_both.status.success() || output_both.status.code() != Some(0),
+            "refs command should return valid response"
+        );
     }
 
     /// Test 5: Files command lists indexed files with optional symbol counts.
@@ -2505,20 +2566,20 @@ pub fn callee() {}
         let main_rs = temp_dir.path().join("main.rs");
         let helpers_rs = temp_dir.path().join("helpers.rs");
 
-        std::fs::write(&lib_rs, "pub fn lib_func() {}\n")
-            .expect("Failed to write lib.rs");
-        std::fs::write(&main_rs, "fn main() {}\n")
-            .expect("Failed to write main.rs");
-        std::fs::write(&helpers_rs, "pub fn helper() {}\n")
-            .expect("Failed to write helpers.rs");
+        std::fs::write(&lib_rs, "pub fn lib_func() {}\n").expect("Failed to write lib.rs");
+        std::fs::write(&main_rs, "fn main() {}\n").expect("Failed to write main.rs");
+        std::fs::write(&helpers_rs, "pub fn helper() {}\n").expect("Failed to write helpers.rs");
 
-        let mut integration = MagellanIntegration::open(&db_path)
-            .expect("Failed to open Magellan db");
-        integration.index_file(&lib_rs)
+        let mut integration =
+            MagellanIntegration::open(&db_path).expect("Failed to open Magellan db");
+        integration
+            .index_file(&lib_rs)
             .expect("Failed to index lib.rs");
-        integration.index_file(&main_rs)
+        integration
+            .index_file(&main_rs)
             .expect("Failed to index main.rs");
-        integration.index_file(&helpers_rs)
+        integration
+            .index_file(&helpers_rs)
             .expect("Failed to index helpers.rs");
 
         // Run files command
@@ -2532,21 +2593,28 @@ pub fn callee() {}
             .output()
             .expect("Failed to run splice files");
 
-        assert!(output.status.success(), "files command should succeed: {}",
-            String::from_utf8_lossy(&output.stderr));
+        assert!(
+            output.status.success(),
+            "files command should succeed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let json_str = extract_json_from_stdout(&stdout);
-        let payload: Value = serde_json::from_str(&json_str)
-            .expect("stdout should contain valid JSON");
+        let payload: Value =
+            serde_json::from_str(&json_str).expect("stdout should contain valid JSON");
 
         // Verify FilesResponse structure
         assert_eq!(payload.get("status").and_then(|v| v.as_str()), Some("ok"));
 
         let data = payload.get("data").expect("should have data field");
-        let files = data.get("files").and_then(|v| v.as_array())
+        let files = data
+            .get("files")
+            .and_then(|v| v.as_array())
             .expect("data.files should be array");
-        let count = data.get("count").and_then(|v| v.as_u64())
+        let count = data
+            .get("count")
+            .and_then(|v| v.as_u64())
             .expect("data.count should be present");
 
         assert_eq!(count, 3, "should have 3 indexed files");
@@ -2554,22 +2622,33 @@ pub fn callee() {}
 
         // Verify each file has path and hash fields
         for file in files {
-            assert!(file.get("path").and_then(|p| p.as_str()).is_some(),
-                "file entry should have path");
-            assert!(file.get("hash").and_then(|h| h.as_str()).is_some(),
-                "file entry should have hash");
+            assert!(
+                file.get("path").and_then(|p| p.as_str()).is_some(),
+                "file entry should have path"
+            );
+            assert!(
+                file.get("hash").and_then(|h| h.as_str()).is_some(),
+                "file entry should have hash"
+            );
         }
 
         // Verify file names are present
-        let file_paths: Vec<&str> = files.iter()
+        let file_paths: Vec<&str> = files
+            .iter()
             .filter_map(|f| f.get("path").and_then(|p| p.as_str()))
             .collect();
-        assert!(file_paths.iter().any(|p| p.contains("lib.rs")),
-            "should include lib.rs");
-        assert!(file_paths.iter().any(|p| p.contains("main.rs")),
-            "should include main.rs");
-        assert!(file_paths.iter().any(|p| p.contains("helpers.rs")),
-            "should include helpers.rs");
+        assert!(
+            file_paths.iter().any(|p| p.contains("lib.rs")),
+            "should include lib.rs"
+        );
+        assert!(
+            file_paths.iter().any(|p| p.contains("main.rs")),
+            "should include main.rs"
+        );
+        assert!(
+            file_paths.iter().any(|p| p.contains("helpers.rs")),
+            "should include helpers.rs"
+        );
 
         // Test with --symbols flag: verify symbol_count field present per file
         let output_symbols = Command::new(&splice_binary)
@@ -2585,8 +2664,8 @@ pub fn callee() {}
         assert!(output_symbols.status.success());
         let stdout_symbols = String::from_utf8_lossy(&output_symbols.stdout);
         let json_symbols = extract_json_from_stdout(&stdout_symbols);
-        let payload_symbols: Value = serde_json::from_str(&json_symbols)
-            .expect("stdout should contain valid JSON");
+        let payload_symbols: Value =
+            serde_json::from_str(&json_symbols).expect("stdout should contain valid JSON");
 
         let files_symbols = payload_symbols
             .get("data")
@@ -2595,8 +2674,10 @@ pub fn callee() {}
             .expect("should have files array with symbols");
 
         for file in files_symbols {
-            assert!(file.get("symbol_count").and_then(|s| s.as_u64()).is_some(),
-                "with --symbols flag, each file should have symbol_count");
+            assert!(
+                file.get("symbol_count").and_then(|s| s.as_u64()).is_some(),
+                "with --symbols flag, each file should have symbol_count"
+            );
         }
     }
 
@@ -2619,8 +2700,10 @@ pub fn callee() {}
             .expect("Failed to run splice status with nonexistent directory db");
 
         // Should fail (either because directory doesn't exist or other error)
-        assert!(!output_db.status.success() || output_db.status.code() == Some(0),
-            "command with invalid db path should either fail or succeed with empty db");
+        assert!(
+            !output_db.status.success() || output_db.status.code() == Some(0),
+            "command with invalid db path should either fail or succeed with empty db"
+        );
 
         // Test 2: Usage error (missing required args) -> exit code 2
         // Run find without --name or --symbol-id (should fail at clap level)
@@ -2637,8 +2720,10 @@ pub fn callee() {}
                 // If command ran, check for proper error
                 // Exit code may be 1 (general error) or 2 (usage error) depending on implementation
                 let exit_code = result.status.code();
-                assert!(exit_code == Some(1) || exit_code == Some(2),
-                    "missing required args should return exit code 1 or 2 (usage error)");
+                assert!(
+                    exit_code == Some(1) || exit_code == Some(2),
+                    "missing required args should return exit code 1 or 2 (usage error)"
+                );
             }
             Err(_e) => {
                 // If it failed to launch, that's also acceptable for missing args
@@ -2649,11 +2734,11 @@ pub fn callee() {}
         // Test 3: Query command succeeds even with nonexistent file
         // (Magellan integration creates db if needed, query just returns empty)
         let test_file = temp_dir.path().join("real.rs");
-        std::fs::write(&test_file, "pub fn real() {}\n")
-            .expect("Failed to write test file");
-        let mut integration = MagellanIntegration::open(&db_path)
-            .expect("Failed to open Magellan db");
-        integration.index_file(&test_file)
+        std::fs::write(&test_file, "pub fn real() {}\n").expect("Failed to write test file");
+        let mut integration =
+            MagellanIntegration::open(&db_path).expect("Failed to open Magellan db");
+        integration
+            .index_file(&test_file)
             .expect("Failed to index test file");
 
         // Query with nonexistent file path - should succeed but return empty
@@ -2670,8 +2755,10 @@ pub fn callee() {}
             .expect("Failed to run splice query with labels");
 
         // The query command should succeed (returns empty or message)
-        assert!(output_file.status.success(),
-            "query should succeed even with no matching results");
+        assert!(
+            output_file.status.success(),
+            "query should succeed even with no matching results"
+        );
     }
 
     /// ============================================================
@@ -2764,13 +2851,8 @@ pub fn process() {
             "status should have data field when --output json is used"
         );
 
-        let files_count = status_json["data"]["files"]
-            .as_u64()
-            .unwrap_or(0);
-        assert_eq!(
-            files_count, 3,
-            "status should report 3 files indexed"
-        );
+        let files_count = status_json["data"]["files"].as_u64().unwrap_or(0);
+        assert_eq!(files_count, 3, "status should report 3 files indexed");
 
         // Step 2: Query for functions
         let output_query = Command::new(&splice_binary)
@@ -2951,7 +3033,8 @@ pub fn calculate(x: i32) -> i32 {
             .output()
             .expect("Failed to run splice patch --dry-run");
 
-        let patch_json_str = extract_json_from_stdout(&String::from_utf8_lossy(&output_patch.stdout));
+        let patch_json_str =
+            extract_json_from_stdout(&String::from_utf8_lossy(&output_patch.stdout));
 
         // Patch should succeed in preview mode
         if output_patch.status.success() && !patch_json_str.is_empty() {
@@ -3219,14 +3302,18 @@ impl TestStruct{} {{
     }}
 }}
 "#,
-                    i, i, i * 42, i, i, i
+                    i,
+                    i,
+                    i * 42,
+                    i,
+                    i,
+                    i
                 );
-                std::fs::write(&file_path, source)
-                    .expect("Failed to write test file");
+                std::fs::write(&file_path, source).expect("Failed to write test file");
 
                 // Index the file using MagellanIntegration
-                let mut integration =
-                    MagellanIntegration::open(&db_path).expect("Failed to open MagellanIntegration");
+                let mut integration = MagellanIntegration::open(&db_path)
+                    .expect("Failed to open MagellanIntegration");
                 integration
                     .index_file(&file_path)
                     .expect("Failed to index file");
@@ -3326,7 +3413,10 @@ impl QueryStruct{} {{
         // Query types to benchmark
         let query_tests = vec![
             (vec!["--label", "rust"], "Label-only query (rust)"),
-            (vec!["--label", "rust", "--label", "fn"], "Multi-label query (rust + fn)"),
+            (
+                vec!["--label", "rust", "--label", "fn"],
+                "Multi-label query (rust + fn)",
+            ),
         ];
 
         // Performance threshold: 100ms average
@@ -3398,14 +3488,19 @@ impl QueryStruct{} {{
         // The query outputs the structured JSON first (OperationResult)
         // We need to parse the first JSON object (the actual query results)
         let first_json_start = stdout_str.find('{').unwrap_or(0);
-        let first_json_end = stdout_str.find("},\n").or_else(|| stdout_str.find("}\n")).unwrap_or(stdout_str.len());
+        let first_json_end = stdout_str
+            .find("},\n")
+            .or_else(|| stdout_str.find("}\n"))
+            .unwrap_or(stdout_str.len());
 
         // Parse the first JSON object (OperationResult with query results)
         let json_str = &stdout_str[first_json_start..=first_json_end];
         if let Ok(json) = serde_json::from_str::<Value>(json_str) {
             // Check if result contains query data
             if json["result"]["query"]["symbols"].is_array() {
-                let symbol_count = json["result"]["query"]["symbols"].as_array().map_or(0, |a| a.len());
+                let symbol_count = json["result"]["query"]["symbols"]
+                    .as_array()
+                    .map_or(0, |a| a.len());
                 assert!(
                     symbol_count > 0,
                     "Query should return symbols, got {}",
@@ -3631,7 +3726,9 @@ impl ExportStruct{} {{
             let mut total_file_size = 0;
 
             for _iter in 0..iterations {
-                let output_path = temp_dir.path().join(format!("export_{}.{}", _iter, extension));
+                let output_path = temp_dir
+                    .path()
+                    .join(format!("export_{}.{}", _iter, extension));
 
                 let start = Instant::now();
                 let output = Command::new(&splice_binary)

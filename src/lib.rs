@@ -38,14 +38,13 @@ pub use error::{Result, SpliceError};
 pub use graph::CodeGraph;
 
 /// Re-export migration types for convenience.
-pub use graph::migrate::{migrate_database, check_schema_version, MigrationResult};
+pub use graph::migrate::{check_schema_version, migrate_database, MigrationResult};
 
 /// Re-export rename types for convenience.
 pub use graph::rename::{
-    replace_at_span, apply_replacements_in_file, group_references_by_file,
-    simulate_replacements, generate_preview_diff, generate_colored_preview,
-    simulate_replacements_content, create_rename_backup, RenameBackupManifest,
-    RenameTransaction, apply_with_rollback,
+    apply_replacements_in_file, apply_with_rollback, create_rename_backup,
+    generate_colored_preview, generate_preview_diff, group_references_by_file, replace_at_span,
+    simulate_replacements, simulate_replacements_content, RenameBackupManifest, RenameTransaction,
 };
 
 /// Re-export context types for convenience.
@@ -82,16 +81,26 @@ pub use expand::{expand_symbol, expand_symbol_with_level, ExpansionLevel, Symbol
 
 /// Re-export graph algorithm response types for convenience.
 pub use output::{
-    // Reachability analysis types
-    ReachabilityResult, ReachableSymbol, AffectedFile,
-    // Dead code detection types
-    DeadCodeResult, DeadCodeByFile, DeadSymbol,
-    // Cycle detection types
-    CycleDetectionResult, CycleInfo,
+    AffectedFile,
     // Condensation graph types
-    CondensationResult, CondensedScc, SccEdge, LevelInfo,
+    CondensationResult,
+    CondensedScc,
+    // Cycle detection types
+    CycleDetectionResult,
+    CycleInfo,
+    DeadCodeByFile,
+    // Dead code detection types
+    DeadCodeResult,
+    DeadSymbol,
+    LevelInfo,
+    // Reachability analysis types
+    ReachabilityResult,
+    ReachableSymbol,
+    SccEdge,
     // Program slicing types
-    SliceResult, SlicedSymbol, SliceStats,
+    SliceResult,
+    SliceStats,
+    SlicedSymbol,
     // Symbol info (shared across graph algorithms)
     SymbolInfo,
 };

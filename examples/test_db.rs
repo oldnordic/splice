@@ -20,7 +20,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         splice::symbol::Language::Rust,
         0,
         100,
-        0, 0, 0, 0,  // line_start, line_end, col_start, col_end (placeholders)
+        0,
+        0,
+        0,
+        0, // line_start, line_end, col_start, col_end (placeholders)
     )?;
     println!("Symbol inserted: {:?}", node_id);
 

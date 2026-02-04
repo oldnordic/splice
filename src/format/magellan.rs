@@ -256,8 +256,14 @@ mod tests {
         assert_eq!(splice.end_col, 4, "end_col should map to end_col");
         assert_eq!(splice.byte_start, 100, "byte_start should be preserved");
         assert_eq!(splice.byte_end, 200, "byte_end should be preserved");
-        assert_eq!(splice.file_path, "/path/to/file.rs", "file_path should be preserved");
-        assert_eq!(splice.span_id, "test_span_id", "span_id should be preserved");
+        assert_eq!(
+            splice.file_path, "/path/to/file.rs",
+            "file_path should be preserved"
+        );
+        assert_eq!(
+            splice.span_id, "test_span_id",
+            "span_id should be preserved"
+        );
     }
 
     #[test]
@@ -270,13 +276,22 @@ mod tests {
         let magellan = to_magellan(splice.clone());
 
         // Verify field mapping
-        assert_eq!(magellan.start_line, 5, "start_line should come from start_line");
+        assert_eq!(
+            magellan.start_line, 5,
+            "start_line should come from start_line"
+        );
         assert_eq!(magellan.end_line, 10, "end_line should come from end_line");
-        assert_eq!(magellan.start_col, 0, "start_col should come from start_col");
+        assert_eq!(
+            magellan.start_col, 0,
+            "start_col should come from start_col"
+        );
         assert_eq!(magellan.end_col, 4, "end_col should come from end_col");
         assert_eq!(magellan.byte_start, 100, "byte_start should be preserved");
         assert_eq!(magellan.byte_end, 200, "byte_end should be preserved");
-        assert_eq!(magellan.file_path, "/path/to/file.rs", "file_path should be preserved");
+        assert_eq!(
+            magellan.file_path, "/path/to/file.rs",
+            "file_path should be preserved"
+        );
     }
 
     #[test]
@@ -376,10 +391,7 @@ mod tests {
             roundtrip_checksums.checksum_before,
             checksums.checksum_before
         );
-        assert_eq!(
-            roundtrip_checksums.checksum_after,
-            checksums.checksum_after
-        );
+        assert_eq!(roundtrip_checksums.checksum_after, checksums.checksum_after);
         assert_eq!(
             roundtrip_checksums.file_checksum_before,
             checksums.file_checksum_before

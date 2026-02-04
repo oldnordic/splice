@@ -50,7 +50,10 @@ impl SpliceExitCode {
 
             // File access errors (Io, IoContext, FileExternallyModified)
             splice::SpliceError::Io { .. } | splice::SpliceError::IoContext { .. }
-                if error.file_path().is_some() => Self::FileNotFound,
+                if error.file_path().is_some() =>
+            {
+                Self::FileNotFound
+            }
             splice::SpliceError::FileExternallyModified { .. } => Self::FileNotFound,
 
             // Validation errors (all validation-related variants)
@@ -128,9 +131,23 @@ fn main() -> ExitCode {
             unified,
             operation_id,
             metadata,
-        } => {
-            execute_delete(&file, &symbol, kind, analyzer, language, context_before, context_after, context, create_backup, relationships, dry_run, unified, operation_id, metadata, json_output)
-        },
+        } => execute_delete(
+            &file,
+            &symbol,
+            kind,
+            analyzer,
+            language,
+            context_before,
+            context_after,
+            context,
+            create_backup,
+            relationships,
+            dry_run,
+            unified,
+            operation_id,
+            metadata,
+            json_output,
+        ),
 
         splice::cli::Commands::Patch {
             file,
@@ -150,34 +167,42 @@ fn main() -> ExitCode {
             operation_id,
             metadata,
             db,
-        } => {
-            match batch {
-                Some(batch_path) => execute_patch_batch(&batch_path, analyzer, language, create_backup, operation_id, metadata, json_output),
-                None => execute_single_patch(
-                    file,
-                    symbol,
-                    kind,
-                    analyzer,
-                    replacement_file,
-                    language,
-                    context_before,
-                    context_after,
-                    context_both,
-                    preview,
-                    unified,
-                    create_backup,
-                    relationships,
-                    operation_id,
-                    metadata,
-                    db,
-                    json_output,
-                ),
-            }
+        } => match batch {
+            Some(batch_path) => execute_patch_batch(
+                &batch_path,
+                analyzer,
+                language,
+                create_backup,
+                operation_id,
+                metadata,
+                json_output,
+            ),
+            None => execute_single_patch(
+                file,
+                symbol,
+                kind,
+                analyzer,
+                replacement_file,
+                language,
+                context_before,
+                context_after,
+                context_both,
+                preview,
+                unified,
+                create_backup,
+                relationships,
+                operation_id,
+                metadata,
+                db,
+                json_output,
+            ),
         },
 
-        splice::cli::Commands::Plan { file, operation_id, metadata } => {
-            execute_plan(&file, operation_id, metadata, json_output)
-        },
+        splice::cli::Commands::Plan {
+            file,
+            operation_id,
+            metadata,
+        } => execute_plan(&file, operation_id, metadata, json_output),
 
         splice::cli::Commands::Undo { manifest } => execute_undo(&manifest, json_output),
 
@@ -193,9 +218,20 @@ fn main() -> ExitCode {
             create_backup,
             operation_id,
             metadata,
-        } => {
-            execute_apply_files(&glob, &find, &replace, language, context_before, context_after, context_both, !no_validate, create_backup, operation_id, metadata, json_output)
-        },
+        } => execute_apply_files(
+            &glob,
+            &find,
+            &replace,
+            language,
+            context_before,
+            context_after,
+            context_both,
+            !no_validate,
+            create_backup,
+            operation_id,
+            metadata,
+            json_output,
+        ),
 
         splice::cli::Commands::Query {
             db,
@@ -209,9 +245,20 @@ fn main() -> ExitCode {
             relationships,
             expand,
             expand_level,
-        } => {
-            execute_query(&db, &label, context_before, context_after, context_both, list, count, show_code, relationships, expand, expand_level, json_output)
-        },
+        } => execute_query(
+            &db,
+            &label,
+            context_before,
+            context_after,
+            context_both,
+            list,
+            count,
+            show_code,
+            relationships,
+            expand,
+            expand_level,
+            json_output,
+        ),
 
         splice::cli::Commands::Get {
             db,
@@ -224,9 +271,19 @@ fn main() -> ExitCode {
             relationships,
             expand,
             expand_level,
-        } => {
-            execute_get(&db, &file, start, end, context_before, context_after, context_both, relationships, expand, expand_level, json_output)
-        },
+        } => execute_get(
+            &db,
+            &file,
+            start,
+            end,
+            context_before,
+            context_after,
+            context_both,
+            relationships,
+            expand,
+            expand_level,
+            json_output,
+        ),
 
         splice::cli::Commands::Log {
             operation_type,
@@ -238,39 +295,80 @@ fn main() -> ExitCode {
             execution_id,
             json,
             stats,
-        } => execute_log(operation_type, status, after, before, limit, offset, execution_id, json, stats, json_output),
+        } => execute_log(
+            operation_type,
+            status,
+            after,
+            before,
+            limit,
+            offset,
+            execution_id,
+            json,
+            stats,
+            json_output,
+        ),
 
-        splice::cli::Commands::Explain { code } => {
-            execute_explain(code, json_output)
-        }
+        splice::cli::Commands::Explain { code } => execute_explain(code, json_output),
 
-        splice::cli::Commands::Search { pattern, path, language, glob, context_after, context_before, context_both, apply, replace, json } => {
-            execute_search(&pattern, &path, language, glob, apply, replace.as_deref(), context_before, context_after, context_both, json_output || json)
-        }
+        splice::cli::Commands::Search {
+            pattern,
+            path,
+            language,
+            glob,
+            context_after,
+            context_before,
+            context_both,
+            apply,
+            replace,
+            json,
+        } => execute_search(
+            &pattern,
+            &path,
+            language,
+            glob,
+            apply,
+            replace.as_deref(),
+            context_before,
+            context_after,
+            context_both,
+            json_output || json,
+        ),
 
-        splice::cli::Commands::Status { db } => {
-            execute_status(&db, json_output)
-        }
+        splice::cli::Commands::Status { db } => execute_status(&db, json_output),
 
-        splice::cli::Commands::Find { db, name, symbol_id, ambiguous, output } => {
-            execute_find(&db, name, symbol_id, ambiguous, output, json_output)
-        }
+        splice::cli::Commands::Find {
+            db,
+            name,
+            symbol_id,
+            ambiguous,
+            output,
+        } => execute_find(&db, name, symbol_id, ambiguous, output, json_output),
 
-        splice::cli::Commands::Refs { db, name, path, direction, output } => {
-            execute_refs(&db, &name, &path, direction, output, json_output)
-        }
+        splice::cli::Commands::Refs {
+            db,
+            name,
+            path,
+            direction,
+            output,
+        } => execute_refs(&db, &name, &path, direction, output, json_output),
 
-        splice::cli::Commands::Files { db, symbols, output } => {
-            execute_files(&db, symbols, output, json_output)
-        }
+        splice::cli::Commands::Files {
+            db,
+            symbols,
+            output,
+        } => execute_files(&db, symbols, output, json_output),
 
-        splice::cli::Commands::Export { db, format: export_format, file } => {
-            execute_export(&db, export_format, file.as_deref(), json_output)
-        }
+        splice::cli::Commands::Export {
+            db,
+            format: export_format,
+            file,
+        } => execute_export(&db, export_format, file.as_deref(), json_output),
 
-        splice::cli::Commands::MigrateDb { db_path, backup, dry_run } => {
-            execute_migrate_db(&db_path, backup, dry_run, json_output)
-        }
+        splice::cli::Commands::MigrateDb {
+            db_path,
+            backup,
+            dry_run,
+        } => execute_migrate_db(&db_path, backup, dry_run, json_output),
 
         splice::cli::Commands::Rename {
             symbol,
@@ -282,19 +380,17 @@ fn main() -> ExitCode {
             backup_dir,
             no_backup,
             create_backup: _,
-        } => {
-            execute_rename(
-                symbol.as_deref(),
-                name.as_deref(),
-                file.as_ref(),
-                &to,
-                &db,
-                preview,
-                backup_dir.as_ref(),
-                no_backup,
-                json_output,
-            )
-        }
+        } => execute_rename(
+            symbol.as_deref(),
+            name.as_deref(),
+            file.as_ref(),
+            &to,
+            &db,
+            preview,
+            backup_dir.as_ref(),
+            no_backup,
+            json_output,
+        ),
 
         splice::cli::Commands::Reachable {
             symbol,
@@ -303,9 +399,15 @@ fn main() -> ExitCode {
             direction,
             max_depth,
             output,
-        } => {
-            execute_reachable(&symbol, &path, &db, &direction, max_depth, output, json_output)
-        }
+        } => execute_reachable(
+            &symbol,
+            &path,
+            &db,
+            &direction,
+            max_depth,
+            output,
+            json_output,
+        ),
 
         splice::cli::Commands::DeadCode {
             entry,
@@ -314,9 +416,15 @@ fn main() -> ExitCode {
             exclude_public,
             group_by_file,
             output,
-        } => {
-            execute_dead_code(&entry, &path, &db, exclude_public, group_by_file, output, json_output)
-        }
+        } => execute_dead_code(
+            &entry,
+            &path,
+            &db,
+            exclude_public,
+            group_by_file,
+            output,
+            json_output,
+        ),
 
         splice::cli::Commands::Cycles {
             db,
@@ -325,18 +433,22 @@ fn main() -> ExitCode {
             max_cycles,
             show_members,
             output,
-        } => {
-            execute_cycles(&db, symbol.as_deref(), path.as_ref(), max_cycles, show_members, output, json_output)
-        }
+        } => execute_cycles(
+            &db,
+            symbol.as_deref(),
+            path.as_ref(),
+            max_cycles,
+            show_members,
+            output,
+            json_output,
+        ),
 
         splice::cli::Commands::Condense {
             db,
             show_members,
             show_levels,
             output,
-        } => {
-            execute_condense(&db, show_members, show_levels, output, json_output)
-        }
+        } => execute_condense(&db, show_members, show_levels, output, json_output),
 
         splice::cli::Commands::Slice {
             target,
@@ -345,9 +457,15 @@ fn main() -> ExitCode {
             direction,
             max_depth,
             output,
-        } => {
-            execute_slice(&target, &path, &db, &direction, max_depth, output, json_output)
-        }
+        } => execute_slice(
+            &target,
+            &path,
+            &db,
+            &direction,
+            max_depth,
+            output,
+            json_output,
+        ),
     };
 
     // Handle result
@@ -442,20 +560,21 @@ fn execute_delete(
     metadata: Option<String>,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use ropey::Rope;
+    use splice::execution::log;
+    use splice::format_colored_diff;
+    use splice::format_diff_summary;
+    use splice::format_unified_diff;
     use splice::graph::CodeGraph;
     use splice::patch::apply_patch_with_validation;
     use splice::resolve::references::find_references;
+    use splice::should_use_color;
     use splice::symbol::{Language as SymbolLanguage, Symbol};
     use splice::validate::AnalyzerMode as ValidateAnalyzerMode;
-    use splice::execution::log;
-    use splice::format_diff_summary;
-    use splice::format_unified_diff;
-    use splice::format_colored_diff;
-    use splice::should_use_color;
-    use ropey::Rope;
 
     // Resolve context counts from -A/-B/-C flags
-    let (ctx_before, ctx_after) = splice::resolve_context_counts(context_before, context_after, context);
+    let (ctx_before, ctx_after) =
+        splice::resolve_context_counts(context_before, context_after, context);
 
     // Start timing
     let start = std::time::Instant::now();
@@ -480,10 +599,9 @@ fn execute_delete(
     // Step 3: Create in-memory graph (for reference finding API compatibility)
     let graph_db_path = file_path
         .parent()
-        .ok_or_else(|| splice::SpliceError::Other(format!(
-            "File path has no parent: {}",
-            file_path.display()
-        )))?
+        .ok_or_else(|| {
+            splice::SpliceError::Other(format!("File path has no parent: {}", file_path.display()))
+        })?
         .join(".splice_graph.db");
     let mut code_graph = CodeGraph::open(&graph_db_path)?;
 
@@ -568,7 +686,9 @@ fn execute_delete(
 
         // Count lines removed
         let lines_removed = if def.byte_end > def.byte_start {
-            (&replaced_content[def.byte_start..def.byte_end]).lines().count()
+            (&replaced_content[def.byte_start..def.byte_end])
+                .lines()
+                .count()
         } else {
             0
         };
@@ -587,17 +707,19 @@ fn execute_delete(
         let diff_output = if use_color {
             format_colored_diff(&replaced_content, &after_content, true)
         } else {
-            format_unified_diff(&replaced_content, &after_content, &file_path.to_string_lossy(), unified)
+            format_unified_diff(
+                &replaced_content,
+                &after_content,
+                &file_path.to_string_lossy(),
+                unified,
+            )
         };
 
         if !diff_output.is_empty() {
             print!("{}", diff_output);
         }
 
-        let message = format!(
-            "Previewed deletion of '{}' (dry-run)",
-            symbol_name,
-        );
+        let message = format!("Previewed deletion of '{}' (dry-run)", symbol_name,);
 
         // Record execution for dry-run
         let duration_ms = start.elapsed().as_millis() as i64;
@@ -609,8 +731,11 @@ fn execute_delete(
             "dry_run": true,
         });
         if let Err(e) = log::record_execution_with_params(
-            &splice::output::OperationResult::with_execution_id("delete".to_string(), operation_id.clone())
-                .success(message.clone()),
+            &splice::output::OperationResult::with_execution_id(
+                "delete".to_string(),
+                operation_id.clone(),
+            )
+            .success(message.clone()),
             duration_ms,
             Some(command_line),
             parameters,
@@ -732,7 +857,10 @@ fn execute_delete(
     // Build response data
     let mut response_data = serde_json::Map::new();
     if let Some(manifest_path) = backup_manifest_path {
-        response_data.insert("backup_manifest".to_string(), json!(manifest_path.to_string_lossy()));
+        response_data.insert(
+            "backup_manifest".to_string(),
+            json!(manifest_path.to_string_lossy()),
+        );
     }
     if let Some(ref op_id) = operation_id {
         response_data.insert("operation_id".to_string(), json!(op_id));
@@ -757,8 +885,11 @@ fn execute_delete(
         "create_backup": create_backup,
     });
     if let Err(e) = log::record_execution_with_params(
-        &splice::output::OperationResult::with_execution_id("delete".to_string(), operation_id.clone())
-            .success(base_message.clone()),
+        &splice::output::OperationResult::with_execution_id(
+            "delete".to_string(),
+            operation_id.clone(),
+        )
+        .success(base_message.clone()),
         duration_ms,
         Some(command_line.clone()),
         parameters,
@@ -768,15 +899,15 @@ fn execute_delete(
 
     // Check if JSON output is requested
     if json_output {
-        use splice::output::{OperationResult, OperationData, DeleteResult, SpanResult};
-        use splice::resolve::resolve_symbol;
+        use splice::action::SuggestedAction;
+        use splice::action::{ActionType, Confidence};
         use splice::checksum;
         use splice::context;
-        use splice::ingest::{detect as ingest_detect, dispatch};
-        use splice::ingest::semantic_kind::SemanticKind;
         use splice::hints::{derive_tool_hints, ToolHintOperation};
-        use splice::action::{ActionType, Confidence};
-        use splice::action::SuggestedAction;
+        use splice::ingest::semantic_kind::SemanticKind;
+        use splice::ingest::{detect as ingest_detect, dispatch};
+        use splice::output::{DeleteResult, OperationData, OperationResult, SpanResult};
+        use splice::resolve::resolve_symbol;
         use splice::symbol::AnySymbol;
         use std::path::Path;
 
@@ -796,16 +927,25 @@ fn execute_delete(
         let mut def_span = SpanResult::from(resolved_def.clone());
 
         // Extract context for definition span
-        if let Ok(ctx) = context::extract_context_asymmetric(file_path, def.byte_start, def.byte_end, ctx_before, ctx_after) {
+        if let Ok(ctx) = context::extract_context_asymmetric(
+            file_path,
+            def.byte_start,
+            def.byte_end,
+            ctx_before,
+            ctx_after,
+        ) {
             def_span = def_span.with_context(ctx);
         }
 
         // Add semantic kind and language if available
         if let Some(lang) = detected_language {
             // Try to detect semantic kind from tree-sitter parse
-            let sem_kind_str = if let Ok(symbols) = dispatch::extract_symbols(file_path, &file_contents) {
+            let sem_kind_str = if let Ok(symbols) =
+                dispatch::extract_symbols(file_path, &file_contents)
+            {
                 // Find the symbol that matches our definition
-                symbols.iter()
+                symbols
+                    .iter()
                     .find(|s| s.byte_start() == def.byte_start && s.byte_end() == def.byte_end)
                     .map(|s| {
                         // Map symbol kind to semantic kind string
@@ -834,16 +974,26 @@ fn execute_delete(
                                 _ => "unknown",
                             },
                             AnySymbol::JavaScript(js_sym) => match js_sym.kind {
-                                splice::ingest::javascript::JavaScriptSymbolKind::Function => "function",
+                                splice::ingest::javascript::JavaScriptSymbolKind::Function => {
+                                    "function"
+                                }
                                 splice::ingest::javascript::JavaScriptSymbolKind::Class => "type",
-                                splice::ingest::javascript::JavaScriptSymbolKind::Method => "function",
+                                splice::ingest::javascript::JavaScriptSymbolKind::Method => {
+                                    "function"
+                                }
                                 _ => "unknown",
                             },
                             AnySymbol::TypeScript(ts_sym) => match ts_sym.kind {
-                                splice::ingest::typescript::TypeScriptSymbolKind::Function => "function",
+                                splice::ingest::typescript::TypeScriptSymbolKind::Function => {
+                                    "function"
+                                }
                                 splice::ingest::typescript::TypeScriptSymbolKind::Class => "type",
-                                splice::ingest::typescript::TypeScriptSymbolKind::Method => "function",
-                                splice::ingest::typescript::TypeScriptSymbolKind::Interface => "trait",
+                                splice::ingest::typescript::TypeScriptSymbolKind::Method => {
+                                    "function"
+                                }
+                                splice::ingest::typescript::TypeScriptSymbolKind::Interface => {
+                                    "trait"
+                                }
                                 _ => "unknown",
                             },
                             AnySymbol::Cpp(cpp_sym) => match cpp_sym.kind {
@@ -875,7 +1025,13 @@ fn execute_delete(
             };
 
             // Infer is_public from semantic kind (default to true for functions, types, traits, enums)
-            let is_public = matches!(sem_kind, SemanticKind::Function | SemanticKind::Type | SemanticKind::Trait | SemanticKind::Enum);
+            let is_public = matches!(
+                sem_kind,
+                SemanticKind::Function
+                    | SemanticKind::Type
+                    | SemanticKind::Trait
+                    | SemanticKind::Enum
+            );
 
             // Derive tool hints for delete operation
             let hints = derive_tool_hints(sem_kind, is_public, ToolHintOperation::DeleteBody);
@@ -883,15 +1039,28 @@ fn execute_delete(
 
             // Determine confidence based on whether there are callers
             let has_callers = !ref_set.references.is_empty();
-            let confidence = if has_callers { Confidence::Medium } else { Confidence::High };
+            let confidence = if has_callers {
+                Confidence::Medium
+            } else {
+                Confidence::High
+            };
 
             // Generate suggested action for delete
             let reason = if has_callers {
-                format!("Delete symbol '{}' ({}) at {} - has {} callers, may break dependencies",
-                    symbol_name, sem_kind_str, file_path.to_string_lossy(), ref_set.references.len())
+                format!(
+                    "Delete symbol '{}' ({}) at {} - has {} callers, may break dependencies",
+                    symbol_name,
+                    sem_kind_str,
+                    file_path.to_string_lossy(),
+                    ref_set.references.len()
+                )
             } else {
-                format!("Delete symbol '{}' ({}) at {} - safe to delete, no callers",
-                    symbol_name, sem_kind_str, file_path.to_string_lossy())
+                format!(
+                    "Delete symbol '{}' ({}) at {} - safe to delete, no callers",
+                    symbol_name,
+                    sem_kind_str,
+                    file_path.to_string_lossy()
+                )
             };
 
             let action = SuggestedAction {
@@ -900,7 +1069,10 @@ fn execute_delete(
                 reason,
                 params: {
                     let mut p = std::collections::HashMap::new();
-                    p.insert("remove_references".to_string(), serde_json::Value::Bool(true));
+                    p.insert(
+                        "remove_references".to_string(),
+                        serde_json::Value::Bool(true),
+                    );
                     Some(p)
                 },
             };
@@ -917,7 +1089,10 @@ fn execute_delete(
 
         // Query relationships if flag is set
         if relationships {
-            use splice::relationships::{get_callers, get_callees, get_imports, get_exports, Relationships, RelationshipCache};
+            use splice::relationships::{
+                get_callees, get_callers, get_exports, get_imports, RelationshipCache,
+                Relationships,
+            };
             use sqlitegraph::NodeId;
 
             let mut cache = RelationshipCache::new();
@@ -944,14 +1119,17 @@ fn execute_delete(
         // Add reference spans with rich metadata
         for r in &ref_set.references {
             let ref_path = Path::new(&r.file_path);
-            let mut ref_span = SpanResult::from_byte_span(
-                r.file_path.clone(),
-                r.byte_start,
-                r.byte_end,
-            );
+            let mut ref_span =
+                SpanResult::from_byte_span(r.file_path.clone(), r.byte_start, r.byte_end);
 
             // Extract context for reference span
-            if let Ok(ctx) = context::extract_context_asymmetric(ref_path, r.byte_start, r.byte_end, ctx_before, ctx_after) {
+            if let Ok(ctx) = context::extract_context_asymmetric(
+                ref_path,
+                r.byte_start,
+                r.byte_end,
+                ctx_before,
+                ctx_after,
+            ) {
                 ref_span = ref_span.with_context(ctx);
             }
 
@@ -976,9 +1154,12 @@ fn execute_delete(
         spans.sort();
 
         // Calculate total bytes removed
-        let total_bytes_removed: usize = ref_set.references.iter()
+        let total_bytes_removed: usize = ref_set
+            .references
+            .iter()
             .map(|r| r.byte_end - r.byte_start)
-            .sum::<usize>() + (def.byte_end - def.byte_start);
+            .sum::<usize>()
+            + (def.byte_end - def.byte_start);
 
         // Compute file checksum before deletion
         let file_checksum_before = checksum::checksum_file(file_path)
@@ -995,7 +1176,9 @@ fn execute_delete(
 
         // Add reference span checksums
         for r in &ref_set.references {
-            if let Ok(cs) = checksum::checksum_span(Path::new(&r.file_path), r.byte_start, r.byte_end) {
+            if let Ok(cs) =
+                checksum::checksum_span(Path::new(&r.file_path), r.byte_start, r.byte_end)
+            {
                 span_checksums.push(cs.value);
             }
         }
@@ -1014,12 +1197,9 @@ fn execute_delete(
         };
 
         // Create operation result with operation_id from CLI or generate new UUID
-        let result = OperationResult::with_execution_id(
-            "delete".to_string(),
-            operation_id.clone(),
-        )
-        .success(base_message.clone())
-        .with_result(OperationData::Delete(delete_result));
+        let result = OperationResult::with_execution_id("delete".to_string(), operation_id.clone())
+            .success(base_message.clone())
+            .with_result(OperationData::Delete(delete_result));
 
         // Record execution
         let duration_ms = start.elapsed().as_millis() as i64;
@@ -1042,10 +1222,15 @@ fn execute_delete(
         println!("{}", serde_json::to_string_pretty(&result).unwrap());
 
         // Return a dummy payload marked as already emitted
-        return Ok(splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted());
+        return Ok(
+            splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted(),
+        );
     }
 
-    Ok(splice::cli::CliSuccessPayload::with_data(base_message, serde_json::Value::Object(response_data)))
+    Ok(splice::cli::CliSuccessPayload::with_data(
+        base_message,
+        serde_json::Value::Object(response_data),
+    ))
 }
 
 /// Execute the patch command.
@@ -1120,19 +1305,22 @@ fn execute_patch(
     db: Option<PathBuf>,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
-    use splice::graph::CodeGraph;
-    use splice::patch::{apply_patch_with_validation, preview_patch_with_content, FilePatchSummary};
-    use splice::resolve::resolve_symbol;
-    use splice::symbol::{Language as SymbolLanguage, Symbol};
-    use splice::validate::AnalyzerMode as ValidateAnalyzerMode;
     use splice::execution::log;
+    use splice::format_colored_diff;
     use splice::format_diff_summary;
     use splice::format_unified_diff;
-    use splice::format_colored_diff;
+    use splice::graph::CodeGraph;
+    use splice::patch::{
+        apply_patch_with_validation, preview_patch_with_content, FilePatchSummary,
+    };
+    use splice::resolve::resolve_symbol;
     use splice::should_use_color;
+    use splice::symbol::{Language as SymbolLanguage, Symbol};
+    use splice::validate::AnalyzerMode as ValidateAnalyzerMode;
 
     // Resolve context counts from -A/-B/-C flags
-    let (ctx_before, ctx_after) = splice::resolve_context_counts(context_before, context_after, context_both);
+    let (ctx_before, ctx_after) =
+        splice::resolve_context_counts(context_before, context_after, context_both);
 
     // Start timing
     let start = std::time::Instant::now();
@@ -1161,10 +1349,12 @@ fn execute_patch(
         // Fallback: create .splice_graph.db in the file's parent directory
         file_path
             .parent()
-            .ok_or_else(|| splice::SpliceError::Other(format!(
-                "File path has no parent: {}",
-                file_path.display()
-            )))?
+            .ok_or_else(|| {
+                splice::SpliceError::Other(format!(
+                    "File path has no parent: {}",
+                    file_path.display()
+                ))
+            })?
             .join(".splice_graph.db")
     };
     let mut code_graph = CodeGraph::open(&graph_db_path)?;
@@ -1262,7 +1452,12 @@ fn execute_patch(
         let diff_output = if use_color {
             format_colored_diff(&before_content, &after_content, true)
         } else {
-            format_unified_diff(&before_content, &after_content, &file_path.to_string_lossy(), unified)
+            format_unified_diff(
+                &before_content,
+                &after_content,
+                &file_path.to_string_lossy(),
+                unified,
+            )
         };
 
         if !diff_output.is_empty() {
@@ -1271,9 +1466,7 @@ fn execute_patch(
 
         let message = format!(
             "Previewed patch '{}' at bytes {}..{} (dry-run)",
-            symbol_name,
-            resolved.byte_start,
-            resolved.byte_end,
+            symbol_name, resolved.byte_start, resolved.byte_end,
         );
 
         // Record execution for preview
@@ -1287,8 +1480,11 @@ fn execute_patch(
             "dry_run": true,
         });
         if let Err(e) = log::record_execution_with_params(
-            &splice::output::OperationResult::with_execution_id("patch".to_string(), operation_id.clone())
-                .success(message.clone()),
+            &splice::output::OperationResult::with_execution_id(
+                "patch".to_string(),
+                operation_id.clone(),
+            )
+            .success(message.clone()),
             duration_ms,
             Some(command_line),
             parameters,
@@ -1323,14 +1519,14 @@ fn execute_patch(
 
     // Check if JSON output is requested
     if json_output {
-        use splice::output::{OperationResult, OperationData, PatchResult, SpanResult};
+        use splice::action::SuggestedAction;
+        use splice::action::{ActionType, Confidence};
         use splice::checksum;
         use splice::context;
-        use splice::ingest::{detect as ingest_detect, dispatch};
-        use splice::ingest::semantic_kind::SemanticKind;
         use splice::hints::{derive_tool_hints, ToolHintOperation};
-        use splice::action::{ActionType, Confidence};
-        use splice::action::SuggestedAction;
+        use splice::ingest::semantic_kind::SemanticKind;
+        use splice::ingest::{detect as ingest_detect, dispatch};
+        use splice::output::{OperationData, OperationResult, PatchResult, SpanResult};
         use splice::symbol::AnySymbol;
 
         // Detect language for semantic kind detection
@@ -1340,13 +1536,16 @@ fn execute_patch(
         let file_contents = std::fs::read(file_path).unwrap_or_default();
 
         // Compute span checksums before and after
-        let span_checksum_before = checksum::checksum_span(file_path, resolved.byte_start, resolved.byte_end)
-            .map(|cs| cs.value)
-            .unwrap_or_else(|_| "checksum-failed".to_string());
+        let span_checksum_before =
+            checksum::checksum_span(file_path, resolved.byte_start, resolved.byte_end)
+                .map(|cs| cs.value)
+                .unwrap_or_else(|_| "checksum-failed".to_string());
 
         // After checksum: read the patched span
         // Note: This is approximate since the span may have changed size
-        let span_checksum_after = if let Ok(after_cs) = checksum::checksum_span(file_path, resolved.byte_start, resolved.byte_end) {
+        let span_checksum_after = if let Ok(after_cs) =
+            checksum::checksum_span(file_path, resolved.byte_start, resolved.byte_end)
+        {
             after_cs.value
         } else {
             "checksum-failed".to_string()
@@ -1358,17 +1557,28 @@ fn execute_patch(
             .with_span_checksums(span_checksum_before.clone(), span_checksum_after);
 
         // Extract context for the span
-        if let Ok(ctx) = context::extract_context_asymmetric(file_path, resolved.byte_start, resolved.byte_end, ctx_before, ctx_after) {
+        if let Ok(ctx) = context::extract_context_asymmetric(
+            file_path,
+            resolved.byte_start,
+            resolved.byte_end,
+            ctx_before,
+            ctx_after,
+        ) {
             span = span.with_context(ctx);
         }
 
         // Add semantic kind and language if available
         if let Some(lang) = detected_language {
             // Try to detect semantic kind from tree-sitter parse
-            let sem_kind_str = if let Ok(symbols) = dispatch::extract_symbols(file_path, &file_contents) {
+            let sem_kind_str = if let Ok(symbols) =
+                dispatch::extract_symbols(file_path, &file_contents)
+            {
                 // Find the symbol that matches our definition
-                symbols.iter()
-                    .find(|s| s.byte_start() == resolved.byte_start && s.byte_end() == resolved.byte_end)
+                symbols
+                    .iter()
+                    .find(|s| {
+                        s.byte_start() == resolved.byte_start && s.byte_end() == resolved.byte_end
+                    })
                     .map(|s| {
                         // Map symbol kind to semantic kind string
                         match s {
@@ -1396,16 +1606,26 @@ fn execute_patch(
                                 _ => "unknown",
                             },
                             AnySymbol::JavaScript(js_sym) => match js_sym.kind {
-                                splice::ingest::javascript::JavaScriptSymbolKind::Function => "function",
+                                splice::ingest::javascript::JavaScriptSymbolKind::Function => {
+                                    "function"
+                                }
                                 splice::ingest::javascript::JavaScriptSymbolKind::Class => "type",
-                                splice::ingest::javascript::JavaScriptSymbolKind::Method => "function",
+                                splice::ingest::javascript::JavaScriptSymbolKind::Method => {
+                                    "function"
+                                }
                                 _ => "unknown",
                             },
                             AnySymbol::TypeScript(ts_sym) => match ts_sym.kind {
-                                splice::ingest::typescript::TypeScriptSymbolKind::Function => "function",
+                                splice::ingest::typescript::TypeScriptSymbolKind::Function => {
+                                    "function"
+                                }
                                 splice::ingest::typescript::TypeScriptSymbolKind::Class => "type",
-                                splice::ingest::typescript::TypeScriptSymbolKind::Method => "function",
-                                splice::ingest::typescript::TypeScriptSymbolKind::Interface => "trait",
+                                splice::ingest::typescript::TypeScriptSymbolKind::Method => {
+                                    "function"
+                                }
+                                splice::ingest::typescript::TypeScriptSymbolKind::Interface => {
+                                    "trait"
+                                }
                                 _ => "unknown",
                             },
                             AnySymbol::Cpp(cpp_sym) => match cpp_sym.kind {
@@ -1437,7 +1657,13 @@ fn execute_patch(
             };
 
             // Infer is_public from semantic kind (default to true for functions, types, traits, enums)
-            let is_public = matches!(sem_kind, SemanticKind::Function | SemanticKind::Type | SemanticKind::Trait | SemanticKind::Enum);
+            let is_public = matches!(
+                sem_kind,
+                SemanticKind::Function
+                    | SemanticKind::Type
+                    | SemanticKind::Trait
+                    | SemanticKind::Enum
+            );
 
             // Derive tool hints for replace operation
             let hints = derive_tool_hints(sem_kind, is_public, ToolHintOperation::ReplaceBody);
@@ -1449,7 +1675,9 @@ fn execute_patch(
             // Generate suggested action for replace
             let reason = format!(
                 "Replace symbol '{}' ({}) at {} with provided content",
-                symbol_name, sem_kind_str, file_path.to_string_lossy()
+                symbol_name,
+                sem_kind_str,
+                file_path.to_string_lossy()
             );
 
             let action = SuggestedAction {
@@ -1458,7 +1686,10 @@ fn execute_patch(
                 reason,
                 params: {
                     let mut p = std::collections::HashMap::new();
-                    p.insert("preserve_signature".to_string(), serde_json::Value::Bool(true));
+                    p.insert(
+                        "preserve_signature".to_string(),
+                        serde_json::Value::Bool(true),
+                    );
                     Some(p)
                 },
             };
@@ -1472,7 +1703,10 @@ fn execute_patch(
 
         // Query relationships if flag is set
         if relationships {
-            use splice::relationships::{get_callers, get_callees, get_imports, get_exports, Relationships, RelationshipCache};
+            use splice::relationships::{
+                get_callees, get_callers, get_exports, get_imports, RelationshipCache,
+                Relationships,
+            };
             use sqlitegraph::NodeId;
 
             let mut cache = RelationshipCache::new();
@@ -1502,7 +1736,7 @@ fn execute_patch(
             spans: vec![span],
             before_hash: summary.before_hash.clone(),
             after_hash: summary.after_hash.clone(),
-            lines_added: 0, // TODO: Calculate from diff
+            lines_added: 0,   // TODO: Calculate from diff
             lines_removed: 0, // TODO: Calculate from diff
         };
 
@@ -1516,13 +1750,10 @@ fn execute_patch(
         );
 
         // Create operation result with operation_id from CLI or generate new UUID
-        let result = OperationResult::with_execution_id(
-            "patch".to_string(),
-            operation_id.clone(),
-        )
-        .success(message.clone())
-        .with_workspace(workspace_root.to_string_lossy().to_string())
-        .with_result(OperationData::Patch(patch_result));
+        let result = OperationResult::with_execution_id("patch".to_string(), operation_id.clone())
+            .success(message.clone())
+            .with_workspace(workspace_root.to_string_lossy().to_string())
+            .with_result(OperationData::Patch(patch_result));
 
         // Record execution
         let duration_ms = start.elapsed().as_millis() as i64;
@@ -1546,7 +1777,9 @@ fn execute_patch(
         println!("{}", serde_json::to_string_pretty(&result).unwrap());
 
         // Return a dummy payload marked as already emitted
-        return Ok(splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted());
+        return Ok(
+            splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted(),
+        );
     }
 
     // Default output (backward compatible)
@@ -1569,8 +1802,11 @@ fn execute_patch(
         "create_backup": create_backup,
     });
     if let Err(e) = log::record_execution_with_params(
-        &splice::output::OperationResult::with_execution_id("patch".to_string(), operation_id.clone())
-            .success(message.clone()),
+        &splice::output::OperationResult::with_execution_id(
+            "patch".to_string(),
+            operation_id.clone(),
+        )
+        .success(message.clone()),
         duration_ms,
         Some(command_line),
         parameters,
@@ -1597,7 +1833,10 @@ fn execute_patch(
     );
     response_data.insert("span_ids".to_string(), json!([span_id]));
     if let Some(manifest_path) = backup_manifest_path {
-        response_data.insert("backup_manifest".to_string(), json!(manifest_path.to_string_lossy()));
+        response_data.insert(
+            "backup_manifest".to_string(),
+            json!(manifest_path.to_string_lossy()),
+        );
     }
     if let Some(ref op_id) = operation_id {
         response_data.insert("operation_id".to_string(), json!(op_id));
@@ -1611,7 +1850,10 @@ fn execute_patch(
         }
     }
 
-    Ok(splice::cli::CliSuccessPayload::with_data(message, serde_json::Value::Object(response_data)))
+    Ok(splice::cli::CliSuccessPayload::with_data(
+        message,
+        serde_json::Value::Object(response_data),
+    ))
 }
 
 /// Execute a batch patch command driven by a JSON manifest.
@@ -1624,9 +1866,9 @@ fn execute_patch_batch(
     metadata: Option<String>,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::execution::log;
     use splice::patch::{apply_batch_with_validation, load_batches_from_file};
     use splice::validate::AnalyzerMode as ValidateAnalyzerMode;
-    use splice::execution::log;
 
     // Start timing
     let start = std::time::Instant::now();
@@ -1678,7 +1920,8 @@ fn execute_patch_batch(
         let workspace_root = find_workspace_root(&absolute_batch)?;
 
         // Collect all files that will be patched
-        let mut files_to_backup: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
+        let mut files_to_backup: std::collections::HashSet<PathBuf> =
+            std::collections::HashSet::new();
         for batch in &batches {
             for replacement in batch.replacements() {
                 files_to_backup.insert(replacement.file.clone());
@@ -1699,7 +1942,9 @@ fn execute_patch_batch(
 
     // Check if JSON output is requested
     if _json_output {
-        use splice::output::{OperationResult, OperationData, ApplyFilesResult, FilePatternResult, SpanResult};
+        use splice::output::{
+            ApplyFilesResult, FilePatternResult, OperationData, OperationResult, SpanResult,
+        };
 
         // Build file results with spans
         let mut file_results: Vec<FilePatternResult> = Vec::new();
@@ -1761,12 +2006,9 @@ fn execute_patch_batch(
         });
 
         // Create operation result with operation_id from CLI or generate new UUID
-        let result = OperationResult::with_execution_id(
-            "batch".to_string(),
-            operation_id.clone(),
-        )
-        .success(message.clone())
-        .with_result(OperationData::ApplyFiles(apply_result));
+        let result = OperationResult::with_execution_id("batch".to_string(), operation_id.clone())
+            .success(message.clone())
+            .with_result(OperationData::ApplyFiles(apply_result));
 
         if let Err(e) = log::record_execution_with_params(
             &result,
@@ -1781,7 +2023,9 @@ fn execute_patch_batch(
         println!("{}", serde_json::to_string_pretty(&result).unwrap());
 
         // Return a dummy payload marked as already emitted
-        return Ok(splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted());
+        return Ok(
+            splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted(),
+        );
     }
 
     let files_data: Vec<_> = summaries
@@ -1844,8 +2088,11 @@ fn execute_patch_batch(
         "span_count": span_ids.len(),
     });
     if let Err(e) = log::record_execution_with_params(
-        &splice::output::OperationResult::with_execution_id("batch".to_string(), operation_id.clone())
-            .success(message.clone()),
+        &splice::output::OperationResult::with_execution_id(
+            "batch".to_string(),
+            operation_id.clone(),
+        )
+        .success(message.clone()),
         duration_ms,
         Some(command_line.clone()),
         parameters,
@@ -1873,9 +2120,9 @@ fn execute_plan(
     metadata: Option<String>,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
-    use splice::output::{OperationResult, OperationData, PlanResult, StepResult};
-    use splice::plan::execute_plan;
     use splice::execution::log;
+    use splice::output::{OperationData, OperationResult, PlanResult, StepResult};
+    use splice::plan::execute_plan;
 
     // Start timing
     let start = std::time::Instant::now();
@@ -1926,12 +2173,9 @@ fn execute_plan(
         );
 
         // Create operation result with operation_id from CLI or generate new UUID
-        let result = OperationResult::with_execution_id(
-            "plan".to_string(),
-            operation_id.clone(),
-        )
-        .success(message)
-        .with_result(OperationData::Plan(plan_result));
+        let result = OperationResult::with_execution_id("plan".to_string(), operation_id.clone())
+            .success(message)
+            .with_result(OperationData::Plan(plan_result));
 
         // Output structured JSON directly
         println!("{}", serde_json::to_string_pretty(&result).unwrap());
@@ -1943,8 +2187,14 @@ fn execute_plan(
             "step_count": step_count,
         });
         if let Err(e) = log::record_execution_with_params(
-            &splice::output::OperationResult::with_execution_id("plan".to_string(), operation_id.clone())
-                .success(format!("Plan executed successfully: {} steps completed", step_count)),
+            &splice::output::OperationResult::with_execution_id(
+                "plan".to_string(),
+                operation_id.clone(),
+            )
+            .success(format!(
+                "Plan executed successfully: {} steps completed",
+                step_count
+            )),
             duration_ms,
             Some(command_line.clone()),
             parameters,
@@ -1953,15 +2203,14 @@ fn execute_plan(
         }
 
         // Return a dummy payload marked as already emitted
-        return Ok(splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted());
+        return Ok(
+            splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted(),
+        );
     }
 
     // Legacy output
     let mut response_data = serde_json::Map::new();
-    response_data.insert(
-        "steps_completed".to_string(),
-        json!(messages.len()),
-    );
+    response_data.insert("steps_completed".to_string(), json!(messages.len()));
 
     if let Some(ref op_id) = operation_id {
         response_data.insert("operation_id".to_string(), json!(op_id));
@@ -1987,8 +2236,11 @@ fn execute_plan(
         "step_count": step_count,
     });
     if let Err(e) = log::record_execution_with_params(
-        &splice::output::OperationResult::with_execution_id("plan".to_string(), operation_id.clone())
-            .success(message.clone()),
+        &splice::output::OperationResult::with_execution_id(
+            "plan".to_string(),
+            operation_id.clone(),
+        )
+        .success(message.clone()),
         duration_ms,
         Some(command_line.clone()),
         parameters,
@@ -2006,7 +2258,10 @@ fn execute_plan(
 ///
 /// This function restores files from a backup manifest created during
 /// a previous splice operation.
-fn execute_undo(manifest_path: &Path, _json_output: bool) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+fn execute_undo(
+    manifest_path: &Path,
+    _json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::patch::restore_from_manifest;
 
     // Determine workspace directory (parent of manifest's parent directory)
@@ -2017,15 +2272,11 @@ fn execute_undo(manifest_path: &Path, _json_output: bool) -> Result<splice::cli:
     })?;
 
     let splice_backup_dir = backup_dir.parent().ok_or_else(|| {
-        splice::SpliceError::Other(
-            "Backup directory has no parent directory".to_string()
-        )
+        splice::SpliceError::Other("Backup directory has no parent directory".to_string())
     })?;
 
     let workspace_root = splice_backup_dir.parent().ok_or_else(|| {
-        splice::SpliceError::Other(
-            "Cannot determine workspace root from manifest path".to_string()
-        )
+        splice::SpliceError::Other("Cannot determine workspace root from manifest path".to_string())
     })?;
 
     // Restore from backup
@@ -2057,18 +2308,19 @@ fn execute_apply_files(
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     #![allow(unused_variables)]
-    use splice::patch::{apply_pattern_replace, find_pattern_in_files, BackupWriter, PatternReplaceConfig};
     use splice::execution::log;
+    use splice::patch::{
+        apply_pattern_replace, find_pattern_in_files, BackupWriter, PatternReplaceConfig,
+    };
 
     // Start timing
     let start = std::time::Instant::now();
     let command_line = std::env::args().collect::<Vec<_>>().join(" ");
 
     // Get current directory as workspace root
-    let workspace_root = env::current_dir()
-        .map_err(|err| {
-            splice::SpliceError::Other(format!("Failed to resolve current directory: {}", err))
-        })?;
+    let workspace_root = env::current_dir().map_err(|err| {
+        splice::SpliceError::Other(format!("Failed to resolve current directory: {}", err))
+    })?;
 
     // Convert CLI language to symbol language
     let symbol_language = language.map(|l| l.to_symbol_language());
@@ -2112,9 +2364,15 @@ fn execute_apply_files(
     // Build response data
     let mut response_data = serde_json::Map::new();
     response_data.insert("files_patched".to_string(), json!(result.files_patched));
-    response_data.insert("replacements_count".to_string(), json!(result.replacements_count));
+    response_data.insert(
+        "replacements_count".to_string(),
+        json!(result.replacements_count),
+    );
     if let Some(manifest_path) = backup_manifest_path {
-        response_data.insert("backup_manifest".to_string(), json!(manifest_path.to_string_lossy()));
+        response_data.insert(
+            "backup_manifest".to_string(),
+            json!(manifest_path.to_string_lossy()),
+        );
     }
     if let Some(ref op_id) = operation_id {
         response_data.insert("operation_id".to_string(), json!(op_id));
@@ -2145,8 +2403,11 @@ fn execute_apply_files(
         "file_count": file_count,
     });
     if let Err(e) = log::record_execution_with_params(
-        &splice::output::OperationResult::with_execution_id("apply-files".to_string(), operation_id.clone())
-            .success(message.clone()),
+        &splice::output::OperationResult::with_execution_id(
+            "apply-files".to_string(),
+            operation_id.clone(),
+        )
+        .success(message.clone()),
         duration_ms,
         Some(command_line.clone()),
         parameters,
@@ -2154,7 +2415,10 @@ fn execute_apply_files(
         log_execution_error("apply-files", &e);
     }
 
-    Ok(splice::cli::CliSuccessPayload::with_data(message, serde_json::Value::Object(response_data)))
+    Ok(splice::cli::CliSuccessPayload::with_data(
+        message,
+        serde_json::Value::Object(response_data),
+    ))
 }
 
 /// Execute the query command.
@@ -2175,11 +2439,12 @@ fn execute_query(
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     #![allow(unused_variables)]
-    use splice::graph::magellan_integration::MagellanIntegration;
     use splice::execution::log;
+    use splice::graph::magellan_integration::MagellanIntegration;
 
     // Resolve context counts from -A/-B/-C flags
-    let (ctx_before, ctx_after) = splice::resolve_context_counts(context_before, context_after, context_both);
+    let (ctx_before, ctx_after) =
+        splice::resolve_context_counts(context_before, context_after, context_both);
 
     // Start timing
     let start = std::time::Instant::now();
@@ -2207,8 +2472,7 @@ fn execute_query(
             "label_count": label_count,
         });
         if let Err(e) = log::record_execution_with_params(
-            &splice::output::OperationResult::new("query".to_string())
-                .success(message.clone()),
+            &splice::output::OperationResult::new("query".to_string()).success(message.clone()),
             duration_ms,
             Some(command_line.clone()),
             parameters,
@@ -2243,8 +2507,7 @@ fn execute_query(
             "labels": labels,
         });
         if let Err(e) = log::record_execution_with_params(
-            &splice::output::OperationResult::new("query".to_string())
-                .success(message.clone()),
+            &splice::output::OperationResult::new("query".to_string()).success(message.clone()),
             duration_ms,
             Some(command_line.clone()),
             parameters,
@@ -2278,7 +2541,10 @@ fn execute_query(
         if labels.len() == 1 {
             write_stdout_line(&format!("No symbols found with label '{}'", labels[0]))?;
         } else {
-            write_stdout_line(&format!("No symbols found with labels: {}", labels.join(", ")))?;
+            write_stdout_line(&format!(
+                "No symbols found with labels: {}",
+                labels.join(", ")
+            ))?;
         }
 
         // Record execution for empty results
@@ -2290,8 +2556,7 @@ fn execute_query(
             "results_count": 0,
         });
         if let Err(e) = log::record_execution_with_params(
-            &splice::output::OperationResult::new("query".to_string())
-                .success(message.clone()),
+            &splice::output::OperationResult::new("query".to_string()).success(message.clone()),
             duration_ms,
             Some(command_line.clone()),
             parameters,
@@ -2304,13 +2569,13 @@ fn execute_query(
 
     // Check if JSON output is requested
     if _json_output {
-        use splice::output::{OperationResult, OperationData, QueryResult, SpanResult};
+        use splice::action::{suggest_action, ActionType, Confidence};
         use splice::checksum;
         use splice::context;
+        use splice::hints::{derive_tool_hints, ToolHintOperation};
         use splice::ingest::detect as ingest_detect;
         use splice::ingest::semantic_kind::SemanticKind;
-        use splice::hints::{derive_tool_hints, ToolHintOperation};
-        use splice::action::{suggest_action, ActionType, Confidence};
+        use splice::output::{OperationData, OperationResult, QueryResult, SpanResult};
 
         // Open CodeGraph for relationship queries if flag is set
         let code_graph = if relationships {
@@ -2327,9 +2592,9 @@ fn execute_query(
 
             // Apply expansion if requested (use expand_to_body_with_docs to include doc comments)
             let (expanded_start, expanded_end) = if expand && expand_level > 0 {
-                use splice::symbol::Language;
                 use splice::expand::expand_to_body_with_docs;
                 use splice::ingest::detect as ingest_detect;
+                use splice::symbol::Language;
 
                 // Detect language from file path
                 let lang = ingest_detect::detect_language(path);
@@ -2361,16 +2626,14 @@ fn execute_query(
 
             // Create base span result (use expanded span if expansion was requested)
             let (span_start, span_end) = (expanded_start, expanded_end);
-            let mut span = SpanResult::from_byte_span(
-                r.file_path.clone(),
-                span_start,
-                span_end,
-            )
-            .with_symbol(r.name.clone(), r.kind.clone());
+            let mut span = SpanResult::from_byte_span(r.file_path.clone(), span_start, span_end)
+                .with_symbol(r.name.clone(), r.kind.clone());
 
             // Add context if requested (use expanded span for context extraction)
             if ctx_before > 0 || ctx_after > 0 {
-                if let Ok(ctx) = context::extract_context_asymmetric(path, span_start, span_end, ctx_before, ctx_after) {
+                if let Ok(ctx) = context::extract_context_asymmetric(
+                    path, span_start, span_end, ctx_before, ctx_after,
+                ) {
                     span = span.with_context(ctx);
                 }
             }
@@ -2389,7 +2652,13 @@ fn execute_query(
                 };
 
                 // Infer is_public from semantic kind (default to true for functions, types)
-                let is_public = matches!(sem_kind, SemanticKind::Function | SemanticKind::Type | SemanticKind::Trait | SemanticKind::Enum);
+                let is_public = matches!(
+                    sem_kind,
+                    SemanticKind::Function
+                        | SemanticKind::Type
+                        | SemanticKind::Trait
+                        | SemanticKind::Enum
+                );
 
                 span = span.with_semantic_info(sem_kind.as_str(), lang.as_str());
 
@@ -2423,7 +2692,10 @@ fn execute_query(
             // Query relationships if flag is set
             if relationships {
                 if let Some(ref graph) = code_graph {
-                    use splice::relationships::{get_callers, get_callees, get_imports, get_exports, Relationships, RelationshipCache};
+                    use splice::relationships::{
+                        get_callees, get_callers, get_exports, get_imports, RelationshipCache,
+                        Relationships,
+                    };
                     use sqlitegraph::NodeId;
 
                     let mut cache = RelationshipCache::new();
@@ -2485,16 +2757,15 @@ fn execute_query(
             "show_code": show_code,
             "results_count": results_count,
         });
-        if let Err(e) = log::record_execution_with_params(
-            &result,
-            duration_ms,
-            Some(command_line),
-            parameters,
-        ) {
+        if let Err(e) =
+            log::record_execution_with_params(&result, duration_ms, Some(command_line), parameters)
+        {
             log_execution_error("query", &e);
         }
 
-        return Ok(splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted());
+        return Ok(
+            splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted(),
+        );
     }
 
     // Build response data (for non-JSON output)
@@ -2510,9 +2781,9 @@ fn execute_query(
         .map(|r| {
             // Apply expansion if requested
             let (exp_start, exp_end) = if expand && expand_level > 0 {
-                use splice::symbol::Language;
                 use splice::expand::expand_to_body_with_docs;
                 use splice::ingest::detect as ingest_detect;
+                use splice::symbol::Language;
 
                 let path = std::path::Path::new(&r.file_path);
                 let lang = ingest_detect::detect_language(path);
@@ -2561,7 +2832,11 @@ fn execute_query(
             });
 
             // Include expanded span if expansion was performed
-            if expand && expand_level > 0 && (er.expanded_start != er.result.byte_start || er.expanded_end != er.result.byte_end) {
+            if expand
+                && expand_level > 0
+                && (er.expanded_start != er.result.byte_start
+                    || er.expanded_end != er.result.byte_end)
+            {
                 data["expanded_byte_start"] = json!(er.expanded_start);
                 data["expanded_byte_end"] = json!(er.expanded_end);
             }
@@ -2589,14 +2864,24 @@ fn execute_query(
         write_stdout_line("")?;
         write_stdout_line(&format!(
             "  {} ({}) in {} [{}-{}]",
-            er.result.name, er.result.kind, er.result.file_path, er.result.byte_start, er.result.byte_end
+            er.result.name,
+            er.result.kind,
+            er.result.file_path,
+            er.result.byte_start,
+            er.result.byte_end
         ))?;
 
         // Show context if requested (use expanded span for context extraction)
         if !show_code && (ctx_before > 0 || ctx_after > 0) {
             use splice::context;
             let path = std::path::Path::new(&er.result.file_path);
-            if let Ok(ctx) = context::extract_context_asymmetric(path, er.expanded_start, er.expanded_end, ctx_before, ctx_after) {
+            if let Ok(ctx) = context::extract_context_asymmetric(
+                path,
+                er.expanded_start,
+                er.expanded_end,
+                ctx_before,
+                ctx_after,
+            ) {
                 if !ctx.before.is_empty() {
                     write_stdout_line(&format!("  Context ({} lines before):", ctx.before.len()))?;
                     for line in &ctx.before {
@@ -2616,13 +2901,24 @@ fn execute_query(
         if show_code {
             let path = std::path::Path::new(&er.result.file_path);
             // Use expanded span for code retrieval
-            if let Ok(Some(code)) = integration.get_code_chunk(path, er.expanded_start, er.expanded_end) {
+            if let Ok(Some(code)) =
+                integration.get_code_chunk(path, er.expanded_start, er.expanded_end)
+            {
                 // Show context before code chunk if context flags are set
                 if ctx_before > 0 || ctx_after > 0 {
                     use splice::context;
-                    if let Ok(ctx) = context::extract_context_asymmetric(path, er.expanded_start, er.expanded_end, ctx_before, ctx_after) {
+                    if let Ok(ctx) = context::extract_context_asymmetric(
+                        path,
+                        er.expanded_start,
+                        er.expanded_end,
+                        ctx_before,
+                        ctx_after,
+                    ) {
                         if !ctx.before.is_empty() {
-                            write_stdout_line(&format!("  Context ({} lines before):", ctx.before.len()))?;
+                            write_stdout_line(&format!(
+                                "  Context ({} lines before):",
+                                ctx.before.len()
+                            ))?;
                             for line in &ctx.before {
                                 write_stdout_line(&format!("    {}", line))?;
                             }
@@ -2638,9 +2934,18 @@ fn execute_query(
                 // Show context after code chunk if context flags are set
                 if ctx_before > 0 || ctx_after > 0 {
                     use splice::context;
-                    if let Ok(ctx) = context::extract_context_asymmetric(path, er.expanded_start, er.expanded_end, ctx_before, ctx_after) {
+                    if let Ok(ctx) = context::extract_context_asymmetric(
+                        path,
+                        er.expanded_start,
+                        er.expanded_end,
+                        ctx_before,
+                        ctx_after,
+                    ) {
                         if !ctx.after.is_empty() {
-                            write_stdout_line(&format!("  Context ({} lines after):", ctx.after.len()))?;
+                            write_stdout_line(&format!(
+                                "  Context ({} lines after):",
+                                ctx.after.len()
+                            ))?;
                             for line in &ctx.after {
                                 write_stdout_line(&format!("    {}", line))?;
                             }
@@ -2662,8 +2967,7 @@ fn execute_query(
         "results_count": results_count,
     });
     if let Err(e) = log::record_execution_with_params(
-        &splice::output::OperationResult::new("query".to_string())
-            .success(message.clone()),
+        &splice::output::OperationResult::new("query".to_string()).success(message.clone()),
         duration_ms,
         Some(command_line.clone()),
         parameters,
@@ -2697,13 +3001,14 @@ fn execute_get(
     use splice::graph::magellan_integration::MagellanIntegration;
 
     // Resolve context counts from -A/-B/-C flags
-    let (ctx_before, ctx_after) = splice::resolve_context_counts(context_before, context_after, context_both);
+    let (ctx_before, ctx_after) =
+        splice::resolve_context_counts(context_before, context_after, context_both);
 
     // Apply expansion if requested (use expand_to_body_with_docs to include doc comments)
     let (expanded_start, expanded_end) = if expand && expand_level > 0 {
-        use splice::symbol::Language;
         use splice::expand::expand_to_body_with_docs;
         use splice::ingest::detect as ingest_detect;
+        use splice::symbol::Language;
 
         // Detect language from file path
         let lang = ingest_detect::detect_language(file_path);
@@ -2743,13 +3048,13 @@ fn execute_get(
         Some(content) => {
             // Check if JSON output is requested
             if _json_output {
-                use splice::output::{OperationResult, OperationData, SpanResult};
+                use splice::action::{suggest_action, ActionType, Confidence};
                 use splice::checksum;
                 use splice::context;
+                use splice::hints::{derive_tool_hints, ToolHintOperation};
                 use splice::ingest::detect as ingest_detect;
                 use splice::ingest::semantic_kind::SemanticKind;
-                use splice::hints::{derive_tool_hints, ToolHintOperation};
-                use splice::action::{suggest_action, ActionType, Confidence};
+                use splice::output::{OperationData, OperationResult, SpanResult};
 
                 // Create span result with tool_hints and suggested_action
                 // Use expanded span if expansion was requested
@@ -2762,23 +3067,26 @@ fn execute_get(
 
                 // Add context if requested (use expanded span for context extraction)
                 if ctx_before > 0 || ctx_after > 0 {
-                    if let Ok(ctx) = context::extract_context_asymmetric(file_path, span_start, span_end, ctx_before, ctx_after) {
+                    if let Ok(ctx) = context::extract_context_asymmetric(
+                        file_path, span_start, span_end, ctx_before, ctx_after,
+                    ) {
                         span = span.with_context(ctx);
                     }
                 }
 
                 // Detect language and infer semantic kind
-                let (sem_kind, is_public) = if let Some(lang) = ingest_detect::detect_language(file_path) {
-                    // Default to Function for get operations (most common case)
-                    let sem_kind = SemanticKind::Function;
-                    let is_public = true; // Default to public for get operations
+                let (sem_kind, is_public) =
+                    if let Some(lang) = ingest_detect::detect_language(file_path) {
+                        // Default to Function for get operations (most common case)
+                        let sem_kind = SemanticKind::Function;
+                        let is_public = true; // Default to public for get operations
 
-                    span = span.with_semantic_info(sem_kind.as_str(), lang.as_str());
+                        span = span.with_semantic_info(sem_kind.as_str(), lang.as_str());
 
-                    (sem_kind, is_public)
-                } else {
-                    (SemanticKind::Unknown, false)
-                };
+                        (sem_kind, is_public)
+                    } else {
+                        (SemanticKind::Unknown, false)
+                    };
 
                 // Derive tool hints
                 let hints = derive_tool_hints(sem_kind, is_public, ToolHintOperation::Get);
@@ -2804,13 +3112,17 @@ fn execute_get(
 
                 // Query relationships if flag is set
                 if relationships {
-                    use splice::relationships::{get_imports, get_exports, Relationships, RelationshipCache};
+                    use splice::relationships::{
+                        get_exports, get_imports, RelationshipCache, Relationships,
+                    };
 
                     let code_graph = splice::graph::CodeGraph::open(db_path)?;
                     let mut cache = RelationshipCache::new();
 
-                    let imports = get_imports(&code_graph, file_path, &mut cache).unwrap_or_default();
-                    let exports = get_exports(&code_graph, file_path, &mut cache).unwrap_or_default();
+                    let imports =
+                        get_imports(&code_graph, file_path, &mut cache).unwrap_or_default();
+                    let exports =
+                        get_exports(&code_graph, file_path, &mut cache).unwrap_or_default();
 
                     let rels = Relationships {
                         callers: vec![],
@@ -2843,16 +3155,28 @@ fn execute_get(
                 // Output structured JSON directly
                 println!("{}", serde_json::to_string_pretty(&result).unwrap());
 
-                return Ok(splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted());
+                return Ok(
+                    splice::cli::CliSuccessPayload::message_only("OK".to_string())
+                        .already_emitted(),
+                );
             }
 
             // Print to console (non-JSON output)
             // Show context before if requested (use expanded span for context extraction)
             if ctx_before > 0 || ctx_after > 0 {
                 use splice::context;
-                if let Ok(ctx) = context::extract_context_asymmetric(file_path, expanded_start, expanded_end, ctx_before, ctx_after) {
+                if let Ok(ctx) = context::extract_context_asymmetric(
+                    file_path,
+                    expanded_start,
+                    expanded_end,
+                    ctx_before,
+                    ctx_after,
+                ) {
                     if !ctx.before.is_empty() {
-                        write_stdout_line(&format!("Context ({} lines before):", ctx.before.len()))?;
+                        write_stdout_line(&format!(
+                            "Context ({} lines before):",
+                            ctx.before.len()
+                        ))?;
                         for line in &ctx.before {
                             write_stdout_line(&format!("  {}", line))?;
                         }
@@ -2867,7 +3191,13 @@ fn execute_get(
             // Show context after if requested (use expanded span for context extraction)
             if ctx_before > 0 || ctx_after > 0 {
                 use splice::context;
-                if let Ok(ctx) = context::extract_context_asymmetric(file_path, expanded_start, expanded_end, ctx_before, ctx_after) {
+                if let Ok(ctx) = context::extract_context_asymmetric(
+                    file_path,
+                    expanded_start,
+                    expanded_end,
+                    ctx_before,
+                    ctx_after,
+                ) {
                     if !ctx.after.is_empty() {
                         write_stdout_line(&format!("Context ({} lines after):", ctx.after.len()))?;
                         for line in &ctx.after {
@@ -2920,7 +3250,9 @@ fn execute_log(
     stats: bool,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
-    use splice::execution::{init_execution_log_db, get_execution, get_execution_stats, ExecutionQuery};
+    use splice::execution::{
+        get_execution, get_execution_stats, init_execution_log_db, ExecutionQuery,
+    };
     use splice::SpliceError;
 
     // Get splice directory
@@ -3008,9 +3340,7 @@ fn execute_log(
     }
 
     // Build query from filters
-    let mut query = ExecutionQuery::new()
-        .with_limit(limit)
-        .with_offset(offset);
+    let mut query = ExecutionQuery::new().with_limit(limit).with_offset(offset);
 
     if let Some(op_type) = operation_type {
         query = query.with_operation_type(op_type);
@@ -3034,9 +3364,8 @@ fn execute_log(
     let logs = query.execute(&conn)?;
 
     if json || json_output {
-        let json_output = serde_json::to_string_pretty(&logs).map_err(|e| {
-            SpliceError::Other(format!("failed to serialize logs to JSON: {}", e))
-        })?;
+        let json_output = serde_json::to_string_pretty(&logs)
+            .map_err(|e| SpliceError::Other(format!("failed to serialize logs to JSON: {}", e)))?;
         println!("{}", json_output);
 
         Ok(splice::cli::CliSuccessPayload::with_data(
@@ -3067,16 +3396,20 @@ fn execute_log(
 
         println!("\nShowing {} of {} executions", logs.len(), logs.len());
 
-        Ok(splice::cli::CliSuccessPayload::message_only(
-            format!("Retrieved {} executions", logs.len()),
-        ))
+        Ok(splice::cli::CliSuccessPayload::message_only(format!(
+            "Retrieved {} executions",
+            logs.len()
+        )))
     }
 }
 
 /// Execute the `splice explain` command.
 ///
 /// Prints detailed documentation for the specified error code.
-fn execute_explain(code: String, json_output: bool) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+fn execute_explain(
+    code: String,
+    json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     if json_output {
         // In JSON mode, return structured output
         let explanation = splice::get_error_explanation(&code)
@@ -3107,11 +3440,17 @@ fn execute_explain(code: String, json_output: bool) -> Result<splice::cli::CliSu
             eprintln!("For compiler error codes, see:");
             eprintln!("  Rust: https://doc.rust-lang.org/error-index.html");
             eprintln!("  TypeScript: https://www.typescriptlang.org/errors/");
-            return Err(splice::SpliceError::Other(format!("Unknown error code: {}", code)));
+            return Err(splice::SpliceError::Other(format!(
+                "Unknown error code: {}",
+                code
+            )));
         }
     }
 
-    Ok(splice::cli::CliSuccessPayload::message_only(format!("Explained {}", code)))
+    Ok(splice::cli::CliSuccessPayload::message_only(format!(
+        "Explained {}",
+        code
+    )))
 }
 
 fn execute_search(
@@ -3131,7 +3470,8 @@ fn execute_search(
     use splice::patch::pattern;
 
     // Resolve context counts from -A/-B/-C flags
-    let (ctx_before, ctx_after) = resolve_context_counts(context_before, context_after, context_both);
+    let (ctx_before, ctx_after) =
+        resolve_context_counts(context_before, context_after, context_both);
 
     // Convert CLI language to symbol language
     let symbol_lang = language.map(|l: splice::cli::Language| l.to_symbol_language());
@@ -3202,11 +3542,7 @@ fn execute_search(
                                 ctx_before,
                                 ctx_after,
                             ) {
-                                Ok(ctx) => (
-                                    Some(ctx.before),
-                                    Some(ctx.selected),
-                                    Some(ctx.after),
-                                ),
+                                Ok(ctx) => (Some(ctx.before), Some(ctx.selected), Some(ctx.after)),
                                 Err(_) => (None, None, None),
                             }
                         } else {
@@ -3227,18 +3563,9 @@ fn execute_search(
                         (context_before_opt, context_selected_opt, context_after_opt)
                     {
                         if let Some(obj) = result.as_object_mut() {
-                            obj.insert(
-                                "context_before".to_string(),
-                                json!(before),
-                            );
-                            obj.insert(
-                                "context_selected".to_string(),
-                                json!(selected),
-                            );
-                            obj.insert(
-                                "context_after".to_string(),
-                                json!(after),
-                            );
+                            obj.insert("context_before".to_string(), json!(before));
+                            obj.insert("context_selected".to_string(), json!(selected));
+                            obj.insert("context_after".to_string(), json!(after));
                         }
                     }
 
@@ -3255,15 +3582,22 @@ fn execute_search(
                 "count": results.len(),
             });
 
-            let payload = serde_json::to_string_pretty(&output)
-                .map_err(|e| splice::SpliceError::Other(format!("Failed to serialize JSON: {}", e)))?;
+            let payload = serde_json::to_string_pretty(&output).map_err(|e| {
+                splice::SpliceError::Other(format!("Failed to serialize JSON: {}", e))
+            })?;
             println!("{}", payload);
 
             Ok(splice::cli::CliSuccessPayload::message_only("OK".to_string()).already_emitted())
         } else {
             // Human-readable output
             for m in &matches {
-                println!("{}:{}:{}: {}", m.file.display(), m.line, m.column, m.matched_text);
+                println!(
+                    "{}:{}:{}: {}",
+                    m.file.display(),
+                    m.line,
+                    m.column,
+                    m.matched_text
+                );
 
                 // Show context if requested
                 if ctx_before > 0 || ctx_after > 0 {
@@ -3331,7 +3665,10 @@ fn execute_status(
 
     if json_output {
         Ok(splice::cli::CliSuccessPayload::with_data(
-            format!("Database has {} files, {} symbols", stats.files, stats.symbols),
+            format!(
+                "Database has {} files, {} symbols",
+                stats.files, stats.symbols
+            ),
             data,
         ))
     } else {
@@ -3373,7 +3710,9 @@ fn execute_find(
         // Search by name
         integration.find_symbol_by_name(n, ambiguous)?
     } else {
-        return Err(splice::SpliceError::Other("--name or --symbol-id required".to_string()));
+        return Err(splice::SpliceError::Other(
+            "--name or --symbol-id required".to_string(),
+        ));
     };
 
     if results.is_empty() {
@@ -3388,13 +3727,15 @@ fn execute_find(
     if json_output {
         let symbols_data: Vec<serde_json::Value> = results
             .iter()
-            .map(|s| serde_json::json!({
-                "name": s.name,
-                "kind": s.kind,
-                "file_path": s.file_path,
-                "byte_start": s.byte_start,
-                "byte_end": s.byte_end,
-            }))
+            .map(|s| {
+                serde_json::json!({
+                    "name": s.name,
+                    "kind": s.kind,
+                    "file_path": s.file_path,
+                    "byte_start": s.byte_start,
+                    "byte_end": s.byte_end,
+                })
+            })
             .collect();
 
         Ok(splice::cli::CliSuccessPayload::with_data(
@@ -3404,7 +3745,12 @@ fn execute_find(
     } else {
         let lines: Vec<String> = results
             .iter()
-            .map(|s| format!("{} :: {} at {}:{}", s.kind, s.name, s.file_path, s.byte_start))
+            .map(|s| {
+                format!(
+                    "{} :: {} at {}:{}",
+                    s.kind, s.name, s.file_path, s.byte_start
+                )
+            })
             .collect();
         let message = format!("Found {} symbol(s):\n{}", count, lines.join("\n"));
         Ok(splice::cli::CliSuccessPayload::message_only(message))
@@ -3438,21 +3784,25 @@ fn execute_refs(
         let callers_data: Vec<serde_json::Value> = relationships
             .callers
             .iter()
-            .map(|c| serde_json::json!({
-                "name": c.symbol.name,
-                "kind": c.symbol.kind,
-                "file_path": c.symbol.file_path,
-            }))
+            .map(|c| {
+                serde_json::json!({
+                    "name": c.symbol.name,
+                    "kind": c.symbol.kind,
+                    "file_path": c.symbol.file_path,
+                })
+            })
             .collect();
 
         let callees_data: Vec<serde_json::Value> = relationships
             .callees
             .iter()
-            .map(|c| serde_json::json!({
-                "name": c.symbol.name,
-                "kind": c.symbol.kind,
-                "file_path": c.symbol.file_path,
-            }))
+            .map(|c| {
+                serde_json::json!({
+                    "name": c.symbol.name,
+                    "kind": c.symbol.kind,
+                    "file_path": c.symbol.file_path,
+                })
+            })
             .collect();
 
         Ok(splice::cli::CliSuccessPayload::with_data(
@@ -3468,19 +3818,28 @@ fn execute_refs(
             }),
         ))
     } else {
-        let mut lines = vec![format!("Symbol: {} :: {}", relationships.symbol.kind, relationships.symbol.name)];
+        let mut lines = vec![format!(
+            "Symbol: {} :: {}",
+            relationships.symbol.kind, relationships.symbol.name
+        )];
 
         if !relationships.callers.is_empty() {
             lines.push(format!("  Callers ({}):", relationships.callers.len()));
             for caller in &relationships.callers {
-                lines.push(format!("    - {} :: {} at {}", caller.symbol.kind, caller.symbol.name, caller.symbol.file_path));
+                lines.push(format!(
+                    "    - {} :: {} at {}",
+                    caller.symbol.kind, caller.symbol.name, caller.symbol.file_path
+                ));
             }
         }
 
         if !relationships.callees.is_empty() {
             lines.push(format!("  Callees ({}):", relationships.callees.len()));
             for callee in &relationships.callees {
-                lines.push(format!("    - {} :: {} at {}", callee.symbol.kind, callee.symbol.name, callee.symbol.file_path));
+                lines.push(format!(
+                    "    - {} :: {} at {}",
+                    callee.symbol.kind, callee.symbol.name, callee.symbol.file_path
+                ));
             }
         }
 
@@ -3572,9 +3931,7 @@ fn execute_export(
     // Collect symbols from first 100 files (for safety)
     for file_metadata in files.iter().take(100) {
         let file_path = std::path::PathBuf::from(&file_metadata.path);
-        if let Ok(symbols) =
-            integration.query_symbols_by_file(&file_path, None, false, false)
-        {
+        if let Ok(symbols) = integration.query_symbols_by_file(&file_path, None, false, false) {
             for swr in symbols {
                 let sym = swr.symbol;
                 let symbol_id = generate_symbol_id(&sym.name, &sym.file_path, sym.byte_start);
@@ -3663,8 +4020,9 @@ fn write_export<W: std::io::Write>(
 
             // Write files with type tag
             for file in &response.data.files {
-                let json = serde_json::to_string(file)
-                    .map_err(|e| splice::SpliceError::Other(format!("JSON serialization error: {}", e)))?;
+                let json = serde_json::to_string(file).map_err(|e| {
+                    splice::SpliceError::Other(format!("JSON serialization error: {}", e))
+                })?;
                 writeln!(writer, r#"{{"type": "file", "data": {}}}"#, json)
                     .map_err(|e| splice::SpliceError::Other(format!("Write error: {}", e)))?;
             }
@@ -3687,8 +4045,9 @@ fn write_export<W: std::io::Write>(
             {
                 let mut wtr = Writer::from_writer(&mut writer);
                 for file in &response.data.files {
-                    wtr.serialize(file)
-                        .map_err(|e| splice::SpliceError::Other(format!("CSV write error: {}", e)))?;
+                    wtr.serialize(file).map_err(|e| {
+                        splice::SpliceError::Other(format!("CSV write error: {}", e))
+                    })?;
                 }
                 wtr.flush()
                     .map_err(|e| splice::SpliceError::Other(format!("CSV flush error: {}", e)))?;
@@ -3700,8 +4059,9 @@ fn write_export<W: std::io::Write>(
             {
                 let mut wtr = Writer::from_writer(&mut writer);
                 for symbol in &response.data.symbols {
-                    wtr.serialize(symbol)
-                        .map_err(|e| splice::SpliceError::Other(format!("CSV write error: {}", e)))?;
+                    wtr.serialize(symbol).map_err(|e| {
+                        splice::SpliceError::Other(format!("CSV write error: {}", e))
+                    })?;
                 }
                 wtr.flush()
                     .map_err(|e| splice::SpliceError::Other(format!("CSV flush error: {}", e)))?;
@@ -3741,16 +4101,20 @@ fn execute_migrate_db(
                     println!("Current schema: v{}", version);
                     println!("Target schema: v6");
                     println!("Migration required: yes");
-                    println!("\nTo migrate, run: splice migrate-db --db-path {}", db_path.display());
+                    println!(
+                        "\nTo migrate, run: splice migrate-db --db-path {}",
+                        db_path.display()
+                    );
                 } else {
                     println!("Current schema: v{}", version);
                     println!("Target schema: v6");
                     println!("Migration required: no (already on v6 or later)");
                 }
 
-                return Ok(splice::cli::CliSuccessPayload::message_only(
-                    format!("Schema check complete: v{}", version),
-                ));
+                return Ok(splice::cli::CliSuccessPayload::message_only(format!(
+                    "Schema check complete: v{}",
+                    version
+                )));
             }
             Err(e) => {
                 return Err(splice::SpliceError::Other(format!(
@@ -3786,7 +4150,10 @@ fn execute_migrate_db(
                 }),
             ))
         }
-        Err(e) => Err(splice::SpliceError::Other(format!("Migration failed: {}", e))),
+        Err(e) => Err(splice::SpliceError::Other(format!(
+            "Migration failed: {}",
+            e
+        ))),
     }
 }
 
@@ -3858,12 +4225,11 @@ fn execute_rename(
     };
 
     // Open Magellan database
-    let mut magellan = MagellanIntegration::open(db_path).map_err(|e| {
-        splice::SpliceError::RenameFailed {
+    let mut magellan =
+        MagellanIntegration::open(db_path).map_err(|e| splice::SpliceError::RenameFailed {
             reason: format!("Failed to open database: {}", e),
             symbol: new_name.to_string(),
-        }
-    })?;
+        })?;
 
     // Resolve symbol (ID-first with name+path fallback)
     let symbol_info = if let Some(id) = lookup_id {
@@ -3884,12 +4250,12 @@ fn execute_rename(
         let file_path = lookup_file.unwrap();
 
         // First, find ALL matches (ambiguous=true) to provide complete error context
-        let mut all_matches = magellan
-            .find_symbol_by_name(name_str, true)
-            .map_err(|e| splice::SpliceError::RenameFailed {
+        let mut all_matches = magellan.find_symbol_by_name(name_str, true).map_err(|e| {
+            splice::SpliceError::RenameFailed {
                 reason: format!("Failed to lookup symbol name: {}", e),
                 symbol: name_str.to_string(),
-            })?;
+            }
+        })?;
 
         if all_matches.is_empty() {
             return Err(splice::SpliceError::RenameFailed {
@@ -3950,12 +4316,13 @@ fn execute_rename(
 
     // Pre-flight validation: symbol must exist and have references
     let entity_id = symbol_info.entity_id;
-    let mut references = magellan
-        .get_all_references(entity_id)
-        .map_err(|e| splice::SpliceError::RenameFailed {
-            reason: format!("Failed to get references: {}", e),
-            symbol: symbol_info.name.clone(),
-        })?;
+    let mut references =
+        magellan
+            .get_all_references(entity_id)
+            .map_err(|e| splice::SpliceError::RenameFailed {
+                reason: format!("Failed to get references: {}", e),
+                symbol: symbol_info.name.clone(),
+            })?;
 
     if references.is_empty() {
         return Err(splice::SpliceError::RenameFailed {
@@ -3984,18 +4351,12 @@ fn execute_rename(
     if preview {
         let mut diffs = Vec::new();
         for (file_path, refs) in &grouped {
-            let content = fs::read_to_string(file_path).map_err(|e| {
-                splice::SpliceError::Io {
-                    path: file_path.clone(),
-                    source: e,
-                }
+            let content = fs::read_to_string(file_path).map_err(|e| splice::SpliceError::Io {
+                path: file_path.clone(),
+                source: e,
             })?;
-            let modified = rename::simulate_replacements_content(
-                &content,
-                refs,
-                &symbol_info.name,
-                new_name,
-            )?;
+            let modified =
+                rename::simulate_replacements_content(&content, refs, &symbol_info.name, new_name)?;
             let diff = rename::generate_colored_preview(file_path, &content, &modified);
             diffs.push(diff);
         }
@@ -4010,9 +4371,8 @@ fn execute_rename(
     }
 
     // DETERMINE WORKSPACE ROOT
-    let workspace_root = std::env::current_dir().map_err(|e| {
-        splice::SpliceError::Other(format!("Failed to get workspace root: {}", e))
-    })?;
+    let workspace_root = std::env::current_dir()
+        .map_err(|e| splice::SpliceError::Other(format!("Failed to get workspace root: {}", e)))?;
 
     // CREATE BACKUP (unless skipped)
     let backup_dir_path = if !no_backup {
@@ -4036,12 +4396,7 @@ fn execute_rename(
     let mut last_error: Option<splice::SpliceError> = None;
 
     for (file_path, refs) in grouped {
-        match rename::apply_replacements_in_file(
-            &file_path,
-            &symbol_info.name,
-            new_name,
-            &refs,
-        ) {
+        match rename::apply_replacements_in_file(&file_path, &symbol_info.name, new_name, &refs) {
             Ok(count) => {
                 if count > 0 {
                     modified_count += 1;
@@ -4131,16 +4486,19 @@ fn execute_reachable(
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::MagellanIntegration;
-    use splice::output::{ReachabilityResult, ReachabilityChain, AffectedFile, SymbolInfo};
+    use splice::output::{AffectedFile, ReachabilityChain, ReachabilityResult, SymbolInfo};
 
     // Get path string early
-    let path_str = path.to_str()
+    let path_str = path
+        .to_str()
         .ok_or_else(|| splice::SpliceError::Other("Invalid UTF-8 in path".to_string()))?;
 
     // First, open database and get root symbol info (requires mutable access)
     let root_symbol_info = {
         let mut integration = MagellanIntegration::open(db_path)?;
-        let symbol_facts = integration.inner_mut().symbol_extents(path_str, symbol)
+        let symbol_facts = integration
+            .inner_mut()
+            .symbol_extents(path_str, symbol)
             .map_err(|e| splice::SpliceError::Other(format!("Failed to find symbol: {}", e)))?;
 
         if symbol_facts.is_empty() {
@@ -4191,16 +4549,25 @@ fn execute_reachable(
     affected_files.insert(root_symbol_info.file_path.clone(), (0, true)); // root file
 
     for reachable in &forward_symbols {
-        let entry = affected_files.entry(reachable.symbol.file_path.clone()).or_insert((0, false));
+        let entry = affected_files
+            .entry(reachable.symbol.file_path.clone())
+            .or_insert((0, false));
         entry.0 += 1;
     }
     for reachable in &reverse_symbols {
-        let entry = affected_files.entry(reachable.symbol.file_path.clone()).or_insert((0, false));
+        let entry = affected_files
+            .entry(reachable.symbol.file_path.clone())
+            .or_insert((0, false));
         entry.0 += 1;
     }
 
-    let affected_files_vec: Vec<AffectedFile> = affected_files.into_iter()
-        .map(|(path, (count, is_root))| AffectedFile { path, symbol_count: count, is_root })
+    let affected_files_vec: Vec<AffectedFile> = affected_files
+        .into_iter()
+        .map(|(path, (count, is_root))| AffectedFile {
+            path,
+            symbol_count: count,
+            is_root,
+        })
         .collect();
 
     // Build result
@@ -4216,42 +4583,52 @@ fn execute_reachable(
         },
         direction: format!("{:?}", direction).to_lowercase(),
         max_depth,
-        forward: if forward_symbols.is_empty() { None } else {
+        forward: if forward_symbols.is_empty() {
+            None
+        } else {
             Some(ReachabilityChain {
                 count: forward_symbols.len(),
                 depth: forward_symbols.iter().map(|s| s.depth).max().unwrap_or(0),
-                symbols: forward_symbols.into_iter().map(|s| splice::output::ReachableSymbol {
-                    symbol: SymbolInfo {
-                        symbol_id: None,
-                        id_format: None,
-                        name: s.symbol.name,
-                        kind: s.symbol.kind,
-                        file_path: s.symbol.file_path,
-                        byte_start: s.symbol.byte_start,
-                        byte_end: s.symbol.byte_end,
-                    },
-                    depth: s.depth,
-                    path: s.path,
-                }).collect(),
+                symbols: forward_symbols
+                    .into_iter()
+                    .map(|s| splice::output::ReachableSymbol {
+                        symbol: SymbolInfo {
+                            symbol_id: None,
+                            id_format: None,
+                            name: s.symbol.name,
+                            kind: s.symbol.kind,
+                            file_path: s.symbol.file_path,
+                            byte_start: s.symbol.byte_start,
+                            byte_end: s.symbol.byte_end,
+                        },
+                        depth: s.depth,
+                        path: s.path,
+                    })
+                    .collect(),
             })
         },
-        reverse: if reverse_symbols.is_empty() { None } else {
+        reverse: if reverse_symbols.is_empty() {
+            None
+        } else {
             Some(ReachabilityChain {
                 count: reverse_symbols.len(),
                 depth: reverse_symbols.iter().map(|s| s.depth).max().unwrap_or(0),
-                symbols: reverse_symbols.into_iter().map(|s| splice::output::ReachableSymbol {
-                    symbol: SymbolInfo {
-                        symbol_id: None,
-                        id_format: None,
-                        name: s.symbol.name,
-                        kind: s.symbol.kind,
-                        file_path: s.symbol.file_path,
-                        byte_start: s.symbol.byte_start,
-                        byte_end: s.symbol.byte_end,
-                    },
-                    depth: s.depth,
-                    path: s.path,
-                }).collect(),
+                symbols: reverse_symbols
+                    .into_iter()
+                    .map(|s| splice::output::ReachableSymbol {
+                        symbol: SymbolInfo {
+                            symbol_id: None,
+                            id_format: None,
+                            name: s.symbol.name,
+                            kind: s.symbol.kind,
+                            file_path: s.symbol.file_path,
+                            byte_start: s.symbol.byte_start,
+                            byte_end: s.symbol.byte_end,
+                        },
+                        depth: s.depth,
+                        path: s.path,
+                    })
+                    .collect(),
             })
         },
         affected_files: affected_files_vec,
@@ -4259,10 +4636,14 @@ fn execute_reachable(
 
     // Format output
     if output.is_json() || json_output {
-        let json = output.format_json(&result)
+        let json = output
+            .format_json(&result)
             .map_err(|e| splice::SpliceError::Other(format!("JSON serialization error: {}", e)))?;
         println!("{}", json);
-        Ok(splice::cli::CliSuccessPayload::message_only("Reachability analysis complete".to_string()).already_emitted())
+        Ok(splice::cli::CliSuccessPayload::message_only(
+            "Reachability analysis complete".to_string(),
+        )
+        .already_emitted())
     } else {
         // Human-readable output
         println!("Reachability Analysis for '{}' in {}", symbol, path_str);
@@ -4271,17 +4652,29 @@ fn execute_reachable(
         println!();
 
         if let Some(ref forward) = result.forward {
-            println!("Forward Reachability ({} callees, depth {}):", forward.count, forward.depth);
+            println!(
+                "Forward Reachability ({} callees, depth {}):",
+                forward.count, forward.depth
+            );
             for s in &forward.symbols {
-                println!("  {} (depth {}): {}", s.symbol.name, s.depth, s.symbol.file_path);
+                println!(
+                    "  {} (depth {}): {}",
+                    s.symbol.name, s.depth, s.symbol.file_path
+                );
             }
             println!();
         }
 
         if let Some(ref reverse) = result.reverse {
-            println!("Reverse Reachability ({} callers, depth {}):", reverse.count, reverse.depth);
+            println!(
+                "Reverse Reachability ({} callers, depth {}):",
+                reverse.count, reverse.depth
+            );
             for s in &reverse.symbols {
-                println!("  {} (depth {}): {}", s.symbol.name, s.depth, s.symbol.file_path);
+                println!(
+                    "  {} (depth {}): {}",
+                    s.symbol.name, s.depth, s.symbol.file_path
+                );
             }
             println!();
         }
@@ -4292,7 +4685,9 @@ fn execute_reachable(
             println!("  {}{} ({} symbols)", file.path, marker, file.symbol_count);
         }
 
-        Ok(splice::cli::CliSuccessPayload::message_only("Reachability analysis complete".to_string()))
+        Ok(splice::cli::CliSuccessPayload::message_only(
+            "Reachability analysis complete".to_string(),
+        ))
     }
 }
 
@@ -4318,9 +4713,12 @@ fn execute_cycles(
         let cycles = integration.find_cycles_containing(sym_path, sym_name, max_cycles)?;
 
         // Get queried symbol info
-        let path_str = sym_path.to_str()
+        let path_str = sym_path
+            .to_str()
             .ok_or_else(|| splice::SpliceError::Other("Invalid UTF-8 in path".to_string()))?;
-        let symbol_facts = integration.inner_mut().symbol_extents(path_str, sym_name)
+        let symbol_facts = integration
+            .inner_mut()
+            .symbol_extents(path_str, sym_name)
             .map_err(|e| splice::SpliceError::Other(format!("Failed to find symbol: {}", e)))?;
 
         let queried_symbol = if !symbol_facts.is_empty() {
@@ -4347,29 +4745,36 @@ fn execute_cycles(
     let total_cycles = cycles.len();
     let truncated = total_cycles >= max_cycles;
 
-    let result_cycles: Vec<CycleInfo> = cycles.into_iter().map(|c| CycleInfo {
-        id: c.id,
-        size: c.size,
-        members: c.members.into_iter().map(|s| SymbolInfo {
-            symbol_id: None,
-            id_format: None,
-            name: s.name,
-            kind: s.kind,
-            file_path: s.file_path,
-            byte_start: s.byte_start,
-            byte_end: s.byte_end,
-        }).collect(),
-        representative: SymbolInfo {
-            symbol_id: None,
-            id_format: None,
-            name: c.representative.name,
-            kind: c.representative.kind,
-            file_path: c.representative.file_path,
-            byte_start: c.representative.byte_start,
-            byte_end: c.representative.byte_end,
-        },
-        is_self_loop: c.is_self_loop,
-    }).collect();
+    let result_cycles: Vec<CycleInfo> = cycles
+        .into_iter()
+        .map(|c| CycleInfo {
+            id: c.id,
+            size: c.size,
+            members: c
+                .members
+                .into_iter()
+                .map(|s| SymbolInfo {
+                    symbol_id: None,
+                    id_format: None,
+                    name: s.name,
+                    kind: s.kind,
+                    file_path: s.file_path,
+                    byte_start: s.byte_start,
+                    byte_end: s.byte_end,
+                })
+                .collect(),
+            representative: SymbolInfo {
+                symbol_id: None,
+                id_format: None,
+                name: c.representative.name,
+                kind: c.representative.kind,
+                file_path: c.representative.file_path,
+                byte_start: c.representative.byte_start,
+                byte_end: c.representative.byte_end,
+            },
+            is_self_loop: c.is_self_loop,
+        })
+        .collect();
 
     let result = CycleDetectionResult {
         total_cycles,
@@ -4381,10 +4786,14 @@ fn execute_cycles(
 
     // Format output
     if output.is_json() || json_output {
-        let json = output.format_json(&result)
+        let json = output
+            .format_json(&result)
             .map_err(|e| splice::SpliceError::Other(format!("JSON serialization error: {}", e)))?;
         println!("{}", json);
-        Ok(splice::cli::CliSuccessPayload::message_only("Cycle detection complete".to_string()).already_emitted())
+        Ok(
+            splice::cli::CliSuccessPayload::message_only("Cycle detection complete".to_string())
+                .already_emitted(),
+        )
     } else {
         // Human-readable output
         if let Some(ref qs) = result.queried_symbol {
@@ -4405,7 +4814,10 @@ fn execute_cycles(
 
             for cycle in &result.cycles {
                 println!("Cycle {} [{}]:", cycle.id, cycle.size);
-                println!("  Representative: {} ({})", cycle.representative.name, cycle.representative.kind);
+                println!(
+                    "  Representative: {} ({})",
+                    cycle.representative.name, cycle.representative.kind
+                );
                 if cycle.is_self_loop {
                     println!("  Type: Self-loop");
                 }
@@ -4419,7 +4831,9 @@ fn execute_cycles(
             }
         }
 
-        Ok(splice::cli::CliSuccessPayload::message_only("Cycle detection complete".to_string()))
+        Ok(splice::cli::CliSuccessPayload::message_only(
+            "Cycle detection complete".to_string(),
+        ))
     }
 }
 
@@ -4434,50 +4848,64 @@ fn execute_condense(
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::MagellanIntegration;
-    use splice::output::{CondensationResult, CondensedScc, SccEdge, LevelInfo, SymbolInfo};
+    use splice::output::{CondensationResult, CondensedScc, LevelInfo, SccEdge, SymbolInfo};
 
     let mut integration = MagellanIntegration::open(db_path)?;
     let graph = integration.condense_graph()?;
 
     // Build SCC result with optional members
-    let sccs: Vec<CondensedScc> = graph.sccs.into_iter().map(|scc| {
-        let members = if show_members {
-            // Members would need to be tracked during condensation
-            // For now, leave as None - could be populated from scc_members
-            None
-        } else {
-            None
-        };
+    let sccs: Vec<CondensedScc> = graph
+        .sccs
+        .into_iter()
+        .map(|scc| {
+            let members = if show_members {
+                // Members would need to be tracked during condensation
+                // For now, leave as None - could be populated from scc_members
+                None
+            } else {
+                None
+            };
 
-        CondensedScc {
-            id: scc.id,
-            size: scc.size,
-            is_cycle: scc.is_cycle,
-            members,
-            representative: SymbolInfo {
-                symbol_id: None,
-                id_format: None,
-                name: scc.representative.name,
-                kind: scc.representative.kind,
-                file_path: scc.representative.file_path,
-                byte_start: scc.representative.byte_start,
-                byte_end: scc.representative.byte_end,
-            },
-        }
-    }).collect();
+            CondensedScc {
+                id: scc.id,
+                size: scc.size,
+                is_cycle: scc.is_cycle,
+                members,
+                representative: SymbolInfo {
+                    symbol_id: None,
+                    id_format: None,
+                    name: scc.representative.name,
+                    kind: scc.representative.kind,
+                    file_path: scc.representative.file_path,
+                    byte_start: scc.representative.byte_start,
+                    byte_end: scc.representative.byte_end,
+                },
+            }
+        })
+        .collect();
 
-    let edges: Vec<SccEdge> = graph.edges.into_iter().map(|e| SccEdge {
-        from: e.from,
-        to: e.to,
-        weight: e.weight,
-    }).collect();
+    let edges: Vec<SccEdge> = graph
+        .edges
+        .into_iter()
+        .map(|e| SccEdge {
+            from: e.from,
+            to: e.to,
+            weight: e.weight,
+        })
+        .collect();
 
     let levels: Option<Vec<LevelInfo>> = if show_levels {
-        Some(graph.levels.into_iter().map(|l| LevelInfo {
-            level: l.level,
-            scc_ids: l.scc_ids,
-            count: l.count,
-        }).collect())
+        Some(
+            graph
+                .levels
+                .into_iter()
+                .map(|l| LevelInfo {
+                    level: l.level,
+                    scc_ids: l.scc_ids,
+                    count: l.count,
+                })
+                .collect(),
+        )
     } else {
         None
     };
@@ -4493,10 +4921,14 @@ fn execute_condense(
 
     // Format output
     if output.is_json() || json_output {
-        let json = output.format_json(&result)
+        let json = output
+            .format_json(&result)
             .map_err(|e| splice::SpliceError::Other(format!("JSON serialization error: {}", e)))?;
         println!("{}", json);
-        Ok(splice::cli::CliSuccessPayload::message_only("Condensation analysis complete".to_string()).already_emitted())
+        Ok(splice::cli::CliSuccessPayload::message_only(
+            "Condensation analysis complete".to_string(),
+        )
+        .already_emitted())
     } else {
         // Human-readable output
         println!("Condensation Graph Analysis");
@@ -4514,8 +4946,10 @@ fn execute_condense(
                     println!("  Level {} ({} SCCs):", level.level, level.count);
                     for scc_id in &level.scc_ids {
                         if let Some(scc) = result.sccs.iter().find(|s| &s.id == scc_id) {
-                            println!("    {} - {} (size: {}, cycle: {})",
-                                scc.id, scc.representative.name, scc.size, scc.is_cycle);
+                            println!(
+                                "    {} - {} (size: {}, cycle: {})",
+                                scc.id, scc.representative.name, scc.size, scc.is_cycle
+                            );
                         }
                     }
                 }
@@ -4529,14 +4963,19 @@ fn execute_condense(
             println!("  (none)");
         } else {
             for scc in cycle_sccs {
-                println!("  {} - {} (size: {})", scc.id, scc.representative.name, scc.size);
+                println!(
+                    "  {} - {} (size: {})",
+                    scc.id, scc.representative.name, scc.size
+                );
             }
         }
         println!();
 
         println!("Edges in Condensed Graph: {}", result.edges.len());
 
-        Ok(splice::cli::CliSuccessPayload::message_only("Condensation analysis complete".to_string()))
+        Ok(splice::cli::CliSuccessPayload::message_only(
+            "Condensation analysis complete".to_string(),
+        ))
     }
 }
 
@@ -4553,7 +4992,7 @@ fn execute_slice(
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::MagellanIntegration;
-    use splice::output::{SliceResult, SlicedSymbol, SliceStats, AffectedFile, SymbolInfo};
+    use splice::output::{AffectedFile, SliceResult, SliceStats, SlicedSymbol, SymbolInfo};
     use std::collections::HashMap;
 
     let mut integration = MagellanIntegration::open(db_path)?;
@@ -4569,18 +5008,25 @@ fn execute_slice(
     };
 
     // Get target symbol info
-    let path_str = path.to_str()
+    let path_str = path
+        .to_str()
         .ok_or_else(|| splice::SpliceError::Other("Invalid UTF-8 in path".to_string()))?;
-    let target_facts = integration.inner_mut().symbol_extents(path_str, target)
+    let target_facts = integration
+        .inner_mut()
+        .symbol_extents(path_str, target)
         .map_err(|e| splice::SpliceError::Other(format!("Failed to find target: {}", e)))?;
 
-    let (_target_id, target_fact) = target_facts.first()
+    let (_target_id, target_fact) = target_facts
+        .first()
         .ok_or_else(|| splice::SpliceError::Other("Target symbol not found".to_string()))?;
 
     let target_symbol = SymbolInfo {
         symbol_id: None,
         id_format: None,
-        name: target_fact.name.clone().unwrap_or_else(|| target.to_string()),
+        name: target_fact
+            .name
+            .clone()
+            .unwrap_or_else(|| target.to_string()),
         kind: target_fact.kind_normalized.clone(),
         file_path: target_fact.file_path.to_string_lossy().to_string(),
         byte_start: target_fact.byte_start,
@@ -4590,11 +5036,14 @@ fn execute_slice(
     // Compute affected files
     let mut affected_files: HashMap<String, usize> = HashMap::new();
     for ss in &sliced_symbols {
-        *affected_files.entry(ss.symbol.file_path.clone()).or_insert(0) += 1;
+        *affected_files
+            .entry(ss.symbol.file_path.clone())
+            .or_insert(0) += 1;
     }
 
     let target_file_path = target_symbol.file_path.clone();
-    let affected_files_result: Vec<AffectedFile> = affected_files.into_iter()
+    let affected_files_result: Vec<AffectedFile> = affected_files
+        .into_iter()
         .map(|(path, count)| AffectedFile {
             is_root: path == target_file_path,
             path,
@@ -4603,10 +5052,7 @@ fn execute_slice(
         .collect();
 
     // Compute stats
-    let max_distance = sliced_symbols.iter()
-        .map(|s| s.distance)
-        .max()
-        .unwrap_or(0);
+    let max_distance = sliced_symbols.iter().map(|s| s.distance).max().unwrap_or(0);
 
     let stats = SliceStats {
         total_symbols: sliced_symbols.len(),
@@ -4614,7 +5060,8 @@ fn execute_slice(
         affected_file_count: affected_files_result.len(),
     };
 
-    let symbols_result: Vec<SlicedSymbol> = sliced_symbols.into_iter()
+    let symbols_result: Vec<SlicedSymbol> = sliced_symbols
+        .into_iter()
         .map(|ss| SlicedSymbol {
             symbol: SymbolInfo {
                 symbol_id: None,
@@ -4642,15 +5089,22 @@ fn execute_slice(
 
     // Format output
     if output.is_json() || json_output {
-        let json = output.format_json(&result)
+        let json = output
+            .format_json(&result)
             .map_err(|e| splice::SpliceError::Other(format!("JSON serialization error: {}", e)))?;
         println!("{}", json);
-        Ok(splice::cli::CliSuccessPayload::message_only("Program slice complete".to_string()).already_emitted())
+        Ok(
+            splice::cli::CliSuccessPayload::message_only("Program slice complete".to_string())
+                .already_emitted(),
+        )
     } else {
         // Human-readable output
-        println!("Program Slice: {} {} from '{}'",
+        println!(
+            "Program Slice: {} {} from '{}'",
             result.direction,
-            result.max_depth.map_or("(unlimited)".to_string(), |d| format!("(max depth {})", d)),
+            result
+                .max_depth
+                .map_or("(unlimited)".to_string(), |d| format!("(max depth {})", d)),
             result.target.name
         );
         println!();
@@ -4670,16 +5124,15 @@ fn execute_slice(
         println!("Symbols in Slice:");
         for ss in &result.symbols {
             let target_marker = if ss.is_target { " [TARGET]" } else { "" };
-            println!("  [d={:2}] {}{} in {} ({})",
-                ss.distance,
-                ss.symbol.name,
-                target_marker,
-                ss.symbol.file_path,
-                ss.relationship
+            println!(
+                "  [d={:2}] {}{} in {} ({})",
+                ss.distance, ss.symbol.name, target_marker, ss.symbol.file_path, ss.relationship
             );
         }
 
-        Ok(splice::cli::CliSuccessPayload::message_only("Program slice complete".to_string()))
+        Ok(splice::cli::CliSuccessPayload::message_only(
+            "Program slice complete".to_string(),
+        ))
     }
 }
 
@@ -4693,18 +5146,23 @@ fn execute_dead_code(
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::MagellanIntegration;
-    use splice::output::{DeadCodeResult, DeadCodeByFile, SymbolInfo};
+    use splice::output::{DeadCodeByFile, DeadCodeResult, SymbolInfo};
     use std::collections::HashMap;
 
     // Get path string early
-    let path_str = path.to_str()
+    let path_str = path
+        .to_str()
         .ok_or_else(|| splice::SpliceError::Other("Invalid UTF-8 in path".to_string()))?;
 
     // Open Magellan database and get entry point symbol info
     let entry_symbol_info = {
         let mut integration = MagellanIntegration::open(db_path)?;
-        let symbol_facts = integration.inner_mut().symbol_extents(path_str, entry)
-            .map_err(|e| splice::SpliceError::Other(format!("Failed to find entry point: {}", e)))?;
+        let symbol_facts = integration
+            .inner_mut()
+            .symbol_extents(path_str, entry)
+            .map_err(|e| {
+                splice::SpliceError::Other(format!("Failed to find entry point: {}", e))
+            })?;
 
         if symbol_facts.is_empty() {
             return Err(splice::SpliceError::SymbolNotFound {
@@ -4732,11 +5190,15 @@ fn execute_dead_code(
     let mut integration = MagellanIntegration::open(db_path)?;
 
     // Get total symbol count
-    let file_nodes = integration.inner_mut().all_file_nodes()
+    let file_nodes = integration
+        .inner_mut()
+        .all_file_nodes()
         .map_err(|e| splice::SpliceError::Other(format!("Failed to get file nodes: {}", e)))?;
     let mut total_symbols = 0;
     for file_path in file_nodes.keys() {
-        let symbols = integration.inner_mut().symbols_in_file(file_path)
+        let symbols = integration
+            .inner_mut()
+            .symbols_in_file(file_path)
             .map_err(|e| splice::SpliceError::Other(format!("Failed to get symbols: {}", e)))?;
         total_symbols += symbols.len();
     }
@@ -4749,15 +5211,48 @@ fn execute_dead_code(
 
     // Group by file if requested
     let dead_by_file = if group_by_file {
-        let mut by_file: HashMap<String, Vec<splice::graph::magellan_integration::DeadSymbol>> = HashMap::new();
+        let mut by_file: HashMap<String, Vec<splice::graph::magellan_integration::DeadSymbol>> =
+            HashMap::new();
         for ds in dead_symbols {
-            by_file.entry(ds.symbol.file_path.clone()).or_default().push(ds);
+            by_file
+                .entry(ds.symbol.file_path.clone())
+                .or_default()
+                .push(ds);
         }
 
-        by_file.into_iter()
+        by_file
+            .into_iter()
             .map(|(path, symbols)| {
                 let count = symbols.len();
-                let output_symbols = symbols.into_iter().map(|ds| splice::output::DeadSymbol {
+                let output_symbols = symbols
+                    .into_iter()
+                    .map(|ds| splice::output::DeadSymbol {
+                        symbol: SymbolInfo {
+                            symbol_id: None,
+                            id_format: None,
+                            name: ds.symbol.name,
+                            kind: ds.symbol.kind,
+                            file_path: ds.symbol.file_path,
+                            byte_start: ds.symbol.byte_start,
+                            byte_end: ds.symbol.byte_end,
+                        },
+                        reason: ds.reason,
+                    })
+                    .collect();
+                DeadCodeByFile {
+                    path,
+                    count,
+                    symbols: output_symbols,
+                }
+            })
+            .collect()
+    } else {
+        vec![DeadCodeByFile {
+            path: "all".to_string(),
+            count: dead_count,
+            symbols: dead_symbols
+                .into_iter()
+                .map(|ds| splice::output::DeadSymbol {
                     symbol: SymbolInfo {
                         symbol_id: None,
                         id_format: None,
@@ -4768,26 +5263,8 @@ fn execute_dead_code(
                         byte_end: ds.symbol.byte_end,
                     },
                     reason: ds.reason,
-                }).collect();
-                DeadCodeByFile { path, count, symbols: output_symbols }
-            })
-            .collect()
-    } else {
-        vec![DeadCodeByFile {
-            path: "all".to_string(),
-            count: dead_count,
-            symbols: dead_symbols.into_iter().map(|ds| splice::output::DeadSymbol {
-                symbol: SymbolInfo {
-                    symbol_id: None,
-                    id_format: None,
-                    name: ds.symbol.name,
-                    kind: ds.symbol.kind,
-                    file_path: ds.symbol.file_path,
-                    byte_start: ds.symbol.byte_start,
-                    byte_end: ds.symbol.byte_end,
-                },
-                reason: ds.reason,
-            }).collect(),
+                })
+                .collect(),
         }]
     };
 
@@ -4810,10 +5287,16 @@ fn execute_dead_code(
 
     // Format output
     if output.is_json() || json_output {
-        let json = output.format_json(&result)
+        let json = output
+            .format_json(&result)
             .map_err(|e| splice::SpliceError::Other(format!("JSON serialization error: {}", e)))?;
         println!("{}", json);
-        Ok(splice::cli::CliSuccessPayload::message_only("Dead code detection complete".to_string()).already_emitted())
+        Ok(
+            splice::cli::CliSuccessPayload::message_only(
+                "Dead code detection complete".to_string(),
+            )
+            .already_emitted(),
+        )
     } else {
         // Human-readable output
         println!("Dead Code Detection");
@@ -4837,7 +5320,9 @@ fn execute_dead_code(
             }
         }
 
-        Ok(splice::cli::CliSuccessPayload::message_only("Dead code detection complete".to_string()))
+        Ok(splice::cli::CliSuccessPayload::message_only(
+            "Dead code detection complete".to_string(),
+        ))
     }
 }
 
@@ -4863,7 +5348,10 @@ fn write_stdout_line(line: &str) -> Result<(), splice::SpliceError> {
 }
 
 /// Emit JSON payload for successful CLI responses.
-fn emit_success_payload(payload: &splice::cli::CliSuccessPayload, _json_output: bool) -> Result<(), splice::SpliceError> {
+fn emit_success_payload(
+    payload: &splice::cli::CliSuccessPayload,
+    _json_output: bool,
+) -> Result<(), splice::SpliceError> {
     // If payload was already emitted (e.g., --json mode with OperationResult), skip
     if payload.already_emitted {
         return Ok(());

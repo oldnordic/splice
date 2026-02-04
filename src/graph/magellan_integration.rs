@@ -44,11 +44,9 @@ impl MagellanIntegration {
             .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", db_path)))?;
 
         // Convert anyhow::Error to SpliceError::Magellan for proper error mapping
-        let inner = MagellanGraph::open(db_path_str).map_err(|e| {
-            SpliceError::Magellan {
-                context: format!("Failed to open Magellan graph at {}", db_path_str),
-                source: e,
-            }
+        let inner = MagellanGraph::open(db_path_str).map_err(|e| SpliceError::Magellan {
+            context: format!("Failed to open Magellan graph at {}", db_path_str),
+            source: e,
         })?;
 
         Ok(Self {
@@ -252,7 +250,10 @@ impl MagellanIntegration {
             self.inner.symbols_in_file(path_str)
         }
         .map_err(|e| {
-            SpliceError::Other(format!("Failed to query symbols in file {}: {}", path_str, e))
+            SpliceError::Other(format!(
+                "Failed to query symbols in file {}: {}",
+                path_str, e
+            ))
         })?;
 
         // Convert to SymbolWithRelations, optionally fetching relationships
@@ -274,12 +275,21 @@ impl MagellanIntegration {
             };
 
             let (callers, callees) = if with_callers || with_callees {
-                self.fetch_call_relationships_for_symbol(path_str, &name, with_callers, with_callees)?
+                self.fetch_call_relationships_for_symbol(
+                    path_str,
+                    &name,
+                    with_callers,
+                    with_callees,
+                )?
             } else {
                 (Vec::new(), Vec::new())
             };
 
-            results.push(SymbolWithRelations { symbol, callers, callees });
+            results.push(SymbolWithRelations {
+                symbol,
+                callers,
+                callees,
+            });
         }
 
         Ok(results)
@@ -304,8 +314,9 @@ impl MagellanIntegration {
             for fact in call_facts {
                 // Resolve caller name to SymbolInfo
                 // CallFact contains the caller's file_path and name
-                if let Ok(caller_symbols) =
-                    self.inner.symbol_extents(&fact.file_path.to_string_lossy(), &fact.caller)
+                if let Ok(caller_symbols) = self
+                    .inner
+                    .symbol_extents(&fact.file_path.to_string_lossy(), &fact.caller)
                 {
                     for (_id, caller_fact) in caller_symbols {
                         callers.push(SymbolInfo {
@@ -329,8 +340,9 @@ impl MagellanIntegration {
             for fact in call_facts {
                 // Resolve callee name to SymbolInfo
                 // CallFact contains the callee's file_path and name
-                if let Ok(callee_symbols) =
-                    self.inner.symbol_extents(&fact.file_path.to_string_lossy(), &fact.callee)
+                if let Ok(callee_symbols) = self
+                    .inner
+                    .symbol_extents(&fact.file_path.to_string_lossy(), &fact.callee)
                 {
                     for (_id, callee_fact) in callee_symbols {
                         callees.push(SymbolInfo {
@@ -361,11 +373,7 @@ impl MagellanIntegration {
     /// # Performance
     /// This requires O(N) file queries where N = number of indexed files.
     /// Magellan has no global symbol name index.
-    pub fn find_symbol_by_name(
-        &mut self,
-        name: &str,
-        ambiguous: bool,
-    ) -> Result<Vec<SymbolInfo>> {
+    pub fn find_symbol_by_name(&mut self, name: &str, ambiguous: bool) -> Result<Vec<SymbolInfo>> {
         let mut results = Vec::new();
 
         // Get all indexed files
@@ -422,13 +430,14 @@ impl MagellanIntegration {
         use rusqlite::Connection;
 
         let conn = Connection::open(&self.db_path).map_err(|e| {
-            SpliceError::Other(format!("Failed to open database for symbol ID lookup: {}", e))
+            SpliceError::Other(format!(
+                "Failed to open database for symbol ID lookup: {}",
+                e
+            ))
         })?;
 
         let mut stmt = conn
-            .prepare(
-                "SELECT id, name, file_path, data FROM graph_entities WHERE kind = 'Symbol'",
-            )
+            .prepare("SELECT id, name, file_path, data FROM graph_entities WHERE kind = 'Symbol'")
             .map_err(|e| SpliceError::Other(format!("Failed to prepare query: {}", e)))?;
 
         let symbol_rows = stmt
@@ -447,17 +456,14 @@ impl MagellanIntegration {
                 row_result.map_err(|e| SpliceError::Other(format!("Failed to read row: {}", e)))?;
 
             // Parse the JSON data to get byte_start
-            let data: serde_json::Value =
-                serde_json::from_str(&data_json).map_err(|e| {
-                    SpliceError::Other(format!("Failed to parse symbol data JSON: {}", e))
-                })?;
+            let data: serde_json::Value = serde_json::from_str(&data_json).map_err(|e| {
+                SpliceError::Other(format!("Failed to parse symbol data JSON: {}", e))
+            })?;
 
             let byte_start = data
                 .get("byte_start")
                 .and_then(|v| v.as_u64())
-                .ok_or_else(|| {
-                    SpliceError::Other("Symbol data missing byte_start".to_string())
-                })?;
+                .ok_or_else(|| SpliceError::Other("Symbol data missing byte_start".to_string()))?;
             let byte_start = byte_start as usize;
 
             // Try V2 (32-char BLAKE3) first, then V1 (16-char SHA-256) for backward compatibility
@@ -540,10 +546,12 @@ impl MagellanIntegration {
             .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
 
         // Get the target symbol info first
-        let symbol_facts = self
-            .inner
-            .symbol_extents(path_str, name)
-            .map_err(|e| SpliceError::Other(format!("Failed to find symbol {} in {}: {}", name, path_str, e)))?;
+        let symbol_facts = self.inner.symbol_extents(path_str, name).map_err(|e| {
+            SpliceError::Other(format!(
+                "Failed to find symbol {} in {}: {}",
+                name, path_str, e
+            ))
+        })?;
 
         if symbol_facts.is_empty() {
             return Err(SpliceError::Other(format!(
@@ -616,7 +624,9 @@ impl MagellanIntegration {
             let symbol_infos = self
                 .inner
                 .symbol_extents(&ref_path_str, ref_name)
-                .map_err(|e| SpliceError::Other(format!("Failed to resolve symbol {}: {}", ref_name, e)))?;
+                .map_err(|e| {
+                    SpliceError::Other(format!("Failed to resolve symbol {}: {}", ref_name, e))
+                })?;
 
             for (entity_id, symbol_fact) in symbol_infos {
                 let symbol = SymbolInfo {
@@ -652,34 +662,37 @@ impl MagellanIntegration {
     ///
     /// # Returns
     /// Vector of file metadata for all indexed files.
-    pub fn list_indexed_files(
-        &mut self,
-        with_symbol_counts: bool,
-    ) -> Result<Vec<FileMetadata>> {
-        let file_nodes = self.inner.all_file_nodes()
+    pub fn list_indexed_files(&mut self, with_symbol_counts: bool) -> Result<Vec<FileMetadata>> {
+        let file_nodes = self
+            .inner
+            .all_file_nodes()
             .map_err(|e| SpliceError::Other(format!("Failed to get file nodes: {}", e)))?;
 
-        file_nodes.into_iter().map(|(path, node)| {
-            let symbol_count = if with_symbol_counts {
-                Some(self.count_symbols_in_file(&path)?)
-            } else {
-                None
-            };
+        file_nodes
+            .into_iter()
+            .map(|(path, node)| {
+                let symbol_count = if with_symbol_counts {
+                    Some(self.count_symbols_in_file(&path)?)
+                } else {
+                    None
+                };
 
-            Ok(FileMetadata {
-                path,
-                hash: node.hash,
-                last_indexed_at: node.last_indexed_at,
-                last_modified: node.last_modified,
-                symbol_count,
+                Ok(FileMetadata {
+                    path,
+                    hash: node.hash,
+                    last_indexed_at: node.last_indexed_at,
+                    last_modified: node.last_modified,
+                    symbol_count,
+                })
             })
-        }).collect()
+            .collect()
     }
 
     /// Count symbols for a specific file.
     fn count_symbols_in_file(&mut self, path: &str) -> Result<usize> {
-        let symbols = self.inner.symbols_in_file(path)
-            .map_err(|e| SpliceError::Other(format!("Failed to count symbols in {}: {}", path, e)))?;
+        let symbols = self.inner.symbols_in_file(path).map_err(|e| {
+            SpliceError::Other(format!("Failed to count symbols in {}: {}", path, e))
+        })?;
         Ok(symbols.len())
     }
 
@@ -702,7 +715,7 @@ impl MagellanIntegration {
                     // Descending order prevents offset shifts from affecting later replacements
                     b.byte_start.cmp(&a.byte_start)
                 }
-                other => other
+                other => other,
             }
         });
     }
@@ -734,9 +747,8 @@ impl MagellanIntegration {
 
         // Convert to str for char_boundary checking
         // SAFETY: We only validate boundaries, not content validity
-        let content_str = std::str::from_utf8(content).map_err(|_| SpliceError::Other(
-            "File content is not valid UTF-8".to_string()
-        ))?;
+        let content_str = std::str::from_utf8(content)
+            .map_err(|_| SpliceError::Other("File content is not valid UTF-8".to_string()))?;
 
         // Check start is on character boundary
         if !content_str.is_char_boundary(byte_start) {
@@ -767,10 +779,16 @@ impl MagellanIntegration {
     ///
     /// # Returns
     /// Vector of ReferenceFact entries with byte spans
-    pub fn get_all_references(&mut self, entity_id: i64) -> Result<Vec<magellan::references::ReferenceFact>> {
-        self.inner
-            .references_to_symbol(entity_id)
-            .map_err(|e| SpliceError::Other(format!("Failed to get references for entity {}: {}", entity_id, e)))
+    pub fn get_all_references(
+        &mut self,
+        entity_id: i64,
+    ) -> Result<Vec<magellan::references::ReferenceFact>> {
+        self.inner.references_to_symbol(entity_id).map_err(|e| {
+            SpliceError::Other(format!(
+                "Failed to get references for entity {}: {}",
+                entity_id, e
+            ))
+        })
     }
 
     /// Index references for a file into the graph.
@@ -798,7 +816,12 @@ impl MagellanIntegration {
 
         self.inner
             .index_references(file_path_str, &source)
-            .map_err(|e| SpliceError::Other(format!("Failed to index references for {:?}: {}", file_path, e)))
+            .map_err(|e| {
+                SpliceError::Other(format!(
+                    "Failed to index references for {:?}: {}",
+                    file_path, e
+                ))
+            })
     }
 
     /// Get forward reachability (callees) from a symbol.
@@ -826,13 +849,23 @@ impl MagellanIntegration {
         let mut queue = std::collections::VecDeque::new();
 
         // Start with direct callees at depth 1
-        let calls = self.inner.calls_from_symbol(path_str, name)
+        let calls = self
+            .inner
+            .calls_from_symbol(path_str, name)
             .map_err(|e| SpliceError::Other(format!("Failed to get callees: {}", e)))?;
 
         for call in calls {
-            let key = (call.file_path.to_string_lossy().to_string(), call.callee.clone());
+            let key = (
+                call.file_path.to_string_lossy().to_string(),
+                call.callee.clone(),
+            );
             if visited.insert(key.clone()) {
-                queue.push_back((call.callee.clone(), call.file_path.to_string_lossy().to_string(), 1, vec![name.to_string()]));
+                queue.push_back((
+                    call.callee.clone(),
+                    call.file_path.to_string_lossy().to_string(),
+                    1,
+                    vec![name.to_string()],
+                ));
             }
         }
 
@@ -861,14 +894,24 @@ impl MagellanIntegration {
 
                     // Continue traversal if not at max depth
                     if depth < max_depth {
-                        let next_calls = self.inner.calls_from_symbol(&symbol_path, &symbol_name)
+                        let next_calls = self
+                            .inner
+                            .calls_from_symbol(&symbol_path, &symbol_name)
                             .unwrap_or_default();
                         for call in next_calls {
-                            let key = (call.file_path.to_string_lossy().to_string(), call.callee.clone());
+                            let key = (
+                                call.file_path.to_string_lossy().to_string(),
+                                call.callee.clone(),
+                            );
                             if visited.insert(key.clone()) {
                                 let mut new_path = path.clone();
                                 new_path.push(symbol_name.clone());
-                                queue.push_back((call.callee.clone(), call.file_path.to_string_lossy().to_string(), depth + 1, new_path));
+                                queue.push_back((
+                                    call.callee.clone(),
+                                    call.file_path.to_string_lossy().to_string(),
+                                    depth + 1,
+                                    new_path,
+                                ));
                             }
                         }
                     }
@@ -903,13 +946,23 @@ impl MagellanIntegration {
         let mut visited = std::collections::HashSet::new();
         let mut queue = std::collections::VecDeque::new();
 
-        let callers = self.inner.callers_of_symbol(path_str, name)
+        let callers = self
+            .inner
+            .callers_of_symbol(path_str, name)
             .map_err(|e| SpliceError::Other(format!("Failed to get callers: {}", e)))?;
 
         for call in callers {
-            let key = (call.file_path.to_string_lossy().to_string(), call.caller.clone());
+            let key = (
+                call.file_path.to_string_lossy().to_string(),
+                call.caller.clone(),
+            );
             if visited.insert(key.clone()) {
-                queue.push_back((call.caller.clone(), call.file_path.to_string_lossy().to_string(), 1, vec![name.to_string()]));
+                queue.push_back((
+                    call.caller.clone(),
+                    call.file_path.to_string_lossy().to_string(),
+                    1,
+                    vec![name.to_string()],
+                ));
             }
         }
 
@@ -935,14 +988,24 @@ impl MagellanIntegration {
                     result.push(symbol);
 
                     if depth < max_depth {
-                        let next_callers = self.inner.callers_of_symbol(&symbol_path, &symbol_name)
+                        let next_callers = self
+                            .inner
+                            .callers_of_symbol(&symbol_path, &symbol_name)
                             .unwrap_or_default();
                         for call in next_callers {
-                            let key = (call.file_path.to_string_lossy().to_string(), call.caller.clone());
+                            let key = (
+                                call.file_path.to_string_lossy().to_string(),
+                                call.caller.clone(),
+                            );
                             if visited.insert(key.clone()) {
                                 let mut new_path = path.clone();
                                 new_path.push(symbol_name.clone());
-                                queue.push_back((call.caller.clone(), call.file_path.to_string_lossy().to_string(), depth + 1, new_path));
+                                queue.push_back((
+                                    call.caller.clone(),
+                                    call.file_path.to_string_lossy().to_string(),
+                                    depth + 1,
+                                    new_path,
+                                ));
                             }
                         }
                     }
@@ -970,11 +1033,15 @@ impl MagellanIntegration {
         let mut call_graph: HashMap<(String, String), HashSet<(String, String)>> = HashMap::new();
         let mut all_symbols: HashSet<(String, String)> = HashSet::new();
 
-        let file_nodes = self.inner.all_file_nodes()
+        let file_nodes = self
+            .inner
+            .all_file_nodes()
             .map_err(|e| SpliceError::Other(format!("Failed to get file nodes: {}", e)))?;
 
         for file_path in file_nodes.keys() {
-            let symbols = self.inner.symbols_in_file(file_path)
+            let symbols = self
+                .inner
+                .symbols_in_file(file_path)
                 .map_err(|e| SpliceError::Other(format!("Failed to get symbols: {}", e)))?;
 
             for fact in symbols {
@@ -988,11 +1055,16 @@ impl MagellanIntegration {
 
         // Add edges
         for (caller, callees) in call_graph.iter_mut() {
-            let calls = self.inner.calls_from_symbol(&caller.0, &caller.1)
+            let calls = self
+                .inner
+                .calls_from_symbol(&caller.0, &caller.1)
                 .unwrap_or_default();
 
             for call in calls {
-                let callee_key = (call.file_path.to_string_lossy().to_string(), call.callee.clone());
+                let callee_key = (
+                    call.file_path.to_string_lossy().to_string(),
+                    call.callee.clone(),
+                );
                 if all_symbols.contains(&callee_key) {
                     callees.insert(callee_key);
                 }
@@ -1053,9 +1125,10 @@ impl MagellanIntegration {
                 break;
             }
 
-            let contains_target = cycle.members.iter().any(|m| {
-                m.file_path == path_str && m.name == symbol_name
-            });
+            let contains_target = cycle
+                .members
+                .iter()
+                .any(|m| m.file_path == path_str && m.name == symbol_name);
 
             if contains_target {
                 matching_cycles.push(cycle);
@@ -1068,7 +1141,10 @@ impl MagellanIntegration {
     /// Find strongly connected components using iterative DFS.
     fn find_sccs(
         &self,
-        graph: &std::collections::HashMap<(String, String), std::collections::HashSet<(String, String)>>,
+        graph: &std::collections::HashMap<
+            (String, String),
+            std::collections::HashSet<(String, String)>,
+        >,
     ) -> Result<Vec<Vec<(String, String)>>> {
         use std::collections::{HashMap, HashSet};
 
@@ -1101,7 +1177,10 @@ impl MagellanIntegration {
     fn scc_dfs(
         &self,
         node: &(String, String),
-        graph: &std::collections::HashMap<(String, String), std::collections::HashSet<(String, String)>>,
+        graph: &std::collections::HashMap<
+            (String, String),
+            std::collections::HashSet<(String, String)>,
+        >,
         index: &mut i32,
         indices: &mut std::collections::HashMap<(String, String), i32>,
         lowlink: &mut std::collections::HashMap<(String, String), i32>,
@@ -1118,7 +1197,9 @@ impl MagellanIntegration {
         if let Some(neighbors) = graph.get(node) {
             for neighbor in neighbors {
                 if !indices.contains_key(neighbor) {
-                    self.scc_dfs(neighbor, graph, index, indices, lowlink, on_stack, stack, sccs)?;
+                    self.scc_dfs(
+                        neighbor, graph, index, indices, lowlink, on_stack, stack, sccs,
+                    )?;
                     let neighbor_low = *lowlink.get(neighbor).unwrap_or(&0);
                     let current_low = lowlink.get_mut(node).unwrap();
                     *current_low = (*current_low).min(neighbor_low);
@@ -1154,7 +1235,10 @@ impl MagellanIntegration {
     fn has_self_loop(
         &self,
         node: &(String, String),
-        graph: &std::collections::HashMap<(String, String), std::collections::HashSet<(String, String)>>,
+        graph: &std::collections::HashMap<
+            (String, String),
+            std::collections::HashSet<(String, String)>,
+        >,
     ) -> bool {
         if let Some(callees) = graph.get(node) {
             callees.contains(node)
@@ -1190,7 +1274,8 @@ impl MagellanIntegration {
         // Sort for representative selection
         members.sort_by(|a, b| a.name.cmp(&b.name));
 
-        let representative = members.first()
+        let representative = members
+            .first()
             .ok_or_else(|| SpliceError::Other("Empty cycle".to_string()))?
             .clone();
 
@@ -1220,20 +1305,23 @@ impl MagellanIntegration {
         entry_symbol: &str,
         exclude_public: bool,
     ) -> Result<Vec<DeadSymbol>> {
-        use std::collections::{HashSet, HashMap};
+        use std::collections::{HashMap, HashSet};
 
-        let entry_path_str = entry_file
-            .to_str()
-            .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", entry_file)))?;
+        let entry_path_str = entry_file.to_str().ok_or_else(|| {
+            SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", entry_file))
+        })?;
 
         // Step 1: Get all symbols in the database
         let mut all_symbols = HashMap::new();
-        let file_nodes = self.inner.all_file_nodes()
+        let file_nodes = self
+            .inner
+            .all_file_nodes()
             .map_err(|e| SpliceError::Other(format!("Failed to get file nodes: {}", e)))?;
 
         for file_path in file_nodes.keys() {
-            let symbols = self.inner.symbols_in_file(file_path)
-                .map_err(|e| SpliceError::Other(format!("Failed to get symbols in {}: {}", file_path, e)))?;
+            let symbols = self.inner.symbols_in_file(file_path).map_err(|e| {
+                SpliceError::Other(format!("Failed to get symbols in {}: {}", file_path, e))
+            })?;
 
             for fact in symbols {
                 if let Some(ref name) = fact.name {
@@ -1254,11 +1342,16 @@ impl MagellanIntegration {
 
         while let Some((file_path, symbol_name)) = queue.pop_front() {
             // Get all callees of this symbol
-            let callees = self.inner.calls_from_symbol(&file_path, &symbol_name)
+            let callees = self
+                .inner
+                .calls_from_symbol(&file_path, &symbol_name)
                 .unwrap_or_default();
 
             for call in callees {
-                let callee_key = (call.file_path.to_string_lossy().to_string(), call.callee.clone());
+                let callee_key = (
+                    call.file_path.to_string_lossy().to_string(),
+                    call.callee.clone(),
+                );
                 if visited.insert(callee_key.clone()) {
                     queue.push_back(callee_key);
                 }
@@ -1315,11 +1408,15 @@ impl MagellanIntegration {
             .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
 
         let mut result = Vec::new();
-        let mut visited: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
-        let mut queue: std::collections::VecDeque<(String, String, usize)> = std::collections::VecDeque::new();
+        let mut visited: std::collections::HashSet<(String, String)> =
+            std::collections::HashSet::new();
+        let mut queue: std::collections::VecDeque<(String, String, usize)> =
+            std::collections::VecDeque::new();
 
         // Get target symbol info
-        let target_facts = self.inner.symbol_extents(path_str, symbol_name)
+        let target_facts = self
+            .inner
+            .symbol_extents(path_str, symbol_name)
             .map_err(|e| SpliceError::Other(format!("Failed to find target: {}", e)))?;
 
         if target_facts.is_empty() {
@@ -1332,14 +1429,20 @@ impl MagellanIntegration {
         }
 
         let (target_id, target_fact) = &target_facts[0];
-        let target_key = (target_fact.file_path.to_string_lossy().to_string(), symbol_name.to_string());
+        let target_key = (
+            target_fact.file_path.to_string_lossy().to_string(),
+            symbol_name.to_string(),
+        );
         visited.insert(target_key.clone());
 
         // Add target symbol at distance 0
         result.push(SlicedSymbol {
             symbol: SymbolInfo {
                 entity_id: *target_id,
-                name: target_fact.name.clone().unwrap_or_else(|| symbol_name.to_string()),
+                name: target_fact
+                    .name
+                    .clone()
+                    .unwrap_or_else(|| symbol_name.to_string()),
                 file_path: target_fact.file_path.to_string_lossy().to_string(),
                 kind: target_fact.kind_normalized.clone(),
                 byte_start: target_fact.byte_start,
@@ -1351,11 +1454,16 @@ impl MagellanIntegration {
         });
 
         // BFS for forward slice
-        let calls = self.inner.calls_from_symbol(path_str, symbol_name)
+        let calls = self
+            .inner
+            .calls_from_symbol(path_str, symbol_name)
             .unwrap_or_default();
 
         for call in calls {
-            let key = (call.file_path.to_string_lossy().to_string(), call.callee.clone());
+            let key = (
+                call.file_path.to_string_lossy().to_string(),
+                call.callee.clone(),
+            );
             if visited.insert(key) {
                 queue.push_back((call.file_path.to_string_lossy().to_string(), call.callee, 1));
             }
@@ -1386,13 +1494,22 @@ impl MagellanIntegration {
                     });
 
                     // Continue BFS
-                    let next_calls = self.inner.calls_from_symbol(&file, &name)
+                    let next_calls = self
+                        .inner
+                        .calls_from_symbol(&file, &name)
                         .unwrap_or_default();
 
                     for call in next_calls {
-                        let key = (call.file_path.to_string_lossy().to_string(), call.callee.clone());
+                        let key = (
+                            call.file_path.to_string_lossy().to_string(),
+                            call.callee.clone(),
+                        );
                         if visited.insert(key) {
-                            queue.push_back((call.file_path.to_string_lossy().to_string(), call.callee, dist + 1));
+                            queue.push_back((
+                                call.file_path.to_string_lossy().to_string(),
+                                call.callee,
+                                dist + 1,
+                            ));
                         }
                     }
                 }
@@ -1424,11 +1541,15 @@ impl MagellanIntegration {
             .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
 
         let mut result = Vec::new();
-        let mut visited: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
-        let mut queue: std::collections::VecDeque<(String, String, usize)> = std::collections::VecDeque::new();
+        let mut visited: std::collections::HashSet<(String, String)> =
+            std::collections::HashSet::new();
+        let mut queue: std::collections::VecDeque<(String, String, usize)> =
+            std::collections::VecDeque::new();
 
         // Get target symbol info
-        let target_facts = self.inner.symbol_extents(path_str, symbol_name)
+        let target_facts = self
+            .inner
+            .symbol_extents(path_str, symbol_name)
             .map_err(|e| SpliceError::Other(format!("Failed to find target: {}", e)))?;
 
         if target_facts.is_empty() {
@@ -1441,14 +1562,20 @@ impl MagellanIntegration {
         }
 
         let (target_id, target_fact) = &target_facts[0];
-        let target_key = (target_fact.file_path.to_string_lossy().to_string(), symbol_name.to_string());
+        let target_key = (
+            target_fact.file_path.to_string_lossy().to_string(),
+            symbol_name.to_string(),
+        );
         visited.insert(target_key.clone());
 
         // Add target symbol at distance 0
         result.push(SlicedSymbol {
             symbol: SymbolInfo {
                 entity_id: *target_id,
-                name: target_fact.name.clone().unwrap_or_else(|| symbol_name.to_string()),
+                name: target_fact
+                    .name
+                    .clone()
+                    .unwrap_or_else(|| symbol_name.to_string()),
                 file_path: target_fact.file_path.to_string_lossy().to_string(),
                 kind: target_fact.kind_normalized.clone(),
                 byte_start: target_fact.byte_start,
@@ -1460,11 +1587,16 @@ impl MagellanIntegration {
         });
 
         // BFS for backward slice
-        let callers = self.inner.callers_of_symbol(path_str, symbol_name)
+        let callers = self
+            .inner
+            .callers_of_symbol(path_str, symbol_name)
             .unwrap_or_default();
 
         for call in callers {
-            let key = (call.file_path.to_string_lossy().to_string(), call.caller.clone());
+            let key = (
+                call.file_path.to_string_lossy().to_string(),
+                call.caller.clone(),
+            );
             if visited.insert(key) {
                 queue.push_back((call.file_path.to_string_lossy().to_string(), call.caller, 1));
             }
@@ -1495,13 +1627,22 @@ impl MagellanIntegration {
                     });
 
                     // Continue BFS
-                    let next_callers = self.inner.callers_of_symbol(&file, &name)
+                    let next_callers = self
+                        .inner
+                        .callers_of_symbol(&file, &name)
                         .unwrap_or_default();
 
                     for call in next_callers {
-                        let key = (call.file_path.to_string_lossy().to_string(), call.caller.clone());
+                        let key = (
+                            call.file_path.to_string_lossy().to_string(),
+                            call.caller.clone(),
+                        );
                         if visited.insert(key) {
-                            queue.push_back((call.file_path.to_string_lossy().to_string(), call.caller, dist + 1));
+                            queue.push_back((
+                                call.file_path.to_string_lossy().to_string(),
+                                call.caller,
+                                dist + 1,
+                            ));
                         }
                     }
                 }
@@ -1521,11 +1662,15 @@ impl MagellanIntegration {
         let mut call_graph: HashMap<(String, String), HashSet<(String, String)>> = HashMap::new();
         let mut all_symbols: Vec<(String, String)> = Vec::new();
 
-        let file_nodes = self.inner.all_file_nodes()
+        let file_nodes = self
+            .inner
+            .all_file_nodes()
             .map_err(|e| SpliceError::Other(format!("Failed to get file nodes: {}", e)))?;
 
         for file_path in file_nodes.keys() {
-            let symbols = self.inner.symbols_in_file(file_path)
+            let symbols = self
+                .inner
+                .symbols_in_file(file_path)
                 .map_err(|e| SpliceError::Other(format!("Failed to get symbols: {}", e)))?;
 
             for fact in symbols {
@@ -1541,11 +1686,16 @@ impl MagellanIntegration {
         // First collect all valid callees, then add them to avoid borrow issues
         let mut edges_to_add: Vec<((String, String), (String, String))> = Vec::new();
         for caller in call_graph.keys() {
-            let calls = self.inner.calls_from_symbol(&caller.0, &caller.1)
+            let calls = self
+                .inner
+                .calls_from_symbol(&caller.0, &caller.1)
                 .unwrap_or_default();
 
             for call in calls {
-                let callee_key = (call.file_path.to_string_lossy().to_string(), call.callee.clone());
+                let callee_key = (
+                    call.file_path.to_string_lossy().to_string(),
+                    call.callee.clone(),
+                );
                 if call_graph.contains_key(&callee_key) {
                     edges_to_add.push((caller.clone(), callee_key));
                 }
@@ -1583,7 +1733,8 @@ impl MagellanIntegration {
                 let callee_scc = symbol_to_scc.get(callee).copied().unwrap_or(usize::MAX);
 
                 // Only edges between different SCCs
-                if caller_scc != callee_scc && caller_scc != usize::MAX && callee_scc != usize::MAX {
+                if caller_scc != callee_scc && caller_scc != usize::MAX && callee_scc != usize::MAX
+                {
                     *scc_edges.entry((caller_scc, callee_scc)).or_insert(0) += 1;
                 }
             }
@@ -1606,7 +1757,8 @@ impl MagellanIntegration {
 
         // Topological sort to assign levels
         let mut levels: Vec<Vec<usize>> = Vec::new();
-        let mut queue: Vec<usize> = in_degree.iter()
+        let mut queue: Vec<usize> = in_degree
+            .iter()
             .filter(|(_, &deg)| deg == 0)
             .map(|(&id, _)| id)
             .collect();
@@ -1631,22 +1783,37 @@ impl MagellanIntegration {
         }
 
         // Build result
-        let sccs_result: Vec<CondensedScc> = scc_members.iter().enumerate().map(|(id, members)| {
-            let is_cycle = members.len() > 1;
-            let representative = if let Some((path, name)) = members.first() {
-                match self.inner.symbol_extents(path, name) {
-                    Ok(facts) => {
-                        if let Some((eid, fact)) = facts.first() {
-                            SymbolInfo {
-                                entity_id: *eid,
-                                name: fact.name.clone().unwrap_or_else(|| name.clone()),
-                                file_path: fact.file_path.to_string_lossy().to_string(),
-                                kind: fact.kind_normalized.clone(),
-                                byte_start: fact.byte_start,
-                                byte_end: fact.byte_end,
+        let sccs_result: Vec<CondensedScc> = scc_members
+            .iter()
+            .enumerate()
+            .map(|(id, members)| {
+                let is_cycle = members.len() > 1;
+                let representative = if let Some((path, name)) = members.first() {
+                    match self.inner.symbol_extents(path, name) {
+                        Ok(facts) => {
+                            if let Some((eid, fact)) = facts.first() {
+                                SymbolInfo {
+                                    entity_id: *eid,
+                                    name: fact.name.clone().unwrap_or_else(|| name.clone()),
+                                    file_path: fact.file_path.to_string_lossy().to_string(),
+                                    kind: fact.kind_normalized.clone(),
+                                    byte_start: fact.byte_start,
+                                    byte_end: fact.byte_end,
+                                }
+                            } else {
+                                // Fallback if no facts found
+                                SymbolInfo {
+                                    entity_id: 0,
+                                    name: name.clone(),
+                                    file_path: path.clone(),
+                                    kind: "Unknown".to_string(),
+                                    byte_start: 0,
+                                    byte_end: 0,
+                                }
                             }
-                        } else {
-                            // Fallback if no facts found
+                        }
+                        Err(_) => {
+                            // Fallback on error
                             SymbolInfo {
                                 entity_id: 0,
                                 name: name.clone(),
@@ -1657,40 +1824,30 @@ impl MagellanIntegration {
                             }
                         }
                     }
-                    Err(_) => {
-                        // Fallback on error
-                        SymbolInfo {
-                            entity_id: 0,
-                            name: name.clone(),
-                            file_path: path.clone(),
-                            kind: "Unknown".to_string(),
-                            byte_start: 0,
-                            byte_end: 0,
-                        }
+                } else {
+                    // Empty SCC - shouldn't happen but handle gracefully
+                    SymbolInfo {
+                        entity_id: 0,
+                        name: "unknown".to_string(),
+                        file_path: "unknown".to_string(),
+                        kind: "Unknown".to_string(),
+                        byte_start: 0,
+                        byte_end: 0,
                     }
-                }
-            } else {
-                // Empty SCC - shouldn't happen but handle gracefully
-                SymbolInfo {
-                    entity_id: 0,
-                    name: "unknown".to_string(),
-                    file_path: "unknown".to_string(),
-                    kind: "Unknown".to_string(),
-                    byte_start: 0,
-                    byte_end: 0,
-                }
-            };
+                };
 
-            CondensedScc {
-                id: format!("scc-{}", id),
-                size: members.len(),
-                is_cycle,
-                members: None, // populated separately if needed
-                representative,
-            }
-        }).collect();
+                CondensedScc {
+                    id: format!("scc-{}", id),
+                    size: members.len(),
+                    is_cycle,
+                    members: None, // populated separately if needed
+                    representative,
+                }
+            })
+            .collect();
 
-        let edges_result: Vec<SccEdge> = scc_edges.into_iter()
+        let edges_result: Vec<SccEdge> = scc_edges
+            .into_iter()
             .map(|((from, to), weight)| SccEdge {
                 from: format!("scc-{}", from),
                 to: format!("scc-{}", to),
@@ -1698,11 +1855,15 @@ impl MagellanIntegration {
             })
             .collect();
 
-        let levels_result: Vec<LevelInfo> = levels.iter().enumerate().map(|(level, sccs)| LevelInfo {
-            level,
-            scc_ids: sccs.iter().map(|id| format!("scc-{}", id)).collect(),
-            count: sccs.len(),
-        }).collect();
+        let levels_result: Vec<LevelInfo> = levels
+            .iter()
+            .enumerate()
+            .map(|(level, sccs)| LevelInfo {
+                level,
+                scc_ids: sccs.iter().map(|id| format!("scc-{}", id)).collect(),
+                count: sccs.len(),
+            })
+            .collect();
 
         Ok(CondensationGraph {
             scc_count: scc_members.len(),
@@ -2104,12 +2265,9 @@ mod tests {
         let file_path = Path::new("/test.rs");
 
         // Valid span
-        assert!(MagellanIntegration::validate_utf8_span(
-            content.as_bytes(),
-            0,
-            5,
-            file_path
-        ).is_ok());
+        assert!(
+            MagellanIntegration::validate_utf8_span(content.as_bytes(), 0, 5, file_path).is_ok()
+        );
 
         // Full span
         assert!(MagellanIntegration::validate_utf8_span(
@@ -2117,7 +2275,8 @@ mod tests {
             0,
             content.len(),
             file_path
-        ).is_ok());
+        )
+        .is_ok());
     }
 
     #[test]
@@ -2126,20 +2285,14 @@ mod tests {
         let file_path = Path::new("/test.rs");
 
         // Start beyond content length
-        assert!(MagellanIntegration::validate_utf8_span(
-            content.as_bytes(),
-            10,
-            15,
-            file_path
-        ).is_err());
+        assert!(
+            MagellanIntegration::validate_utf8_span(content.as_bytes(), 10, 15, file_path).is_err()
+        );
 
         // End beyond content length
-        assert!(MagellanIntegration::validate_utf8_span(
-            content.as_bytes(),
-            0,
-            10,
-            file_path
-        ).is_err());
+        assert!(
+            MagellanIntegration::validate_utf8_span(content.as_bytes(), 0, 10, file_path).is_err()
+        );
     }
 
     #[test]
@@ -2154,7 +2307,8 @@ mod tests {
             0,
             8, // Ends in middle of first Chinese character
             file_path
-        ).is_err());
+        )
+        .is_err());
 
         // Valid span (full multibyte character)
         assert!(MagellanIntegration::validate_utf8_span(
@@ -2162,7 +2316,8 @@ mod tests {
             6,
             9, // Exactly the first Chinese character
             file_path
-        ).is_ok());
+        )
+        .is_ok());
     }
 
     #[test]
@@ -2172,11 +2327,6 @@ mod tests {
         let file_path = Path::new("/test.rs");
 
         // Should fail because content is not valid UTF-8
-        assert!(MagellanIntegration::validate_utf8_span(
-            content,
-            0,
-            1,
-            file_path
-        ).is_err());
+        assert!(MagellanIntegration::validate_utf8_span(content, 0, 1, file_path).is_err());
     }
 }

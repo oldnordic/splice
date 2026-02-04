@@ -9,7 +9,9 @@
 //! while maintaining backward compatibility with v0.5.3.
 
 use regex::Regex;
-use splice::symbol_id::{generate_v1, generate_v2, generate_symbol_id, generate_execution_id, SymbolId};
+use splice::symbol_id::{
+    generate_execution_id, generate_symbol_id, generate_v1, generate_v2, SymbolId,
+};
 
 ///////////////////////////////////////////////////////////////////////////////
 // Symbol ID Format Tests
@@ -93,7 +95,10 @@ fn test_symbol_id_unique_different_inputs_v1() {
     // All different inputs should produce different IDs
     assert_ne!(id1, id2, "Different names should produce different V1 IDs");
     assert_ne!(id1, id3, "Different paths should produce different V1 IDs");
-    assert_ne!(id1, id4, "Different byte offsets should produce different V1 IDs");
+    assert_ne!(
+        id1, id4,
+        "Different byte offsets should produce different V1 IDs"
+    );
 
     // Verify transitivity: all different from each other
     assert_ne!(id2, id3);
@@ -111,7 +116,10 @@ fn test_symbol_id_unique_different_inputs_v2() {
     // All different inputs should produce different IDs
     assert_ne!(id1, id2, "Different names should produce different V2 IDs");
     assert_ne!(id1, id3, "Different paths should produce different V2 IDs");
-    assert_ne!(id1, id4, "Different byte offsets should produce different V2 IDs");
+    assert_ne!(
+        id1, id4,
+        "Different byte offsets should produce different V2 IDs"
+    );
 
     // Verify transitivity: all different from each other
     assert_ne!(id2, id3);
@@ -129,11 +137,17 @@ fn test_symbol_id_components_v1() {
 
     // ID changes when file_path changes
     let path_id = generate_v1("base", "other.rs", 0);
-    assert_ne!(base_id, path_id, "V1 ID should change when file_path changes");
+    assert_ne!(
+        base_id, path_id,
+        "V1 ID should change when file_path changes"
+    );
 
     // ID changes when byte_start changes
     let offset_id = generate_v1("base", "file.rs", 100);
-    assert_ne!(base_id, offset_id, "V1 ID should change when byte_start changes");
+    assert_ne!(
+        base_id, offset_id,
+        "V1 ID should change when byte_start changes"
+    );
 }
 
 #[test]
@@ -146,24 +160,23 @@ fn test_symbol_id_components_v2() {
 
     // ID changes when file_path changes
     let path_id = generate_v2("base", "other.rs", 0);
-    assert_ne!(base_id, path_id, "V2 ID should change when file_path changes");
+    assert_ne!(
+        base_id, path_id,
+        "V2 ID should change when file_path changes"
+    );
 
     // ID changes when byte_start changes
     let offset_id = generate_v2("base", "file.rs", 100);
-    assert_ne!(base_id, offset_id, "V2 ID should change when byte_start changes");
+    assert_ne!(
+        base_id, offset_id,
+        "V2 ID should change when byte_start changes"
+    );
 }
 
 #[test]
 fn test_symbol_id_unicode_v1() {
     // Test with Unicode symbol names (verify UTF-8 handling)
-    let unicode_names = vec![
-        "café",
-        "函数",
-        "функция",
-        "関数",
-        "الأمر",
-        "test_emoji_🦀",
-    ];
+    let unicode_names = vec!["café", "函数", "функция", "関数", "الأمر", "test_emoji_🦀"];
 
     for name in unicode_names {
         let id = generate_v1(name, "src/test.rs", 0);
@@ -189,14 +202,7 @@ fn test_symbol_id_unicode_v1() {
 #[test]
 fn test_symbol_id_unicode_v2() {
     // Test with Unicode symbol names (verify UTF-8 handling)
-    let unicode_names = vec![
-        "café",
-        "函数",
-        "функция",
-        "関数",
-        "الأمر",
-        "test_emoji_🦀",
-    ];
+    let unicode_names = vec!["café", "函数", "функция", "関数", "الأمر", "test_emoji_🦀"];
 
     for name in unicode_names {
         let id = generate_v2(name, "src/test.rs", 0);
@@ -223,7 +229,11 @@ fn test_symbol_id_unicode_v2() {
 fn test_symbol_id_edge_cases_v1() {
     // Empty string
     let id1 = generate_v1("", "src/test.rs", 0);
-    assert_eq!(id1.as_str().len(), 16, "Empty name should produce valid V1 ID");
+    assert_eq!(
+        id1.as_str().len(),
+        16,
+        "Empty name should produce valid V1 ID"
+    );
 
     // Very long name
     let long_name = "a".repeat(10000);
@@ -235,7 +245,12 @@ fn test_symbol_id_edge_cases_v1() {
     );
 
     // Special characters
-    let special_names = vec!["test!@#$%", "test\nnewline", "test\ttab", "path/with/slashes"];
+    let special_names = vec![
+        "test!@#$%",
+        "test\nnewline",
+        "test\ttab",
+        "path/with/slashes",
+    ];
     for name in special_names {
         let id = generate_v1(name, "src/test.rs", 0);
         assert_eq!(
@@ -247,7 +262,11 @@ fn test_symbol_id_edge_cases_v1() {
 
     // Empty path
     let id3 = generate_v1("func", "", 0);
-    assert_eq!(id3.as_str().len(), 16, "Empty path should produce valid V1 ID");
+    assert_eq!(
+        id3.as_str().len(),
+        16,
+        "Empty path should produce valid V1 ID"
+    );
 
     // Very long path
     let long_path = "/".repeat(1000);
@@ -271,7 +290,11 @@ fn test_symbol_id_edge_cases_v1() {
 fn test_symbol_id_edge_cases_v2() {
     // Empty string
     let id1 = generate_v2("", "src/test.rs", 0);
-    assert_eq!(id1.as_str().len(), 32, "Empty name should produce valid V2 ID");
+    assert_eq!(
+        id1.as_str().len(),
+        32,
+        "Empty name should produce valid V2 ID"
+    );
 
     // Very long name
     let long_name = "a".repeat(10000);
@@ -283,7 +306,12 @@ fn test_symbol_id_edge_cases_v2() {
     );
 
     // Special characters
-    let special_names = vec!["test!@#$%", "test\nnewline", "test\ttab", "path/with/slashes"];
+    let special_names = vec![
+        "test!@#$%",
+        "test\nnewline",
+        "test\ttab",
+        "path/with/slashes",
+    ];
     for name in special_names {
         let id = generate_v2(name, "src/test.rs", 0);
         assert_eq!(
@@ -295,7 +323,11 @@ fn test_symbol_id_edge_cases_v2() {
 
     // Empty path
     let id3 = generate_v2("func", "", 0);
-    assert_eq!(id3.as_str().len(), 32, "Empty path should produce valid V2 ID");
+    assert_eq!(
+        id3.as_str().len(),
+        32,
+        "Empty path should produce valid V2 ID"
+    );
 
     // Very long path
     let long_path = "/".repeat(1000);
@@ -351,13 +383,16 @@ fn test_execution_id_timestamp_valid() {
     let exec_id = generate_execution_id();
     let parts: Vec<&str> = exec_id.split('-').collect();
 
-    assert_eq!(parts.len(), 2, "Execution ID should have 2 parts separated by -");
+    assert_eq!(
+        parts.len(),
+        2,
+        "Execution ID should have 2 parts separated by -"
+    );
 
     let timestamp_hex = parts[0];
 
     // Parse timestamp from hex
-    let timestamp = u32::from_str_radix(timestamp_hex, 16)
-        .expect("Timestamp should be valid hex");
+    let timestamp = u32::from_str_radix(timestamp_hex, 16).expect("Timestamp should be valid hex");
 
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -365,11 +400,17 @@ fn test_execution_id_timestamp_valid() {
         .unwrap_or(0);
 
     // Timestamp should be within reasonable range (last 60 seconds, or within 60 seconds in future due to clock skew)
-    let time_diff = if now > timestamp { now - timestamp } else { timestamp - now };
+    let time_diff = if now > timestamp {
+        now - timestamp
+    } else {
+        timestamp - now
+    };
     assert!(
         time_diff < 60,
         "Timestamp should be within 60 seconds of current time. Got: {}, now: {}, diff: {}",
-        timestamp, now, time_diff
+        timestamp,
+        now,
+        time_diff
     );
 }
 
@@ -379,8 +420,7 @@ fn test_execution_id_pid_matches() {
     let parts: Vec<&str> = exec_id.split('-').collect();
 
     let pid_hex = parts[1];
-    let pid_from_id = u16::from_str_radix(pid_hex, 16)
-        .expect("PID should be valid hex");
+    let pid_from_id = u16::from_str_radix(pid_hex, 16).expect("PID should be valid hex");
 
     let actual_pid = std::process::id() as u16;
 
@@ -403,21 +443,21 @@ fn test_execution_id_uniqueness() {
     // All should have valid format
     let exec_regex = Regex::new(r"^[0-9a-f]{8}-[0-9a-f]{4}$").unwrap();
     for id in &ids {
-        assert!(exec_regex.is_match(id), "ID should have valid format: {}", id);
+        assert!(
+            exec_regex.is_match(id),
+            "ID should have valid format: {}",
+            id
+        );
     }
 
     // All IDs should have the same PID
-    let pids: std::collections::HashSet<_> = ids
-        .iter()
-        .map(|id| id.split('-').nth(1).unwrap())
-        .collect();
+    let pids: std::collections::HashSet<_> =
+        ids.iter().map(|id| id.split('-').nth(1).unwrap()).collect();
     assert_eq!(pids.len(), 1, "All IDs should have the same PID");
 
     // All IDs should have the same timestamp (generated within same second)
-    let timestamps: std::collections::HashSet<_> = ids
-        .iter()
-        .map(|id| id.split('-').next().unwrap())
-        .collect();
+    let timestamps: std::collections::HashSet<_> =
+        ids.iter().map(|id| id.split('-').next().unwrap()).collect();
     assert_eq!(
         timestamps.len(),
         1,
@@ -457,15 +497,24 @@ fn test_symbol_id_parse_dual_format() {
 
     // Invalid: too short
     let err = SymbolId::parse("abc123").unwrap_err();
-    assert!(matches!(err, splice::symbol_id::SymbolIdError::InvalidLength { length: 6 }));
+    assert!(matches!(
+        err,
+        splice::symbol_id::SymbolIdError::InvalidLength { length: 6 }
+    ));
 
     // Invalid: wrong length (not 16 or 32)
     let err = SymbolId::parse("a1b2c3d4e5f678901234").unwrap_err();
-    assert!(matches!(err, splice::symbol_id::SymbolIdError::InvalidLength { .. }));
+    assert!(matches!(
+        err,
+        splice::symbol_id::SymbolIdError::InvalidLength { .. }
+    ));
 
     // Invalid: non-hex
     let err = SymbolId::parse("abcdefghijklmnop").unwrap_err();
-    assert!(matches!(err, splice::symbol_id::SymbolIdError::InvalidHex { .. }));
+    assert!(matches!(
+        err,
+        splice::symbol_id::SymbolIdError::InvalidHex { .. }
+    ));
 
     // Invalid: uppercase
     let err = SymbolId::parse("A1B2C3D4E5F67890").unwrap_err();
@@ -480,7 +529,10 @@ fn test_symbol_id_from_generated_v1() {
 
     // The generated ID should be valid
     let validated = SymbolId::parse(generated_str);
-    assert!(validated.is_ok(), "Generated V1 ID should be a valid SymbolId");
+    assert!(
+        validated.is_ok(),
+        "Generated V1 ID should be a valid SymbolId"
+    );
 
     let validated_id = validated.unwrap();
     assert_eq!(validated_id.as_str(), generated_str);
@@ -495,7 +547,10 @@ fn test_symbol_id_from_generated_v2() {
 
     // The generated ID should be valid
     let validated = SymbolId::parse(generated_str);
-    assert!(validated.is_ok(), "Generated V2 ID should be a valid SymbolId");
+    assert!(
+        validated.is_ok(),
+        "Generated V2 ID should be a valid SymbolId"
+    );
 
     let validated_id = validated.unwrap();
     assert_eq!(validated_id.as_str(), generated_str);

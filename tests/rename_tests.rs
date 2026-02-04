@@ -9,8 +9,8 @@
 
 use splice::graph::rename::{
     apply_replacements_in_file, create_rename_backup, generate_colored_preview,
-    generate_preview_diff, group_references_by_file, RenameBackupManifest,
-    RenameTransaction, simulate_replacements, simulate_replacements_content,
+    generate_preview_diff, group_references_by_file, simulate_replacements,
+    simulate_replacements_content, RenameBackupManifest, RenameTransaction,
 };
 use tempfile::TempDir;
 
@@ -57,13 +57,17 @@ fn test_rename_single_file() {
     ];
 
     // Apply replacements
-    let count = apply_replacements_in_file(&file_path, "old_name", "new_name", &references).unwrap();
+    let count =
+        apply_replacements_in_file(&file_path, "old_name", "new_name", &references).unwrap();
 
     assert_eq!(count, 2);
 
     // Verify result
     let result = std::fs::read_to_string(&file_path).unwrap();
-    assert_eq!(result, "fn old_name() {\n    new_name();\n    new_name();\n}\n");
+    assert_eq!(
+        result,
+        "fn old_name() {\n    new_name();\n    new_name();\n}\n"
+    );
 }
 
 #[test]
@@ -257,14 +261,17 @@ fn test_rename_transaction_rollback() {
         )]),
     };
     let manifest_path = backup_dir.join("manifest.json");
-    std::fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
+    std::fs::write(
+        &manifest_path,
+        serde_json::to_string_pretty(&manifest).unwrap(),
+    )
+    .unwrap();
 
     // Modify the file
     std::fs::write(&file_path, "fn modified() {}\n").unwrap();
 
     // Rollback
-    let txn = RenameTransaction::new()
-        .with_backup(backup_dir, temp_dir.path().to_path_buf());
+    let txn = RenameTransaction::new().with_backup(backup_dir, temp_dir.path().to_path_buf());
     txn.rollback().unwrap();
 
     // Verify file was restored
@@ -331,8 +338,10 @@ fn test_rename_preview_with_multiple_files() {
     let content1 = std::fs::read_to_string(&file1).unwrap();
     let content2 = std::fs::read_to_string(&file2).unwrap();
 
-    let modified1 = simulate_replacements_content(&content1, &refs1, "old_name", "new_name").unwrap();
-    let modified2 = simulate_replacements_content(&content2, &refs2, "old_name", "new_name").unwrap();
+    let modified1 =
+        simulate_replacements_content(&content1, &refs1, "old_name", "new_name").unwrap();
+    let modified2 =
+        simulate_replacements_content(&content2, &refs2, "old_name", "new_name").unwrap();
 
     // Verify previews show changes
     assert_eq!(modified1, "fn new_name() {}\n");
@@ -351,7 +360,11 @@ fn test_backup_preserves_directory_structure() {
 
     // Create nested test files
     let file1 = create_test_file(&temp_dir, "src/api/handlers.rs", "pub fn handler() {}\n");
-    let file2 = create_test_file(&temp_dir, "tests/integration_test.rs", "#[test]\nfn test() {}\n");
+    let file2 = create_test_file(
+        &temp_dir,
+        "tests/integration_test.rs",
+        "#[test]\nfn test() {}\n",
+    );
 
     // Create backup
     let backup_dir = create_rename_backup(
@@ -368,10 +381,9 @@ fn test_backup_preserves_directory_structure() {
     assert!(backup_file2.exists());
 
     // Verify manifest has correct relative paths
-    let manifest: RenameBackupManifest = serde_json::from_str(
-        &std::fs::read_to_string(backup_dir.join("manifest.json")).unwrap(),
-    )
-    .unwrap();
+    let manifest: RenameBackupManifest =
+        serde_json::from_str(&std::fs::read_to_string(backup_dir.join("manifest.json")).unwrap())
+            .unwrap();
 
     assert!(manifest.files.contains_key("src/api/handlers.rs"));
     assert!(manifest.files.contains_key("tests/integration_test.rs"));
@@ -411,9 +423,16 @@ fn find_symbol_spans(source: &str, symbol_name: &str) -> Vec<(usize, usize)> {
         let abs_pos = offset + pos;
 
         // Check if this looks like an identifier (not part of a larger word)
-        let before_ok = abs_pos == 0 || !source.chars().nth(abs_pos - 1).map_or(false, |c| c.is_alphanumeric() || c == '_');
+        let before_ok = abs_pos == 0
+            || !source
+                .chars()
+                .nth(abs_pos - 1)
+                .map_or(false, |c| c.is_alphanumeric() || c == '_');
         let after_ok = abs_pos + symbol_name.len() >= source.len()
-            || !source.chars().nth(abs_pos + symbol_name.len()).map_or(false, |c| c.is_alphanumeric() || c == '_');
+            || !source
+                .chars()
+                .nth(abs_pos + symbol_name.len())
+                .map_or(false, |c| c.is_alphanumeric() || c == '_');
 
         if before_ok && after_ok {
             spans.push((abs_pos, abs_pos + symbol_name.len()));
@@ -463,8 +482,14 @@ fn test_rename_rust_function() {
 
     // Verify result
     let result = std::fs::read_to_string(&file_path).unwrap();
-    assert!(result.contains("new_name()"), "Result should contain new_name()");
-    assert!(!result.contains("old_name()"), "Result should not contain old_name()");
+    assert!(
+        result.contains("new_name()"),
+        "Result should contain new_name()"
+    );
+    assert!(
+        !result.contains("old_name()"),
+        "Result should not contain old_name()"
+    );
 }
 
 #[test]
@@ -503,8 +528,14 @@ fn test_rename_python_function() {
 
     // Verify result
     let result = std::fs::read_to_string(&file_path).unwrap();
-    assert!(result.contains("new_name"), "Result should contain new_name");
-    assert!(!result.contains("old_name"), "Result should not contain old_name");
+    assert!(
+        result.contains("new_name"),
+        "Result should contain new_name"
+    );
+    assert!(
+        !result.contains("old_name"),
+        "Result should not contain old_name"
+    );
 }
 
 #[test]
@@ -543,8 +574,14 @@ fn test_rename_javascript_function() {
 
     // Verify result
     let result = std::fs::read_to_string(&file_path).unwrap();
-    assert!(result.contains("new_name"), "Result should contain new_name");
-    assert!(!result.contains("old_name"), "Result should not contain old_name");
+    assert!(
+        result.contains("new_name"),
+        "Result should contain new_name"
+    );
+    assert!(
+        !result.contains("old_name"),
+        "Result should not contain old_name"
+    );
 }
 
 #[test]
@@ -583,8 +620,14 @@ fn test_rename_typescript_function() {
 
     // Verify result
     let result = std::fs::read_to_string(&file_path).unwrap();
-    assert!(result.contains("new_name"), "Result should contain new_name");
-    assert!(!result.contains("old_name"), "Result should not contain old_name");
+    assert!(
+        result.contains("new_name"),
+        "Result should contain new_name"
+    );
+    assert!(
+        !result.contains("old_name"),
+        "Result should not contain old_name"
+    );
 }
 
 #[test]
@@ -623,8 +666,14 @@ fn test_rename_c_function() {
 
     // Verify result
     let result = std::fs::read_to_string(&file_path).unwrap();
-    assert!(result.contains("new_name"), "Result should contain new_name");
-    assert!(!result.contains("old_name"), "Result should not contain old_name");
+    assert!(
+        result.contains("new_name"),
+        "Result should contain new_name"
+    );
+    assert!(
+        !result.contains("old_name"),
+        "Result should not contain old_name"
+    );
 }
 
 #[test]
@@ -663,8 +712,14 @@ fn test_rename_cpp_method() {
 
     // Verify result
     let result = std::fs::read_to_string(&file_path).unwrap();
-    assert!(result.contains("new_name"), "Result should contain new_name");
-    assert!(!result.contains("old_name"), "Result should not contain old_name");
+    assert!(
+        result.contains("new_name"),
+        "Result should contain new_name"
+    );
+    assert!(
+        !result.contains("old_name"),
+        "Result should not contain old_name"
+    );
 }
 
 #[test]
@@ -703,8 +758,14 @@ fn test_rename_java_method() {
 
     // Verify result
     let result = std::fs::read_to_string(&file_path).unwrap();
-    assert!(result.contains("new_name"), "Result should contain new_name");
-    assert!(!result.contains("old_name"), "Result should not contain old_name");
+    assert!(
+        result.contains("new_name"),
+        "Result should contain new_name"
+    );
+    assert!(
+        !result.contains("old_name"),
+        "Result should not contain old_name"
+    );
 }
 
 // ============================================================================
@@ -769,10 +830,22 @@ fn test_rename_cross_file_rust() {
     let main_content = std::fs::read_to_string(&main_rs).unwrap();
     let lib_content = std::fs::read_to_string(&lib_rs).unwrap();
 
-    assert!(main_content.contains("new_name()"), "main.rs should contain new_name");
-    assert!(lib_content.contains("new_name()"), "lib.rs should contain new_name");
-    assert!(!main_content.contains("old_name"), "main.rs should not contain old_name");
-    assert!(!lib_content.contains("old_name"), "lib.rs should not contain old_name");
+    assert!(
+        main_content.contains("new_name()"),
+        "main.rs should contain new_name"
+    );
+    assert!(
+        lib_content.contains("new_name()"),
+        "lib.rs should contain new_name"
+    );
+    assert!(
+        !main_content.contains("old_name"),
+        "main.rs should not contain old_name"
+    );
+    assert!(
+        !lib_content.contains("old_name"),
+        "lib.rs should not contain old_name"
+    );
 }
 
 #[test]
@@ -833,10 +906,22 @@ fn test_rename_cross_file_python() {
     let main_content = std::fs::read_to_string(&main_py).unwrap();
     let lib_content = std::fs::read_to_string(&lib_py).unwrap();
 
-    assert!(main_content.contains("new_name"), "main.py should contain new_name");
-    assert!(lib_content.contains("new_name"), "lib.py should contain new_name");
-    assert!(!main_content.contains("old_name"), "main.py should not contain old_name");
-    assert!(!lib_content.contains("old_name"), "lib.py should not contain old_name");
+    assert!(
+        main_content.contains("new_name"),
+        "main.py should contain new_name"
+    );
+    assert!(
+        lib_content.contains("new_name"),
+        "lib.py should contain new_name"
+    );
+    assert!(
+        !main_content.contains("old_name"),
+        "main.py should not contain old_name"
+    );
+    assert!(
+        !lib_content.contains("old_name"),
+        "lib.py should not contain old_name"
+    );
 }
 
 // ============================================================================
@@ -855,7 +940,11 @@ fn test_rename_byte_accuracy_no_false_positives() {
     let spans = find_symbol_spans(content, "foo");
     // This should find 2 occurrences: "foo" at position 3 and "foo" at position ~30
     // But NOT "foo_bar" because our helper checks word boundaries
-    assert_eq!(spans.len(), 2, "Should find exactly 2 'foo' occurrences (not foo_bar)");
+    assert_eq!(
+        spans.len(),
+        2,
+        "Should find exactly 2 'foo' occurrences (not foo_bar)"
+    );
 
     // Create references for all "foo" occurrences
     let file_path_str = file_path.to_str().unwrap();
@@ -881,7 +970,10 @@ fn test_rename_byte_accuracy_no_false_positives() {
     assert!(result.contains("fn baz()"), "Should rename foo to baz");
     assert!(result.contains("baz();"), "Should rename foo call");
     assert!(result.contains("foo_bar"), "Should NOT rename foo_bar");
-    assert!(!result.contains("fn foo()"), "Should not have original foo()");
+    assert!(
+        !result.contains("fn foo()"),
+        "Should not have original foo()"
+    );
 }
 
 #[test]
@@ -896,7 +988,11 @@ fn test_rename_byte_accuracy_substring() {
     let spans = find_symbol_spans(content, "bar");
     // This should find 2 occurrences: "bar" at position 3 and "bar" at position ~27
     // But NOT "bar_baz" because our helper checks word boundaries
-    assert_eq!(spans.len(), 2, "Should find exactly 2 'bar' occurrences (not bar_baz)");
+    assert_eq!(
+        spans.len(),
+        2,
+        "Should find exactly 2 'bar' occurrences (not bar_baz)"
+    );
 
     // Create references for all "bar" occurrences
     let file_path_str = file_path.to_str().unwrap();
@@ -921,8 +1017,14 @@ fn test_rename_byte_accuracy_substring() {
     let result = std::fs::read_to_string(&file_path).unwrap();
     assert!(result.contains("fn qux()"), "Should rename bar to qux");
     assert!(result.contains("qux();"), "Should rename bar() call");
-    assert!(result.contains("bar_baz"), "Should NOT rename bar_baz identifier");
-    assert!(!result.contains("fn bar()"), "Should not have original bar()");
+    assert!(
+        result.contains("bar_baz"),
+        "Should NOT rename bar_baz identifier"
+    );
+    assert!(
+        !result.contains("fn bar()"),
+        "Should not have original bar()"
+    );
 }
 
 // ============================================================================
@@ -938,11 +1040,15 @@ fn test_preview_no_backup_created() {
 
     // Simulate replacements (preview mode)
     let references = vec![create_reference(file_path.to_str().unwrap(), 3, 6)];
-    let _modified = simulate_replacements_content(original_content, &references, "foo", "bar").unwrap();
+    let _modified =
+        simulate_replacements_content(original_content, &references, "foo", "bar").unwrap();
 
     // Verify no backup directory was created
     let backups_base = temp_dir.path().join(".splice/backups");
-    assert!(!backups_base.exists(), "Preview mode should not create backup directory");
+    assert!(
+        !backups_base.exists(),
+        "Preview mode should not create backup directory"
+    );
 
     // Verify original file unchanged
     let original = std::fs::read_to_string(&file_path).unwrap();
@@ -959,14 +1065,18 @@ fn test_preview_no_filesystem_modifications() {
 
     // Simulate replacements (preview mode)
     let references = vec![create_reference(file_path.to_str().unwrap(), 3, 6)];
-    let modified = simulate_replacements_content(original_content, &references, "foo", "bar").unwrap();
+    let modified =
+        simulate_replacements_content(original_content, &references, "foo", "bar").unwrap();
 
     // Verify preview shows the change
     assert_eq!(modified, "fn bar() {}\n");
 
     // Verify file metadata unchanged (no modification)
     let current_mtime = std::fs::metadata(&file_path).unwrap().modified().unwrap();
-    assert_eq!(original_mtime, current_mtime, "File mtime should not change in preview mode");
+    assert_eq!(
+        original_mtime, current_mtime,
+        "File mtime should not change in preview mode"
+    );
 
     // Verify content unchanged
     let current_content = std::fs::read_to_string(&file_path).unwrap();

@@ -354,7 +354,8 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_type_only_named_import() -> std::result::Result<(), Box<dyn std::error::Error>> {
+    fn test_extract_type_only_named_import() -> std::result::Result<(), Box<dyn std::error::Error>>
+    {
         let source = b"import type { User, Admin } from './types';\n";
         let path = Path::new("test.ts");
         let imports = extract_typescript_imports(path, source)?;
@@ -366,7 +367,8 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_type_only_default_import() -> std::result::Result<(), Box<dyn std::error::Error>> {
+    fn test_extract_type_only_default_import() -> std::result::Result<(), Box<dyn std::error::Error>>
+    {
         let source = b"import type UserModel from './models';\n";
         let path = Path::new("test.ts");
         let imports = extract_typescript_imports(path, source)?;
@@ -397,7 +399,8 @@ mod tests {
     }
 
     #[test]
-    fn test_typescript_import_has_byte_span() -> std::result::Result<(), Box<dyn std::error::Error>> {
+    fn test_typescript_import_has_byte_span() -> std::result::Result<(), Box<dyn std::error::Error>>
+    {
         let source = b"import { Foo } from 'bar';\n";
         let path = Path::new("test.ts");
         let imports = extract_typescript_imports(path, source)?;

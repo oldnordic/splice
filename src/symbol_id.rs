@@ -187,7 +187,9 @@ impl SymbolId {
         match input.len() {
             16 => Ok(SymbolId::V1(input.to_string())),
             32 => Ok(SymbolId::V2(input.to_string())),
-            _ => Err(SymbolIdError::InvalidLength { length: input.len() }),
+            _ => Err(SymbolIdError::InvalidLength {
+                length: input.len(),
+            }),
         }
     }
 
@@ -342,8 +344,7 @@ pub fn generate_v1(name: &str, file_path: &str, byte_start: usize) -> SymbolId {
     // Take first 8 bytes and format as 16 lowercase hex characters
     let hex_id = format!(
         "{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
-        result[0], result[1], result[2], result[3],
-        result[4], result[5], result[6], result[7]
+        result[0], result[1], result[2], result[3], result[4], result[5], result[6], result[7]
     );
 
     // Safe to use unchecked because we control the format
@@ -585,7 +586,10 @@ mod tests {
         // All different inputs should produce different IDs
         assert_ne!(id1, id2, "Different names should produce different V1 IDs");
         assert_ne!(id1, id3, "Different paths should produce different V1 IDs");
-        assert_ne!(id1, id4, "Different byte offsets should produce different V1 IDs");
+        assert_ne!(
+            id1, id4,
+            "Different byte offsets should produce different V1 IDs"
+        );
 
         // Verify transitivity: all different from each other
         assert_ne!(id2, id3);
@@ -603,7 +607,10 @@ mod tests {
         // All different inputs should produce different IDs
         assert_ne!(id1, id2, "Different names should produce different V2 IDs");
         assert_ne!(id1, id3, "Different paths should produce different V2 IDs");
-        assert_ne!(id1, id4, "Different byte offsets should produce different V2 IDs");
+        assert_ne!(
+            id1, id4,
+            "Different byte offsets should produce different V2 IDs"
+        );
 
         // Verify transitivity: all different from each other
         assert_ne!(id2, id3);
@@ -632,11 +639,7 @@ mod tests {
             8,
             "Timestamp part should be 8 hex characters"
         );
-        assert_eq!(
-            pid_part.len(),
-            4,
-            "PID part should be 4 hex characters"
-        );
+        assert_eq!(pid_part.len(), 4, "PID part should be 4 hex characters");
 
         // Verify all hex characters
         assert!(

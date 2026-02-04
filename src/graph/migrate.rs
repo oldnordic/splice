@@ -76,11 +76,7 @@ pub fn check_schema_version(db_path: &Path) -> Result<i64> {
 /// # Returns
 /// * `Ok(MigrationResult)` - Migration outcome with version and stats
 /// * `Err(SpliceError)` - If migration or backup fails
-pub fn migrate_database(
-    db_path: &Path,
-    backup: bool,
-    dry_run: bool,
-) -> Result<MigrationResult> {
+pub fn migrate_database(db_path: &Path, backup: bool, dry_run: bool) -> Result<MigrationResult> {
     if !db_path.exists() {
         return Err(SpliceError::Other(format!(
             "Database not found: {}",
@@ -187,10 +183,7 @@ mod tests {
 
         // Verify backup exists
         assert!(backup_db.exists());
-        assert_eq!(
-            fs::read_to_string(&backup_db).unwrap(),
-            "test data"
-        );
+        assert_eq!(fs::read_to_string(&backup_db).unwrap(), "test data");
 
         // Clean up
         let _ = fs::remove_file(&test_db);

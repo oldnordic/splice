@@ -7,9 +7,7 @@
 //! - Roundtrip conversion preserves data
 //! - Optional fields are preserved through translation
 
-use splice::format::magellan::{
-    from_magellan, to_magellan, translate_field_name, MagellanSpan,
-};
+use splice::format::magellan::{from_magellan, to_magellan, translate_field_name, MagellanSpan};
 use splice::output::{Span, SpanContext, SpanResult, SpanSemantics};
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -24,10 +22,10 @@ fn test_from_magellan_translation() {
         "/path/to/file.rs".to_string(),
         100,
         200,
-        5,   // start_line (Magellan convention)
-        10,  // end_line (Magellan convention)
-        0,   // start_col (Magellan convention)
-        4,   // end_col (Magellan convention)
+        5,  // start_line (Magellan convention)
+        10, // end_line (Magellan convention)
+        0,  // start_col (Magellan convention)
+        4,  // end_col (Magellan convention)
     );
 
     // Convert to SpliceSpan
@@ -40,8 +38,14 @@ fn test_from_magellan_translation() {
     assert_eq!(splice.end_col, 4, "end_col should map correctly");
     assert_eq!(splice.byte_start, 100, "byte_start should be preserved");
     assert_eq!(splice.byte_end, 200, "byte_end should be preserved");
-    assert_eq!(splice.file_path, "/path/to/file.rs", "file_path should be preserved");
-    assert_eq!(splice.span_id, "test_span_id", "span_id should be preserved");
+    assert_eq!(
+        splice.file_path, "/path/to/file.rs",
+        "file_path should be preserved"
+    );
+    assert_eq!(
+        splice.span_id, "test_span_id",
+        "span_id should be preserved"
+    );
 }
 
 #[test]
@@ -60,7 +64,10 @@ fn test_to_magellan_translation() {
     assert_eq!(magellan.end_col, 4, "end_col should be set correctly");
     assert_eq!(magellan.byte_start, 100, "byte_start should be preserved");
     assert_eq!(magellan.byte_end, 200, "byte_end should be preserved");
-    assert_eq!(magellan.file_path, "/path/to/file.rs", "file_path should be preserved");
+    assert_eq!(
+        magellan.file_path, "/path/to/file.rs",
+        "file_path should be preserved"
+    );
 }
 
 #[test]
@@ -122,8 +129,14 @@ fn test_magellan_span_serializable() {
     assert!(json.is_ok(), "MagellanSpan should serialize to valid JSON");
 
     let json_str = json.unwrap();
-    assert!(json_str.contains("start_line"), "JSON should contain start_line field");
-    assert!(json_str.contains("end_line"), "JSON should contain end_line field");
+    assert!(
+        json_str.contains("start_line"),
+        "JSON should contain start_line field"
+    );
+    assert!(
+        json_str.contains("end_line"),
+        "JSON should contain end_line field"
+    );
 }
 
 #[test]
@@ -142,20 +155,37 @@ fn test_magellan_span_field_names() {
     let json = serde_json::to_value(&magellan).unwrap();
 
     // Verify Magellan field names in JSON
-    assert!(json.get("start_line").is_some(), "Should have start_line field (Magellan naming)");
-    assert!(json.get("end_line").is_some(), "Should have end_line field (Magellan naming)");
-    assert!(json.get("start_col").is_some(), "Should have start_col field (Magellan naming)");
-    assert!(json.get("end_col").is_some(), "Should have end_col field (Magellan naming)");
+    assert!(
+        json.get("start_line").is_some(),
+        "Should have start_line field (Magellan naming)"
+    );
+    assert!(
+        json.get("end_line").is_some(),
+        "Should have end_line field (Magellan naming)"
+    );
+    assert!(
+        json.get("start_col").is_some(),
+        "Should have start_col field (Magellan naming)"
+    );
+    assert!(
+        json.get("end_col").is_some(),
+        "Should have end_col field (Magellan naming)"
+    );
 
     // These should NOT be present in MagellanSpan JSON
-    assert!(json.get("line_start").is_none(), "Should NOT have line_start (Splice naming)");
-    assert!(json.get("line_end").is_none(), "Should NOT have line_end (Splice naming)");
+    assert!(
+        json.get("line_start").is_none(),
+        "Should NOT have line_start (Splice naming)"
+    );
+    assert!(
+        json.get("line_end").is_none(),
+        "Should NOT have line_end (Splice naming)"
+    );
 }
 
 #[test]
 fn test_splice_span_field_names() {
-    let splice = SpanResult::from_byte_span("file.rs".to_string(), 0, 10)
-        .with_line_col(1, 2, 0, 5);
+    let splice = SpanResult::from_byte_span("file.rs".to_string(), 0, 10).with_line_col(1, 2, 0, 5);
 
     let json = serde_json::to_value(&splice).unwrap();
 
@@ -189,8 +219,8 @@ fn test_spanresult_to_magellan() {
 
 #[test]
 fn test_spanresult_field_ordering() {
-    let span_result = SpanResult::from_byte_span("file.rs".to_string(), 0, 10)
-        .with_line_col(1, 2, 0, 5);
+    let span_result =
+        SpanResult::from_byte_span("file.rs".to_string(), 0, 10).with_line_col(1, 2, 0, 5);
 
     let json = serde_json::to_string(&span_result).unwrap();
 
@@ -283,7 +313,10 @@ fn test_checksums_preserved() {
     assert!(roundtrip.checksums.is_some());
 
     let roundtrip_checksums = roundtrip.checksums.unwrap();
-    assert_eq!(roundtrip_checksums.checksum_before, checksums.checksum_before);
+    assert_eq!(
+        roundtrip_checksums.checksum_before,
+        checksums.checksum_before
+    );
     assert_eq!(roundtrip_checksums.checksum_after, checksums.checksum_after);
     assert_eq!(
         roundtrip_checksums.file_checksum_before,
@@ -302,10 +335,10 @@ fn test_span_uses_magellan_field_names() {
         "file.rs".to_string(),
         100,
         200,
-        5,   // start_line
-        0,   // start_col
-        10,  // end_line
-        4,   // end_col
+        5,  // start_line
+        0,  // start_col
+        10, // end_line
+        4,  // end_col
     );
 
     let json = serde_json::to_string(&span).unwrap();
@@ -331,23 +364,19 @@ fn test_magellan_span_from_span_conversion() {
         language: "rust".to_string(),
     };
 
-    let span = Span::new(
-        "src/main.rs".to_string(),
-        100,
-        200,
-        5,
-        0,
-        10,
-        4,
-    )
-    .with_context(context.clone())
-    .with_semantics(semantics.clone());
+    let span = Span::new("src/main.rs".to_string(), 100, 200, 5, 0, 10, 4)
+        .with_context(context.clone())
+        .with_semantics(semantics.clone());
 
     // Convert to MagellanSpan via SpliceSpan
-    let span_result = SpanResult::from_byte_span(span.file_path.clone(), span.byte_start, span.byte_end)
-        .with_line_col(span.start_line, span.end_line, span.start_col, span.end_col)
-        .with_context(span.context.unwrap())
-        .with_semantic_info(span.semantics.as_ref().unwrap().kind.clone(), span.semantics.as_ref().unwrap().language.clone());
+    let span_result =
+        SpanResult::from_byte_span(span.file_path.clone(), span.byte_start, span.byte_end)
+            .with_line_col(span.start_line, span.end_line, span.start_col, span.end_col)
+            .with_context(span.context.unwrap())
+            .with_semantic_info(
+                span.semantics.as_ref().unwrap().kind.clone(),
+                span.semantics.as_ref().unwrap().language.clone(),
+            );
 
     let magellan = to_magellan(span_result);
 

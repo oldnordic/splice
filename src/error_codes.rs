@@ -401,7 +401,9 @@ impl SpliceErrorCode {
             // - BrokenPipe: terminal state, not user-fixable
             // - Utf8: covered by InvalidUtf8 variant
             // - Other: generic catchall, no specific code applicable
-            crate::SpliceError::BrokenPipe | crate::SpliceError::Utf8(_) | crate::SpliceError::Other(_) => None,
+            crate::SpliceError::BrokenPipe
+            | crate::SpliceError::Utf8(_)
+            | crate::SpliceError::Other(_) => None,
         }
     }
 }
@@ -1344,20 +1346,29 @@ mod tests {
 
         // Test format for various error codes
         let test_cases = vec![
-            (SpliceError::Parse {
-                file: std::path::PathBuf::from("test.rs"),
-                message: "parse error".to_string(),
-            }, "SPL-E011"),
-            (SpliceError::InvalidSpan {
-                file: std::path::PathBuf::from("test.rs"),
-                start: 0,
-                end: 10,
-                file_size: 100,
-            }, "SPL-E021"),
-            (SpliceError::Io {
-                path: std::path::PathBuf::from("test.rs"),
-                source: std::io::Error::new(std::io::ErrorKind::NotFound, "not found"),
-            }, "SPL-E031"),
+            (
+                SpliceError::Parse {
+                    file: std::path::PathBuf::from("test.rs"),
+                    message: "parse error".to_string(),
+                },
+                "SPL-E011",
+            ),
+            (
+                SpliceError::InvalidSpan {
+                    file: std::path::PathBuf::from("test.rs"),
+                    start: 0,
+                    end: 10,
+                    file_size: 100,
+                },
+                "SPL-E021",
+            ),
+            (
+                SpliceError::Io {
+                    path: std::path::PathBuf::from("test.rs"),
+                    source: std::io::Error::new(std::io::ErrorKind::NotFound, "not found"),
+                },
+                "SPL-E031",
+            ),
         ];
 
         for (error, expected_code) in test_cases {

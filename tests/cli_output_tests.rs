@@ -123,8 +123,8 @@ fn test_response_types_serialize() {
 
 #[test]
 fn test_magellan_symbol_field_names() {
-    use splice::output::MagellanSymbol;
     use serde_json::Value;
+    use splice::output::MagellanSymbol;
 
     let symbol = MagellanSymbol {
         symbol_id: Some("test_id".to_string()),
@@ -316,8 +316,8 @@ fn test_refs_command_has_direction_field() {
 
 #[test]
 fn test_magellan_span_field_names() {
-    use splice::output::MagellanSpan;
     use serde_json::Value;
+    use splice::output::MagellanSpan;
 
     let span = MagellanSpan {
         file_path: "/path/to/file.rs".to_string(),
@@ -397,7 +397,10 @@ fn test_magellan_file_metadata_serialization() {
     let value: serde_json::Value = serde_json::from_str(&json).unwrap();
 
     // Verify all fields serialize correctly
-    assert_eq!(value.get("path").unwrap().as_str(), Some("/path/to/file.rs"));
+    assert_eq!(
+        value.get("path").unwrap().as_str(),
+        Some("/path/to/file.rs")
+    );
     assert_eq!(value.get("hash").unwrap().as_str(), Some("abc123"));
     assert_eq!(value.get("symbol_count").unwrap().as_u64(), Some(42));
 }
@@ -438,11 +441,11 @@ fn test_status_response_serialization() {
 mod export_tests {
     use serde_json::Value;
     use splice::graph::magellan_integration::MagellanIntegration;
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
     use std::path::PathBuf;
     use std::process::Command;
     use tempfile::TempDir;
-    #[cfg(unix)]
-    use std::os::unix::fs::PermissionsExt;
 
     /// Get the path to the splice binary.
     fn get_splice_binary() -> PathBuf {
@@ -548,11 +551,14 @@ mod export_tests {
 
         // Verify output file exists and contains valid JSON
         let json_content = std::fs::read_to_string(&output_path).unwrap();
-        let value: Value = serde_json::from_str(&json_content)
-            .expect("export should produce valid JSON");
+        let value: Value =
+            serde_json::from_str(&json_content).expect("export should produce valid JSON");
 
         // Check required fields
-        assert!(value.get("schema_version").is_some(), "should have schema_version");
+        assert!(
+            value.get("schema_version").is_some(),
+            "should have schema_version"
+        );
         assert!(value.get("timestamp").is_some(), "should have timestamp");
         assert!(value.get("db_path").is_some(), "should have db_path");
         assert!(value.get("data").is_some(), "should have data");
@@ -560,8 +566,14 @@ mod export_tests {
         // Check data structure
         let data = &value["data"];
         assert!(data.get("files").is_some(), "data should have files array");
-        assert!(data.get("symbols").is_some(), "data should have symbols array");
-        assert!(data.get("references").is_some(), "data should have references array");
+        assert!(
+            data.get("symbols").is_some(),
+            "data should have symbols array"
+        );
+        assert!(
+            data.get("references").is_some(),
+            "data should have references array"
+        );
         assert!(data.get("calls").is_some(), "data should have calls array");
     }
 
@@ -597,8 +609,7 @@ mod export_tests {
         // Verify JSONL format (one JSON object per line)
         let jsonl_content = std::fs::read_to_string(&output_path).unwrap();
         for line in jsonl_content.lines() {
-            let value: Value = serde_json::from_str(line)
-                .expect("each line should be valid JSON");
+            let value: Value = serde_json::from_str(line).expect("each line should be valid JSON");
             // Check for type tag in data records
             if let Some(obj) = value.as_object() {
                 if obj.get("type").is_some() {
@@ -644,8 +655,14 @@ mod export_tests {
         // Verify CSV format
         let csv_content = std::fs::read_to_string(&output_path).unwrap();
         // CSV should have section headers
-        assert!(csv_content.contains("# Files"), "CSV should have Files section");
-        assert!(csv_content.contains("# Symbols"), "CSV should have Symbols section");
+        assert!(
+            csv_content.contains("# Files"),
+            "CSV should have Files section"
+        );
+        assert!(
+            csv_content.contains("# Symbols"),
+            "CSV should have Symbols section"
+        );
         // CSV should have column headers
         assert!(csv_content.contains("path"), "CSV should have path column");
         assert!(csv_content.contains("hash"), "CSV should have hash column");
@@ -680,8 +697,8 @@ mod export_tests {
 
         // Verify output is valid JSON
         let json_content = std::fs::read_to_string(&output_path).unwrap();
-        let _value: Value = serde_json::from_str(&json_content)
-            .expect("default format should produce valid JSON");
+        let _value: Value =
+            serde_json::from_str(&json_content).expect("default format should produce valid JSON");
     }
 
     #[test]
@@ -714,10 +731,22 @@ mod export_tests {
         let stdout = String::from_utf8_lossy(&output.stdout);
         // When exporting to stdout, the export JSON is written directly
         // followed by the success payload JSON. Verify both are present.
-        assert!(stdout.contains("schema_version"), "stdout should contain schema_version");
-        assert!(stdout.contains("files"), "stdout should contain files array");
-        assert!(stdout.contains("symbols"), "stdout should contain symbols array");
-        assert!(stdout.contains("\"status\""), "stdout should contain success payload status");
+        assert!(
+            stdout.contains("schema_version"),
+            "stdout should contain schema_version"
+        );
+        assert!(
+            stdout.contains("files"),
+            "stdout should contain files array"
+        );
+        assert!(
+            stdout.contains("symbols"),
+            "stdout should contain symbols array"
+        );
+        assert!(
+            stdout.contains("\"status\""),
+            "stdout should contain success payload status"
+        );
     }
 
     // ============================================================================
@@ -734,19 +763,27 @@ mod export_tests {
 
         // Create multiple test files (Rust and Python)
         let rust_file = temp_dir.path().join("lib.rs");
-        std::fs::write(&rust_file, r#"
+        std::fs::write(
+            &rust_file,
+            r#"
 pub fn helper() -> i32 { 42 }
 pub fn main() { let _ = helper(); }
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let python_file = temp_dir.path().join("module.py");
-        std::fs::write(&python_file, r#"
+        std::fs::write(
+            &python_file,
+            r#"
 def helper():
     return 42
 
 def main():
     helper()
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let mut integration = MagellanIntegration::open(&db_path).unwrap();
         integration.index_file(&rust_file).unwrap();
@@ -774,8 +811,8 @@ def main():
 
         // Read and validate export.json
         let json_content = std::fs::read_to_string(&output_path).unwrap();
-        let value: Value = serde_json::from_str(&json_content)
-            .expect("export should produce valid JSON");
+        let value: Value =
+            serde_json::from_str(&json_content).expect("export should produce valid JSON");
 
         // 1. Validate schema_version
         assert_eq!(
@@ -784,42 +821,63 @@ def main():
             "schema_version should equal EXPORT_SCHEMA_VERSION constant"
         );
         assert_eq!(
-            value["schema_version"],
-            "1.0.0",
+            value["schema_version"], "1.0.0",
             "schema_version should be 1.0.0"
         );
 
         // 2. Validate timestamp is valid ISO 8601
-        let timestamp = value.get("timestamp")
+        let timestamp = value
+            .get("timestamp")
             .and_then(|v| v.as_str())
             .expect("should have timestamp string");
         assert!(!timestamp.is_empty(), "timestamp should not be empty");
         // Verify it's parseable as ISO 8601 (contains T and : chars)
-        assert!(timestamp.contains('T'), "timestamp should be ISO 8601 format");
-        assert!(timestamp.contains(':'), "timestamp should have time component");
+        assert!(
+            timestamp.contains('T'),
+            "timestamp should be ISO 8601 format"
+        );
+        assert!(
+            timestamp.contains(':'),
+            "timestamp should have time component"
+        );
 
         // 3. Validate db_path matches test database
-        let db_path_str = value.get("db_path")
+        let db_path_str = value
+            .get("db_path")
             .and_then(|v| v.as_str())
             .expect("should have db_path");
-        assert!(db_path_str.contains("test.db") || db_path_str.contains(&format!("{}", db_path.display())),
-                "db_path should reference test database");
+        assert!(
+            db_path_str.contains("test.db")
+                || db_path_str.contains(&format!("{}", db_path.display())),
+            "db_path should reference test database"
+        );
 
         // 4. Validate data structure has required arrays
         let data = value.get("data").expect("should have data object");
-        assert!(data.get("files").and_then(|v| v.as_array()).is_some(),
-                "data should have files array");
-        assert!(data.get("symbols").and_then(|v| v.as_array()).is_some(),
-                "data should have symbols array");
-        assert!(data.get("references").and_then(|v| v.as_array()).is_some(),
-                "data should have references array");
-        assert!(data.get("calls").and_then(|v| v.as_array()).is_some(),
-                "data should have calls array");
+        assert!(
+            data.get("files").and_then(|v| v.as_array()).is_some(),
+            "data should have files array"
+        );
+        assert!(
+            data.get("symbols").and_then(|v| v.as_array()).is_some(),
+            "data should have symbols array"
+        );
+        assert!(
+            data.get("references").and_then(|v| v.as_array()).is_some(),
+            "data should have references array"
+        );
+        assert!(
+            data.get("calls").and_then(|v| v.as_array()).is_some(),
+            "data should have calls array"
+        );
 
         // 5. Validate arrays have expected counts
         let files = data["files"].as_array().unwrap();
         let symbols = data["symbols"].as_array().unwrap();
-        assert!(files.len() >= 2, "should have at least 2 files (Rust and Python)");
+        assert!(
+            files.len() >= 2,
+            "should have at least 2 files (Rust and Python)"
+        );
         assert!(symbols.len() >= 2, "should have at least 2 symbols");
 
         // 6. Validate each symbol has required fields with correct types
@@ -828,54 +886,94 @@ def main():
             // Accept both 16-char SHA-256 (v1) and 32-char BLAKE3 (v2) formats
             if let Some(sid) = symbol.get("symbol_id") {
                 if let Some(sid_str) = sid.as_str() {
-                    assert!((sid_str.len() == 16 || sid_str.len() == 32) && sid_str.chars().all(|c| c.is_ascii_hexdigit()),
-                               "symbol_id should be 16-char or 32-char hex when present, got: {} ({})",
-                               sid_str.len(), sid_str);
+                    assert!(
+                        (sid_str.len() == 16 || sid_str.len() == 32)
+                            && sid_str.chars().all(|c| c.is_ascii_hexdigit()),
+                        "symbol_id should be 16-char or 32-char hex when present, got: {} ({})",
+                        sid_str.len(),
+                        sid_str
+                    );
                 }
             }
 
             // name must be non-empty string
-            let name = symbol.get("name").and_then(|v| v.as_str())
+            let name = symbol
+                .get("name")
+                .and_then(|v| v.as_str())
                 .expect("symbol should have name");
             assert!(!name.is_empty(), "symbol name should not be empty");
 
             // kind must be valid symbol kind
-            let kind = symbol.get("kind").and_then(|v| v.as_str())
+            let kind = symbol
+                .get("kind")
+                .and_then(|v| v.as_str())
                 .expect("symbol should have kind");
-            let valid_kinds = ["fn", "method", "struct", "class", "enum", "interface",
-                              "module", "trait", "impl", "variable", "constructor", "type_alias",
-                              "function", "type"];  // Additional kinds from different parsers
-            assert!(valid_kinds.contains(&kind) || !kind.is_empty(),
-                   "symbol kind should be valid");
+            let valid_kinds = [
+                "fn",
+                "method",
+                "struct",
+                "class",
+                "enum",
+                "interface",
+                "module",
+                "trait",
+                "impl",
+                "variable",
+                "constructor",
+                "type_alias",
+                "function",
+                "type",
+            ]; // Additional kinds from different parsers
+            assert!(
+                valid_kinds.contains(&kind) || !kind.is_empty(),
+                "symbol kind should be valid"
+            );
 
             // file_path must be absolute path
-            let file_path = symbol.get("file_path").and_then(|v| v.as_str())
+            let file_path = symbol
+                .get("file_path")
+                .and_then(|v| v.as_str())
                 .expect("symbol should have file_path");
             assert!(!file_path.is_empty(), "file_path should not be empty");
 
             // byte offsets
-            let byte_start = symbol.get("byte_start").and_then(|v| v.as_u64())
+            let byte_start = symbol
+                .get("byte_start")
+                .and_then(|v| v.as_u64())
                 .expect("symbol should have byte_start") as usize;
-            let byte_end = symbol.get("byte_end").and_then(|v| v.as_u64())
+            let byte_end = symbol
+                .get("byte_end")
+                .and_then(|v| v.as_u64())
                 .expect("symbol should have byte_end") as usize;
-            assert!(byte_start < byte_end,
-                   "byte_start ({}) should be less than byte_end ({})", byte_start, byte_end);
+            assert!(
+                byte_start < byte_end,
+                "byte_start ({}) should be less than byte_end ({})",
+                byte_start,
+                byte_end
+            );
 
             // Line numbers (may be 0 if not populated)
-            let start_line = symbol.get("start_line").and_then(|v| v.as_u64())
+            let start_line = symbol
+                .get("start_line")
+                .and_then(|v| v.as_u64())
                 .unwrap_or(0) as usize;
-            let end_line = symbol.get("end_line").and_then(|v| v.as_u64())
-                .unwrap_or(0) as usize;
+            let end_line = symbol.get("end_line").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
             if start_line > 0 {
-                assert!(end_line >= start_line,
-                       "end_line should be >= start_line when populated");
+                assert!(
+                    end_line >= start_line,
+                    "end_line should be >= start_line when populated"
+                );
             }
 
             // 7. Validate Magellan field naming (start_line not line_start)
-            assert!(symbol.get("start_line").is_some(),
-                   "symbol should use Magellan field name start_line");
-            assert!(symbol.get("end_line").is_some(),
-                   "symbol should use Magellan field name end_line");
+            assert!(
+                symbol.get("start_line").is_some(),
+                "symbol should use Magellan field name start_line"
+            );
+            assert!(
+                symbol.get("end_line").is_some(),
+                "symbol should use Magellan field name end_line"
+            );
         }
     }
 
@@ -887,14 +985,18 @@ def main():
 
         // Create test files with different symbol types
         let rust_file = temp_dir.path().join("lib.rs");
-        std::fs::write(&rust_file, r#"
+        std::fs::write(
+            &rust_file,
+            r#"
 pub fn helper() -> i32 { 42 }
 pub struct Counter;
 impl Counter {
     pub fn new() -> Self { Counter }
 }
 pub fn main() { let _ = helper(); }
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let mut integration = MagellanIntegration::open(&db_path).unwrap();
         integration.index_file(&rust_file).unwrap();
@@ -924,7 +1026,10 @@ pub fn main() { let _ = helper(); }
         let lines: Vec<&str> = jsonl_content.lines().collect();
 
         // Should have at least header + file record + some symbols
-        assert!(lines.len() >= 3, "should have header, file, and at least one symbol");
+        assert!(
+            lines.len() >= 3,
+            "should have header, file, and at least one symbol"
+        );
 
         let mut found_header = false;
         let mut found_file = false;
@@ -935,35 +1040,46 @@ pub fn main() { let _ = helper(); }
 
         for (line_num, line) in lines.iter().enumerate() {
             // Verify every line is valid JSON
-            let value: Value = serde_json::from_str(line)
-                .unwrap_or_else(|e| {
-                    panic!("Line {} should be valid JSON: {}\nContent: {}", line_num + 1, e, line);
-                });
+            let value: Value = serde_json::from_str(line).unwrap_or_else(|e| {
+                panic!(
+                    "Line {} should be valid JSON: {}\nContent: {}",
+                    line_num + 1,
+                    e,
+                    line
+                );
+            });
 
             // Check for type field
             if let Some(obj) = value.as_object() {
                 if let Some(record_type) = obj.get("type") {
-                    let type_str = record_type.as_str()
-                        .unwrap_or_else(|| panic!("Line {} type field should be string", line_num + 1));
+                    let type_str = record_type.as_str().unwrap_or_else(|| {
+                        panic!("Line {} type field should be string", line_num + 1)
+                    });
                     record_types.insert(type_str.to_string());
 
                     match type_str {
                         "header" => {
                             found_header = true;
                             // Header should have schema_version
-                            assert!(obj.get("schema_version").is_some(),
-                                   "header record should have schema_version");
+                            assert!(
+                                obj.get("schema_version").is_some(),
+                                "header record should have schema_version"
+                            );
                         }
                         "file" => {
                             found_file = true;
                             // File records have "data" wrapper with path and hash
                             if let Some(data) = obj.get("data") {
-                                let data_obj = data.as_object()
-                                    .expect("file data should be object");
-                                assert!(data_obj.get("path").is_some(),
-                                       "file data should have path");
-                                assert!(data_obj.get("hash").is_some(),
-                                       "file data should have hash");
+                                let data_obj =
+                                    data.as_object().expect("file data should be object");
+                                assert!(
+                                    data_obj.get("path").is_some(),
+                                    "file data should have path"
+                                );
+                                assert!(
+                                    data_obj.get("hash").is_some(),
+                                    "file data should have hash"
+                                );
                             } else {
                                 panic!("Line {} file record should have data field", line_num + 1);
                             }
@@ -972,46 +1088,65 @@ pub fn main() { let _ = helper(); }
                             found_symbol = true;
                             // Symbol records have "data" wrapper
                             if let Some(data) = obj.get("data") {
-                                let data_obj = data.as_object()
-                                    .expect("symbol data should be object");
-                                assert!(data_obj.get("name").is_some(),
-                                       "symbol data should have name");
-                                assert!(data_obj.get("kind").is_some(),
-                                       "symbol data should have kind");
-                                assert!(data_obj.get("file_path").is_some(),
-                                       "symbol data should have file_path");
+                                let data_obj =
+                                    data.as_object().expect("symbol data should be object");
+                                assert!(
+                                    data_obj.get("name").is_some(),
+                                    "symbol data should have name"
+                                );
+                                assert!(
+                                    data_obj.get("kind").is_some(),
+                                    "symbol data should have kind"
+                                );
+                                assert!(
+                                    data_obj.get("file_path").is_some(),
+                                    "symbol data should have file_path"
+                                );
                             } else {
-                                panic!("Line {} symbol record should have data field", line_num + 1);
+                                panic!(
+                                    "Line {} symbol record should have data field",
+                                    line_num + 1
+                                );
                             }
                         }
                         "reference" => {
                             // Reference records with from_symbol and to_symbol
                             if let Some(data) = obj.get("data") {
-                                let data_obj = data.as_object()
-                                    .expect("reference data should be object");
-                                assert!(data_obj.get("from_symbol_id").is_some() ||
-                                        data_obj.get("from_symbol").is_some(),
-                                       "reference data should have from_symbol field");
-                                assert!(data_obj.get("to_symbol_id").is_some() ||
-                                        data_obj.get("to_symbol").is_some(),
-                                       "reference data should have to_symbol field");
+                                let data_obj =
+                                    data.as_object().expect("reference data should be object");
+                                assert!(
+                                    data_obj.get("from_symbol_id").is_some()
+                                        || data_obj.get("from_symbol").is_some(),
+                                    "reference data should have from_symbol field"
+                                );
+                                assert!(
+                                    data_obj.get("to_symbol_id").is_some()
+                                        || data_obj.get("to_symbol").is_some(),
+                                    "reference data should have to_symbol field"
+                                );
                             }
                         }
                         "call" => {
                             // Call records with caller and callee
                             if let Some(data) = obj.get("data") {
-                                let data_obj = data.as_object()
-                                    .expect("call data should be object");
-                                assert!(data_obj.get("caller_symbol_id").is_some() ||
-                                        data_obj.get("caller").is_some(),
-                                       "call data should have caller field");
-                                assert!(data_obj.get("callee_symbol_id").is_some() ||
-                                        data_obj.get("callee").is_some(),
-                                       "call data should have callee field");
-                                assert!(data_obj.get("call_site").is_some() ||
-                                        data_obj.get("call_site_file").is_some() ||
-                                        data_obj.get("call_site_line").is_some(),
-                                       "call data should have call_site field");
+                                let data_obj =
+                                    data.as_object().expect("call data should be object");
+                                assert!(
+                                    data_obj.get("caller_symbol_id").is_some()
+                                        || data_obj.get("caller").is_some(),
+                                    "call data should have caller field"
+                                );
+                                assert!(
+                                    data_obj.get("callee_symbol_id").is_some()
+                                        || data_obj.get("callee").is_some(),
+                                    "call data should have callee field"
+                                );
+                                assert!(
+                                    data_obj.get("call_site").is_some()
+                                        || data_obj.get("call_site_file").is_some()
+                                        || data_obj.get("call_site_line").is_some(),
+                                    "call data should have call_site field"
+                                );
                             }
                         }
                         other => {
@@ -1030,8 +1165,12 @@ pub fn main() { let _ = helper(); }
         // Verify all record types are valid
         for record_type in &record_types {
             assert!(
-                matches!(record_type.as_str(), "header" | "file" | "symbol" | "reference" | "call"),
-                "record type '{}' should be valid", record_type
+                matches!(
+                    record_type.as_str(),
+                    "header" | "file" | "symbol" | "reference" | "call"
+                ),
+                "record type '{}' should be valid",
+                record_type
             );
         }
     }
@@ -1044,17 +1183,25 @@ pub fn main() { let _ = helper(); }
 
         // Create multiple test files
         let rust_file = temp_dir.path().join("lib.rs");
-        std::fs::write(&rust_file, r#"
+        std::fs::write(
+            &rust_file,
+            r#"
 pub fn helper() -> i32 { 42 }
 pub struct Counter;
 pub fn main() { let _ = helper(); }
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let python_file = temp_dir.path().join("module.py");
-        std::fs::write(&python_file, r#"
+        std::fs::write(
+            &python_file,
+            r#"
 def helper():
     return 42
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let mut integration = MagellanIntegration::open(&db_path).unwrap();
         integration.index_file(&rust_file).unwrap();
@@ -1084,8 +1231,14 @@ def helper():
         let csv_content = std::fs::read_to_string(&output_path).unwrap();
 
         // 1. Validate section headers
-        assert!(csv_content.contains("# Files"), "CSV should have Files section header");
-        assert!(csv_content.contains("# Symbols"), "CSV should have Symbols section header");
+        assert!(
+            csv_content.contains("# Files"),
+            "CSV should have Files section header"
+        );
+        assert!(
+            csv_content.contains("# Symbols"),
+            "CSV should have Symbols section header"
+        );
 
         // 2. Parse into sections
         let lines: Vec<&str> = csv_content.lines().collect();
@@ -1109,17 +1262,24 @@ def helper():
         }
 
         assert!(files_section_start.is_some(), "should find # Files section");
-        assert!(symbols_section_start.is_some(), "should find # Symbols section");
+        assert!(
+            symbols_section_start.is_some(),
+            "should find # Symbols section"
+        );
 
         // 3. Validate Files section has proper headers
         if let Some(files_start) = files_section_start {
             // Files section header is followed by column header row
             if files_start + 1 < lines.len() {
                 let header_line = lines[files_start + 1];
-                assert!(header_line.contains("path"),
-                       "Files section should have path column header");
-                assert!(header_line.contains("hash"),
-                       "Files section should have hash column header");
+                assert!(
+                    header_line.contains("path"),
+                    "Files section should have path column header"
+                );
+                assert!(
+                    header_line.contains("hash"),
+                    "Files section should have hash column header"
+                );
             }
         }
 
@@ -1128,18 +1288,30 @@ def helper():
             // Symbols section header is followed by column header row
             if symbols_start + 1 < lines.len() {
                 let header_line = lines[symbols_start + 1];
-                assert!(header_line.contains("symbol_id"),
-                       "Symbols section should have symbol_id column header");
-                assert!(header_line.contains("name"),
-                       "Symbols section should have name column header");
-                assert!(header_line.contains("kind"),
-                       "Symbols section should have kind column header");
-                assert!(header_line.contains("file_path"),
-                       "Symbols section should have file_path column header");
-                assert!(header_line.contains("byte_start"),
-                       "Symbols section should have byte_start column header");
-                assert!(header_line.contains("byte_end"),
-                       "Symbols section should have byte_end column header");
+                assert!(
+                    header_line.contains("symbol_id"),
+                    "Symbols section should have symbol_id column header"
+                );
+                assert!(
+                    header_line.contains("name"),
+                    "Symbols section should have name column header"
+                );
+                assert!(
+                    header_line.contains("kind"),
+                    "Symbols section should have kind column header"
+                );
+                assert!(
+                    header_line.contains("file_path"),
+                    "Symbols section should have file_path column header"
+                );
+                assert!(
+                    header_line.contains("byte_start"),
+                    "Symbols section should have byte_start column header"
+                );
+                assert!(
+                    header_line.contains("byte_end"),
+                    "Symbols section should have byte_end column header"
+                );
             }
         }
 
@@ -1176,13 +1348,16 @@ def helper():
         }
 
         // 7. Verify we have actual data (at least 2 files and symbols)
-        let data_lines: Vec<&str> = lines.iter()
+        let data_lines: Vec<&str> = lines
+            .iter()
             .filter(|l| !l.is_empty() && !l.starts_with('#'))
             .copied()
             .collect();
 
-        assert!(data_lines.len() >= 2,
-               "should have at least 2 data rows (files + symbols)");
+        assert!(
+            data_lines.len() >= 2,
+            "should have at least 2 data rows (files + symbols)"
+        );
     }
 
     #[test]
@@ -1212,21 +1387,28 @@ def helper():
             let output = output.unwrap();
 
             // Should fail - clap validates the format enum
-            assert!(!output.status.success(),
-                   "export should fail with invalid format");
+            assert!(
+                !output.status.success(),
+                "export should fail with invalid format"
+            );
 
             // Exit code should be 2 (usage error) from clap
             let exit_code = output.status.code();
-            assert!(exit_code == Some(2),
-                   "Expected exit code 2 for invalid argument, got {:?}", exit_code);
+            assert!(
+                exit_code == Some(2),
+                "Expected exit code 2 for invalid argument, got {:?}",
+                exit_code
+            );
 
             // stderr should mention the invalid value
             let stderr = String::from_utf8_lossy(&output.stderr);
-            assert!(stderr.contains("invalid_format") ||
-                   stderr.contains("invalid") ||
-                   stderr.contains("possible values") ||
-                   stderr.contains("one of"),
-                   "stderr should mention invalid value or show possible values");
+            assert!(
+                stderr.contains("invalid_format")
+                    || stderr.contains("invalid")
+                    || stderr.contains("possible values")
+                    || stderr.contains("one of"),
+                "stderr should mention invalid value or show possible values"
+            );
         }
 
         // Test 2: Valid export with empty database (edge case - Magellan creates db if nonexistent)
@@ -1253,20 +1435,28 @@ def helper():
             let output = output.unwrap();
 
             // Should succeed with empty data
-            assert!(output.status.success(),
-                   "export should succeed with empty database");
+            assert!(
+                output.status.success(),
+                "export should succeed with empty database"
+            );
 
             // Output should be valid JSON with empty arrays
             let json_content = std::fs::read_to_string(&output_path).unwrap();
-            let value: Value = serde_json::from_str(&json_content)
-                .expect("export should produce valid JSON");
+            let value: Value =
+                serde_json::from_str(&json_content).expect("export should produce valid JSON");
 
-            assert!(value.get("schema_version").is_some(),
-                   "should have schema_version");
-            assert!(value["data"]["files"].as_array().unwrap().is_empty(),
-                   "files array should be empty");
-            assert!(value["data"]["symbols"].as_array().unwrap().is_empty(),
-                   "symbols array should be empty");
+            assert!(
+                value.get("schema_version").is_some(),
+                "should have schema_version"
+            );
+            assert!(
+                value["data"]["files"].as_array().unwrap().is_empty(),
+                "files array should be empty"
+            );
+            assert!(
+                value["data"]["symbols"].as_array().unwrap().is_empty(),
+                "symbols array should be empty"
+            );
         }
 
         // Test 3: File write permission error (read-only directory) - Unix only
@@ -1308,18 +1498,25 @@ def helper():
             let output = output.unwrap();
 
             // Should fail due to permission error
-            assert!(!output.status.success(),
-                   "export should fail with read-only directory");
+            assert!(
+                !output.status.success(),
+                "export should fail with read-only directory"
+            );
 
             // Exit code should be 1 (error)
             let exit_code = output.status.code();
-            assert!(exit_code == Some(1),
-                   "Expected exit code 1 for permission error, got {:?}", exit_code);
+            assert!(
+                exit_code == Some(1),
+                "Expected exit code 1 for permission error, got {:?}",
+                exit_code
+            );
 
             // stderr should contain error message
             let stderr = String::from_utf8_lossy(&output.stderr);
-            assert!(!stderr.is_empty() || !output.stdout.is_empty(),
-                   "should have some error output");
+            assert!(
+                !stderr.is_empty() || !output.stdout.is_empty(),
+                "should have some error output"
+            );
         }
 
         // Test 4: Export to stdout succeeds
@@ -1347,15 +1544,18 @@ def helper():
             let output = output.unwrap();
 
             // Should succeed (writing to stdout is valid)
-            assert!(output.status.success(),
-                   "export to stdout should succeed");
+            assert!(output.status.success(), "export to stdout should succeed");
 
             // stdout should contain export data
             let stdout = String::from_utf8_lossy(&output.stdout);
-            assert!(stdout.contains("schema_version"),
-                   "stdout should contain schema_version");
-            assert!(stdout.contains("\"status\""),
-                   "stdout should contain success status");
+            assert!(
+                stdout.contains("schema_version"),
+                "stdout should contain schema_version"
+            );
+            assert!(
+                stdout.contains("\"status\""),
+                "stdout should contain success status"
+            );
         }
     }
 }

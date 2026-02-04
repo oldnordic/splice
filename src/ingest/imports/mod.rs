@@ -34,11 +34,7 @@ pub trait ImportExtractor {
     ///
     /// This is where language-specific logic lives - each language
     /// knows its own AST node types and import structures.
-    fn extract_from_node(
-        node: tree_sitter::Node,
-        source: &[u8],
-        imports: &mut Vec<ImportFact>,
-    );
+    fn extract_from_node(node: tree_sitter::Node, source: &[u8], imports: &mut Vec<ImportFact>);
 
     /// Extract imports from source code.
     ///

@@ -140,21 +140,34 @@ Potential areas for future development:
 - Online error documentation (splice.dev/errors/)
 
 ---
-## Current Milestone: v2.2.2 - Magellan Integration
+## Current Milestone: v2.3 - Magellan v2 Integration
 
-**Goal:** Unified CLI interface - Splice provides both Magellan query commands and span-safe editing
+**Goal:** Integrate Magellan v2.0.0 capabilities - enable cross-file rename with byte-accurate references and add semantic program transformation features
 
 **Target features:**
-- Query commands (status, query, find, refs, files) delegating to Magellan
-- CLI alignment (--output, --db flags matching Magellan)
-- Data format alignment (16-char symbol IDs, canonical/display FQNs, execution_id format)
-- Export command for graph data (json/jsonl/csv formats)
+- Cross-file rename refactoring using ReferenceFact byte offsets
+- Graph algorithms integration (reachable, dead-code, cycles, paths, slice)
+- CLI --proof flag for impact analysis before refactoring
+- BLAKE3 SymbolId for unambiguous symbol reference
+- Safe UTF-8 content extraction using extract_symbol_content_safe
+
+**Key insight from ChatGPT analysis:**
+> Cross-file rename is no longer a "feature request" — it is mechanically possible and safe now.
+> The algorithm surface is the difference between "find & replace with guardrails" and semantic program transformation.
+> Externalized ground truth: sqlitegraph = truth, Magellan = extractor, Splice = controlled mutation
 
 **Integration approach:**
-- Magellan provides the code graph (indexing, symbol storage, relationships)
-- Splice provides unified interface - queries delegate to Magellan, edits use Splice's span-safe operations
-- LLMs can use single tool (Splice) for both discovery and modification
+- Magellan v2.0.0 provides byte-accurate references and graph algorithms
+- Splice consumes facts and proof objects via CodeGraph API
+- Forward/backward slice for impact-bounded edits
+- Detect cycles for rename/extract safety
+- Dead symbols for delete with proof
+
+**Recommended phases from ChatGPT:**
+- Phase A: Make rename boring and bulletproof (credibility phase)
+- Phase B: Add analysis before mutation (differentiation phase)
+- Phase C: Metrics as advice, not automation (trust phase)
 
 ---
-*Last updated: 2026-01-24 — v2.2.2 milestone started*
+*Last updated: 2026-02-04 — v2.3 milestone started*
 *See .planning/milestones/ for detailed milestone archives*

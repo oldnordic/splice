@@ -46,13 +46,17 @@ impl ExecutionLogConfig {
     /// Create a config that explicitly enables logging.
     #[must_use]
     pub fn enabled() -> Self {
-        Self { enabled: Some(true) }
+        Self {
+            enabled: Some(true),
+        }
     }
 
     /// Create a config that explicitly disables logging.
     #[must_use]
     pub fn disabled() -> Self {
-        Self { enabled: Some(false) }
+        Self {
+            enabled: Some(false),
+        }
     }
 
     /// Create a config that respects the environment variable.
@@ -144,7 +148,9 @@ pub fn is_enabled() -> bool {
 /// ```
 #[must_use]
 pub fn is_enabled_with_config(config: Option<&ExecutionLogConfig>) -> bool {
-    config.unwrap_or(&ExecutionLogConfig::from_env()).is_enabled()
+    config
+        .unwrap_or(&ExecutionLogConfig::from_env())
+        .is_enabled()
 }
 
 /// Initialize execution log database.

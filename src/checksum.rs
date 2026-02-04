@@ -5,9 +5,9 @@
 //! - Byte spans within files (for verification)
 //! - Line ranges (for pre/post validation)
 
+use crate::error::{Result, SpliceError};
 use sha2::{Digest, Sha256};
 use std::path::Path;
-use crate::error::{Result, SpliceError};
 
 /// Checksum algorithm types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,11 +45,10 @@ impl Checksum {
 
 /// Compute checksum of entire file.
 pub fn checksum_file(path: &Path) -> Result<Checksum> {
-    let contents = std::fs::read(path)
-        .map_err(|e| SpliceError::IoContext {
-            context: format!("Failed to read file for checksum: {}", path.display()),
-            source: e,
-        })?;
+    let contents = std::fs::read(path).map_err(|e| SpliceError::IoContext {
+        context: format!("Failed to read file for checksum: {}", path.display()),
+        source: e,
+    })?;
 
     let size = contents.len();
     let mut hasher = Sha256::new();
@@ -62,11 +61,10 @@ pub fn checksum_file(path: &Path) -> Result<Checksum> {
 
 /// Compute checksum of byte span within file.
 pub fn checksum_span(path: &Path, start: usize, end: usize) -> Result<Checksum> {
-    let contents = std::fs::read(path)
-        .map_err(|e| SpliceError::IoContext {
-            context: format!("Failed to read file for span checksum: {}", path.display()),
-            source: e,
-        })?;
+    let contents = std::fs::read(path).map_err(|e| SpliceError::IoContext {
+        context: format!("Failed to read file for span checksum: {}", path.display()),
+        source: e,
+    })?;
 
     if start > end || end > contents.len() {
         return Err(SpliceError::InvalidSpan {
@@ -89,18 +87,19 @@ pub fn checksum_span(path: &Path, start: usize, end: usize) -> Result<Checksum> 
 
 /// Compute checksum of line range within file.
 pub fn checksum_line_range(path: &Path, line_start: usize, line_end: usize) -> Result<Checksum> {
-    let contents = std::fs::read(path)
-        .map_err(|e| SpliceError::IoContext {
-            context: format!("Failed to read file for line range checksum: {}", path.display()),
-            source: e,
-        })?;
+    let contents = std::fs::read(path).map_err(|e| SpliceError::IoContext {
+        context: format!(
+            "Failed to read file for line range checksum: {}",
+            path.display()
+        ),
+        source: e,
+    })?;
 
     // Convert to string for line-based operations
-    let text = std::str::from_utf8(&contents)
-        .map_err(|e| SpliceError::InvalidUtf8 {
-            file: path.to_path_buf(),
-            source: e,
-        })?;
+    let text = std::str::from_utf8(&contents).map_err(|e| SpliceError::InvalidUtf8 {
+        file: path.to_path_buf(),
+        source: e,
+    })?;
 
     let lines: Vec<&str> = text.lines().collect();
 
@@ -165,11 +164,10 @@ pub fn has_file_changed(path: &Path, expected_checksum: &str) -> Result<bool> {
 /// ```
 pub fn checksum_diff(path: &Path, changes: &[(usize, usize, &str)]) -> Result<Checksum> {
     // Read file to validate bounds
-    let contents = std::fs::read(path)
-        .map_err(|e| SpliceError::IoContext {
-            context: format!("Failed to read file for diff checksum: {}", path.display()),
-            source: e,
-        })?;
+    let contents = std::fs::read(path).map_err(|e| SpliceError::IoContext {
+        context: format!("Failed to read file for diff checksum: {}", path.display()),
+        source: e,
+    })?;
 
     let file_size = contents.len();
 
@@ -333,10 +331,7 @@ mod tests {
         let mut file = NamedTempFile::new().unwrap();
         file.write_all(b"0123456789abcdefghijklmn").unwrap();
 
-        let changes = vec![
-            (2, 5, "abc"),
-            (10, 15, "xyz"),
-        ];
+        let changes = vec![(2, 5, "abc"), (10, 15, "xyz")];
         let checksum = checksum_diff(file.path(), &changes).unwrap();
 
         assert_eq!(checksum.size, 6); // "abc" + "xyz" = 3 + 3

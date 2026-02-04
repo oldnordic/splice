@@ -161,19 +161,31 @@ fn generate_params(action_type: ActionType) -> Option<HashMap<String, serde_json
 
     match action_type {
         ActionType::Delete => {
-            params.insert("remove_references".to_string(), serde_json::Value::Bool(true));
+            params.insert(
+                "remove_references".to_string(),
+                serde_json::Value::Bool(true),
+            );
         }
         ActionType::Replace => {
-            params.insert("preserve_signature".to_string(), serde_json::Value::Bool(true));
+            params.insert(
+                "preserve_signature".to_string(),
+                serde_json::Value::Bool(true),
+            );
         }
         ActionType::Expand => {
             params.insert("levels".to_string(), serde_json::Value::Number(2.into()));
         }
         ActionType::Query => {
-            params.insert("include_context".to_string(), serde_json::Value::Bool(false));
+            params.insert(
+                "include_context".to_string(),
+                serde_json::Value::Bool(false),
+            );
         }
         ActionType::Read => {
-            params.insert("include_metadata".to_string(), serde_json::Value::Bool(true));
+            params.insert(
+                "include_metadata".to_string(),
+                serde_json::Value::Bool(true),
+            );
         }
     }
 
@@ -256,7 +268,10 @@ mod tests {
         assert!(action.params.is_some());
 
         let params = action.params.unwrap();
-        assert_eq!(params.get("remove_references"), Some(&serde_json::Value::Bool(true)));
+        assert_eq!(
+            params.get("remove_references"),
+            Some(&serde_json::Value::Bool(true))
+        );
     }
 
     #[test]
@@ -274,7 +289,10 @@ mod tests {
         assert!(action.reason.contains("Replace symbol"));
 
         let params = action.params.unwrap();
-        assert_eq!(params.get("preserve_signature"), Some(&serde_json::Value::Bool(true)));
+        assert_eq!(
+            params.get("preserve_signature"),
+            Some(&serde_json::Value::Bool(true))
+        );
     }
 
     #[test]
@@ -291,7 +309,10 @@ mod tests {
         assert!(action.reason.contains("Expand symbol"));
 
         let params = action.params.unwrap();
-        assert_eq!(params.get("levels"), Some(&serde_json::Value::Number(2.into())));
+        assert_eq!(
+            params.get("levels"),
+            Some(&serde_json::Value::Number(2.into()))
+        );
     }
 
     #[test]

@@ -10,8 +10,8 @@ pub mod query;
 
 // Re-export commonly used types from base module
 pub use base::{
-    init_execution_log_db, insert_execution_log, ExecutionLog, ExecutionLogBuilder, DB_FILENAME,
-    generate_delegated_execution_id,
+    generate_delegated_execution_id, init_execution_log_db, insert_execution_log, ExecutionLog,
+    ExecutionLogBuilder, DB_FILENAME,
 };
 
 // Re-export query types
@@ -22,7 +22,6 @@ pub use query::{
 
 // Re-export log types
 pub use log::{
-    ExecutionLogConfig, db_path, init_db, init_db_in_dir,
-    is_enabled, is_enabled_with_config, record_execution,
-    record_execution_with_params, record_execution_failure
+    db_path, init_db, init_db_in_dir, is_enabled, is_enabled_with_config, record_execution,
+    record_execution_failure, record_execution_with_params, ExecutionLogConfig,
 };

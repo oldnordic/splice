@@ -612,8 +612,8 @@ mod tests {
         let timestamp_hex = parts[0];
 
         // Parse hex timestamp
-        let timestamp = u32::from_str_radix(timestamp_hex, 16)
-            .expect("Timestamp part should be valid hex");
+        let timestamp =
+            u32::from_str_radix(timestamp_hex, 16).expect("Timestamp part should be valid hex");
 
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -637,15 +637,11 @@ mod tests {
         let pid_hex = parts[1];
 
         // Parse hex PID
-        let pid = u16::from_str_radix(pid_hex, 16)
-            .expect("PID part should be valid hex");
+        let pid = u16::from_str_radix(pid_hex, 16).expect("PID part should be valid hex");
 
         let current_pid = std::process::id() as u16;
 
         // PID should match current process (lower 16 bits)
-        assert_eq!(
-            pid, current_pid,
-            "PID part should match current process ID"
-        );
+        assert_eq!(pid, current_pid, "PID part should match current process ID");
     }
 }

@@ -6,7 +6,9 @@
 //! - Code chunk retrieval without file re-reading
 //! - Error handling at integration boundaries
 
-use splice::graph::magellan_integration::{CodeChunk, MagellanIntegration, SymbolInfo, SymbolWithRelations};
+use splice::graph::magellan_integration::{
+    CodeChunk, MagellanIntegration, SymbolInfo, SymbolWithRelations,
+};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
@@ -1051,9 +1053,15 @@ fn test_get_statistics_empty_database() {
     let stats = db.get_statistics().unwrap();
     assert_eq!(stats.files, 0, "Empty database should have 0 files");
     assert_eq!(stats.symbols, 0, "Empty database should have 0 symbols");
-    assert_eq!(stats.references, 0, "Empty database should have 0 references");
+    assert_eq!(
+        stats.references, 0,
+        "Empty database should have 0 references"
+    );
     assert_eq!(stats.calls, 0, "Empty database should have 0 calls");
-    assert_eq!(stats.code_chunks, 0, "Empty database should have 0 code chunks");
+    assert_eq!(
+        stats.code_chunks, 0,
+        "Empty database should have 0 code chunks"
+    );
 }
 
 #[test]
@@ -1082,13 +1090,21 @@ fn test_query_symbols_by_file_no_filter() {
     db.index_file(&rust_file).unwrap();
 
     // Query all symbols in file (no kind filter, no relationships)
-    let results = db.query_symbols_by_file(&rust_file, None, false, false).unwrap();
+    let results = db
+        .query_symbols_by_file(&rust_file, None, false, false)
+        .unwrap();
     assert!(!results.is_empty(), "Should find symbols in file");
 
     // Verify no relationships included (flags were false)
     for result in &results {
-        assert!(result.callers.is_empty(), "Should not have callers when flag is false");
-        assert!(result.callees.is_empty(), "Should not have callees when flag is false");
+        assert!(
+            result.callers.is_empty(),
+            "Should not have callers when flag is false"
+        );
+        assert!(
+            result.callees.is_empty(),
+            "Should not have callees when flag is false"
+        );
     }
 }
 
@@ -1102,7 +1118,9 @@ fn test_query_symbols_by_file_with_kind_filter() {
     db.index_file(&rust_file).unwrap();
 
     // Query for "fn" kind symbols only
-    let results = db.query_symbols_by_file(&rust_file, Some("fn"), false, false).unwrap();
+    let results = db
+        .query_symbols_by_file(&rust_file, Some("fn"), false, false)
+        .unwrap();
 
     // Should find function symbols (may be empty depending on Magellan labeling)
     // The important thing is the query succeeds
@@ -1122,7 +1140,10 @@ fn test_find_symbol_by_name_first_match() {
     let results = db.find_symbol_by_name("MyStruct", false).unwrap();
 
     // With ambiguous=false, should return at most one result
-    assert!(results.len() <= 1, "Should return first match only when ambiguous=false");
+    assert!(
+        results.len() <= 1,
+        "Should return first match only when ambiguous=false"
+    );
 
     // If found, verify it's a struct
     if !results.is_empty() {
@@ -1158,7 +1179,10 @@ fn test_find_symbol_by_name_not_found() {
 
     // Search for non-existent symbol
     let results = db.find_symbol_by_name("NonExistentSymbol", false).unwrap();
-    assert!(results.is_empty(), "Should return empty for non-existent symbol");
+    assert!(
+        results.is_empty(),
+        "Should return empty for non-existent symbol"
+    );
 }
 
 #[test]
@@ -1177,11 +1201,7 @@ fn test_find_symbol_by_id() {
         use splice::symbol_id::generate_symbol_id;
 
         // Generate the expected symbol ID
-        let expected_id = generate_symbol_id(
-            &symbol.name,
-            &symbol.file_path,
-            symbol.byte_start
-        );
+        let expected_id = generate_symbol_id(&symbol.name, &symbol.file_path, symbol.byte_start);
 
         // Look up by ID
         let found = db.find_symbol_by_id(expected_id.as_str()).unwrap();
@@ -1202,7 +1222,10 @@ fn test_find_symbol_by_id_not_found() {
 
     // Search for non-existent symbol ID
     let found = db.find_symbol_by_id("0000000000000000").unwrap();
-    assert!(found.is_none(), "Should return None for non-existent symbol ID");
+    assert!(
+        found.is_none(),
+        "Should return None for non-existent symbol ID"
+    );
 }
 
 #[test]
@@ -1216,10 +1239,17 @@ fn test_get_call_relationships_both_directions() {
 
     // Try to get relationships for a symbol
     // Note: May not have actual call relationships in sample file
-    let results = db.get_call_relationships(&rust_file, "my_function", splice::graph::magellan_integration::CallDirection::Both);
+    let results = db.get_call_relationships(
+        &rust_file,
+        "my_function",
+        splice::graph::magellan_integration::CallDirection::Both,
+    );
 
     // Should succeed (may be empty if no call relationships)
-    assert!(results.is_ok(), "Should be able to query call relationships");
+    assert!(
+        results.is_ok(),
+        "Should be able to query call relationships"
+    );
 
     let relationships = results.unwrap();
     assert_eq!(relationships.symbol.name, "my_function");
@@ -1236,12 +1266,19 @@ fn test_get_call_relationships_in_direction() {
     db.index_file(&rust_file).unwrap();
 
     // Get callers only
-    let results = db.get_call_relationships(&rust_file, "my_function", splice::graph::magellan_integration::CallDirection::In);
+    let results = db.get_call_relationships(
+        &rust_file,
+        "my_function",
+        splice::graph::magellan_integration::CallDirection::In,
+    );
 
     assert!(results.is_ok(), "Should be able to query callers");
 
     let relationships = results.unwrap();
-    assert!(relationships.callees.is_empty(), "Should not have callees when direction=In");
+    assert!(
+        relationships.callees.is_empty(),
+        "Should not have callees when direction=In"
+    );
     // callers may be empty depending on sample file
 }
 
@@ -1255,12 +1292,19 @@ fn test_get_call_relationships_out_direction() {
     db.index_file(&rust_file).unwrap();
 
     // Get callees only
-    let results = db.get_call_relationships(&rust_file, "my_function", splice::graph::magellan_integration::CallDirection::Out);
+    let results = db.get_call_relationships(
+        &rust_file,
+        "my_function",
+        splice::graph::magellan_integration::CallDirection::Out,
+    );
 
     assert!(results.is_ok(), "Should be able to query callees");
 
     let relationships = results.unwrap();
-    assert!(relationships.callers.is_empty(), "Should not have callers when direction=Out");
+    assert!(
+        relationships.callers.is_empty(),
+        "Should not have callers when direction=Out"
+    );
     // callees may be empty depending on sample file
 }
 
@@ -1278,8 +1322,14 @@ fn test_list_indexed_files_without_counts() {
     assert_eq!(files.len(), 1, "Should have 1 indexed file");
 
     let file = &files[0];
-    assert!(file.path.contains("sample_rust.rs"), "Should return the indexed file");
-    assert!(file.symbol_count.is_none(), "Should not have symbol count when flag is false");
+    assert!(
+        file.path.contains("sample_rust.rs"),
+        "Should return the indexed file"
+    );
+    assert!(
+        file.symbol_count.is_none(),
+        "Should not have symbol count when flag is false"
+    );
 }
 
 #[test]
@@ -1296,8 +1346,14 @@ fn test_list_indexed_files_with_counts() {
     assert_eq!(files.len(), 1, "Should have 1 indexed file");
 
     let file = &files[0];
-    assert!(file.symbol_count.is_some(), "Should have symbol count when flag is true");
-    assert!(file.symbol_count.unwrap() > 0, "Should have at least some symbols");
+    assert!(
+        file.symbol_count.is_some(),
+        "Should have symbol count when flag is true"
+    );
+    assert!(
+        file.symbol_count.unwrap() > 0,
+        "Should have at least some symbols"
+    );
 }
 
 #[test]
@@ -1309,7 +1365,10 @@ fn test_list_indexed_files_empty_database() {
 
     // Empty database should have no files
     let files = db.list_indexed_files(false).unwrap();
-    assert!(files.is_empty(), "Empty database should have no indexed files");
+    assert!(
+        files.is_empty(),
+        "Empty database should have no indexed files"
+    );
 }
 
 #[test]

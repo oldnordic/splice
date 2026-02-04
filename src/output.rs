@@ -1181,11 +1181,7 @@ impl From<crate::graph::magellan_integration::DatabaseStats> for StatusResponse 
 impl From<crate::graph::magellan_integration::SymbolInfo> for MagellanSymbol {
     fn from(info: crate::graph::magellan_integration::SymbolInfo) -> Self {
         // Generate V2 BLAKE3 symbol ID and set id_format
-        let symbol_id = crate::symbol_id::generate_v2(
-            &info.name,
-            &info.file_path,
-            info.byte_start,
-        );
+        let symbol_id = crate::symbol_id::generate_v2(&info.name, &info.file_path, info.byte_start);
         Self {
             symbol_id: Some(symbol_id.as_str().to_string()),
             id_format: Some("v2".to_string()),

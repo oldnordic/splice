@@ -4,7 +4,7 @@
 //! spans from Magellan. Replacements are applied at exact byte offsets
 //! with proper offset recalculation for variable-length names.
 
-use crate::diff::{format_unified_diff, format_colored_diff, should_use_color};
+use crate::diff::{format_colored_diff, format_unified_diff, should_use_color};
 use crate::error::{Result, SpliceError};
 use crate::graph::MagellanIntegration;
 use chrono::Utc;
@@ -108,20 +108,16 @@ pub fn simulate_replacements_content(
             Err(e) => {
                 return Err(SpliceError::Other(format!(
                     "Failed to simulate replacement at {}..{}: {}",
-                    reference.byte_start,
-                    reference.byte_end,
-                    e
+                    reference.byte_start, reference.byte_end, e
                 )));
             }
         }
     }
 
     // Convert back to string, validating UTF-8
-    String::from_utf8(current_content).map_err(|e| {
-        SpliceError::InvalidUtf8 {
-            file: PathBuf::from("<preview>"),
-            source: e.utf8_error(),
-        }
+    String::from_utf8(current_content).map_err(|e| SpliceError::InvalidUtf8 {
+        file: PathBuf::from("<preview>"),
+        source: e.utf8_error(),
     })
 }
 
@@ -219,9 +215,8 @@ pub fn create_rename_backup(
 
     // Write manifest.json
     let manifest_path = backup_dir.join("manifest.json");
-    let manifest_json = serde_json::to_string_pretty(&manifest).map_err(|e| {
-        SpliceError::Other(format!("Failed to serialize backup manifest: {}", e))
-    })?;
+    let manifest_json = serde_json::to_string_pretty(&manifest)
+        .map_err(|e| SpliceError::Other(format!("Failed to serialize backup manifest: {}", e)))?;
     fs::write(&manifest_path, manifest_json).map_err(|e| SpliceError::Io {
         path: manifest_path.clone(),
         source: e,
@@ -310,14 +305,15 @@ impl RenameTransaction {
             let manifest_path = backup_dir.join("manifest.json");
             if manifest_path.exists() {
                 // Read manifest
-                let manifest_json = fs::read_to_string(&manifest_path).map_err(|e| {
-                    SpliceError::Io {
+                let manifest_json =
+                    fs::read_to_string(&manifest_path).map_err(|e| SpliceError::Io {
                         path: manifest_path.clone(),
                         source: e,
-                    }
-                })?;
-                let manifest: RenameBackupManifest = serde_json::from_str(&manifest_json)
-                    .map_err(|e| SpliceError::Other(format!("Failed to parse backup manifest: {}", e)))?;
+                    })?;
+                let manifest: RenameBackupManifest =
+                    serde_json::from_str(&manifest_json).map_err(|e| {
+                        SpliceError::Other(format!("Failed to parse backup manifest: {}", e))
+                    })?;
 
                 // Restore each file from backup
                 for (relative_path, _checksum) in manifest.files {
@@ -404,11 +400,7 @@ where
 /// # Errors
 /// Returns InvalidSpan if byte_start/byte_end are out of bounds
 /// or if the span crosses UTF-8 character boundaries.
-pub fn replace_at_span(
-    content: &[u8],
-    span: &ReferenceFact,
-    new_name: &[u8],
-) -> Result<Vec<u8>> {
+pub fn replace_at_span(content: &[u8], span: &ReferenceFact, new_name: &[u8]) -> Result<Vec<u8>> {
     // Validate span boundaries
     if span.byte_start >= content.len() || span.byte_end > content.len() {
         return Err(SpliceError::InvalidSpan {
@@ -544,15 +536,11 @@ pub fn group_references_by_file(
 ///
 /// # Returns
 /// HashMap mapping file path to count of replacements
-pub fn simulate_replacements(
-    references: &[ReferenceFact],
-) -> HashMap<PathBuf, usize> {
+pub fn simulate_replacements(references: &[ReferenceFact]) -> HashMap<PathBuf, usize> {
     let mut simulation: HashMap<PathBuf, usize> = HashMap::new();
 
     for reference in references {
-        *simulation
-            .entry(reference.file_path.clone())
-            .or_insert(0) += 1;
+        *simulation.entry(reference.file_path.clone()).or_insert(0) += 1;
     }
 
     simulation
@@ -562,11 +550,7 @@ pub fn simulate_replacements(
 mod tests {
     use super::*;
 
-    fn create_test_reference(
-        file_path: &str,
-        byte_start: usize,
-        byte_end: usize,
-    ) -> ReferenceFact {
+    fn create_test_reference(file_path: &str, byte_start: usize, byte_end: usize) -> ReferenceFact {
         ReferenceFact {
             file_path: PathBuf::from(file_path),
             referenced_symbol: "old_name".to_string(),
@@ -729,13 +713,17 @@ mod tests {
         ];
 
         // Apply replacements
-        let count = apply_replacements_in_file(file_path, "old_name", "new_name", &references).unwrap();
+        let count =
+            apply_replacements_in_file(file_path, "old_name", "new_name", &references).unwrap();
 
         assert_eq!(count, 2);
 
         // Verify the result - definition is NOT changed
         let result_content = fs::read_to_string(file_path).unwrap();
-        assert_eq!(result_content, "fn old_name() {\n    new_name();\n    new_name();\n}\n");
+        assert_eq!(
+            result_content,
+            "fn old_name() {\n    new_name();\n    new_name();\n}\n"
+        );
     }
 
     #[test]
@@ -947,8 +935,7 @@ mod tests {
 
         // Verify manifest contents
         let manifest_json = fs::read_to_string(&manifest_path).unwrap();
-        let manifest: RenameBackupManifest =
-            serde_json::from_str(&manifest_json).unwrap();
+        let manifest: RenameBackupManifest = serde_json::from_str(&manifest_json).unwrap();
 
         assert!(manifest.operation_id.starts_with("rename-test_symbol-"));
         assert_eq!(manifest.files.len(), 2);
@@ -999,8 +986,7 @@ mod tests {
         // Verify manifest has correct relative paths
         let manifest_path = backup_dir.join("manifest.json");
         let manifest: RenameBackupManifest =
-            serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap())
-                .unwrap();
+            serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
 
         assert!(manifest.files.contains_key("src/api/handlers.rs"));
         assert!(manifest.files.contains_key("tests/integration_test.rs"));
@@ -1018,7 +1004,10 @@ mod tests {
         let checksum = sha256_checksum(file_path).unwrap();
 
         // SHA-256 of "test content" (without newline)
-        assert_eq!(checksum, "6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72");
+        assert_eq!(
+            checksum,
+            "6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72"
+        );
         assert_eq!(checksum.len(), 64); // SHA-256 produces 64 hex characters
     }
 
@@ -1046,8 +1035,8 @@ mod tests {
         let workspace_root = temp_dir.path();
         let backup_dir = workspace_root.join(".splice/backups/test-backup");
 
-        let txn = RenameTransaction::new()
-            .with_backup(backup_dir.clone(), workspace_root.to_path_buf());
+        let txn =
+            RenameTransaction::new().with_backup(backup_dir.clone(), workspace_root.to_path_buf());
 
         assert!(txn.backup_dir.as_ref().is_some());
         assert_eq!(txn.backup_dir.as_ref().unwrap(), &backup_dir);
@@ -1064,7 +1053,10 @@ mod tests {
         assert_eq!(txn.modified_count(), 2);
         assert_eq!(
             txn.modified_files(),
-            &[PathBuf::from("/path/to/file1.rs"), PathBuf::from("/path/to/file2.rs")]
+            &[
+                PathBuf::from("/path/to/file1.rs"),
+                PathBuf::from("/path/to/file2.rs")
+            ]
         );
     }
 
@@ -1103,8 +1095,7 @@ mod tests {
         fs::write(&file_path, "fn modified() {}\n").unwrap();
 
         // Rollback
-        let txn = RenameTransaction::new()
-            .with_backup(backup_dir, workspace_root.to_path_buf());
+        let txn = RenameTransaction::new().with_backup(backup_dir, workspace_root.to_path_buf());
         txn.rollback().unwrap();
 
         // Verify file was restored
@@ -1145,9 +1136,11 @@ mod tests {
         let mut txn = RenameTransaction::new();
 
         // Simulate a failure during modification
-        let result = apply_with_rollback(file_path, || {
-            Err(SpliceError::Other("Simulated failure".to_string()))
-        }, &mut txn);
+        let result = apply_with_rollback(
+            file_path,
+            || Err(SpliceError::Other("Simulated failure".to_string())),
+            &mut txn,
+        );
 
         assert!(result.is_err());
 

@@ -174,7 +174,8 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_static_wildcard_import() -> std::result::Result<(), Box<dyn std::error::Error>> {
+    fn test_extract_static_wildcard_import() -> std::result::Result<(), Box<dyn std::error::Error>>
+    {
         let source = b"import static java.lang.Math.*;\n";
         let path = Path::new("test.java");
         let result = extract_java_imports(path, source);
