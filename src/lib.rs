@@ -43,7 +43,9 @@ pub use graph::migrate::{migrate_database, check_schema_version, MigrationResult
 /// Re-export rename types for convenience.
 pub use graph::rename::{
     replace_at_span, apply_replacements_in_file, group_references_by_file,
-    simulate_replacements,
+    simulate_replacements, generate_preview_diff, generate_colored_preview,
+    simulate_replacements_content, create_rename_backup, RenameBackupManifest,
+    RenameTransaction, apply_with_rollback,
 };
 
 /// Re-export context types for convenience.
