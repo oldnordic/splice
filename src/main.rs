@@ -346,7 +346,7 @@ fn main() -> ExitCode {
             max_depth,
             output,
         } => {
-            execute_slice(&target, &path, &db, direction, max_depth, output, json_output)
+            execute_slice(&target, &path, &db, &direction, max_depth, output, json_output)
         }
     };
 
@@ -4574,7 +4574,7 @@ fn execute_slice(
     let target_facts = integration.inner_mut().symbol_extents(path_str, target)
         .map_err(|e| splice::SpliceError::Other(format!("Failed to find target: {}", e)))?;
 
-    let (target_id, target_fact) = target_facts.first()
+    let (_target_id, target_fact) = target_facts.first()
         .ok_or_else(|| splice::SpliceError::Other("Target symbol not found".to_string()))?;
 
     let target_symbol = SymbolInfo {
@@ -4593,11 +4593,12 @@ fn execute_slice(
         *affected_files.entry(ss.symbol.file_path.clone()).or_insert(0) += 1;
     }
 
+    let target_file_path = target_symbol.file_path.clone();
     let affected_files_result: Vec<AffectedFile> = affected_files.into_iter()
         .map(|(path, count)| AffectedFile {
+            is_root: path == target_file_path,
             path,
             symbol_count: count,
-            is_root: path == target_symbol.file_path,
         })
         .collect();
 

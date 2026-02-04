@@ -1293,6 +1293,224 @@ impl MagellanIntegration {
         Ok(dead_symbols)
     }
 
+    /// Forward slice: find all symbols affected by changes to the target.
+    ///
+    /// This computes the transitive closure of callees from the target symbol.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to file containing target symbol
+    /// * `symbol_name` - Name of target symbol
+    /// * `max_depth` - Optional maximum depth to traverse
+    ///
+    /// # Returns
+    /// Vec<SlicedSymbol> with distance and relationship information
+    pub fn forward_slice(
+        &mut self,
+        file_path: &Path,
+        symbol_name: &str,
+        max_depth: Option<usize>,
+    ) -> Result<Vec<SlicedSymbol>> {
+        let path_str = file_path
+            .to_str()
+            .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
+
+        let mut result = Vec::new();
+        let mut visited: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
+        let mut queue: std::collections::VecDeque<(String, String, usize)> = std::collections::VecDeque::new();
+
+        // Get target symbol info
+        let target_facts = self.inner.symbol_extents(path_str, symbol_name)
+            .map_err(|e| SpliceError::Other(format!("Failed to find target: {}", e)))?;
+
+        if target_facts.is_empty() {
+            return Err(SpliceError::SymbolNotFound {
+                message: format!("Target '{}' not found in '{}'", symbol_name, path_str),
+                symbol: symbol_name.to_string(),
+                file: Some(file_path.to_path_buf()),
+                hint: String::new(),
+            });
+        }
+
+        let (target_id, target_fact) = &target_facts[0];
+        let target_key = (target_fact.file_path.to_string_lossy().to_string(), symbol_name.to_string());
+        visited.insert(target_key.clone());
+
+        // Add target symbol at distance 0
+        result.push(SlicedSymbol {
+            symbol: SymbolInfo {
+                entity_id: *target_id,
+                name: target_fact.name.clone().unwrap_or_else(|| symbol_name.to_string()),
+                file_path: target_fact.file_path.to_string_lossy().to_string(),
+                kind: target_fact.kind_normalized.clone(),
+                byte_start: target_fact.byte_start,
+                byte_end: target_fact.byte_end,
+            },
+            distance: 0,
+            is_target: true,
+            relationship: "target".to_string(),
+        });
+
+        // BFS for forward slice
+        let calls = self.inner.calls_from_symbol(path_str, symbol_name)
+            .unwrap_or_default();
+
+        for call in calls {
+            let key = (call.file_path.to_string_lossy().to_string(), call.callee.clone());
+            if visited.insert(key) {
+                queue.push_back((call.file_path.to_string_lossy().to_string(), call.callee, 1));
+            }
+        }
+
+        while let Some((file, name, dist)) = queue.pop_front() {
+            if let Some(max_d) = max_depth {
+                if dist > max_d {
+                    continue;
+                }
+            }
+
+            // Get symbol info
+            if let Ok(symbol_facts) = self.inner.symbol_extents(&file, &name) {
+                if let Some((entity_id, fact)) = symbol_facts.first() {
+                    result.push(SlicedSymbol {
+                        symbol: SymbolInfo {
+                            entity_id: *entity_id,
+                            name: fact.name.clone().unwrap_or_else(|| name.clone()),
+                            file_path: fact.file_path.to_string_lossy().to_string(),
+                            kind: fact.kind_normalized.clone(),
+                            byte_start: fact.byte_start,
+                            byte_end: fact.byte_end,
+                        },
+                        distance: dist,
+                        is_target: false,
+                        relationship: "calls".to_string(),
+                    });
+
+                    // Continue BFS
+                    let next_calls = self.inner.calls_from_symbol(&file, &name)
+                        .unwrap_or_default();
+
+                    for call in next_calls {
+                        let key = (call.file_path.to_string_lossy().to_string(), call.callee.clone());
+                        if visited.insert(key) {
+                            queue.push_back((call.file_path.to_string_lossy().to_string(), call.callee, dist + 1));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Backward slice: find all symbols that affect the target.
+    ///
+    /// This computes the transitive closure of callers to the target symbol.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to file containing target symbol
+    /// * `symbol_name` - Name of target symbol
+    /// * `max_depth` - Optional maximum depth to traverse
+    ///
+    /// # Returns
+    /// Vec<SlicedSymbol> with distance and relationship information
+    pub fn backward_slice(
+        &mut self,
+        file_path: &Path,
+        symbol_name: &str,
+        max_depth: Option<usize>,
+    ) -> Result<Vec<SlicedSymbol>> {
+        let path_str = file_path
+            .to_str()
+            .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
+
+        let mut result = Vec::new();
+        let mut visited: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
+        let mut queue: std::collections::VecDeque<(String, String, usize)> = std::collections::VecDeque::new();
+
+        // Get target symbol info
+        let target_facts = self.inner.symbol_extents(path_str, symbol_name)
+            .map_err(|e| SpliceError::Other(format!("Failed to find target: {}", e)))?;
+
+        if target_facts.is_empty() {
+            return Err(SpliceError::SymbolNotFound {
+                message: format!("Target '{}' not found in '{}'", symbol_name, path_str),
+                symbol: symbol_name.to_string(),
+                file: Some(file_path.to_path_buf()),
+                hint: String::new(),
+            });
+        }
+
+        let (target_id, target_fact) = &target_facts[0];
+        let target_key = (target_fact.file_path.to_string_lossy().to_string(), symbol_name.to_string());
+        visited.insert(target_key.clone());
+
+        // Add target symbol at distance 0
+        result.push(SlicedSymbol {
+            symbol: SymbolInfo {
+                entity_id: *target_id,
+                name: target_fact.name.clone().unwrap_or_else(|| symbol_name.to_string()),
+                file_path: target_fact.file_path.to_string_lossy().to_string(),
+                kind: target_fact.kind_normalized.clone(),
+                byte_start: target_fact.byte_start,
+                byte_end: target_fact.byte_end,
+            },
+            distance: 0,
+            is_target: true,
+            relationship: "target".to_string(),
+        });
+
+        // BFS for backward slice
+        let callers = self.inner.callers_of_symbol(path_str, symbol_name)
+            .unwrap_or_default();
+
+        for call in callers {
+            let key = (call.file_path.to_string_lossy().to_string(), call.caller.clone());
+            if visited.insert(key) {
+                queue.push_back((call.file_path.to_string_lossy().to_string(), call.caller, 1));
+            }
+        }
+
+        while let Some((file, name, dist)) = queue.pop_front() {
+            if let Some(max_d) = max_depth {
+                if dist > max_d {
+                    continue;
+                }
+            }
+
+            // Get symbol info
+            if let Ok(symbol_facts) = self.inner.symbol_extents(&file, &name) {
+                if let Some((entity_id, fact)) = symbol_facts.first() {
+                    result.push(SlicedSymbol {
+                        symbol: SymbolInfo {
+                            entity_id: *entity_id,
+                            name: fact.name.clone().unwrap_or_else(|| name.clone()),
+                            file_path: fact.file_path.to_string_lossy().to_string(),
+                            kind: fact.kind_normalized.clone(),
+                            byte_start: fact.byte_start,
+                            byte_end: fact.byte_end,
+                        },
+                        distance: dist,
+                        is_target: false,
+                        relationship: "called_by".to_string(),
+                    });
+
+                    // Continue BFS
+                    let next_callers = self.inner.callers_of_symbol(&file, &name)
+                        .unwrap_or_default();
+
+                    for call in next_callers {
+                        let key = (call.file_path.to_string_lossy().to_string(), call.caller.clone());
+                        if visited.insert(key) {
+                            queue.push_back((call.file_path.to_string_lossy().to_string(), call.caller, dist + 1));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
     /// Compute the condensation graph (SCCs collapsed to DAG).
     ///
     /// Returns SCCs, edges between them, and topological levels.
@@ -1672,6 +1890,19 @@ pub struct LevelInfo {
     pub level: usize,
     pub scc_ids: Vec<String>,
     pub count: usize,
+}
+
+/// A symbol in a program slice.
+#[derive(Debug, Clone)]
+pub struct SlicedSymbol {
+    /// The symbol.
+    pub symbol: SymbolInfo,
+    /// Distance from target.
+    pub distance: usize,
+    /// Whether this is the target symbol.
+    pub is_target: bool,
+    /// Relationship type.
+    pub relationship: String,
 }
 
 /// File metadata with optional symbol count.
