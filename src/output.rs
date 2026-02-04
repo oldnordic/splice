@@ -1456,6 +1456,51 @@ pub struct LevelInfo {
 }
 
 // ============================================================================
+// Program Slicing Types (Phase 30-05)
+// ============================================================================
+
+/// Program slicing result.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SliceResult {
+    /// The target symbol.
+    pub target: SymbolInfo,
+    /// Slice direction performed.
+    pub direction: String, // "forward" or "backward"
+    /// Maximum depth (None = unlimited).
+    pub max_depth: Option<usize>,
+    /// Symbols in the slice.
+    pub symbols: Vec<SlicedSymbol>,
+    /// Files affected by this slice.
+    pub affected_files: Vec<AffectedFile>,
+    /// Statistics about the slice.
+    pub stats: SliceStats,
+}
+
+/// A symbol in the program slice.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SlicedSymbol {
+    /// The symbol.
+    pub symbol: SymbolInfo,
+    /// Distance from target (0 = target itself).
+    pub distance: usize,
+    /// Whether this is the target symbol.
+    pub is_target: bool,
+    /// Relationship type (calls, called_by, etc.).
+    pub relationship: String,
+}
+
+/// Statistics about the slice.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SliceStats {
+    /// Total symbols in the slice.
+    pub total_symbols: usize,
+    /// Maximum distance from target.
+    pub max_distance: usize,
+    /// Number of affected files.
+    pub affected_file_count: usize,
+}
+
+// ============================================================================
 // Export Data Types (Phase 25-03)
 // ============================================================================
 
