@@ -18,14 +18,50 @@ mod tests {
     use tempfile::{NamedTempFile, TempDir};
 
     /// Extract JSON from stdout that may contain debug output lines.
-    /// Debug lines from SQLiteGraph start with brackets or specific prefixes.
+    ///
+    /// Debug lines from SQLiteGraph (CLUSTER_DEBUG, V2_SLOT_DEBUG, etc.) are
+    /// printed to stdout and may contain `}` characters in file paths, which
+    /// confuses naive JSON extraction. We find the actual JSON response by
+    /// looking for the splice response pattern `{"status":`.
     fn extract_json_from_stdout(stdout: &str) -> String {
-        let start = stdout.find('{');
-        let end = stdout.rfind('}');
+        // Find the actual JSON response by looking for the splice response start
+        // All splice CLI JSON responses start with `{"status":`
+        let json_start = stdout.find(r#"{"status":"#);
+        if json_start.is_none() {
+            // Fallback to looking for just `{` if status pattern not found
+            let start = stdout.find('{');
+            let end = stdout.rfind('}');
+            match (start, end) {
+                (Some(start), Some(end)) if end >= start => return stdout[start..=end].to_string(),
+                _ => return String::new(),
+            }
+        }
 
-        match (start, end) {
-            (Some(start), Some(end)) if end >= start => stdout[start..=end].to_string(),
-            _ => String::new(),
+        // Find the matching closing brace by counting brace depth
+        let start = json_start.unwrap();
+        let mut depth = 0;
+        let mut end = None;
+        let chars: Vec<char> = stdout.chars().collect();
+        let mut i = start;
+
+        while i < chars.len() {
+            match chars[i] {
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = Some(i);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+            i += 1;
+        }
+
+        match end {
+            Some(end_idx) => stdout[start..=end_idx].to_string(),
+            None => String::new(),
         }
     }
 
@@ -1367,6 +1403,7 @@ pub fn value() -> i32 {
             .arg(&patch_path)
             .arg("--preview")
             .arg("--json")
+            .env("RUSTC_WRAPPER", "")
             .current_dir(workspace_path)
             .output()
             .expect("Failed to run splice CLI");

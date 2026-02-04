@@ -118,6 +118,9 @@ pub struct OperationResult {
     /// Error details if status is "error"
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<ErrorDetails>,
+    /// Preview report for dry-run operations (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preview_report: Option<serde_json::Value>,
 }
 
 impl OperationResult {
@@ -141,6 +144,7 @@ impl OperationResult {
             workspace: None,
             result: None,
             error: None,
+            preview_report: None,
         }
     }
 
@@ -174,6 +178,12 @@ impl OperationResult {
     /// Set result data.
     pub fn with_result(mut self, result: OperationData) -> Self {
         self.result = Some(result);
+        self
+    }
+
+    /// Set preview report for dry-run operations.
+    pub fn with_preview_report(mut self, preview_report: serde_json::Value) -> Self {
+        self.preview_report = Some(preview_report);
         self
     }
 }

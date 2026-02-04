@@ -11,6 +11,17 @@ This release delivers Magellan v2 integration with cross-file rename, impact ana
 
 ### Added
 
+**Preview Mode JSON Output**
+- `splice patch --preview --json` now returns structured JSON response
+  - `data.preview_report` with full PreviewReport struct (file, line_start, line_end, lines_added, lines_removed, bytes_added, bytes_removed)
+  - `data.files` array with affected file entries
+  - `data.symbol` at top level for symbol name
+  - Consistent with CliSuccessPayload pattern used by other commands
+
+This release delivers Magellan v2 integration with cross-file rename, impact analysis, dead code detection, cycle detection, graph condensation, program slicing, and proof-based refactoring. Five phases with 25 plans bring advanced semantic program transformation capabilities to Splice.
+
+### Added
+
 **Cross-File Rename**
 - `splice rename` command with byte-accurate reference replacement across files
   - Uses Magellan ReferenceFact byte offsets for precise span targeting

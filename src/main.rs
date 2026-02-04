@@ -1444,6 +1444,66 @@ fn execute_patch(
             analyzer_mode,
         )?;
 
+        // Check if JSON output is requested for preview
+        if json_output {
+            use std::collections::HashMap;
+
+            // Build data object using consistent pattern with build_success_payload
+            let mut data_map: HashMap<String, serde_json::Value> = HashMap::new();
+
+            // Add symbol at top level (not part of PreviewReport struct)
+            data_map.insert("symbol".to_string(), serde_json::json!(symbol_name));
+
+            // Add preview_report using the full struct (consistent with other commands)
+            data_map.insert(
+                "preview_report".to_string(),
+                serde_json::to_value(&report).expect("preview report should serialize"),
+            );
+
+            // Add files array
+            data_map.insert(
+                "files".to_string(),
+                serde_json::json!([{
+                    "file": file_path.to_string_lossy().to_string(),
+                }]),
+            );
+
+            let message = format!(
+                "Previewed patch '{}' at bytes {}..{} (dry-run)",
+                symbol_name, resolved.byte_start, resolved.byte_end,
+            );
+
+            // Record execution for preview (without full OperationResult)
+            let duration_ms = start.elapsed().as_millis() as i64;
+            let parameters = serde_json::json!({
+                "file": file_path.to_string_lossy(),
+                "symbol": symbol_name,
+                "kind": kind_str,
+                "preview": true,
+                "create_backup": create_backup,
+                "dry_run": true,
+            });
+            // Use a simple operation result for logging only
+            use splice::output::OperationResult;
+            let log_result = OperationResult::with_execution_id("patch".to_string(), operation_id.clone())
+                .success(message.clone());
+            if let Err(e) = log::record_execution_with_params(
+                &log_result,
+                duration_ms,
+                Some(command_line),
+                parameters,
+            ) {
+                log_execution_error("patch (preview)", &e);
+            }
+
+            // Output JSON using CliSuccessPayload pattern (same as find, refs, etc.)
+            return Ok(splice::cli::CliSuccessPayload::with_data(
+                message,
+                serde_json::Value::Object(data_map.into_iter().collect()),
+            ));
+        }
+
+        // Non-JSON preview: print unified diff
         // Print summary header in git-style format
         let summary_header = format_diff_summary(1, report.lines_added, report.lines_removed);
         if !summary_header.is_empty() {
@@ -1453,9 +1513,8 @@ fn execute_patch(
         // Print empty line separator
         println!();
 
-        // Print unified diff with colors (unless JSON mode)
-        let use_color = !json_output && should_use_color();
-        let diff_output = if use_color {
+        // Print unified diff with colors
+        let diff_output = if should_use_color() {
             format_colored_diff(&before_content, &after_content, true)
         } else {
             format_unified_diff(

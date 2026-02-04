@@ -1,130 +1,81 @@
-# Splice
+# splice
 
-Span-safe refactoring kernel for 7 languages using tree-sitter and SQLiteGraph.
+**Precision Code Editing with Graph Algorithm Analysis**
 
-**Version**: 2.3.0
-**License**: GPL-3.0-or-later
+[![Crates.io](https://img.shields.io/crates/v/splice)](https://crates.io/crates/splice)
+[![Documentation](https://docs.rs/splice/badge.svg)](https://docs.rs/splice)
 
-## What This Is
+> Span-safe refactoring kernel for 7 languages with Magellan code graph integration.
 
-Splice is a command-line tool that performs byte-accurate, AST-validated refactoring operations on code in 7 languages: Rust, Python, C, C++, Java, JavaScript, and TypeScript. It can replace function bodies, delete symbols, perform cross-file rename, analyze code graphs, and generate refactoring proofs.
+## ⚠️ Requires Magellan
 
-## v2.3.0 Features
+**splice requires [Magellan](https://github.com/oldnordic/magellan) for full functionality.**
 
-Splice v2.3.0 introduces Magellan v2 integration with cross-file rename and semantic program transformation:
+Magellan provides the code graph database that splice uses for cross-file operations, impact analysis, and graph algorithms. You must run `magellan watch` on your codebase before using splice's advanced features.
 
-- **Cross-File Rename**: Rename symbols across files using Magellan ReferenceFact byte offsets
-  - `splice rename --symbol <id> --file <path> --to <new_name>`
-  - Byte-accurate replacement at exact reference spans
-  - Automatic backup and rollback on validation failures
-  - Preview mode with `--preview` flag
-  - UTF-8 boundary validation for safe multi-byte character handling
+```bash
+# Install Magellan first
+cargo install magellan
 
-- **Impact Analysis**: Analyze call graph impact before refactoring
-  - `splice reachable --symbol <name> --path <file> --max-depth <n>`
-  - `splice slice --target <id> --direction <forward|backward>`
-  - Caller/callee chain analysis
-  - Affected file identification
+# Watch your project (builds database)
+magellan watch --root ./src --db .codemcp/codegraph.db
 
-- **Dead Code Detection**: Find unused symbols from entry points
-  - `splice dead-code --entry <symbol> --path <file>`
-  - BFS traversal from entry point
-  - Public symbol detection heuristics
+# Now splice can perform graph-aware operations
+splice reachable --symbol main --path src/main.rs --db .codemcp/codegraph.db
+```
 
-- **Cycle Detection**: Find circular dependencies in call graph
-  - `splice cycles`
-  - Tarjan's SCC algorithm
-  - Identifies strongly connected components
+## The Code Intelligence Toolset
 
-- **Graph Condensation**: Collapse SCCs to DAG for dependency analysis
-  - `splice condense`
-  - Topological level assignment
-  - Edge weight tracking between SCCs
+splice is part of a coordinated toolset built on [sqlitegraph](https://github.com/oldnordic/sqlitegraph). All tools share a common SQLite graph database and are designed to work together for AI-assisted code understanding and transformation.
 
-- **Proof-Based Refactoring**: Generate machine-checkable behavioral equivalence proofs
-  - `splice rename --proof` flag
-  - Before/after graph snapshots
-  - Invariant validation (reference counts, orphan detection)
-  - SHA-256 checksums for audit trail
-  - `splice validate-proof --proof <path>` command
+```
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+│  Magellan   │ ───► │  llmgrep    │ ───► │   Mirage    │
+│(Symbols &   │      │ (Semantic   │      │(CFG & Paths)│
+│  Call Graph)│      │  Search)    │      │             │
+└─────────────┘      └─────────────┘      └─────────────┘
+       │                    │                     │
+       └────────────────────┴─────────────────────┘
+                     │
+              ┌──────▼──────┐
+              │ sqlitegraph │
+              │  (Database) │
+              └─────────────┘
+                     │
+              ┌──────▼──────┐
+              │   splice    │
+              │(Edit using  │
+              │   spans)    │
+              └─────────────┘
+```
 
-## v2.2.3 Features
+| Tool | Purpose | Repository | Install |
+|------|---------|------------|---------|
+| **sqlitegraph** | Graph database foundation | [github.com/oldnordic/sqlitegraph](https://github.com/oldnordic/sqlitegraph) | `cargo add sqlitegraph` |
+| **Magellan** | Call graph indexing, symbol navigation | [github.com/oldnordic/magellan](https://github.com/oldnordic/magellan) | `cargo install magellan` |
+| **llmgrep** | Semantic code search | [github.com/oldnordic/llmgrep](https://github.com/oldnordic/llmgrep) | `cargo install llmgrep` |
+| **Mirage** | CFG analysis, path enumeration | [github.com/oldnordic/mirage](https://github.com/oldnordic/mirage) | `cargo install mirage-analyzer` |
+| **splice** | Precision code editing | [github.com/oldnordic/splice](https://github.com/oldnordic/splice) | `cargo install splice` |
 
-Splice v2.2.3 fixes SQLiteGraph 1.2.7 MVCC API compatibility, ensuring the latest dependency versions work correctly:
+## What is splice?
 
-- **Unified CLI**: Single tool for code graph queries (Magellan) and refactoring (Splice)
-- **Query Commands**: `status`, `query`, `find`, `refs`, `files` for code graph navigation
-- **Export Command**: Export graph data in JSON, JSONL, or CSV formats
-- **Magellan Integration**: In-process library delegation for optimal performance
-- **CLI Alignment**: `--output` (human/json/pretty), `--db` for database path, Magellan-compatible exit codes
-- **Error Handling**: SPL-E091 Magellan error code with full error chain preservation
+splice performs byte-accurate, AST-validated refactoring operations on code in 7 languages: Rust, Python, C, C++, Java, JavaScript, and TypeScript. It can replace function bodies, delete symbols, perform cross-file rename, analyze code graphs, and generate refactoring proofs.
 
-## v2.2 Features
+### What splice is NOT
 
-- **Rich Span Extensions**: Context, semantic kind, language, checksums, error codes
-- **Rich Span Advanced**: Relationships (callers, callees, imports, exports), tool hints
-- **CLI Conventions**: `-n` dry-run, `-A`/`-B`/`-C` context, unified diff, git-style exit codes
-- **Enhanced Errors**: SPL-E### codes, severity levels, fuzzy suggestions, `splice explain`
+- ❌ A code indexer (use [Magellan](https://github.com/oldnordic/magellan))
+- ❌ A semantic search tool (use [llmgrep](https://github.com/oldnordic/llmgrep))
+- ❌ A CFG analysis tool (use [Mirage](https://github.com/oldnordic/mirage))
+- ❌ An IDE or LSP server (use rust-analyzer, IntelliJ, PyCharm, VSCode)
 
-## v2.0 Features
+### What splice IS
 
-- **Structured JSON Output**: All operations return structured JSON with explicit fields
-- **Span-Aware Metadata**: Line and column coordinates in all output
-- **Deterministic Ordering**: All operations return sorted results
-- **Validation Hooks**: Pre/post-operation checksums verify code integrity
-- **Execution Logging**: Complete audit trail in `.splice/operations.db`
-- **SQLiteGraph v1.0**: Native V2 backend for improved performance
-- **Enhanced Safety**: Eliminated unwrap() calls, comprehensive error handling
-
-## What This Is NOT
-
-- An IDE or LSP server - Use Rust Analyzer, IntelliJ, PyCharm, VSCode, or your editor
-- A general-purpose refactoring tool - Focused on specific operations
-- A complete solution - It's a focused tool for specific jobs
-- Production-hardened - Use with version control
-
-## What It Does
-
-**Edit Commands:**
-- **patch**: Replace function bodies, class definitions, enum variants with validation (single or batch)
-- **delete**: Remove symbol definitions and all references (cross-file, Rust-only)
-- **apply-files**: Multi-file pattern replacement with AST confirmation
-- **search**: Pattern-based search with glob filtering
-
-**Query Commands (Magellan Integration):**
-- **status**: Display database statistics (files, symbols, references, calls, code_chunks)
-- **query**: Query symbols by labels (language, kind) with optional context
-- **find**: Locate symbols by name or symbol_id with disambiguation
-- **refs**: Show callers/callees for a symbol (bidirectional traversal)
-- **files**: List indexed files with optional symbol counts
-- **export**: Export graph data (JSON, JSONL, CSV formats)
-
-**Utility Commands:**
-- **undo**: Restore files from backup manifest
-- **plan**: Orchestrate multi-step refactors via JSON plans
-- **log**: Query execution audit trail from operations.db
-- **explain**: Get detailed explanations for error codes
-
-**Validation:**
-- Validates syntax with tree-sitter after every operation
-- Validates compilation with language-specific compilers
-- Rolls back atomically on any failure
-
-## Supported Languages
-
-| Language | Extensions | Delete | Patch | Validation |
-|----------|-----------|--------|-------|------------|
-| Rust | `.rs` | Full | Full | `cargo check` |
-| Python | `.py` | Basic | Full | `python -m py_compile` |
-| C | `.c`, `.h` | Basic | Full | `gcc -fsyntax-only` |
-| C++ | `.cpp`, `.hpp`, `.cc`, `.cxx` | Basic | Full | `g++ -fsyntax-only` |
-| Java | `.java` | Basic | Full | `javac` |
-| JavaScript | `.js`, `.mjs`, `.cjs` | Basic | Full | `node --check` |
-| TypeScript | `.ts`, `.tsx` | Basic | Full | `tsc --noEmit` |
-
-**Delete modes:**
-- **Full**: Finds all references across files (Rust only)
-- **Basic**: Deletes definition only, no reference finding (other languages)
+- ✅ Span-safe code editing with byte-accurate replacements
+- ✅ Cross-file symbol rename using Magellan ReferenceFact data
+- ✅ Graph algorithm analysis (reachability, dead-code, cycles, condense, slice)
+- ✅ Proof-based refactoring with machine-checkable behavioral equivalence
+- ✅ Multi-language validation (tree-sitter + compiler gates)
+- ✅ Backup and rollback with automatic checksum verification
 
 ## Installation
 
@@ -132,9 +83,10 @@ Splice v2.2.3 fixes SQLiteGraph 1.2.7 MVCC API compatibility, ensuring the lates
 cargo install splice
 ```
 
-Or from source:
+Or build from source:
+
 ```bash
-git clone https://github.com/oldnordic/splice.git
+git clone https://github.com/oldnordic/splice
 cd splice
 cargo build --release
 cp target/release/splice ~/.local/bin/
@@ -142,707 +94,201 @@ cp target/release/splice ~/.local/bin/
 
 ## Quick Start
 
-### Cross-File Rename
+### 1. Install the Toolset
 
 ```bash
-# Ingest your codebase
-splice ingest --root ./src --db .codemcp/codegraph.db
-
-# Find symbol ID
-splice find --name "my_function" --path "src/my_file.rs"
-
-# Preview rename (no changes)
-splice rename --symbol <id> --file "src/my_file.rs" --to "new_name" --preview
-
-# Perform rename with backup
-splice rename --symbol <id> --file "src/my_file.rs" --to "new_name"
-
-# Generate proof for audit trail
-splice rename --symbol <id> --file "src/my_file.rs" --to "new_name" --proof
+# Install all tools for complete workflow
+cargo install magellan        # Call graph & CFG extraction (REQUIRED)
+cargo install llmgrep         # Semantic search
+cargo install mirage-analyzer # Path-aware analysis
+cargo install splice          # Precision editing
 ```
 
-### Impact Analysis
+### 2. Index Your Project
+
+```bash
+# Magellan watches your source and builds database
+magellan watch --root ./src --db .codemcp/codegraph.db
+```
+
+### 3. Edit with Splice
+
+```bash
+# Patch a function body
+cat > new_func.rs << 'EOF'
+pub fn process(data: &str) -> Result<String> {
+    Ok(data.to_uppercase())
+}
+EOF
+
+splice patch --file src/lib.rs --symbol process --with new_func.rs --db .codemcp/codegraph.db
+
+# Preview before applying
+splice patch --file src/lib.rs --symbol process --with new_func.rs --preview --json
+
+# Cross-file rename
+splice rename --symbol <id> --file src/lib.rs --to new_name
+
+# Impact analysis
+splice reachable --symbol main --path src/main.rs --max-depth 3
+splice dead-code --entry main --path src/main.rs
+splice cycles
+```
+
+## Commands
+
+### Edit Commands
+
+| Command | Description |
+|---------|-------------|
+| `patch` | Replace function bodies, class definitions with validation |
+| `delete` | Remove symbol definitions and all references |
+| `apply-files` | Multi-file pattern replacement with AST confirmation |
+| `rename` | Cross-file symbol rename using Magellan ReferenceFact |
+
+### Graph Algorithm Commands
+
+| Command | Description |
+|---------|-------------|
+| `reachable` | Show caller/callee chains and affected files |
+| `dead-code` | Find unused symbols from entry points |
+| `cycles` | Find circular dependencies in call graph |
+| `condense` | Collapse SCCs to DAG for dependency analysis |
+| `slice` | Forward/backward program slicing |
+
+### Query Commands (Magellan)
+
+| Command | Description |
+|---------|-------------|
+| `status` | Display database statistics |
+| `find` | Locate symbols by name or symbol_id |
+| `refs` | Show callers/callees for a symbol |
+| `files` | List indexed files |
+| `export` | Export graph data (JSON, JSONL, CSV) |
+
+### Utility Commands
+
+| Command | Description |
+|---------|-------------|
+| `undo` | Restore files from backup manifest |
+| `log` | Query execution audit trail |
+| `explain` | Get detailed explanations for error codes |
+| `validate-proof` | Validate refactoring proof files |
+
+## Examples
+
+### Cross-File Rename with Preview
+
+```bash
+# Find symbol ID first
+splice find --name my_function --path src/lib.rs --db .codemcp/codegraph.db
+
+# Preview rename (no changes)
+splice rename --symbol <id> --file src/lib.rs --to new_name --preview --json
+
+# Apply rename with backup
+splice rename --symbol <id> --file src/lib.rs --to new_name
+
+# Generate proof for audit trail
+splice rename --symbol <id> --file src/lib.rs --to new_name --proof
+```
+
+### Impact Analysis Before Refactoring
 
 ```bash
 # See what code is reachable from a symbol
-splice reachable --symbol "main" --path "src/main.rs" --max-depth 3
+splice reachable --symbol main --path src/main.rs --max-depth 3 --output json
 
 # Find dead code from main entry point
-splice dead-code --entry "main" --path "src/main.rs"
+splice dead-code --entry main --path src/main.rs --exclude-public
 
 # Detect circular dependencies
-splice cycles
+splice cycles --show-members --max-cycles 20
 
 # Slice forward from a target (what it affects)
 splice slice --target <id> --direction forward --max-distance 5
-
-# Slice backward to a target (what affects it)
-splice slice --target <id> --direction backward --max-distance 5
 ```
 
-### Query Commands
+### Patch with Preview
 
 ```bash
-# Display database statistics
-splice status --db .codemcp/codegraph.db
-
-# Find symbol by name
-splice find --name "my_function" --path "src/my_file.rs"
-
-# Show references (callers and callees)
-splice refs --symbol <id> --db .codemcp/codegraph.db
-
-# Export graph data
-splice export --format json --output graph.json
-```
-
-### Delete a Symbol (Rust)
-
-Delete a function and all its references:
-
-```bash
-splice delete --file src/lib.rs --symbol helper --kind function
-```
-
-Output (structured JSON):
-```json
-{
-  "version": "2.0.0",
-  "operation_id": "20250118_123456_abc123",
-  "operation_type": "delete",
-  "status": "success",
-  "message": "Deleted 'helper' (3 references + definition) across 2 file(s).",
-  "timestamp": "2025-01-18T12:34:56.789Z",
-  "result": {
-    "symbol": "helper",
-    "kind": "function",
-    "spans_deleted": 4,
-    "files_affected": 2,
-    "spans": [
-      {
-        "file_path": "src/lib.rs",
-        "symbol": "helper",
-        "kind": "function",
-        "byte_start": 120,
-        "byte_end": 189,
-        "line_start": 5,
-        "line_end": 7,
-        "col_start": 0,
-        "col_end": 1,
-        "span_checksum_before": "a1b2c3d4..."
-      }
-    ]
-  }
-}
-```
-
-### Patch a Symbol (Rust)
-
-Replace a function body:
-
-```bash
+# Create replacement
 cat > new_greet.rs << 'EOF'
 pub fn greet(name: &str) -> String {
     format!("Hi, {}!", name)
 }
 EOF
 
-splice patch --file src/lib.rs --symbol greet --kind function --with new_greet.rs
+# Preview with JSON output
+splice patch --file src/lib.rs --symbol greet --with new_greet.rs --preview --json
+
+# Output:
+# {
+#   "status": "ok",
+#   "message": "Previewed patch 'greet' at bytes 0..42 (dry-run)",
+#   "data": {
+#     "symbol": "greet",
+#     "preview_report": {
+#       "file": "src/lib.rs",
+#       "line_start": 1,
+#       "line_end": 3,
+#       "lines_added": 3,
+#       "lines_removed": 3,
+#       "bytes_added": 45,
+#       "bytes_removed": 42
+#     },
+#     "files": [{"file": "src/lib.rs"}]
+#   }
+# }
 ```
 
-### Patch a Symbol (Python)
+### Batch Pattern Replacement
 
 ```bash
-cat > new_calc.py << 'EOF'
-def calculate(x: int, y: int) -> int:
-    return x * y
-EOF
-
-splice patch --file utils.py --symbol calculate --language python --with new_calc.py
-```
-
-### Patch a Symbol (TypeScript)
-
-```bash
-cat > new_fn.ts << 'EOF'
-function calculate(x: number, y: number): number {
-    return x * y;
-}
-EOF
-
-splice patch --file src/math.ts --symbol calculate --language type-script --with new_fn.ts
-```
-
-### Multi-Step Plan
-
-```bash
-cat > plan.json << 'EOF'
-{
-  "steps": [
-    {
-      "file": "src/lib.rs",
-      "symbol": "foo",
-      "kind": "function",
-      "with": "patches/foo.rs"
-    },
-    {
-      "file": "src/lib.rs",
-      "symbol": "bar",
-      "kind": "function",
-      "with": "patches/bar.rs"
-    }
-  ]
-}
-EOF
-
-splice plan --file plan.json
-```
-
-### Batch Patch
-
-Apply multiple patches at once from a JSON file:
-
-```bash
-cat > batch.json << 'EOF'
-{
-  "patches": [
-    {
-      "file": "src/lib.rs",
-      "symbol": "foo",
-      "kind": "function",
-      "with": "patches/foo.rs"
-    },
-    {
-      "file": "src/lib.rs",
-      "symbol": "bar",
-      "kind": "function",
-      "with": "patches/bar.rs"
-    }
-  ]
-}
-EOF
-
-splice patch --batch batch.json --language rust
-```
-
-### Pattern Replace
-
-Replace a pattern across multiple files:
-
-```bash
-# Replace "42" with "99" in all Python files
-splice apply-files --glob "*.py" --find "42" --replace "99"
+# Replace across multiple files
+splice apply-files --glob "src/**/*.rs" --find "old_func" --replace "new_func"
 
 # With validation and backup
-splice apply-files --glob "tests/**/*.rs" --find "old_func" --replace "new_func" --create-backup
+splice apply-files --glob "tests/**/*.rs" --find "42" --replace "99" --create-backup
 ```
 
-### Preview Mode
-
-Inspect changes before applying:
-
-```bash
-splice patch --file src/lib.rs --symbol foo --with new_foo.rs --preview
-```
-
-### Backup and Undo
-
-Create a backup before changes:
-
-```bash
-splice patch --file src/lib.rs --symbol foo --with new_foo.rs --create-backup --operation-id "my-change"
-```
-
-Restore from backup:
-
-```bash
-splice undo --manifest .splice-backup/my-change/manifest.json
-```
-
-### Query Symbols by Label (Magellan Integration)
-
-```bash
-# List all available labels
-splice query --db code.db --list
-
-# Find all Rust functions
-splice query --db code.db --label rust --label fn
-
-# Show code for each result
-splice query --db code.db --label struct --show-code
-```
-
-### Get Code Chunks (Magellan Integration)
-
-```bash
-# Get code by byte span without re-reading the file
-splice get --db code.db --file src/lib.rs --start 0 --end 100
-```
-
-### Query Commands (Magellan Integration)
-
-```bash
-# Show database statistics
-splice status --db code.db
-
-# Find all functions in a file
-splice query --db code.db --file src/lib.rs --kind fn
-
-# Find symbol by name
-splice find --db code.db --name my_function
-
-# Show call relationships
-splice refs --db code.db --name my_function --direction out
-
-# List indexed files
-splice files --db code.db --symbols
-
-# Export graph data
-splice export --db code.db --format json --file export.json
-```
-
-## Commands
-
-### splice rename
-
-Rename a symbol across all files using Magellan ReferenceFact data.
-
-```bash
-splice rename --symbol <id> --file <path> --to <new_name> [OPTIONS]
-```
-
-**Required Arguments:**
-- `--symbol <id>`: Symbol ID (16-character hex) or symbol name
-- `--file <path>`: File path containing the symbol definition
-- `--to <new_name>`: New name for the symbol
-
-**Optional Arguments:**
-- `--db <path>`: Path to codegraph.db (default: `.codemcp/codegraph.db`)
-- `--preview`: Show changes without applying (no file modifications)
-- `--proof`: Generate refactoring proof for audit trail
-
-**Features:**
-- Byte-accurate replacement at exact reference spans
-- Automatic backup before modification
-- Rollback on validation failures
-- UTF-8 boundary validation for multi-byte characters
-
-### splice reachable
-
-Show all symbols reachable from a target symbol (impact analysis).
-
-```bash
-splice reachable --symbol <name> --path <file> [OPTIONS]
-```
-
-**Required Arguments:**
-- `--symbol <name>`: Symbol name
-- `--path <file>`: File path for disambiguation
-
-**Optional Arguments:**
-- `--db <path>`: Path to codegraph.db (default: `.codemcp/codegraph.db`)
-- `--direction <forward|backward>`: Traversal direction (default: forward)
-- `--max-depth <n>`: Maximum traversal depth (default: 10)
-- `--output <format>`: Output format (human, json, pretty)
-
-### splice dead-code
-
-Find unused symbols from entry points.
-
-```bash
-splice dead-code --entry <symbol> --path <file> [OPTIONS]
-```
-
-**Required Arguments:**
-- `--entry <symbol>`: Entry point symbol name
-- `--path <file>`: File path for disambiguation
-
-**Optional Arguments:**
-- `--db <path>`: Path to codegraph.db (default: `.codemcp/codegraph.db`)
-- `--exclude-public`: Exclude public symbols from analysis
-- `--output <format>`: Output format (human, json, pretty)
-
-### splice cycles
-
-Find circular dependencies in the call graph.
-
-```bash
-splice cycles [OPTIONS]
-```
-
-**Optional Arguments:**
-- `--db <path>`: Path to codegraph.db (default: `.codemcp/codegraph.db`)
-- `--symbol <name>`: Find cycles containing a specific symbol
-- `--path <file>`: File path for symbol disambiguation
-- `--max-cycles <n>`: Maximum number of cycles to display (default: 100)
-- `--show-members`: Show all members of each cycle
-- `--output <format>`: Output format (human, json, pretty)
-
-### splice condense
-
-Collapse SCCs to DAG for dependency analysis.
-
-```bash
-splice condense [OPTIONS]
-```
-
-**Optional Arguments:**
-- `--db <path>`: Path to codegraph.db (default: `.codemcp/codegraph.db`)
-- `--show-levels`: Show topological levels
-- `--show-members`: Show SCC members
-- `--output <format>`: Output format (human, json, pretty)
-
-### splice slice
-
-Perform forward or backward program slicing.
-
-```bash
-splice slice --target <id> --direction <forward|backward> [OPTIONS]
-```
-
-**Required Arguments:**
-- `--target <id>`: Symbol ID
-- `--direction <forward|backward>`: Slice direction
-
-**Optional Arguments:**
-- `--db <path>`: Path to codegraph.db (default: `.codemcp/codegraph.db`)
-- `--max-distance <n>`: Maximum slice distance (default: 10)
-- `--output <format>`: Output format (human, json, pretty)
-
-### splice validate-proof
-
-Validate a refactoring proof file.
-
-```bash
-splice validate-proof --proof <path> [OPTIONS]
-```
-
-**Required Arguments:**
-- `--proof <path>`: Path to proof JSON file
-
-**Optional Arguments:**
-- `--output <format>`: Output format (human, json, pretty)
-
-### splice delete
-
-Remove a symbol definition and all its references.
-
-```bash
-splice delete --file <PATH> --symbol <NAME> [--kind <KIND>] [--language <LANG>]
-```
-
-**Optional Arguments:**
-- `--kind <KIND>`: Symbol kind filter
-- `--language <LANG>`: Language override
-- `--analyzer <MODE>`: Validation mode (off, os, path)
-- `--create-backup`: Create backup before deleting
-- `--operation-id <ID>`: Custom operation ID for auditing
-- `--metadata <JSON>`: Optional metadata attachment
-
-**Rust-specific features:**
-- Finds references across the entire workspace
-- Tracks imports and re-exports
-- Handles shadowing correctly
-- Cross-file reference resolution
-
-**Other languages:**
-- Deletes the symbol definition only
-- Use with `--language` flag or auto-detection from file extension
-
-### splice patch
-
-Apply a patch to a symbol's span.
-
-```bash
-splice patch --file <PATH> --symbol <NAME> --with <FILE> [--kind <KIND>] [--language <LANG>]
-```
-
-**Optional Arguments:**
-- `--kind <KIND>`: Symbol kind filter (function, method, class, struct, interface, enum, trait, impl, module, variable, constructor, type-alias)
-- `--language <LANG>`: Language override (rust, python, c, cpp, java, java-script, type-script)
-- `--analyzer <MODE>`: Validation mode (off, os, path)
-- `--preview`: Run in preview mode without modifying files
-- `--batch <FILE>`: JSON file describing batch replacements
-- `--create-backup`: Create backup before patching
-- `--operation-id <ID>`: Custom operation ID for auditing
-- `--metadata <JSON>`: Optional metadata attachment
-
-### splice apply-files
-
-Apply a pattern replacement to multiple files.
-
-```bash
-splice apply-files --glob <GLOB> --find <PATTERN> --replace <REPLACEMENT>
-```
-
-**Required Arguments:**
-- `--glob <GLOB>`: Glob pattern for matching files (e.g., `tests/**/*.rs`, `src/**/*.py`)
-- `--find <PATTERN>`: Text pattern to find
-- `--replace <REPLACEMENT>`: Replacement text
-
-**Optional Arguments:**
-- `--language <LANG>`: Language override (auto-detected from extension by default)
-- `--no-validate`: Skip validation gates
-- `--create-backup`: Create backup before applying
-- `--operation-id <ID>`: Custom operation ID for auditing
-- `--metadata <JSON>`: Optional metadata attachment
-
-### splice undo
-
-Undo a previous operation by restoring from a backup manifest.
-
-```bash
-splice undo --manifest <PATH>
-```
-
-### splice plan
-
-Execute a multi-step refactoring plan.
-
-```bash
-splice plan --file <PLAN.json>
-```
-
-### splice query
-
-Query symbols by labels using Magellan integration.
-
-```bash
-splice query --db <FILE> [--label <LABEL>]... [--list] [--count] [--show-code]
-```
-
-**Optional Arguments:**
-- `--db <FILE>`: Path to the Magellan database (required)
-- `--label <LABEL>`: Label to query (can be specified multiple times for AND semantics)
-- `--list`: List all available labels with counts
-- `--count`: Count entities with specified label(s)
-- `--show-code`: Show source code for each result
-
-**Available labels:**
-- Language labels: `rust`, `python`, `javascript`, `typescript`, `c`, `cpp`, `java`
-- Symbol kind labels: `fn`, `method`, `struct`, `class`, `enum`, `interface`, `module`, `union`, `namespace`, `typealias`
-
-### splice get
-
-Get code chunks from the database using Magellan integration.
-
-```bash
-splice get --db <FILE> --file <PATH> --start <N> --end <N>
-```
-
-**Required Arguments:**
-- `--db <FILE>`: Path to the Magellan database
-- `--file <PATH>`: File path
-- `--start <N>`: Start byte offset
-- `--end <N>`: End byte offset
-
-### splice status
-
-Display database statistics.
-
-```bash
-splice status --db <FILE> [--output FORMAT]
-```
-
-**Required Arguments:**
-- `--db <FILE>`: Path to the Magellan database
-
-**Optional Arguments:**
-- `--output FORMAT`: Output format (human, json, pretty) - default: human
-
-### splice find
-
-Find symbols by name or symbol_id.
-
-```bash
-splice find --db <FILE> (--name <NAME> | --symbol-id <ID>) [--ambiguous] [--output FORMAT]
-```
-
-**Required Arguments:**
-- `--db <FILE>`: Path to the Magellan database
-- `--name <NAME>`: Symbol name to find
-- `--symbol-id <ID>`: 16-character hex symbol ID
-
-**Optional Arguments:**
-- `--ambiguous`: Show all matches for ambiguous names
-- `--output FORMAT`: Output format (human, json, pretty)
-
-### splice refs
-
-Show callers/callees for a symbol.
-
-```bash
-splice refs --db <FILE> (--name <NAME> | --path <PATH> --name <NAME>) [--direction DIR] [--output FORMAT]
-```
-
-**Required Arguments:**
-- `--db <FILE>`: Path to the Magellan database
-- `--name <NAME>`: Symbol name
-- `--path <PATH>`: File path (for disambiguation)
-
-**Optional Arguments:**
-- `--direction DIR`: Relationship direction (in, out, both) - default: both
-- `--output FORMAT`: Output format (human, json, pretty)
-
-### splice files
-
-List indexed files.
-
-```bash
-splice files --db <FILE> [--symbols] [--output FORMAT]
-```
-
-**Required Arguments:**
-- `--db <FILE>`: Path to the Magellan database
-
-**Optional Arguments:**
-- `--symbols`: Show symbol counts per file
-- `--output FORMAT`: Output format (human, json, pretty)
-
-### splice export
-
-Export graph data.
-
-```bash
-splice export --db <FILE> --format FORMAT --file <PATH>
-```
-
-**Required Arguments:**
-- `--db <FILE>`: Path to the Magellan database
-- `--format FORMAT`: Export format (json, jsonl, csv)
-- `--file <PATH>`: Output file path
-
-### splice log
-
-Query the execution audit trail from `.splice/operations.db`.
-
-```bash
-# Show recent operations
-splice log
-
-# Filter by operation type
-splice log --operation-type patch
-
-# Filter by status
-splice log --status success
-
-# Filter by date range
-splice log --after "2025-01-01" --before "2025-01-31"
-
-# Query specific execution
-splice log --execution-id 20250118_123456_abc123
-
-# Show statistics
-splice log --stats
-
-# JSON output for programmatic access
-splice log --format json
-```
-
-**Optional Arguments:**
-- `--operation-type <TYPE>`: Filter by operation type (patch, delete, plan, apply-files)
-- `--status <STATUS>`: Filter by status (success, failure, partial)
-- `--after <DATE>`: Show operations after this date (ISO8601 format)
-- `--before <DATE>`: Show operations before this date (ISO8601 format)
-- `--execution-id <ID>`: Query specific execution by ID
-- `--format <FORMAT>`: Output format (table, json) - default: table
-- `--stats`: Show statistics summary instead of individual operations
-- `--limit <N>`: Limit number of results (default: 50)
-
-**Output Fields:**
-- execution_id: Unique identifier for each operation
-- operation_type: Type of operation performed
-- status: Success/failure status
-- timestamp: ISO8601 timestamp when operation started
-- duration_ms: Operation duration in milliseconds
-- command_line: Full command-line invocation
-- workspace: Working directory path
-- affected_files: Number of files modified
-
-## Documentation
-
-- **[docs/magellan_integration.md](docs/magellan_integration.md)** - Magellan integration guide (query commands, export formats, LLM usage)
-- **[docs/manual.md](docs/manual.md)** - Complete CLI reference manual with all v2.3 commands
-- **[docs/examples/rename_examples.md](docs/examples/rename_examples.md)** - Cross-file rename usage examples
-- **[docs/examples/graph_algorithm_examples.md](docs/examples/graph_algorithm_examples.md)** - Graph algorithm usage examples
-- **[docs/examples/proof_examples.md](docs/examples/proof_examples.md)** - Proof-based refactoring examples
-- **CHANGELOG.md** - Version history
-- **docs/DIAGNOSTICS_HUMAN_LLM.md** - CLI diagnostics contract for humans and LLMs, including rust-analyzer and multi-language validation output
+## Supported Languages
+
+| Language | Extensions | Patch | Delete | Validation |
+|----------|-----------|-------|--------|------------|
+| Rust | `.rs` | Full | Full | `cargo check` |
+| Python | `.py` | Full | Basic | `python -m py_compile` |
+| C | `.c`, `.h` | Full | Basic | `gcc -fsyntax-only` |
+| C++ | `.cpp`, `.hpp`, `.cc`, `.cxx` | Full | Basic | `g++ -fsyntax-only` |
+| Java | `.java` | Full | Basic | `javac` |
+| JavaScript | `.js`, `.mjs`, `.cjs` | Full | Basic | `node --check` |
+| TypeScript | `.ts`, `.tsx` | Full | Basic | `tsc --noEmit` |
 
 ## Requirements
 
-- Rust 1.70+ (for building)
-- Language-specific compilers (for validation):
-  - Rust: `cargo`
-  - Python: `python`
-  - C/C++: `gcc`/`g++`
-  - Java: `javac`
-  - JavaScript: `node`
-  - TypeScript: `tsc`
+- **[Magellan](https://github.com/oldnordic/magellan)** 2.1.0+ — Required for code graph operations
+  ```bash
+  cargo install magellan
+  magellan watch --root ./src --db .codemcp/codegraph.db
+  ```
+- **[sqlitegraph](https://crates.io/crates/sqlitegraph)** 1.4.2+ — Included automatically
 
-## Architecture
+## Documentation
 
-- **src/cli/** - CLI argument parsing
-- **src/ingest/** - Symbol parsing for 7 languages
-- **src/graph/** - SQLiteGraph integration with Native V2 backend
-- **src/resolve/** - Symbol resolution and reference finding
-- **src/patch/** - Span-safe replacement + validation + batch operations + pattern replace + backup
-- **src/validate/** - Tree-sitter + compiler validation gates with checksum verification
-- **src/plan/** - JSON plan orchestration with deterministic ordering
-- **src/execution/** - Execution logging audit trail with operations.db
-- **src/output/** - Structured JSON output with v2.0 schema
-- **src/checksum/** - SHA-256 checksum computation for verification hooks
-
-## Validation Gates
-
-Every operation passes:
-1. UTF-8 boundary validation
-2. Pre-operation checksum computation (SHA-256)
-3. Tree-sitter reparse (syntax check)
-4. Language-specific compiler check (cargo check, python -m py_compile, etc.)
-5. Post-operation checksum verification
-6. Atomic rollback on any failure
-
-All operations are logged to `.splice/operations.db` with timestamps, durations, and command-line capture for complete auditability.
-
-## Testing
-
-```bash
-cargo test
-```
-
-Test Coverage: 215+ tests passing, including:
-- 171 unit tests for core functionality
-- 26 Magellan integration tests for all 7 languages
-- 18 cross-language compatibility tests
-- End-to-end refactoring workflow tests
-
-## Feedback
-
-If you use this tool and find a bug or miss a feature that would be useful, drop a line. It's appreciated.
+- `splice <command> --help` — Built-in usage examples
+- [MANUAL.md](MANUAL.md) — Complete CLI reference manual
+- [CHANGELOG.md](CHANGELOG.md) — Version history
+- [docs/examples/rename_examples.md](docs/examples/rename_examples.md) — Cross-file rename examples
+- [docs/examples/graph_algorithm_examples.md](docs/examples/graph_algorithm_examples.md) — Graph algorithm usage
+- [docs/examples/proof_examples.md](docs/examples/proof_examples.md) — Proof-based refactoring
 
 ## License
 
-GPL-3.0-or-later
+GPL-3.0-only. See [LICENSE.md](LICENSE.md).
 
-## Disclaimer
+## Related Projects
 
-This software modifies source code. Always commit your changes before running Splice.
-
----
-
-## Integration with Magellan
-
-**Splice works best with [Magellan](https://crates.io/crates/magellan)** for code graph indexing and querying.
-
-Magellan is a code understanding and indexing library that provides:
-- Multi-language parsing (Rust, Python, C, C++, Java, JavaScript, TypeScript)
-- Symbol discovery and relationship tracking
-- Call graph analysis
-- Fast code graph queries
-
-**Links:**
-- [Magellan on crates.io](https://crates.io/crates/magellan)
-- [Magellan on GitHub](https://github.com/oldnordic/magellan)
-
-When you use Splice's query commands (`status`, `query`, `find`, `refs`, `files`, `export`), you're leveraging Magellan's powerful code graph capabilities through Splice's unified CLI interface.
+- [sqlitegraph](https://github.com/oldnordic/sqlitegraph) — Graph database library
+- [Magellan](https://github.com/oldnordic/magellan) — Call graph indexer
+- [llmgrep](https://github.com/oldnordic/llmgrep) — Semantic code search
+- [Mirage](https://github.com/oldnordic/mirage) — CFG analysis
