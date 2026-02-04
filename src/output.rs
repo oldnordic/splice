@@ -1071,9 +1071,12 @@ pub struct FindResponse {
 /// Symbol with Magellan field naming conventions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MagellanSymbol {
-    /// 16-character hex symbol ID
+    /// Symbol ID (16-char V1 SHA-256 or 32-char V2 BLAKE3)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub symbol_id: Option<String>,
+    /// ID format hint for clients ("v1" for 16-char SHA-256, "v2" for 32-char BLAKE3)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id_format: Option<String>,
     /// Symbol name
     pub name: String,
     /// Symbol kind (fn, struct, class, etc.)
@@ -1177,8 +1180,15 @@ impl From<crate::graph::magellan_integration::DatabaseStats> for StatusResponse 
 
 impl From<crate::graph::magellan_integration::SymbolInfo> for MagellanSymbol {
     fn from(info: crate::graph::magellan_integration::SymbolInfo) -> Self {
+        // Generate V2 BLAKE3 symbol ID and set id_format
+        let symbol_id = crate::symbol_id::generate_v2(
+            &info.name,
+            &info.file_path,
+            info.byte_start,
+        );
         Self {
-            symbol_id: None, // Can be generated via crate::symbol_id::generate_symbol_id()
+            symbol_id: Some(symbol_id.as_str().to_string()),
+            id_format: Some("v2".to_string()),
             name: info.name,
             kind: info.kind,
             file_path: info.file_path,
@@ -1278,8 +1288,11 @@ pub struct FileExport {
 /// Symbol export record.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SymbolExport {
-    /// Unique symbol identifier
+    /// Unique symbol identifier (16-char V1 SHA-256 or 32-char V2 BLAKE3)
     pub symbol_id: String,
+    /// ID format hint for clients ("v1" for 16-char SHA-256, "v2" for 32-char BLAKE3)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id_format: Option<String>,
     /// Symbol name
     pub name: String,
     /// Symbol kind (function, type, etc.)
