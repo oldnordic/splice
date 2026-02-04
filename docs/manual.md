@@ -1341,3 +1341,130 @@ cargo check --features native-v2
 - Developer Tools: Introspection, progress tracking, CLI
 
 **Test Coverage:** 300+ tests passing
+
+---
+
+## Graph Algorithm Commands
+
+Splice provides advanced graph analysis commands for impact analysis,
+dead code detection, cycle detection, condensation graph analysis, and
+program slicing. These commands help you understand code structure and
+make safer refactoring decisions.
+
+### Reachability Analysis
+
+Show caller/callee chains and affected files:
+
+```bash
+# Forward reachability (what this symbol calls)
+splice reachable --symbol process --path src/lib.rs --db .codemcp/codegraph.db
+
+# Reverse reachability (what calls this symbol)
+splice reachable --symbol main --path src/main.rs --direction reverse --db .codemcp/codegraph.db
+
+# Both directions
+splice reachable --symbol my_func --path src/lib.rs --direction both --db .codemcp/codegraph.db
+
+# Limit depth
+splice reachable --symbol main --path src/main.rs --max-depth 5 --db .codemcp/codegraph.db
+
+# JSON output
+splice reachable --symbol main --path src/main.rs --output json --db .codemcp/codegraph.db
+```
+
+Use cases:
+- Before refactoring: see what will be affected
+- Impact analysis: understand call chain depth
+- Dependency tracking: find downstream consumers
+
+### Dead Code Detection
+
+Find unreachable symbols from entry points:
+
+```bash
+# Find dead code from main
+splice dead-code --entry main --path src/main.rs --db .codemcp/codegraph.db
+
+# Exclude public API symbols
+splice dead-code --entry main --path src/main.rs --exclude-public --db .codemcp/codegraph.db
+
+# JSON output
+splice dead-code --entry main --path src/main.rs --output json --db .codemcp/codegraph.db
+```
+
+Use cases:
+- Cleanup: remove unused functions
+- Audit: find dead code before deprecation
+- Maintenance: identify what can be safely deleted
+
+### Cycle Detection
+
+Find cycles in the call graph:
+
+```bash
+# Find all cycles
+splice cycles --db .codemcp/codegraph.db
+
+# Find cycles containing a specific symbol
+splice cycles --symbol recursive_func --path src/lib.rs --db .codemcp/codegraph.db
+
+# Limit results
+splice cycles --db .codemcp/codegraph.db --max-cycles 50
+
+# Show cycle members
+splice cycles --db .codemcp/codegraph.db --show-members
+
+# JSON output
+splice cycles --output json --db .codemcp/codegraph.db
+```
+
+Use cases:
+- Refactoring: identify complex dependencies
+- Code quality: reduce unnecessary coupling
+- Debugging: find infinite recursion
+
+### Condensation Graph
+
+Analyze SCCs collapsed to a DAG:
+
+```bash
+# Basic condensation analysis
+splice condense --db .codemcp/codegraph.db
+
+# Show topological levels
+splice condense --db .codemcp/codegraph.db --show-levels
+
+# Show SCC members
+splice condense --db .codemcp/codegraph.db --show-members
+
+# JSON output
+splice condense --output json --db .codemcp/codegraph.db
+```
+
+Use cases:
+- Architecture: understand module structure
+- Layering: identify dependency levels
+- Analysis: find tightly-coupled components
+
+### Program Slicing
+
+Perform forward/backward program slicing:
+
+```bash
+# Forward slice (what this affects)
+splice slice --target process --path src/lib.rs --direction forward --db .codemcp/codegraph.db
+
+# Backward slice (what affects this)
+splice slice --target main --path src/main.rs --direction backward --db .codemcp/codegraph.db
+
+# Limit depth
+splice slice --target main --path src/main.rs --max-depth 3 --db .codemcp/codegraph.db
+
+# JSON output
+splice slice --target main --path src/main.rs --output json --db .codemcp/codegraph.db
+```
+
+Use cases:
+- Refactoring: understand ripple effects
+- Debugging: trace data flow
+- Testing: identify relevant test cases
