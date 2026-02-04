@@ -85,3 +85,9 @@ is-terminal = "0.4"    # Cross-platform TTY detection
 strsim = "0.11"
 
 [dev-dependencies]
+# Criterion benchmarking harness
+criterion = "0.5"
+
+[[bench]]
+name = "graph_benchmarks"
+harness = false
