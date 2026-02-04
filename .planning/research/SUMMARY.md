@@ -1,288 +1,606 @@
-# Research Summary: Magellan Integration Milestone
+# Research Summary: Magellan v2.0.0 Integration Milestone
 
-**Project:** Splice v2.2.2 - Magellan Query Command Delegation
-**Domain:** Unified CLI interface - Code discovery + refactoring in one tool
-**Researched:** 2026-01-24
-**Confidence:** HIGH
+**Project:** Splice v2.3.0 - Semantic Program Transformation
+**Research Date:** 2026-02-04
+**Overall Confidence:** HIGH
+**Status:** Ready for roadmap implementation
 
 ---
 
 ## Executive Summary
 
-Splice v2.2.2 is a **CLI delegation milestone** that unifies code discovery (via Magellan) and code modification (via Splice) into a single tool. The integration follows a **library delegation pattern**: Splice calls Magellan as an in-process Rust dependency (not subprocess), forwards query commands to Magellan's existing APIs, then normalizes output to match Splice's JSON schema conventions. No new dependencies are required—Magellan 0.5.3 is already integrated in `src/graph/magellan_integration.rs`.
+Upgrading Splice from Magellan 0.5.3 to 2.0.0 enables **semantic refactoring capabilities** beyond text-based find-and-replace. The integration adds 6 graph algorithm methods (reachability, dead code detection, cycles, slicing, path enumeration, condensation) and **byte-accurate cross-file rename** using existing `ReferenceFact` structures.
 
-The recommended approach is **thin adapter delegation** with format alignment. Splice delegates `status`, `find`, `refs`, `files`, and `export` commands to Magellan's CodeGraph API, adds optional Splice-specific enhancements (context, semantics, checksums), and outputs JSON that is a superset of Magellan's format. Critical risks include field name translation (`start_line` vs `line_start`), symbol ID format compatibility (16-char hex), and preventing test breakage when adding optional fields. The milestone is estimated at 6-10 days of focused work, with the highest-risk items being main.rs refactoring (600+ lines of query logic extraction) and ensuring Magellan API compatibility.
+**Key Value Proposition:**
+- **Cross-file semantic rename** using byte spans (not regex)
+- **Impact analysis** before refactoring (what changes, what breaks)
+- **Graph algorithms** for code exploration (dead code, cycles, paths)
+- **Proof generation** for behavioral equivalence verification
 
----
+**Critical Dependencies:**
+- `magellan`: 0.5.3 → 2.0.0
+- `sqlitegraph`: 1.2.7 → 1.3.0
+- `blake3`: NEW dependency (1.5) for stable 32-char SymbolId
 
-## Key Findings
+**Breaking Changes:**
+- BLAKE3 SymbolId format (16 → 32 chars)
+- Database schema v6 (auto-migrates from v5)
+- Requires migration for existing databases
 
-### Recommended Stack
-
-**No new dependencies required.** Magellan 0.5.3 with `native-v2` feature is already in Cargo.toml and provides all query APIs needed.
-
-**Core technologies (existing):**
-- `magellan 0.5.3` — Code indexing, label queries, status/find/refs/files APIs
-- `sqlitegraph 1.0` — Graph backend (re-exported from magellan)
-- `rusqlite 0.31` — Direct SQLite access
-- `clap 4.5` — CLI argument parsing (already used)
-- `serde/serde_json` — JSON serialization (already used)
-- `sha2 0.10` — Stable ID generation (already used for span_id)
-
-**Code additions only:**
-- CLI command variants (`Status`, `Find`, `Refs`, `Files`) in `src/cli/mod.rs`
-- Response types (`StatusResponse`, `FindResponse`, etc.) in `src/output.rs`
-- Delegation wrappers in `src/graph/magellan_integration.rs`
-
-### Expected Features
-
-**Must have (table stakes):**
-- `status` — Database statistics (files, symbols, references counts)
-- `query` — List symbols in a file with optional context/semantics
-- `find` — Find symbol by name or symbol_id with disambiguation
-- `refs` — Show callers/callees for a symbol
-- `files` — List indexed files with optional symbol counts
-- `--output` flag — human/json/pretty format selection
-- JSON schema alignment — Magellan-compatible wrapper with Splice extensions
-
-**Should have (differentiators):**
-- `--with-context` flag — Add context lines via Splice's context module
-- `--with-callers`/`--with-callees` — Relationship enhancement
-- `--with-semantics` — Semantic kind detection enhancement
-- `--with-checksums` — SHA-256 checksums for validation
-- Single-tool workflow — LLMs can discover and modify using one CLI
-
-**Defer (v2.3+):**
-- Real-time indexing delegation — Users run `magellan watch` separately
-- Full LSP integration — Belongs in separate tool, not Splice
-- Custom Magellan commands — Use Magellan CLI directly for advanced ops
-
-### Architecture Approach
-
-Magellan integration follows a **library delegation pattern**: Splice calls Magellan's CodeGraph API directly as an in-process Rust library, not as a subprocess or HTTP service. The delegation boundary is clear—queries go to Magellan, edits stay in Splice.
-
-**Major components:**
-
-1. **`src/query.rs` (NEW)** — Centralizes query delegation logic, extracts 600+ lines from main.rs into `QueryExecutor` with `query_by_labels()` and `get_code_chunk()` methods
-
-2. **`src/symbol_id.rs` (NEW)** — Generates 16-character stable symbol IDs compatible with Magellan format (SHA-256 hash, first 8 bytes)
-
-3. **`src/format/magellan.rs` (NEW)** — Format alignment module ensuring Splice output is Magellan-compatible with field translations (`start_line` -> `line_start`)
-
-4. **`src/graph/magellan_integration.rs` (EXTEND)** — Add pagination (`query_by_labels_paginated`), symbol lookup (`get_symbol_by_id`), count methods
-
-5. **`src/cli/mod.rs` (MODIFY)** — Add `Status`, `Find`, `Refs`, `Files` command variants with `--output`, `--limit`, `--offset`, `--format` flags
-
-6. **`src/output.rs` (MODIFY)** — Add `symbol_id` (16-char), `total_count` (pagination) fields to response types
-
-**Data flow:** User command -> main.rs handler -> MagellanIntegration wrapper -> Magellan CodeGraph API -> Splice enrichment -> JSON output
-
-### Critical Pitfalls
-
-1. **Context extraction on large files** — Tree-sitter degrades on files >32KB. Prevention: lazy context loading, span-based caching, `--max-context` flag.
-
-2. **Full-codebase relationship graph scalability** — O(n) queries cause exponential slowdown. Prevention: application-centered traversal, relationship indexing, scope-aware queries (`--scope=file|module|workspace`).
-
-3. **Breaking 334+ existing tests** — Adding fields changes JSON structure. Prevention: additive schema only, `--fields` flag, `assert_json_include!` pattern, golden test update scripts.
-
-4. **Magellan flag namespace collision** — Splice and Magellan CLI flags may conflict. Prevention: explicit flag namespacing (`--magellan-*`), auto-detect database path.
-
-5. **Data format misalignment** — Magellan uses `start_line`/`start_col`, Splice uses `line_start`/`col_start`. Prevention: field translation in format module, `--format magellan` flag for strict compatibility.
+**Estimated Effort:** 8-12 days across 5 phases
+**Risk Level:** MEDIUM (version upgrade complexity, new failure modes)
 
 ---
 
-## Implications for Roadmap
+## Key Findings by Research Document
 
-Based on combined research, the milestone breaks into 5 phases following dependency order:
+### 1. STACK_MAGELLAN_V2.md - Stack & Dependency Changes
 
-### Phase 1: Symbol ID & Format Foundation
+**Confidence:** HIGH
 
-**Rationale:** Symbol ID generation and format translation are foundational dependencies for all query commands. Build these first to establish the Magellan compatibility layer.
+**Core Finding:** Magellan v2.0.0 is a **drop-in upgrade** with additive API only. No breaking changes to existing Splice code.
 
-**Delivers:**
-- `src/symbol_id.rs` with 16-char hex ID generation
-- `src/format/magellan.rs` with field translation utilities
-- JSON schema compatibility tests
+**Dependency Changes:**
+```toml
+[dependencies]
+magellan = { version = "2.0.0", features = ["native-v2"] }
+sqlitegraph = { version = "1.3.0", default-features = false, features = ["sqlite-backend"] }
+blake3 = "1.5"  # NEW
+```
 
-**Addresses:**
-- Stack: SHA-256 usage (already in dependencies)
-- Features: Symbol ID format alignment
-- Architecture: Format alignment module
+**6 New Algorithm Methods:**
+| Method | Use Case | Complexity |
+|--------|----------|------------|
+| `reachable_symbols()` | Forward reachability from symbol | O(V + E) |
+| `reverse_reachable_symbols()` | Backward reachability (callers) | O(V + E) |
+| `dead_symbols()` | Dead code from entry point | O(V + E) |
+| `detect_cycles()` | Find all SCCs | O(V + E) |
+| `condense_call_graph()` | Collapse SCCs to DAG | O(V + E) |
+| `enumerate_paths()` | Path enumeration with bounds | O(P × L) |
+| `forward_slice()` / `backward_slice()` | Program slicing | O(V + E) |
 
-**Avoids:**
-- Pitfall #4 (breaking tests) — test format changes early
-- Pitfall #5 (data format misalignment) — establish translation layer
+**Performance:** <1 second for 10K symbols on typical operations (except path enumeration with large bounds)
 
-**Complexity:** LOW — pure functions, no side effects
-
-**Research flag:** SKIP — standard hash-and-encode patterns
-
----
-
-### Phase 2: Magellan Integration Extensions
-
-**Rationale:** Extend the existing `MagellanIntegration` wrapper with pagination and ID-based queries before building the executor that depends on them.
-
-**Delivers:**
-- `query_by_labels_paginated()` method
-- `get_symbol_by_id()` method
-- `count_symbols_with_labels()` method
-- Integration tests with test database
-
-**Addresses:**
-- Stack: Magellan 0.5.3 API usage
-- Features: Pagination support in query/find
-- Architecture: Magellan wrapper extensions
-
-**Uses:**
-- Existing `src/graph/magellan_integration.rs` infrastructure
-- Magellan crate APIs
-
-**Avoids:**
-- Pitfall #2 (scalability) — pagination prevents full dataset scans
-
-**Complexity:** MEDIUM — wraps Magellan library API
-
-**Research flag:** NEEDS RESEARCH — verify exact Magellan 0.5.3 method signatures
+**Critical Insight:** `ReferenceFact` already provides byte-accurate spans in Magellan 0.5.3. Cross-file rename doesn't require new API—just use existing structures.
 
 ---
 
-### Phase 3: Query Executor Module
+### 2. FEATURES_MAGELLON_V2.md - Feature Landscape
 
-**Rationale:** Centralizes query logic by extracting 600+ lines from main.rs into a testable module. Depends on Phases 1-2 for symbol IDs and Magellan extensions.
+**Confidence:** HIGH
 
-**Delivers:**
-- `src/query.rs` with `QueryExecutor` struct
-- `query_by_labels()` and `get_code_chunk()` methods
-- Unit tests for executor logic
-- Integration tests with Magellan
+**Core Finding:** Magellan v2.0.0 enables **semantic program transformation**, not just "find & replace with guardrails."
 
-**Addresses:**
-- Features: Core query/get command functionality
-- Architecture: Query executor module
+**Table Stakes (Must-Have):**
 
-**Uses:**
-- Phase 1 (symbol_id, format translation)
-- Phase 2 (Magellan extensions)
-- Existing context, semantic_kind modules
+1. **Cross-File Rename (P0)**
+   - Status: ✅ Already possible with `ReferenceFact`
+   - Gap: No rename command exists (delete exists, but not rename)
+   - Complexity: MEDIUM
+   - Integration: Use existing `src/patch/mod.rs` + Magellan references
 
-**Avoids:**
-- Pitfall #3 (breaking tests) — maintain existing tests during extraction
+2. **Impact Analysis (P0)**
+   - Status: ❌ Doesn't exist
+   - Use: Show caller/callee chains before refactoring
+   - Complexity: LOW (delegates to Magellan)
+   - Integration: Add `--impact` flag to rename command
 
-**Complexity:** MEDIUM — refactors existing code, requires careful testing
+3. **Dead Code Detection (P1)**
+   - Status: ❌ Doesn't exist
+   - Use: Find unreachable symbols from entry points
+   - Complexity: LOW
+   - Integration: New `splice dead-code` command
 
-**Research flag:** SKIP — extraction pattern is straightforward
+4. **Cycle Detection (P1)**
+   - Status: ❌ Doesn't exist
+   - Use: Find mutual recursion before refactoring
+   - Complexity: LOW
+   - Integration: New `splice cycles` command
 
----
+5. **Program Slicing (P2)**
+   - Status: ❌ Doesn't exist
+   - Use: Trace dependencies (backward/forward)
+   - Complexity: LOW (call-graph fallback) / HIGH (full CFG)
+   - Integration: New `splice slice` command
 
-### Phase 4: CLI Commands & Output Types
+**Differentiators (Competitive Advantages):**
 
-**Rationale:** Add new CLI commands and response types. Depends on executor being defined but can be developed in parallel.
+1. **Cross-Language Semantic Rename**
+   - 7 languages with consistent CLI (Rust, Python, C, C++, Java, JS, TS)
+   - Byte-accurate spans (no regex false positives)
+   - Graph-based impact analysis
+   - CLI tool (LLM-friendly, CI/CD automation)
 
-**Delivers:**
-- CLI variants: `Status`, `Find`, `Refs`, `Files` in `src/cli/mod.rs`
-- Response types: `StatusResponse`, `FindResponse`, `RefsResponse`, `FilesResponse` in `src/output.rs`
-- `--output`, `--limit`, `--offset`, `--format` flags
-- CLI parsing tests
+2. **Proof-Based Refactoring (--proof flag)**
+   - Machine-checkable proof of behavioral equivalence
+   - Before/after graph snapshots
+   - SHA-256 checksums for audit trails
+   - Compliance-ready for regulated industries
 
-**Addresses:**
-- Features: All 5 delegated commands
-- Stack: clap 4.5 usage
+3. **Condensation Graph Analysis**
+   - Collapse SCCs to DAG for safe refactoring order
+   - Topological layering
+   - Identify tightly coupled code clusters
 
-**Uses:**
-- Existing clap patterns
-- Phase 1 (format module)
-
-**Avoids:**
-- Pitfall #5 (flag namespace collision) — explicit namespacing
-
-**Complexity:** LOW — additive CLI changes
-
-**Research flag:** SKIP — clap patterns are well-established
-
----
-
-### Phase 5: Main Integration & Testing
-
-**Rationale:** Wire everything together, refactor main.rs to use QueryExecutor, and validate end-to-end. Highest risk due to main.rs refactoring.
-
-**Delivers:**
-- Refactored `execute_query()`, `execute_get()` in main.rs
-- New command handlers for status/find/refs/files
-- End-to-end integration tests
-- Documentation (`docs/magellan_integration.md`)
-- Performance benchmarks
-
-**Addresses:**
-- Features: Complete unified CLI
-- Architecture: Main.rs refactoring
-
-**Uses:**
-- All previous phases (1-4)
-- Existing main.rs structure
-
-**Avoids:**
-- Pitfall #1 (large file performance) — benchmark and optimize
-- Pitfall #3 (breaking tests) — comprehensive test suite
-
-**Complexity:** MEDIUM — refactors existing 600+ lines
-
-**Research flag:** SKIP — integration pattern is established
+**Anti-Features (Explicitly NOT Build):**
+- ❌ Custom rename logic (use Magellan `ReferenceFact`)
+- ❌ Full indexing for every operation (lazy indexing instead)
+- ❌ Type-based refactoring (name-based with compiler validation)
+- ❌ Auto-fix broken references (fail fast + suggest)
+- ❌ "Rename all instances" (require explicit symbol selection)
 
 ---
 
-### Phase Ordering Rationale
+### 3. ARCHITECTURE.md - Integration Architecture
 
-1. **Foundation first** — Symbol ID and format modules (Phase 1) have no dependencies and are used by all other phases
-2. **Wrapper before use** — Magellan extensions (Phase 2) must exist before QueryExecutor can use them
-3. **Extraction before wiring** — QueryExecutor (Phase 3) should be built and tested before integrating into main.rs
-4. **Parallelizable** — CLI commands (Phase 4) can be developed alongside Phase 3, as they only depend on format module
-5. **High-risk finale** — Main.rs refactoring (Phase 5) happens last when all dependencies are stable
+**Confidence:** HIGH
 
-**This order avoids the critical pitfalls:**
-- Builds format translation early to prevent data misalignment (#5)
-- Adds pagination to prevent scalability issues (#2)
-- Maintains tests throughout to prevent breakage (#3)
+**Core Finding:** Use **library delegation pattern** (already implemented), not subprocess or HTTP API.
+
+**Delegation Pattern:**
+```rust
+// Current: src/graph/magellan_integration.rs
+pub fn open(db_path: &Path) -> Result<Self> {
+    let inner = MagellanGraph::open(db_path_str)?;  // Direct library call
+    Ok(Self { inner })
+}
+```
+
+**Why library delegation:**
+- Zero serialization overhead
+- Shared database access (same SQLite file)
+- Type safety (compile-time guarantees)
+- Error handling (wrap `anyhow::Error` into `SpliceError`)
+
+**New Components:**
+
+1. **`src/query.rs`** - Query Executor (NEW)
+   - Extract 600+ lines from `src/main.rs`
+   - Centralize query delegation logic
+   - Improve testability
+
+2. **`src/graph/analysis.rs`** - Graph Analysis API (NEW)
+   - `GraphAnalysis` struct for programmatic access
+   - Wrapper methods for Magellan algorithms
+   - Output formatting (JSON/human)
+
+3. **`src/patch/proof.rs`** - Proof Generation (NEW)
+   - `RenameProof` struct
+   - Before/after chunk collection
+   - SHA-256 checksums for audit trails
+
+4. **`src/symbol_id/`** - BLAKE3 Migration (MODIFIED)
+   - `SymbolId` enum (V1/V2) for dual support
+   - `generate_v2()` using BLAKE3
+   - Migration tool for old plans
+
+**Modified Components:**
+- `src/graph/magellan_integration.rs` - Add `get_references_with_spans()`, algorithm wrappers
+- `src/cli/mod.rs` - Add `--proof`, `--impact`, `--limit`, `--offset`, `--format` flags
+- `src/output.rs` - Add `symbol_id`, `total_count` fields
+- `src/main.rs` - Add `execute_analyze()` function
+
+**Data Flow: Cross-File Rename**
+```
+User: splice patch <symbol> <new-name> --proof
+    ↓
+[patch/mod.rs] → apply_rename()
+    ↓
+    ├─→ [MagellanIntegration] → find_symbol_by_name()
+    │   ↓
+    │   └─→ [graph/magellan_integration.rs] → get_references_with_spans()
+    │       ↓
+    │       └─→ For each ReferenceWithSpan:
+    │           ├─→ get_code_chunk() → extract content
+    │           └─→ [ropey] → apply rename at byte span
+    │
+    ├─→ [patch/proof.rs] → generate_rename_proof()
+    ├─→ [patch/backup.rs] → create_backup()
+    ├─→ [validate.rs] → validate_all_edited_files()
+    └─→ [execution.rs] → record_operation()
+    ↓
+[Output] → success + proof.json
+```
 
 ---
 
-### Research Flags
+### 4. PITFALLS.md - Risks & Mitigation
 
-**Phases needing deeper research:**
-- **Phase 2:** Verify exact Magellan 0.5.3 API signatures for `get_stats()`, `find_symbol()`, `get_references()`. Current research assumes typical code graph patterns.
+**Confidence:** HIGH
 
-**Phases with standard patterns (skip research-phase):**
-- **Phase 1:** Standard hash-and-encode, field translation patterns
-- **Phase 3:** Extract-to-module refactoring is well-established
-- **Phase 4:** Clap CLI patterns are consistent across codebase
-- **Phase 5:** Main handler wiring follows existing patterns
+**Core Finding:** The **highest risks** are version upgrade breaking changes (ID format 16→32 chars), cross-file rename race conditions, and O(n) query performance.
+
+**Critical Pitfalls (Cause Rewrites/Data Corruption):**
+
+1. **Version Upgrade Breaking Changes (0.5.3 → 2.0.0)**
+   - **Risk:** BLAKE3 changes ID format from 16 to 32 chars
+   - **Impact:** 407 tests fail, existing databases unreadable
+   - **Prevention:**
+     - Dual-format support: `SymbolId` enum (V1/V2)
+     - Database migration script: `splice migrate-db`
+     - Feature flag: `magellan-v2` vs `magellan-legacy`
+     - Test parameterization for ID length
+   - **Phase:** Phase 1 (Dependency upgrade) - MUST be first
+
+2. **Cross-File Rename Race Conditions**
+   - **Risk:** Concurrent operations corrupt references
+   - **Impact:** Symbol renamed in definition but not all references
+   - **Prevention:**
+     - Cross-file transaction with graph-level lock
+     - Reference snapshot before mutation
+     - Conflict detection with three-way merge
+     - File modification detection during batch
+   - **Phase:** Phase 3 (Cross-file rename)
+
+3. **Cycle Detection Infinite Loops**
+   - **Risk:** Tarjan's SCC hangs on deep mutual recursion
+   - **Impact:** CLI hangs, stack overflow crashes
+   - **Prevention:**
+     - Depth-limited traversal (MAX_DEPTH = 100)
+     - Cycle detection with early exit
+     - Memoization of visited nodes
+     - Progress indication + timeout enforcement
+   - **Phase:** Phase 2 (Graph algorithms)
+
+4. **O(n) Query Performance on Large Codebases**
+   - **Risk:** Symbol queries iterate all files
+   - **Impact:** 30+ seconds on 50K file monorepo
+   - **Prevention:**
+     - Global symbol name index (SQL index on name, kind)
+     - Symbol name hash map (O(1) lookups)
+     - Query result caching (LRU with TTL)
+     - Incremental index updates
+   - **Phase:** Phase 2 (Graph algorithms)
+
+**Moderate Pitfalls (Cause Delays/Technical Debt):**
+
+5. **UTF-8 Byte Offset Corruption**
+   - **Risk:** Byte replacement splits multi-byte characters
+   - **Impact:** Invalid UTF-8, file corruption
+   - **Prevention:**
+     - UTF-8 boundary validation
+     - Character-based indexing for replacements
+     - Unicode-aware test fixtures (emoji, CJK)
+   - **Phase:** Phase 3 (Cross-file rename)
+
+6. **Test Breakage from New JSON Fields**
+   - **Risk:** BLAKE3 IDs, proof data break exact JSON match
+   - **Impact:** 407 tests fail
+   - **Prevention:**
+     - Subset assertion pattern (`assert_json_include!`)
+     - Field selection flag (V1/V2/Full modes)
+     - Golden test update script
+   - **Phase:** Phase 1 (Version upgrade)
+
+7. **Memory Exhaustion from Full Graph Load**
+   - **Risk:** Algorithms load entire graph into memory
+   - **Impact:** OOM kills, 4GB+ RSS
+   - **Prevention:**
+     - Streaming graph iteration
+     - Adjacency list instead of matrix
+     - Chunked processing
+     - Memory monitoring with limits
+   - **Phase:** Phase 2 (Graph algorithms)
+
+---
+
+## Stack Changes Needed
+
+### Dependency Upgrades
+
+**Current (Splice v2.2.3):**
+```toml
+magellan = "0.5.3"
+sqlitegraph = "1.2.7"
+```
+
+**Target (Splice v2.3.0):**
+```toml
+magellan = { version = "2.0.0", features = ["native-v2"] }
+sqlitegraph = { version = "1.3.0", default-features = false, features = ["sqlite-backend"] }
+blake3 = "1.5"  # NEW
+```
+
+### Schema Migration
+
+| Magellan Version | Schema Version | Key Changes |
+|------------------|----------------|-------------|
+| 0.5.3 (current) | v3 | FQN-based symbol lookup |
+| 1.5.0 | v4 | BLAKE3 SymbolId (breaking) |
+| 1.8.0 | v5 | AST nodes table |
+| **2.0.0** | **v6** | file_id column in ast_nodes (auto-migrate) |
+
+**Migration Note:** Magellan v2.0.0 auto-migrates v5 → v6 on database open.
+
+### API Changes
+
+**New Public Methods (from Magellan):**
+- `reachable_symbols(symbol_id, max_depth)` → `Vec<SymbolInfo>`
+- `reverse_reachable_symbols(symbol_id, max_depth)` → `Vec<SymbolInfo>`
+- `dead_symbols(entry_symbol_id)` → `Vec<DeadSymbol>`
+- `detect_cycles()` → `CycleReport`
+- `find_cycles_containing(symbol_id)` → `Vec<Cycle>`
+- `condense_call_graph()` → `CondensationResult`
+- `enumerate_paths(start, end, max_depth, max_paths)` → `PathEnumerationResult`
+- `backward_slice(symbol_id)` → `SliceResult`
+- `forward_slice(symbol_id)` → `SliceResult`
+
+---
+
+## Table Stakes vs Differentiators vs Anti-Features
+
+### Table Stakes (Must-Have for MVP)
+
+| Feature | Priority | Complexity | Status | Integration |
+|---------|----------|------------|--------|-------------|
+| Cross-file rename | **P0** | MEDIUM | ❌ Doesn't exist | Use `ReferenceFact` + `src/patch/mod.rs` |
+| Impact analysis | **P0** | LOW | ❌ Doesn't exist | Add `--impact` flag, delegate to Magellan |
+| Dead code detection | **P1** | LOW | ❌ Doesn't exist | New `splice dead-code` command |
+| Cycle detection | **P1** | LOW | ❌ Doesn't exist | New `splice cycles` command |
+
+**Timeline:** Phases 1-3 (8-9 days)
+
+### Differentiators (Competitive Advantages)
+
+| Feature | Value Prop | Complexity | Status |
+|---------|------------|------------|--------|
+| Cross-language semantic rename | 7 languages, byte-accurate, impact-aware | MEDIUM | ✅ Possible with Magellan v2.0.0 |
+| Proof-based refactoring | Machine-checkable behavioral equivalence | MEDIUM | ❌ Doesn't exist |
+| Condensation graph analysis | SCC collapse to DAG, safe refactoring order | LOW | ❌ Doesn't exist |
+| CLI tool (not IDE-bound) | LLM-friendly, CI/CD automation | LOW | ✅ Already CLI |
+
+**Timeline:** Phases 4-5 (3-4 days)
+
+### Anti-Features (Explicitly NOT Build)
+
+| Anti-Feature | Why Avoid | Instead Use |
+|--------------|-----------|-------------|
+| Custom rename logic | Magellan `ReferenceFact` already exists | Use byte spans from Magellan |
+| Full indexing for every operation | Large codebases take time to index | Lazy indexing + cached database |
+| Type-based refactoring | Requires type inference (extremely complex) | Name-based + compiler validation |
+| Auto-fix broken references | Hides semantic changes, users lose control | Fail fast + suggest fixes |
+| "Rename all instances" | Breaks with scope shadowing | Require explicit symbol selection |
+
+---
+
+## Recommended Phase Structure
+
+### Phase 1: Dependency Upgrade (1 day)
+**Goal:** Upgrade to Magellan 2.0.0 with dual ID format support
+
+**Tasks:**
+1. Update `Cargo.toml`: magellan 2.0.0, sqlitegraph 1.3.0, add blake3 1.5
+2. Extend `src/symbol_id/mod.rs` with `SymbolId` enum (V1/V2)
+3. Add database migration script (`src/migrate.rs`)
+4. Update tests for dual-format support (parameterize ID length)
+5. Run `cargo test` to verify compatibility
+
+**Acceptance Criteria:**
+- ✅ All 407 tests pass with new dependencies
+- ✅ 16-char IDs still work (backward compatible)
+- ✅ 32-char BLAKE3 IDs generated for new operations
+- ✅ `splice migrate-db` command exists
+
+**Risk:** HIGH (version upgrade breaking changes)
+
+---
+
+### Phase 2: Algorithm Integration (2-3 days)
+**Goal:** Integrate 6 graph algorithm methods
+
+**Tasks:**
+1. Extend `MagellanIntegration` with algorithm wrappers
+2. Add response types to `src/output.rs`
+3. Create `src/graph/analysis.rs` (GraphAnalysis API)
+4. Add depth limits, timeouts, progress indicators
+5. Build global symbol name index (fix O(n) query performance)
+6. Unit tests for each algorithm method
+
+**Acceptance Criteria:**
+- ✅ `reachable_symbols()` returns in <1 second for 10K symbols
+- ✅ `detect_cycles()` handles 1000-deep recursion without hanging
+- ✅ O(1) symbol lookup on 10K file codebase
+- ✅ Memory usage <2GB for 1M symbol graphs
+
+**Risk:** MEDIUM (graph algorithm complexity)
+
+---
+
+### Phase 3: Cross-File Rename (2-3 days)
+**Goal:** Implement semantic rename across all files
+
+**Tasks:**
+1. Add `splice rename` command to CLI
+2. Implement `get_references_for_rename()` using `ReferenceFact`
+3. Add cross-file transaction with graph-level lock
+4. Add UTF-8 boundary validation for multi-byte characters
+5. Add conflict detection (concurrent modifications)
+6. Integration test with concurrent rename processes
+
+**Acceptance Criteria:**
+- ✅ `splice rename old_func new_func` renames across all files
+- ✅ All references updated at exact byte spans (no regex)
+- ✅ Concurrent renames detect conflicts and fail gracefully
+- ✅ UTF-8 patches don't corrupt emoji/CJK files
+
+**Risk:** MEDIUM (rename is high-impact operation)
+
+---
+
+### Phase 4: Impact Analysis & Graph Commands (1-2 days)
+**Goal:** Add safety layer and standalone analysis tools
+
+**Tasks:**
+1. Add `--impact` flag to `splice rename`
+2. Add standalone graph analysis commands:
+   - `splice dead-code --entry main`
+   - `splice cycles [--symbol <ID>]`
+   - `splice condense --members`
+   - `splice slice --target <ID> --direction <backward|forward>`
+3. Format output as tree structure
+4. Add JSON output mode for automation
+
+**Acceptance Criteria:**
+- ✅ `splice rename --impact` shows caller/callee chains
+- ✅ `splice dead-code --entry main` lists unreachable symbols
+- ✅ `splice cycles` detects mutual recursion
+- ✅ Output works in both human and JSON formats
+
+**Risk:** LOW (read-only queries)
+
+---
+
+### Phase 5: Proof Generation & Testing (2-3 days)
+**Goal:** Add proof-of-correctness and comprehensive testing
+
+**Tasks:**
+1. Create `src/patch/proof.rs` with `RenameProof` struct
+2. Add `--proof` flag to `splice rename`
+3. Proof generation workflow (before/after snapshots, invariant validation)
+4. Integration tests comparing to Magellan CLI
+5. Update README with new capabilities
+
+**Acceptance Criteria:**
+- ✅ `splice rename --proof` generates proof.json
+- ✅ Proof validates graph invariants preserved
+- ✅ Integration tests pass against Magellan CLI output
+- ✅ README documents all new features
+
+**Risk:** LOW (verification only)
+
+**Total Estimate:** 8-12 days
+
+---
+
+## Risk Assessment
+
+### Overall Risk Level: MEDIUM
+
+| Risk Category | Severity | Likelihood | Mitigation |
+|---------------|----------|------------|------------|
+| **Version upgrade breaking changes** | **HIGH** | **HIGH** | Dual-format support, migration script, feature flags |
+| **Cross-file rename race conditions** | **MEDIUM** | **MEDIUM** | Transactional locks, conflict detection, file modification checks |
+| **Graph algorithm performance** | **MEDIUM** | **MEDIUM** | Depth limits, timeouts, global index, streaming iteration |
+| **UTF-8 byte offset corruption** | **MEDIUM** | **LOW** | UTF-8 boundary validation, Unicode test fixtures |
+| **Test breakage from new fields** | **LOW** | **HIGH** | Subset assertions, field selection flag, golden test script |
+| **Memory exhaustion** | **MEDIUM** | **LOW** | Streaming iteration, adjacency lists, memory monitoring |
+
+### Risk Mitigation Strategies
+
+1. **Pre-Upgrade Baseline**
+   - Run `cargo test` and document passing tests (100% baseline)
+   - Benchmark query performance on existing codebase
+   - Profile memory usage during graph operations
+
+2. **Incremental Rollout**
+   - Feature flags for new capabilities (`magellan-v2`)
+   - Dual-format support for ID migration
+   - Staged rollout (dev → staging → prod)
+
+3. **Comprehensive Testing**
+   - Unit tests for each algorithm method
+   - Integration tests comparing to Magellan CLI
+   - Load tests for concurrent operations
+   - Fuzz testing for Unicode handling
+
+4. **Rollback Plan**
+   - Keep v0.5.3 branch tagged
+   - Database backup before migration
+   - Feature flags to disable new capabilities
+   - Migration script validation
+
+---
+
+## Open Questions & Research Gaps
+
+### Verified (No Research Needed)
+
+- ✅ Magellan `ReferenceFact` structure (byte spans)
+- ✅ Magellan `CallFact` structure (caller/callee edges)
+- ✅ Magellan graph algorithms API (6 methods)
+- ✅ Splice's existing span-safe patching infrastructure
+- ✅ Splice's existing validation gates
+
+### Research Flags (LOW Confidence - Needs Verification)
+
+1. **Rename operation error recovery**
+   - **Flag:** How to handle validation failures mid-rename
+   - **Confidence:** MEDIUM (existing rollback infrastructure handles this)
+   - **Action:** Test with multi-file rename scenarios
+
+2. **Disambiguation UX**
+   - **Flag:** How to present ambiguous symbol choices to users
+   - **Confidence:** MEDIUM (Magellan provides `--ambiguous` flag)
+   - **Action:** Follow Magellan's CLI conventions
+
+3. **Performance on large codebases**
+   - **Flag:** Latency for rename in 10K+ file codebase
+   - **Confidence:** LOW (no benchmarks yet)
+   - **Action:** Performance testing during implementation
+
+4. **Cross-language import tracking**
+   - **Flag:** Does Magellan extract cross-language references?
+   - **Confidence:** LOW (need to test)
+   - **Action:** Test with polyglot codebase
+
+---
+
+## Success Criteria
+
+### Technical Success
+
+- [ ] All 407 tests pass after Magellan 2.0.0 upgrade
+- [ ] Cross-file rename works across all 7 supported languages
+- [ ] Graph algorithm commands return in <1 second for 10K symbols
+- [ ] O(1) symbol lookup on 10K file codebase
+- [ ] Concurrent rename operations detect conflicts
+- [ ] UTF-8 patches don't corrupt multi-byte characters
+- [ ] Memory usage <2GB for 1M symbol graphs
+- [ ] Proof generation validates graph invariants
+
+### User-Facing Success
+
+- [ ] `splice rename old_func new_func` "just works" across files
+- [ ] `splice rename --impact` shows what will change
+- [ ] `splice dead-code --entry main` finds unreachable code
+- [ ] `splice cycles` detects mutual recursion
+- [ ] `splice rename --proof` generates verifiable proof
+- [ ] CLI is consistent with Magellan conventions
+- [ ] Error messages are clear and actionable
+
+### Integration Success
+
+- [ ] Delegation to Magellan library (not subprocess)
+- [ ] Backward compatible with existing databases (migration)
+- [ ] JSON output compatible with Magellan schema
+- [ ] Library API for programmatic access
+- [ ] Documentation updated with new capabilities
+
+---
+
+## Next Steps
+
+1. **Create Roadmap Issues** (5 phases)
+2. **Pre-Upgrade Validation** (baseline tests, benchmarks)
+3. **Incremental Implementation** (one phase at a time)
+4. **Continuous Validation** (performance, load, fuzz tests)
 
 ---
 
 ## Confidence Assessment
 
-| Area | Confidence | Notes |
-|------|------------|-------|
-| Stack | HIGH | Verified from Cargo.toml, all dependencies already present |
-| Features | HIGH | Command specs from `docs/CLI_PATTERNS.md`, API patterns from existing code |
-| Architecture | HIGH | Delegation pattern already implemented in `src/graph/magellan_integration.rs` |
-| Pitfalls | HIGH | Research from WebSearch + academic papers, specific sources cited |
+| Area | Confidence | Reason |
+|------|------------|--------|
+| **Dependency versions** | **HIGH** | Verified Magellan 2.0.0 exists on crates.io |
+| **API changes** | **HIGH** | Read Magellan source code (1128 LOC) |
+| **ReferenceFact structure** | **HIGH** | Read Magellan source (references.rs) |
+| **Splice integration points** | **HIGH** | Read Splice source (864 lines) |
+| **Pitfall analysis** | **HIGH** | Read Splice source for limitations |
+| **Performance characteristics** | **MEDIUM** | Inferred from docs, needs benchmarking |
+| **Cross-language support** | **MEDIUM** | Needs testing |
+| **Real-world scalability** | **LOW** | No benchmarks on 100K+ files yet |
 
 **Overall confidence:** HIGH
-
-Delegation pattern is production-ready. Primary uncertainty is exact Magellan 0.5.3 API method signatures, which can be verified through testing or crate documentation.
-
-### Gaps to Address
-
-1. **Magellan 0.5.3 API surface** — Verify exact method signatures for `get_stats()`, `find_symbol()`, `get_references()`, `list_files()`. Current research assumes based on typical code graph patterns. **Handle during Phase 2:** Write spike test to verify actual API.
-
-2. **Type compatibility** — Confirm Magellan's `SymbolInfo`, `Reference` types convert to Splice's `SymbolMatch`, `ReferenceMatch` without data loss. **Handle during Phase 2:** Build conversion functions with unit tests.
-
-3. **Error handling** — Verify Magellan's error types convert cleanly to `SpliceError`. **Handle during Phase 2:** Create error mapping table.
-
-4. **Execution ID generation** — Test that `generate_magellan_execution_id()` produces IDs matching Magellan's `{timestamp_hex}-{pid_hex}` format. **Handle during Phase 1:** Unit test against format spec.
-
-5. **Export format specifications** — Exact JSON/JSONL/CSV/SCIP output formats not fully verified (WebSearch blocked). **Handle during Phase 4:** Test with actual magellan CLI to observe output.
 
 ---
 
@@ -290,35 +608,27 @@ Delegation pattern is production-ready. Primary uncertainty is exact Magellan 0.
 
 ### Primary (HIGH confidence)
 
-**Codebase analysis (verified directly):**
-- `/home/feanor/Projects/splice/Cargo.toml` — Dependency versions confirmed
-- `/home/feanor/Projects/splice/src/cli/mod.rs` — Existing CLI commands (728 lines)
-- `/home/feanor/Projects/splice/src/graph/magellan_integration.rs` — Magellan wrapper (256 lines)
-- `/home/feanor/Projects/splice/src/main.rs` — Query/get handlers (lines 1982-2750)
-- `/home/feanor/Projects/splice/src/output.rs` — JSON response types (1090 lines)
-- `/home/feanor/Projects/splice/src/resolve/mod.rs` — Symbol resolution (543 lines)
+**Magellan v2.0.0:**
+- `/home/feanor/Projects/magellan/CHANGELOG.md`
+- `/home/feanor/Projects/magellan/src/lib.rs`
+- `/home/feanor/Projects/magellan/src/graph/algorithms.rs` (1128 LOC)
+- `/home/feanor/Projects/magellan/src/references.rs`
+- `/home/feanor/Projects/magellan/MANUAL.md`
 
-**Project documentation:**
-- `/home/feanor/Projects/splice/docs/CLI_PATTERNS.md` — Complete command specifications
-- `/home/feanor/Projects/splice/docs/LLM_TOOL_ECOSYSTEM_ALIGNMENT.md` — Schema requirements
-- `/home/feanor/Projects/splice/.planning/PROJECT.md` — v2.2.2 milestone definition
+**Splice v2.2.3:**
+- `/home/feanor/Projects/splice/Cargo.toml`
+- `/home/feanor/Projects/splice/src/symbol_id.rs`
+- `/home/feanor/Projects/splice/src/graph/magellan_integration.rs` (864 lines)
+- `/home/feanor/Projects/splice/src/patch/mod.rs`
+- `/home/feanor/Projects/splice/tests/id_format_tests.rs`
 
-### Secondary (MEDIUM confidence)
-
-**Academic and industry research:**
-- Jarvis: Application-Centered Call Graph Construction (arXiv 2024) — scalability patterns
-- Type-Based Call Graph Construction (USENIX Sec 2023) — performance benchmarks
-- SQLite Query Optimizer Overview — database indexing strategies
-- Command Line Interface Guidelines (clig.dev) — CLI design patterns
-
-### Tertiary (LOW confidence)
-
-**Assumptions needing verification:**
-- Magellan 0.5.3 exact API method signatures — inferred from wrapper code, not directly verified
-- Export format specifications (JSON/JSONL/CSV/SCIP) — WebSearch blocked, needs CLI testing
-- Call graph query performance — no benchmarks yet, needs performance testing
+**SQLiteGraph:**
+- `/home/feanor/Projects/sqlitegraph/CHANGELOG.md`
+- `/home/feanor/Projects/sqlitegraph/sqlitegraph/src/algo/mod.rs`
 
 ---
-*Research completed: 2026-01-24*
-*Ready for roadmap: yes*
-*Milestone: Splice v2.2.2 - Magellan Integration*
+
+*Research synthesis complete: 2026-02-04*
+*Milestone: Magellan v2.0.0 Integration (Splice v2.3.0)*
+*Status: Ready for roadmap implementation*
+*Confidence: HIGH*
