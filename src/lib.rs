@@ -76,5 +76,32 @@ pub use relationships::{Relationship, RelationshipCache, Relationships};
 /// Re-export expansion API for convenience.
 pub use expand::{expand_symbol, expand_symbol_with_level, ExpansionLevel, SymbolExpander};
 
+// ============================================================================
+// Graph Algorithm Response Types (Phase 30)
+// ============================================================================
+
+/// Re-export graph algorithm response types for convenience.
+pub use output::{
+    // Reachability analysis types
+    ReachabilityResult, ReachableSymbol, AffectedFile,
+    // Dead code detection types
+    DeadCodeResult, DeadCodeByFile, DeadSymbol,
+    // Cycle detection types
+    CycleDetectionResult, CycleInfo,
+    // Condensation graph types
+    CondensationResult, CondensedScc, SccEdge, LevelInfo,
+    // Program slicing types
+    SliceResult, SlicedSymbol, SliceStats,
+    // Symbol info (shared across graph algorithms)
+    SymbolInfo,
+};
+
+// ============================================================================
+// CLI Enums (Phase 30)
+// ============================================================================
+
+/// Re-export CLI enums for programmatic use.
+pub use cli::{ReachabilityDirection, SliceDirection};
+
 /// Splice version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
