@@ -1292,6 +1292,209 @@ impl MagellanIntegration {
 
         Ok(dead_symbols)
     }
+
+    /// Compute the condensation graph (SCCs collapsed to DAG).
+    ///
+    /// Returns SCCs, edges between them, and topological levels.
+    pub fn condense_graph(&mut self) -> Result<CondensationGraph> {
+        use std::collections::{HashMap, HashSet};
+
+        // Build call graph
+        let mut call_graph: HashMap<(String, String), HashSet<(String, String)>> = HashMap::new();
+        let mut all_symbols: Vec<(String, String)> = Vec::new();
+
+        let file_nodes = self.inner.all_file_nodes()
+            .map_err(|e| SpliceError::Other(format!("Failed to get file nodes: {}", e)))?;
+
+        for file_path in file_nodes.keys() {
+            let symbols = self.inner.symbols_in_file(file_path)
+                .map_err(|e| SpliceError::Other(format!("Failed to get symbols: {}", e)))?;
+
+            for fact in symbols {
+                if let Some(name) = &fact.name {
+                    let key = (fact.file_path.to_string_lossy().to_string(), name.clone());
+                    call_graph.entry(key.clone()).or_default();
+                    all_symbols.push(key);
+                }
+            }
+        }
+
+        // Add edges
+        // First collect all valid callees, then add them to avoid borrow issues
+        let mut edges_to_add: Vec<((String, String), (String, String))> = Vec::new();
+        for caller in call_graph.keys() {
+            let calls = self.inner.calls_from_symbol(&caller.0, &caller.1)
+                .unwrap_or_default();
+
+            for call in calls {
+                let callee_key = (call.file_path.to_string_lossy().to_string(), call.callee.clone());
+                if call_graph.contains_key(&callee_key) {
+                    edges_to_add.push((caller.clone(), callee_key));
+                }
+            }
+        }
+
+        // Now add the collected edges
+        for (caller, callee) in edges_to_add {
+            if let Some(callees) = call_graph.get_mut(&caller) {
+                callees.insert(callee);
+            }
+        }
+
+        // Find SCCs
+        let sccs = self.find_sccs(&call_graph)?;
+
+        // Assign SCC IDs
+        let mut symbol_to_scc: HashMap<(String, String), usize> = HashMap::new();
+        let mut scc_members: Vec<Vec<(String, String)>> = vec![Vec::new(); sccs.len()];
+
+        for (scc_id, scc) in sccs.into_iter().enumerate() {
+            for symbol in &scc {
+                symbol_to_scc.insert(symbol.clone(), scc_id);
+                scc_members[scc_id].push(symbol.clone());
+            }
+        }
+
+        // Build edges between SCCs
+        let mut scc_edges: HashMap<(usize, usize), usize> = HashMap::new();
+
+        for (caller, callees) in &call_graph {
+            let caller_scc = symbol_to_scc.get(caller).copied().unwrap_or(usize::MAX);
+
+            for callee in callees {
+                let callee_scc = symbol_to_scc.get(callee).copied().unwrap_or(usize::MAX);
+
+                // Only edges between different SCCs
+                if caller_scc != callee_scc && caller_scc != usize::MAX && callee_scc != usize::MAX {
+                    *scc_edges.entry((caller_scc, callee_scc)).or_insert(0) += 1;
+                }
+            }
+        }
+
+        // Compute topological levels
+        let mut in_degree: HashMap<usize, usize> = HashMap::new();
+        let mut out_neighbors: HashMap<usize, HashSet<usize>> = HashMap::new();
+
+        for ((from, to), _weight) in &scc_edges {
+            *in_degree.entry(*to).or_insert(0) += 1;
+            out_neighbors.entry(*from).or_default().insert(*to);
+            in_degree.entry(*from).or_insert(0); // ensure all SCCs have entry
+        }
+
+        // Initialize in_degree for SCCs with no edges
+        for scc_id in 0..scc_members.len() {
+            in_degree.entry(scc_id).or_insert(0);
+        }
+
+        // Topological sort to assign levels
+        let mut levels: Vec<Vec<usize>> = Vec::new();
+        let mut queue: Vec<usize> = in_degree.iter()
+            .filter(|(_, &deg)| deg == 0)
+            .map(|(&id, _)| id)
+            .collect();
+
+        while !queue.is_empty() {
+            queue.sort_unstable();
+            levels.push(queue.clone());
+
+            let mut next_queue = Vec::new();
+            for scc_id in queue {
+                if let Some(neighbors) = out_neighbors.get(&scc_id) {
+                    for &neighbor in neighbors {
+                        let deg = in_degree.get_mut(&neighbor).unwrap();
+                        *deg -= 1;
+                        if *deg == 0 {
+                            next_queue.push(neighbor);
+                        }
+                    }
+                }
+            }
+            queue = next_queue;
+        }
+
+        // Build result
+        let sccs_result: Vec<CondensedScc> = scc_members.iter().enumerate().map(|(id, members)| {
+            let is_cycle = members.len() > 1;
+            let representative = if let Some((path, name)) = members.first() {
+                match self.inner.symbol_extents(path, name) {
+                    Ok(facts) => {
+                        if let Some((eid, fact)) = facts.first() {
+                            SymbolInfo {
+                                entity_id: *eid,
+                                name: fact.name.clone().unwrap_or_else(|| name.clone()),
+                                file_path: fact.file_path.to_string_lossy().to_string(),
+                                kind: fact.kind_normalized.clone(),
+                                byte_start: fact.byte_start,
+                                byte_end: fact.byte_end,
+                            }
+                        } else {
+                            // Fallback if no facts found
+                            SymbolInfo {
+                                entity_id: 0,
+                                name: name.clone(),
+                                file_path: path.clone(),
+                                kind: "Unknown".to_string(),
+                                byte_start: 0,
+                                byte_end: 0,
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        // Fallback on error
+                        SymbolInfo {
+                            entity_id: 0,
+                            name: name.clone(),
+                            file_path: path.clone(),
+                            kind: "Unknown".to_string(),
+                            byte_start: 0,
+                            byte_end: 0,
+                        }
+                    }
+                }
+            } else {
+                // Empty SCC - shouldn't happen but handle gracefully
+                SymbolInfo {
+                    entity_id: 0,
+                    name: "unknown".to_string(),
+                    file_path: "unknown".to_string(),
+                    kind: "Unknown".to_string(),
+                    byte_start: 0,
+                    byte_end: 0,
+                }
+            };
+
+            CondensedScc {
+                id: format!("scc-{}", id),
+                size: members.len(),
+                is_cycle,
+                members: None, // populated separately if needed
+                representative,
+            }
+        }).collect();
+
+        let edges_result: Vec<SccEdge> = scc_edges.into_iter()
+            .map(|((from, to), weight)| SccEdge {
+                from: format!("scc-{}", from),
+                to: format!("scc-{}", to),
+                weight,
+            })
+            .collect();
+
+        let levels_result: Vec<LevelInfo> = levels.iter().enumerate().map(|(level, sccs)| LevelInfo {
+            level,
+            scc_ids: sccs.iter().map(|id| format!("scc-{}", id)).collect(),
+            count: sccs.len(),
+        }).collect();
+
+        Ok(CondensationGraph {
+            scc_count: scc_members.len(),
+            cycle_scc_count: scc_members.iter().filter(|scc| scc.len() > 1).count(),
+            singleton_count: scc_members.iter().filter(|scc| scc.len() == 1).count(),
+            sccs: sccs_result,
+            edges: edges_result,
+            levels: levels_result,
+        })
+    }
 }
 
 /// Check if a symbol is public (exported).
@@ -1426,6 +1629,49 @@ pub struct CycleInfo {
     pub representative: SymbolInfo,
     /// Whether this is a self-loop (single symbol calling itself).
     pub is_self_loop: bool,
+}
+
+/// Condensation graph result (SCCs collapsed to DAG).
+#[derive(Debug, Clone)]
+pub struct CondensationGraph {
+    /// Total number of SCCs.
+    pub scc_count: usize,
+    /// Number of SCCs that are cycles.
+    pub cycle_scc_count: usize,
+    /// Number of singleton SCCs.
+    pub singleton_count: usize,
+    /// SCCs in the graph.
+    pub sccs: Vec<CondensedScc>,
+    /// Edges between SCCs.
+    pub edges: Vec<SccEdge>,
+    /// Topological levels.
+    pub levels: Vec<LevelInfo>,
+}
+
+/// A condensed SCC.
+#[derive(Debug, Clone)]
+pub struct CondensedScc {
+    pub id: String,
+    pub size: usize,
+    pub is_cycle: bool,
+    pub members: Option<Vec<SymbolInfo>>,
+    pub representative: SymbolInfo,
+}
+
+/// Edge between SCCs.
+#[derive(Debug, Clone)]
+pub struct SccEdge {
+    pub from: String,
+    pub to: String,
+    pub weight: usize,
+}
+
+/// Topological level.
+#[derive(Debug, Clone)]
+pub struct LevelInfo {
+    pub level: usize,
+    pub scc_ids: Vec<String>,
+    pub count: usize,
 }
 
 /// File metadata with optional symbol count.
