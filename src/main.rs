@@ -6,6 +6,7 @@
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
 use std::env;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -3767,7 +3768,7 @@ fn execute_rename(
     new_name: &str,
     db_path: &Path,
     preview: bool,
-    backup_dir: Option<&PathBuf>,
+    _backup_dir: Option<&PathBuf>,
     no_backup: bool,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
@@ -3922,54 +3923,104 @@ fn execute_rename(
     let grouped = rename::group_references_by_file(&references);
 
     // Calculate stats for preview
-    let files_affected = grouped.len();
+    let files_affected: Vec<&PathBuf> = grouped.keys().collect();
     let total_references = references.len();
 
-    // PREVIEW MODE: Short-circuit BEFORE any backup logic (pure read-only)
-    // Context decision: "Preview = pure: No backup during preview"
+    // PREVIEW MODE: Generate unified diffs without filesystem writes
+    // Preview is pure - no backup creation, no file modifications
     if preview {
-        return Ok(splice::cli::CliSuccessPayload::message_only(format!(
-            "Preview: {} files, {} references would be modified",
-            files_affected, total_references
-        )).with_pending_changes());
+        let mut diffs = Vec::new();
+        for (file_path, refs) in &grouped {
+            let content = fs::read_to_string(file_path).map_err(|e| {
+                splice::SpliceError::Io {
+                    path: file_path.clone(),
+                    source: e,
+                }
+            })?;
+            let modified = rename::simulate_replacements_content(
+                &content,
+                refs,
+                &symbol_info.name,
+                new_name,
+            )?;
+            let diff = rename::generate_colored_preview(file_path, &content, &modified);
+            diffs.push(diff);
+        }
+
+        let summary = format!(
+            "Preview: {} files, {} references\n\n{}",
+            files_affected.len(),
+            total_references,
+            diffs.join("\n")
+        );
+        return Ok(splice::cli::CliSuccessPayload::message_only(summary).with_pending_changes());
     }
 
-    // Create backup unless skipped (only after preview check)
-    let backup_path = if !no_backup {
-        let backup_dir = backup_dir
-            .map(|p| p.to_path_buf())
-            .unwrap_or_else(|| PathBuf::from(".splice/backups"));
+    // DETERMINE WORKSPACE ROOT
+    let workspace_root = std::env::current_dir().map_err(|e| {
+        splice::SpliceError::Other(format!("Failed to get workspace root: {}", e))
+    })?;
 
-        // TODO: Create backup using BackupWriter in plan 29-04
-        // For now, just note where backup would go
-        Some(format!("{}/rename-{}-{}",
-            backup_dir.display(),
-            symbol_id.unwrap_or("name"),
-            chrono::Utc::now().format("%Y%m%d-%H%M%S").to_string()
-        ))
+    // CREATE BACKUP (unless skipped)
+    let backup_dir_path = if !no_backup {
+        let files_to_backup: Vec<PathBuf> = files_affected.iter().map(|p| (**p).clone()).collect();
+        Some(rename::create_rename_backup(
+            &workspace_root,
+            symbol_id.unwrap_or("unknown"),
+            &files_to_backup,
+        )?)
     } else {
         None
     };
 
-    // Apply replacements file by file
-    let mut modified_files = 0;
+    // APPLY REPLACEMENTS WITH TRANSACTION
+    let mut transaction = rename::RenameTransaction::new();
+    if let Some(backup_path) = backup_dir_path.as_ref() {
+        transaction = transaction.with_backup(backup_path.clone(), workspace_root.clone());
+    }
+
+    let mut modified_count = 0;
+    let mut last_error: Option<splice::SpliceError> = None;
 
     for (file_path, refs) in grouped {
-        let count = rename::apply_replacements_in_file(&file_path, &symbol_info.name, new_name, &refs)?;
-        if count > 0 {
-            modified_files += 1;
+        match rename::apply_replacements_in_file(
+            &file_path,
+            &symbol_info.name,
+            new_name,
+            &refs,
+        ) {
+            Ok(count) => {
+                if count > 0 {
+                    modified_count += 1;
+                    transaction.track_modified(file_path.to_path_buf());
+                }
+            }
+            Err(e) => {
+                // Rollback on error
+                last_error = Some(e);
+                break;
+            }
         }
     }
 
-    let message = if let Some(ref backup) = backup_path {
+    // If any file failed, rollback the entire transaction
+    if let Some(error) = last_error {
+        let _ = transaction.rollback(); // Best-effort rollback
+        return Err(error);
+    }
+
+    let message = if let Some(ref backup_path) = backup_dir_path {
         format!(
-            "Renamed '{}' to '{}' in {} files (backup: {})",
-            symbol_info.name, new_name, modified_files, backup
+            "Renamed '{}' to '{}' in {} files\nBackup: {}",
+            symbol_info.name,
+            new_name,
+            modified_count,
+            backup_path.display()
         )
     } else {
         format!(
             "Renamed '{}' to '{}' in {} files (no backup)",
-            symbol_info.name, new_name, modified_files
+            symbol_info.name, new_name, modified_count
         )
     };
 
@@ -3978,9 +4029,9 @@ fn execute_rename(
         serde_json::json!({
             "old_name": symbol_info.name,
             "new_name": new_name,
-            "files_modified": modified_files,
+            "files_modified": modified_count,
             "total_references": total_references,
-            "backup": backup_path,
+            "backup": backup_dir_path.as_ref().map(|p| p.display().to_string()),
         }),
     ))
 }
