@@ -328,6 +328,26 @@ fn main() -> ExitCode {
         } => {
             execute_cycles(&db, symbol.as_deref(), path.as_ref(), max_cycles, show_members, output, json_output)
         }
+
+        splice::cli::Commands::Condense {
+            db,
+            show_members,
+            show_levels,
+            output,
+        } => {
+            execute_condense(&db, show_members, show_levels, output, json_output)
+        }
+
+        splice::cli::Commands::Slice {
+            target,
+            path,
+            db,
+            direction,
+            max_depth,
+            output,
+        } => {
+            execute_slice(&target, &path, &db, direction, max_depth, output, json_output)
+        }
     };
 
     // Handle result
@@ -4400,6 +4420,164 @@ fn execute_cycles(
         }
 
         Ok(splice::cli::CliSuccessPayload::message_only("Cycle detection complete".to_string()))
+    }
+}
+
+/// Execute the condense command.
+///
+/// Stub implementation - full implementation in plan 30-04.
+fn execute_condense(
+    _db_path: &Path,
+    _show_members: bool,
+    _show_levels: bool,
+    _output: splice::cli::OutputFormat,
+    _json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    // This is a stub for the Condense command which will be implemented in plan 30-04
+    Err(splice::SpliceError::Other(
+        "The 'condense' command is not yet implemented. See plan 30-04 for implementation.".to_string()
+    ))
+}
+
+/// Execute the slice command.
+///
+/// Performs forward or backward program slicing for impact analysis.
+fn execute_slice(
+    target: &str,
+    path: &Path,
+    db_path: &Path,
+    direction: &splice::cli::SliceDirection,
+    max_depth: Option<usize>,
+    output: splice::cli::OutputFormat,
+    json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::graph::MagellanIntegration;
+    use splice::output::{SliceResult, SlicedSymbol, SliceStats, AffectedFile, SymbolInfo};
+    use std::collections::HashMap;
+
+    let mut integration = MagellanIntegration::open(db_path)?;
+
+    // Perform slice
+    let sliced_symbols = match direction {
+        splice::cli::SliceDirection::Forward => {
+            integration.forward_slice(path, target, max_depth)?
+        }
+        splice::cli::SliceDirection::Backward => {
+            integration.backward_slice(path, target, max_depth)?
+        }
+    };
+
+    // Get target symbol info
+    let path_str = path.to_str()
+        .ok_or_else(|| splice::SpliceError::Other("Invalid UTF-8 in path".to_string()))?;
+    let target_facts = integration.inner_mut().symbol_extents(path_str, target)
+        .map_err(|e| splice::SpliceError::Other(format!("Failed to find target: {}", e)))?;
+
+    let (target_id, target_fact) = target_facts.first()
+        .ok_or_else(|| splice::SpliceError::Other("Target symbol not found".to_string()))?;
+
+    let target_symbol = SymbolInfo {
+        symbol_id: None,
+        id_format: None,
+        name: target_fact.name.clone().unwrap_or_else(|| target.to_string()),
+        kind: target_fact.kind_normalized.clone(),
+        file_path: target_fact.file_path.to_string_lossy().to_string(),
+        byte_start: target_fact.byte_start,
+        byte_end: target_fact.byte_end,
+    };
+
+    // Compute affected files
+    let mut affected_files: HashMap<String, usize> = HashMap::new();
+    for ss in &sliced_symbols {
+        *affected_files.entry(ss.symbol.file_path.clone()).or_insert(0) += 1;
+    }
+
+    let affected_files_result: Vec<AffectedFile> = affected_files.into_iter()
+        .map(|(path, count)| AffectedFile {
+            path,
+            symbol_count: count,
+            is_root: path == target_symbol.file_path,
+        })
+        .collect();
+
+    // Compute stats
+    let max_distance = sliced_symbols.iter()
+        .map(|s| s.distance)
+        .max()
+        .unwrap_or(0);
+
+    let stats = SliceStats {
+        total_symbols: sliced_symbols.len(),
+        max_distance,
+        affected_file_count: affected_files_result.len(),
+    };
+
+    let symbols_result: Vec<SlicedSymbol> = sliced_symbols.into_iter()
+        .map(|ss| SlicedSymbol {
+            symbol: SymbolInfo {
+                symbol_id: None,
+                id_format: None,
+                name: ss.symbol.name,
+                kind: ss.symbol.kind,
+                file_path: ss.symbol.file_path,
+                byte_start: ss.symbol.byte_start,
+                byte_end: ss.symbol.byte_end,
+            },
+            distance: ss.distance,
+            is_target: ss.is_target,
+            relationship: ss.relationship,
+        })
+        .collect();
+
+    let result = SliceResult {
+        target: target_symbol,
+        direction: format!("{:?}", direction).to_lowercase(),
+        max_depth,
+        symbols: symbols_result,
+        affected_files: affected_files_result,
+        stats,
+    };
+
+    // Format output
+    if output.is_json() || json_output {
+        let json = output.format_json(&result)
+            .map_err(|e| splice::SpliceError::Other(format!("JSON serialization error: {}", e)))?;
+        println!("{}", json);
+        Ok(splice::cli::CliSuccessPayload::message_only("Program slice complete".to_string()).already_emitted())
+    } else {
+        // Human-readable output
+        println!("Program Slice: {} {} from '{}'",
+            result.direction,
+            result.max_depth.map_or("(unlimited)".to_string(), |d| format!("(max depth {})", d)),
+            result.target.name
+        );
+        println!();
+        println!("Statistics:");
+        println!("  Total symbols in slice: {}", result.stats.total_symbols);
+        println!("  Max distance: {}", result.stats.max_distance);
+        println!("  Affected files: {}", result.stats.affected_file_count);
+        println!();
+
+        println!("Affected Files:");
+        for file in &result.affected_files {
+            let marker = if file.is_root { " [target]" } else { "" };
+            println!("  {}{} ({} symbols)", file.path, marker, file.symbol_count);
+        }
+        println!();
+
+        println!("Symbols in Slice:");
+        for ss in &result.symbols {
+            let target_marker = if ss.is_target { " [TARGET]" } else { "" };
+            println!("  [d={:2}] {}{} in {} ({})",
+                ss.distance,
+                ss.symbol.name,
+                target_marker,
+                ss.symbol.file_path,
+                ss.relationship
+            );
+        }
+
+        Ok(splice::cli::CliSuccessPayload::message_only("Program slice complete".to_string()))
     }
 }
 
