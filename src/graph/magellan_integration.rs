@@ -952,6 +952,367 @@ impl MagellanIntegration {
 
         Ok(result)
     }
+
+    /// Detect all cycles in the call graph.
+    ///
+    /// Uses Tarjan's SCC algorithm to find strongly connected components
+    /// with more than one node (cycles) or self-loops.
+    ///
+    /// # Arguments
+    /// * `max_cycles` - Maximum number of cycles to return
+    ///
+    /// # Returns
+    /// Vec<CycleInfo> describing detected cycles
+    pub fn detect_cycles(&mut self, max_cycles: usize) -> Result<Vec<CycleInfo>> {
+        use std::collections::{HashMap, HashSet};
+
+        // Build call graph: symbol -> set of callees
+        let mut call_graph: HashMap<(String, String), HashSet<(String, String)>> = HashMap::new();
+        let mut all_symbols: HashSet<(String, String)> = HashSet::new();
+
+        let file_nodes = self.inner.all_file_nodes()
+            .map_err(|e| SpliceError::Other(format!("Failed to get file nodes: {}", e)))?;
+
+        for file_path in file_nodes.keys() {
+            let symbols = self.inner.symbols_in_file(file_path)
+                .map_err(|e| SpliceError::Other(format!("Failed to get symbols: {}", e)))?;
+
+            for fact in symbols {
+                if let Some(ref name) = fact.name {
+                    let key = (fact.file_path.to_string_lossy().to_string(), name.clone());
+                    all_symbols.insert(key.clone());
+                    call_graph.entry(key).or_default();
+                }
+            }
+        }
+
+        // Add edges
+        for (caller, callees) in call_graph.iter_mut() {
+            let calls = self.inner.calls_from_symbol(&caller.0, &caller.1)
+                .unwrap_or_default();
+
+            for call in calls {
+                let callee_key = (call.file_path.to_string_lossy().to_string(), call.callee.clone());
+                if all_symbols.contains(&callee_key) {
+                    callees.insert(callee_key);
+                }
+            }
+        }
+
+        // Find SCCs using iterative DFS (Tarjan's algorithm simplified)
+        let sccs = self.find_sccs(&call_graph)?;
+
+        // Convert SCCs to cycles (only SCCs with size > 1 or self-loops)
+        let mut cycles = Vec::new();
+
+        for (index, scc) in sccs.iter().enumerate() {
+            if cycles.len() >= max_cycles {
+                break;
+            }
+
+            // Filter: cycles have size > 1 OR are self-loops
+            let is_self_loop = scc.len() == 1 && self.has_self_loop(&scc[0], &call_graph);
+            let is_cycle = scc.len() > 1 || is_self_loop;
+
+            if is_cycle {
+                cycles.push(self.scc_to_cycle_info(scc, index, is_self_loop)?);
+            }
+        }
+
+        Ok(cycles)
+    }
+
+    /// Find cycles containing a specific symbol.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to file containing the symbol
+    /// * `symbol_name` - Name of the symbol
+    /// * `max_cycles` - Maximum number of cycles to return
+    ///
+    /// # Returns
+    /// Vec<CycleInfo> for cycles containing the specified symbol
+    pub fn find_cycles_containing(
+        &mut self,
+        file_path: &Path,
+        symbol_name: &str,
+        max_cycles: usize,
+    ) -> Result<Vec<CycleInfo>> {
+        let path_str = file_path
+            .to_str()
+            .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
+
+        // Get all cycles first
+        let all_cycles = self.detect_cycles(usize::MAX)?;
+
+        // Filter cycles containing the target symbol
+        let _target_key = (path_str.to_string(), symbol_name.to_string());
+
+        let mut matching_cycles = Vec::new();
+        for cycle in all_cycles {
+            if matching_cycles.len() >= max_cycles {
+                break;
+            }
+
+            let contains_target = cycle.members.iter().any(|m| {
+                m.file_path == path_str && m.name == symbol_name
+            });
+
+            if contains_target {
+                matching_cycles.push(cycle);
+            }
+        }
+
+        Ok(matching_cycles)
+    }
+
+    /// Find strongly connected components using iterative DFS.
+    fn find_sccs(
+        &self,
+        graph: &std::collections::HashMap<(String, String), std::collections::HashSet<(String, String)>>,
+    ) -> Result<Vec<Vec<(String, String)>>> {
+        use std::collections::{HashMap, HashSet};
+
+        let mut index = 0i32;
+        let mut indices: HashMap<(String, String), i32> = HashMap::new();
+        let mut lowlink: HashMap<(String, String), i32> = HashMap::new();
+        let mut on_stack: HashSet<(String, String)> = HashSet::new();
+        let mut stack: Vec<(String, String)> = Vec::new();
+        let mut sccs: Vec<Vec<(String, String)>> = Vec::new();
+
+        for node in graph.keys() {
+            if !indices.contains_key(node) {
+                self.scc_dfs(
+                    node,
+                    graph,
+                    &mut index,
+                    &mut indices,
+                    &mut lowlink,
+                    &mut on_stack,
+                    &mut stack,
+                    &mut sccs,
+                )?;
+            }
+        }
+
+        Ok(sccs)
+    }
+
+    /// Recursive DFS helper for SCC detection (iterative to avoid stack overflow).
+    fn scc_dfs(
+        &self,
+        node: &(String, String),
+        graph: &std::collections::HashMap<(String, String), std::collections::HashSet<(String, String)>>,
+        index: &mut i32,
+        indices: &mut std::collections::HashMap<(String, String), i32>,
+        lowlink: &mut std::collections::HashMap<(String, String), i32>,
+        on_stack: &mut std::collections::HashSet<(String, String)>,
+        stack: &mut Vec<(String, String)>,
+        sccs: &mut Vec<Vec<(String, String)>>,
+    ) -> Result<()> {
+        indices.insert(node.clone(), *index);
+        lowlink.insert(node.clone(), *index);
+        *index += 1;
+        stack.push(node.clone());
+        on_stack.insert(node.clone());
+
+        if let Some(neighbors) = graph.get(node) {
+            for neighbor in neighbors {
+                if !indices.contains_key(neighbor) {
+                    self.scc_dfs(neighbor, graph, index, indices, lowlink, on_stack, stack, sccs)?;
+                    let neighbor_low = *lowlink.get(neighbor).unwrap_or(&0);
+                    let current_low = lowlink.get_mut(node).unwrap();
+                    *current_low = (*current_low).min(neighbor_low);
+                } else if on_stack.contains(neighbor) {
+                    let neighbor_idx = *indices.get(neighbor).unwrap_or(&0);
+                    let current_low = lowlink.get_mut(node).unwrap();
+                    *current_low = (*current_low).min(neighbor_idx);
+                }
+            }
+        }
+
+        // If node is a root node, pop the stack and generate an SCC
+        let node_low = *lowlink.get(node).unwrap_or(&0);
+        let node_idx = *indices.get(node).unwrap_or(&0);
+        if node_low == node_idx {
+            let mut scc = Vec::new();
+            loop {
+                let w = stack.pop().unwrap();
+                on_stack.remove(&w);
+                if &w == node {
+                    scc.push(w);
+                    break;
+                }
+                scc.push(w);
+            }
+            sccs.push(scc);
+        }
+
+        Ok(())
+    }
+
+    /// Check if a symbol has a self-loop (calls itself).
+    fn has_self_loop(
+        &self,
+        node: &(String, String),
+        graph: &std::collections::HashMap<(String, String), std::collections::HashSet<(String, String)>>,
+    ) -> bool {
+        if let Some(callees) = graph.get(node) {
+            callees.contains(node)
+        } else {
+            false
+        }
+    }
+
+    /// Convert an SCC to CycleInfo.
+    fn scc_to_cycle_info(
+        &mut self,
+        scc: &[(String, String)],
+        index: usize,
+        is_self_loop: bool,
+    ) -> Result<CycleInfo> {
+        let mut members = Vec::new();
+
+        for (file_path, symbol_name) in scc {
+            if let Ok(symbol_facts) = self.inner_mut().symbol_extents(file_path, symbol_name) {
+                if let Some((entity_id, fact)) = symbol_facts.first() {
+                    members.push(SymbolInfo {
+                        entity_id: *entity_id,
+                        name: fact.name.clone().unwrap_or_else(|| symbol_name.clone()),
+                        file_path: fact.file_path.to_string_lossy().to_string(),
+                        kind: fact.kind_normalized.clone(),
+                        byte_start: fact.byte_start,
+                        byte_end: fact.byte_end,
+                    });
+                }
+            }
+        }
+
+        // Sort for representative selection
+        members.sort_by(|a, b| a.name.cmp(&b.name));
+
+        let representative = members.first()
+            .ok_or_else(|| SpliceError::Other("Empty cycle".to_string()))?
+            .clone();
+
+        let id = format!("cycle-{}", index);
+
+        Ok(CycleInfo {
+            id,
+            size: scc.len(),
+            members,
+            representative,
+            is_self_loop,
+        })
+    }
+
+    /// Detect dead code (unreachable symbols) from an entry point.
+    ///
+    /// # Arguments
+    /// * `entry_file` - Path to file containing entry point
+    /// * `entry_symbol` - Name of entry point symbol
+    /// * `exclude_public` - Whether to exclude public symbols from results
+    ///
+    /// # Returns
+    /// Vec<DeadSymbol> of unreachable symbols
+    pub fn dead_symbols(
+        &mut self,
+        entry_file: &Path,
+        entry_symbol: &str,
+        exclude_public: bool,
+    ) -> Result<Vec<DeadSymbol>> {
+        use std::collections::{HashSet, HashMap};
+
+        let entry_path_str = entry_file
+            .to_str()
+            .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", entry_file)))?;
+
+        // Step 1: Get all symbols in the database
+        let mut all_symbols = HashMap::new();
+        let file_nodes = self.inner.all_file_nodes()
+            .map_err(|e| SpliceError::Other(format!("Failed to get file nodes: {}", e)))?;
+
+        for file_path in file_nodes.keys() {
+            let symbols = self.inner.symbols_in_file(file_path)
+                .map_err(|e| SpliceError::Other(format!("Failed to get symbols in {}: {}", file_path, e)))?;
+
+            for fact in symbols {
+                if let Some(ref name) = fact.name {
+                    let key = (fact.file_path.to_string_lossy().to_string(), name.clone());
+                    all_symbols.insert(key, (fact, false)); // false = not yet visited
+                }
+            }
+        }
+
+        // Step 2: BFS from entry point to mark reachable symbols
+        let mut visited = HashSet::new();
+        let mut queue = std::collections::VecDeque::new();
+
+        // Start with entry point
+        let entry_key = (entry_path_str.to_string(), entry_symbol.to_string());
+        queue.push_back(entry_key.clone());
+        visited.insert(entry_key);
+
+        while let Some((file_path, symbol_name)) = queue.pop_front() {
+            // Get all callees of this symbol
+            let callees = self.inner.calls_from_symbol(&file_path, &symbol_name)
+                .unwrap_or_default();
+
+            for call in callees {
+                let callee_key = (call.file_path.to_string_lossy().to_string(), call.callee.clone());
+                if visited.insert(callee_key.clone()) {
+                    queue.push_back(callee_key);
+                }
+            }
+        }
+
+        // Step 3: Collect unvisited symbols as dead code
+        let mut dead_symbols = Vec::new();
+
+        for ((file_path, symbol_name), (fact, _)) in all_symbols {
+            if !visited.contains(&(file_path.clone(), symbol_name.clone())) {
+                // Skip if excluding public symbols
+                if exclude_public && is_public_symbol(&fact) {
+                    continue;
+                }
+
+                let dead = DeadSymbol {
+                    symbol: SymbolInfo {
+                        entity_id: 0, // entity_id not available from SymbolFact
+                        name: symbol_name.clone(),
+                        file_path: fact.file_path.to_string_lossy().to_string(),
+                        kind: fact.kind_normalized,
+                        byte_start: fact.byte_start,
+                        byte_end: fact.byte_end,
+                    },
+                    reason: "Not reachable from entry point".to_string(),
+                };
+                dead_symbols.push(dead);
+            }
+        }
+
+        Ok(dead_symbols)
+    }
+}
+
+/// Check if a symbol is public (exported).
+///
+/// This is a heuristic check based on symbol kind and naming conventions.
+/// For more accurate results, language-specific analysis would be needed.
+fn is_public_symbol(fact: &magellan::SymbolFact) -> bool {
+    // Functions starting with uppercase are typically public in Rust
+    if fact.kind_normalized == "fn" {
+        if let Some(name) = &fact.name {
+            if let Some(first_char) = name.chars().next() {
+                return first_char.is_uppercase();
+            }
+        }
+    }
+
+    // Structs, enums, traits, impls are typically public
+    matches!(
+        fact.kind_normalized.as_str(),
+        "struct" | "enum" | "trait" | "interface" | "class"
+    )
 }
 
 /// Symbol information extracted from Magellan's SymbolQueryResult.
@@ -1041,6 +1402,30 @@ pub struct ReachableSymbol {
     pub depth: usize,
     /// Call path from root to this symbol.
     pub path: Vec<String>,
+}
+
+/// A dead (unreachable) symbol.
+#[derive(Debug, Clone)]
+pub struct DeadSymbol {
+    /// The symbol's basic information.
+    pub symbol: SymbolInfo,
+    /// Reason why this symbol is considered dead.
+    pub reason: String,
+}
+
+/// Information about a detected cycle.
+#[derive(Debug, Clone)]
+pub struct CycleInfo {
+    /// Unique cycle identifier.
+    pub id: String,
+    /// Number of symbols in the cycle.
+    pub size: usize,
+    /// Symbols in the cycle.
+    pub members: Vec<SymbolInfo>,
+    /// Representative symbol (e.g., alphabetically first).
+    pub representative: SymbolInfo,
+    /// Whether this is a self-loop (single symbol calling itself).
+    pub is_self_loop: bool,
 }
 
 /// File metadata with optional symbol count.
