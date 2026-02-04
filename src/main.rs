@@ -377,6 +377,7 @@ fn main() -> ExitCode {
             to,
             db,
             preview,
+            proof,
             backup_dir,
             no_backup,
             create_backup: _,
@@ -387,6 +388,7 @@ fn main() -> ExitCode {
             &to,
             &db,
             preview,
+            proof,
             backup_dir.as_ref(),
             no_backup,
             json_output,
@@ -4188,11 +4190,14 @@ fn execute_rename(
     new_name: &str,
     db_path: &Path,
     preview: bool,
+    proof: bool,
     _backup_dir: Option<&PathBuf>,
     no_backup: bool,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::MagellanIntegration;
+    use splice::proof::generation::{generate_snapshot, create_metadata, write_proof};
+    use splice::proof::data_structures::RefactoringProof;
 
     // Validate input: either --symbol or (--name AND --file) must be provided
     let (lookup_id, lookup_name, lookup_file) = match (symbol_id, name, file) {
@@ -4314,6 +4319,16 @@ fn execute_rename(
         all_matches.remove(0)
     };
 
+    // Generate before snapshot if proof generation is requested
+    let before_snapshot = if proof {
+        Some(generate_snapshot(db_path).map_err(|e| splice::SpliceError::RenameFailed {
+            reason: format!("Failed to generate before snapshot: {}", e),
+            symbol: new_name.to_string(),
+        })?)
+    } else {
+        None
+    };
+
     // Pre-flight validation: symbol must exist and have references
     let entity_id = symbol_info.entity_id;
     let mut references =
@@ -4431,6 +4446,44 @@ fn execute_rename(
             symbol_info.name, new_name, modified_count
         )
     };
+
+    // Generate after snapshot and write proof if requested
+    if proof {
+        if let Some(before) = before_snapshot {
+            let after_snapshot = generate_snapshot(db_path).map_err(|e| splice::SpliceError::RenameFailed {
+                reason: format!("Failed to generate after snapshot: {}", e),
+                symbol: new_name.to_string(),
+            })?;
+
+            let metadata = create_metadata("rename", db_path);
+
+            let proof_data = RefactoringProof {
+                metadata,
+                before,
+                after: after_snapshot,
+                invariants: vec![], // Will be populated in 31-03
+                checksums: None,    // Will be populated in 31-04
+            };
+
+            let proof_dir = std::path::PathBuf::from(".splice/proofs");
+            let proof_path = write_proof(&proof_data, &proof_dir).map_err(|e| splice::SpliceError::RenameFailed {
+                reason: format!("Failed to write proof: {}", e),
+                symbol: new_name.to_string(),
+            })?;
+
+            return Ok(splice::cli::CliSuccessPayload::with_data(
+                format!("{}\nProof written to: {}", message, proof_path.display()),
+                serde_json::json!({
+                    "old_name": symbol_info.name,
+                    "new_name": new_name,
+                    "files_modified": modified_count,
+                    "total_references": total_references,
+                    "backup": backup_dir_path.as_ref().map(|p| p.display().to_string()),
+                    "proof": proof_path.display().to_string(),
+                }),
+            ));
+        }
+    }
 
     Ok(splice::cli::CliSuccessPayload::with_data(
         message,
