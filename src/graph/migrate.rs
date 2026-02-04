@@ -47,7 +47,7 @@ pub fn check_schema_version(db_path: &Path) -> Result<i64> {
     // Open the database - this will trigger auto-migration if needed
     // We open it to check the version, but the actual migration happens
     // internally within Magellan when opening an older database
-    let graph = MagellanGraph::open(db_path_str).map_err(|e| SpliceError::Magellan {
+    let _graph = MagellanGraph::open(db_path_str).map_err(|e| SpliceError::Magellan {
         context: format!("Failed to open database at {}", db_path_str),
         source: e,
     })?;
@@ -113,7 +113,7 @@ pub fn migrate_database(
         .to_str()
         .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", db_path)))?;
 
-    let graph = MagellanGraph::open(db_path_str).map_err(|e| SpliceError::Magellan {
+    let _graph = MagellanGraph::open(db_path_str).map_err(|e| SpliceError::Magellan {
         context: format!("Failed to open database at {}", db_path_str),
         source: e,
     })?;

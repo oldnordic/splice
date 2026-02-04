@@ -37,6 +37,9 @@ pub use error::{Result, SpliceError};
 /// Re-export graph types for convenience.
 pub use graph::CodeGraph;
 
+/// Re-export migration types for convenience.
+pub use graph::migrate::{migrate_database, check_schema_version, MigrationResult};
+
 /// Re-export context types for convenience.
 pub use context::{
     extract_context, extract_context_asymmetric, extract_context_with_before_after,
