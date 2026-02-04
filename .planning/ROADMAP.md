@@ -9,7 +9,8 @@ Splice is a span-safe refactoring tool for 7 programming languages (Rust, Python
 - ✅ **v2.0 Production Safety** — Phases 1-10 (shipped 2026-01-18)
 - ✅ **v2.2 Unified JSON & LLM Optimization** — Phases 11-18 (shipped 2026-01-23)
 - ✅ **v2.2.1 Code Quality & Bug Fixes** — Phases 19-21 (shipped 2026-01-24)
-- 🚧 **v2.2.2 Magellan Integration** — Phases 22-26 (in progress)
+- ✅ **v2.2.2 Magellan Integration** — Phases 22-26 (shipped 2026-01-24)
+- ✅ **v2.2.4 Code Cleanup** — Phase 27 (shipped 2026-02-04)
 
 ## Phases
 
@@ -170,9 +171,9 @@ Plans:
 - [x] 26-06-PLAN.md — Documentation (docs/magellan_integration.md)
 
 #### Phase 27: Code Cleanup
-**Goal**: Remove dead code and improve code hygiene before v2.2.2 release
+**Goal**: Remove dead code and improve code hygiene before v2.2.4 release
 **Depends on**: Phase 26
-**Requirements**: CLEAN-01, CLEAN-02, CLEAN-03
+**Requirements**: CLEAN-01, CLEAN-02, CLEAN-03 (v2.2.4)
 **Success Criteria** (what must be TRUE):
   1. Dead `Ingestor` struct stub removed from src/ingest/mod.rs
   2. All dead code imports and unused dependencies cleaned
@@ -204,13 +205,13 @@ Phases execute in numeric order: 22 → 23 → 24 → 25 → 26 → 27
 | 24. CLI Commands & Response Types | v2.2.2 | 5/5 | Complete | 2026-01-24 |
 | 25. Export Command & Error Mapping | v2.2.2 | 4/4 | Complete | 2026-01-24 |
 | 26. Integration Testing | v2.2.2 | 6/6 | Complete | 2026-01-24 |
-| 27. Code Cleanup | v2.2.2 | 3/3 | Complete | 2026-02-04 |
+| 27. Code Cleanup | v2.2.4 | 3/3 | Complete | 2026-02-04 |
 
 **Milestone Progress:**
 - v2.0: 31/31 plans complete (100%)
 - v2.2: 55/55 plans complete (100%)
 - v2.2.1: 20/20 plans complete (100%)
-- v2.2.2: 27/27 plans complete (100%)
+- v2.2.4: 27/27 plans complete (100%)
 
 ---
 *Last updated: 2026-02-04*
