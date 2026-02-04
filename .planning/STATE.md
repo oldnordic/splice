@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-04)
 
 **Core value:** Span-safe refactoring with validation
-**Current focus:** Phase 28 - Dependency Upgrade
+**Current focus:** Phase 29 - Cross-File Rename Foundation
 
 ## Current Position
 
 Phase: 29 of 32 (Cross-File Rename Foundation)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-02-04 — Phase 28 complete (4/4 plans, verification passed)
+Plan: 2 of 4
+Status: In progress
+Last activity: 2026-02-04 — Completed plan 29-02 (ReferenceFact-Based Span Extraction)
 
-Progress: [█████████████████████████████████████████████████████████████████████████████████████████████░] 95% (141/155 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 24 v2.2.2 + 3 v2.2.4 + 8 v2.3 est.)
+Progress: [█████████████████████████████████████████████████████████████████████████████████████████████░] 96% (143/155 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 24 v2.2.2 + 3 v2.2.4 + 10 v2.3 est.)
 
 ## Performance Metrics
 
@@ -31,7 +31,8 @@ Progress: [███████████████████████
 | 19-21 | 20 | Complete |
 | 22-27 | 27 | Complete |
 | 28 | 4 | Complete |
-| 29-32 | 0 | Not started |
+| 29 | 2 of 4 | In progress |
+| 30-32 | 0 | Not started |
 
 *Updated after each plan completion*
 
@@ -54,7 +55,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Phase 28 Plan 4: Leverage Magellan 2.0.0 auto-migration on open instead of manual SQL migrations
 - Phase 28 Plan 4: Default --backup flag to true for migration safety (creates .db.backup.v5)
 - Phase 28 Plan 4: Support --dry-run mode for migration status checking without modifications
-- Phase 29: Use existing ReferenceFact byte spans for cross-file rename (no custom logic)
+- Phase 29 Plan 1: Add Rename command with --symbol, --name/--file, --to flags and SPL-E040 error code
+- Phase 29 Plan 2: Sort references by (file_path, byte_start descending) for safe in-order replacement
+- Phase 29 Plan 2: Validate UTF-8 character boundaries before byte manipulation using str::is_char_boundary
+- Phase 29 Plan 2: Return AmbiguousSymbol error with file:kind format for disambiguation
 - Phase 30: Delegate graph algorithms to Magellan library (not subprocess)
 - Phase 31: Proof generation as verification layer (not automation)
 
@@ -83,9 +87,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-04 10:35 UTC
-Stopped at: Completed plan 28-04 (Magellan Database Migration Command)
+Last session: 2026-02-04 11:49 UTC
+Stopped at: Completed plan 29-02 (ReferenceFact-Based Span Extraction)
 Resume file: None
 
 ---
-*Last updated: 2026-02-04 10:35 UTC*
+*Last updated: 2026-02-04 11:49 UTC*
