@@ -4,12 +4,17 @@
 //! for refactoring operations. A proof captures before/after graph state
 //! and validates that structural invariants are preserved.
 
-mod data_structures;
+pub mod data_structures;
+pub mod generation;
 
 pub use data_structures::{
     RefactoringProof, GraphSnapshot, ProofMetadata, InvariantCheck,
     InvariantViolation, ViolationSeverity, ProofChecksums,
     SymbolInfo, GraphStats,
+};
+
+pub use generation::{
+    generate_snapshot, create_metadata, write_proof,
 };
 
 use crate::error::Result;
