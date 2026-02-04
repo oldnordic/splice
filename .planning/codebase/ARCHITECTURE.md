@@ -18,11 +18,14 @@
 ### Ingest Layer (`src/ingest/`)
 **Purpose:** Filesystem → AST → SQLiteGraph ingestion pipeline
 **Location:** `/home/feanor/Projects/splice/src/ingest/`
-- **Ingestor:** Main orchestrator for parsing source files
+- **Magellan Integration:** `MagellanIngestor` for database-backed indexing (preferred API)
 - **Language Modules:** Individual parsers for each language (rust.rs, python.rs, etc.)
 - **Imports:** Cross-language import extraction and resolution
 - **Detection:** Automatic language detection from file extensions
 - **Dispatch:** Coordinated extraction across multiple languages
+- **Direct Extraction:** `extract_symbols()` function for one-off symbol extraction
+
+**Note:** The original `Ingestor` struct was removed in v2.2.4 as dead code. Use `MagellanIngestor` or `extract_symbols()` instead.
 
 ### Graph Layer (`src/graph/`)
 **Purpose:** SQLiteGraph integration with Splice-specific operations
@@ -75,10 +78,10 @@
 
 ### Ingestion Flow:
 
-1. **File Detection:** `Ingestor` detects language via file extension
-2. **AST Parsing:** Language-specific parser extracts symbols using tree-sitter
+1. **File Detection:** Language detected via file extension
+2. **AST Parsing:** `MagellanIngestor` or `extract_symbols()` uses language-specific parser with tree-sitter
 3. **Symbol Creation:** `Symbol` trait implementations wrap extracted data
-4. **Graph Storage:** `CodeGraph` stores symbols with byte spans and file associations
+4. **Graph Storage:** Symbols stored in SQLiteGraph database with byte spans and file associations
 5. **Cache Update:** Symbol name → NodeId cache populated for fast lookups
 
 ### Patching Flow:
