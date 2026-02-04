@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 28 of 32 (Dependency Upgrade)
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-04 — Completed plan 28-01: Dependency Upgrade
+Last activity: 2026-02-04 — Completed plan 28-02: BLAKE3 SymbolId Implementation
 
-Progress: [█████████████████████████████████████████████████████████████████████████████████████████████░] 91% (134/155 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 24 v2.2.2 + 3 v2.2.4 + 1 v2.3 est.)
+Progress: [█████████████████████████████████████████████████████████████████████████████████████████████░] 92% (135/155 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 24 v2.2.2 + 3 v2.2.4 + 2 v2.3 est.)
 
 ## Performance Metrics
 
@@ -44,7 +44,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 **Recent decisions affecting v2.3:**
 - Phase 28 Plan 1: Upgraded Magellan to v2.1.0 and SQLiteGraph to v1.4.2 (latest compatible versions)
 - Phase 28 Plan 1: Maintained SHA-2 (sha2 v0.10.9) for backward compatibility during migration
-- Phase 28: Dual-format SymbolId support for backward compatibility (16-char SHA-256 → 32-char BLAKE3)
+- Phase 28 Plan 2: Implemented dual-format SymbolId enum (V1: 16-char SHA-256, V2: 32-char BLAKE3)
+- Phase 28 Plan 2: Use BLAKE3 first 16 bytes as 32 hex chars (not full 64 chars from to_hex())
+- Phase 28 Plan 2: Renamed generate_symbol_id() to generate_v1() to preserve SHA-256 logic exactly
+- Phase 28 Plan 2: Added parse() method for dual-format auto-detection (16 or 32 chars)
 - Phase 29: Use existing ReferenceFact byte spans for cross-file rename (no custom logic)
 - Phase 30: Delegate graph algorithms to Magellan library (not subprocess)
 - Phase 31: Proof generation as verification layer (not automation)
@@ -66,15 +69,16 @@ None.
 - None - v2.2.4 shipped cleanly
 
 **For v2.3:**
-- MEDIUM RISK: Version upgrade breaking changes (16→32 char IDs) - mitigated by dual-format support in Phase 28. Dependency upgrade complete (Magellan v2.1.0, SQLiteGraph v1.4.2). Deprecation warning exists for `store_symbol_with_file` but will be addressed in subsequent plans.
+- LOW RISK: Dual-format SymbolId implementation complete. V1 (16-char SHA-256) and V2 (32-char BLAKE3) both tested. Auto-detection via parse() works. Ready for graph ingestion migration in 28-03.
+- MEDIUM RISK: Magellan database needs re-indexing to use BLAKE3 format - will be addressed in subsequent phases
 - MEDIUM RISK: Cross-file rename race conditions - mitigated by transactional locks in Phase 29
 - MEDIUM RISK: Graph algorithm performance on large codebases - mitigated by depth limits and caching in Phase 30
 
 ## Session Continuity
 
-Last session: 2026-02-04 09:36 UTC
-Stopped at: Completed plan 28-01 (Dependency Upgrade), ready for plan 28-02 (BLAKE3 SymbolId Implementation)
+Last session: 2026-02-04 09:41 UTC
+Stopped at: Completed plan 28-02 (BLAKE3 SymbolId Implementation), ready for plan 28-03
 Resume file: None
 
 ---
-*Last updated: 2026-02-04 09:36 UTC*
+*Last updated: 2026-02-04 09:57 UTC*
