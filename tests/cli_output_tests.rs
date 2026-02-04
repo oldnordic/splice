@@ -71,6 +71,7 @@ fn test_response_types_serialize() {
     let find = FindResponse {
         symbols: vec![MagellanSymbol {
             symbol_id: Some("abc123".to_string()),
+            id_format: Some("v1".to_string()),
             name: "test_fn".to_string(),
             kind: "fn".to_string(),
             file_path: "/path/to/file.rs".to_string(),
@@ -92,6 +93,7 @@ fn test_response_types_serialize() {
     let refs = RefsResponse {
         symbol: MagellanSymbol {
             symbol_id: None,
+            id_format: None,
             name: "main".to_string(),
             kind: "fn".to_string(),
             file_path: "/path/to/main.rs".to_string(),
@@ -126,6 +128,7 @@ fn test_magellan_symbol_field_names() {
 
     let symbol = MagellanSymbol {
         symbol_id: Some("test_id".to_string()),
+        id_format: Some("v2".to_string()),
         name: "test".to_string(),
         kind: "fn".to_string(),
         file_path: "/path/to/test.rs".to_string(),
@@ -343,6 +346,7 @@ fn test_magellan_call_reference_serialization() {
     let call_ref = MagellanCallReference {
         symbol: MagellanSymbol {
             symbol_id: Some("abc123".to_string()),
+            id_format: Some("v1".to_string()),
             name: "callee".to_string(),
             kind: "fn".to_string(),
             file_path: "/path/to/callee.rs".to_string(),

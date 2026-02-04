@@ -3495,8 +3495,10 @@ fn execute_export(
         {
             for swr in symbols {
                 let sym = swr.symbol;
+                let symbol_id = generate_symbol_id(&sym.name, &sym.file_path, sym.byte_start);
                 all_symbols.push(splice::output::SymbolExport {
-                    symbol_id: generate_symbol_id(&sym.name, &sym.file_path, sym.byte_start).to_string(),
+                    symbol_id: symbol_id.to_string(),
+                    id_format: Some(if symbol_id.is_v1() { "v1" } else { "v2" }.to_string()),
                     name: sym.name,
                     kind: sym.kind,
                     file_path: sym.file_path,
