@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 27 of 27 (Code Cleanup)
-Plan: 01 of 3 (Remove dead Ingestor struct stub)
+Plan: 02 of 3 (Update documentation after Ingestor removal)
 Status: In Progress
-Last activity: 2026-02-04 — Completed 27-01: Remove dead Ingestor struct stub
+Last activity: 2026-02-04 — Completed 27-02: Update documentation after Ingestor removal
 
-Progress: [████████████████████████████████████████████████████████████████████████████████████████████████] 97% (132/134 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 25 v2.2.2 + 1/27 v2.2.4)
+Progress: [████████████████████████████████████████████████████████████████████████████████████████████████] 97% (133/134 plans: 31 v2.0 + 55 v2.2 + 20 v2.2.1 + 25 v2.2.2 + 2/27 v2.2.4)
 
 ## Current Milestone: v2.2.4 Code Cleanup
 
@@ -55,6 +55,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 **Recent decisions affecting v2.2.4:**
 - Phase 27-01: Dead Ingestor struct removed - it was an abandoned design replaced by Magellan integration
 - Phase 27-01: Unused imports removed alongside dead code (CodeGraph, Path, Result)
+- Phase 27-02: Documentation updated to remove Ingestor references and clarify MagellanIngestor is the correct API
 
 **Historical decisions from v2.2.2:**
 - v2.2.2: Use library delegation pattern (in-process Rust, not subprocess)
@@ -185,8 +186,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-04
-Stopped at: Completed 27-01: Remove dead Ingestor struct stub
+Stopped at: Completed 27-02: Update documentation after Ingestor removal
 Resume file: None
 
 ---
-*Last updated: 2026-02-04 — Phase 27 in progress (1/3 plans complete)*
+*Last updated: 2026-02-04 — Phase 27 in progress (2/3 plans complete)*
