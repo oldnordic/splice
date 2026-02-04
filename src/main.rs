@@ -3828,14 +3828,16 @@ fn execute_rename(
         // Lookup by name+path
         let name_str = lookup_name.unwrap();
         let file_path = lookup_file.unwrap();
-        let mut matches = magellan
-            .find_symbol_by_name(name_str, false)
+
+        // First, find ALL matches (ambiguous=true) to provide complete error context
+        let mut all_matches = magellan
+            .find_symbol_by_name(name_str, true)
             .map_err(|e| splice::SpliceError::RenameFailed {
                 reason: format!("Failed to lookup symbol name: {}", e),
                 symbol: name_str.to_string(),
             })?;
 
-        if matches.is_empty() {
+        if all_matches.is_empty() {
             return Err(splice::SpliceError::RenameFailed {
                 reason: format!(
                     "Symbol '{}' not found in file '{}'",
@@ -3846,28 +3848,55 @@ fn execute_rename(
             });
         }
 
-        // Filter by file path if multiple symbols with same name exist
-        if matches.len() > 1 {
-            matches.retain(|s| s.file_path == file_path.to_string_lossy().as_ref());
+        // Check if symbol name is ambiguous across multiple files
+        if all_matches.len() > 1 {
+            // Filter to just the specified file
+            let file_path_str = file_path.to_string_lossy().to_string();
+            all_matches.retain(|s| s.file_path == file_path_str);
+
+            if all_matches.is_empty() {
+                // Symbol exists in other files but not in the specified one
+                let all_files: Vec<String> = magellan
+                    .find_symbol_by_name(name_str, true)
+                    .map_err(|e| splice::SpliceError::RenameFailed {
+                        reason: format!("Failed to lookup symbol name: {}", e),
+                        symbol: name_str.to_string(),
+                    })?
+                    .into_iter()
+                    .map(|s| s.file_path)
+                    .collect();
+
+                return Err(splice::SpliceError::RenameFailed {
+                    reason: format!(
+                        "Symbol '{}' not found in file '{}' (found in {} other file(s): {})",
+                        name_str,
+                        file_path.display(),
+                        all_files.len(),
+                        all_files.join(", ")
+                    ),
+                    symbol: name_str.to_string(),
+                });
+            }
+
+            if all_matches.len() > 1 {
+                // Still multiple matches in the same file - return AmbiguousSymbol error
+                let files: Vec<String> = all_matches
+                    .iter()
+                    .map(|s| format!("{}:{}", s.file_path, s.kind))
+                    .collect();
+                return Err(splice::SpliceError::AmbiguousSymbol {
+                    name: name_str.to_string(),
+                    files,
+                });
+            }
         }
 
-        if matches.is_empty() {
-            return Err(splice::SpliceError::RenameFailed {
-                reason: format!(
-                    "Symbol '{}' not found in file '{}' (found in other files)",
-                    name_str,
-                    file_path.display()
-                ),
-                symbol: name_str.to_string(),
-            });
-        }
-
-        matches.remove(0)
+        all_matches.remove(0)
     };
 
     // Pre-flight validation: symbol must exist and have references
     let entity_id = symbol_info.entity_id;
-    let references = magellan
+    let mut references = magellan
         .get_all_references(entity_id)
         .map_err(|e| splice::SpliceError::RenameFailed {
             reason: format!("Failed to get references: {}", e),
@@ -3883,6 +3912,10 @@ fn execute_rename(
             symbol: symbol_info.name,
         });
     }
+
+    // Sort references for safe in-order replacement
+    // Descending by byte_start within each file prevents offset shifts
+    splice::graph::MagellanIntegration::sort_references_for_replacement(&mut references);
 
     // Report preview mode or stub status
     if preview {

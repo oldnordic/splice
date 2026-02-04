@@ -980,4 +980,150 @@ mod tests {
         let count = integration.count_by_label("rust").unwrap();
         assert_eq!(count, 0);
     }
+
+    #[test]
+    fn test_sort_references_for_replacement() {
+        use std::path::PathBuf;
+
+        // Create test references in unsorted order
+        let mut references = vec![
+            magellan::references::ReferenceFact {
+                file_path: PathBuf::from("/src/b.rs"),
+                referenced_symbol: "foo".to_string(),
+                byte_start: 50,
+                byte_end: 53,
+                start_line: 2,
+                start_col: 0,
+                end_line: 2,
+                end_col: 3,
+            },
+            magellan::references::ReferenceFact {
+                file_path: PathBuf::from("/src/a.rs"),
+                referenced_symbol: "foo".to_string(),
+                byte_start: 100,
+                byte_end: 103,
+                start_line: 5,
+                start_col: 0,
+                end_line: 5,
+                end_col: 3,
+            },
+            magellan::references::ReferenceFact {
+                file_path: PathBuf::from("/src/a.rs"),
+                referenced_symbol: "foo".to_string(),
+                byte_start: 20,
+                byte_end: 23,
+                start_line: 1,
+                start_col: 0,
+                end_line: 1,
+                end_col: 3,
+            },
+            magellan::references::ReferenceFact {
+                file_path: PathBuf::from("/src/b.rs"),
+                referenced_symbol: "foo".to_string(),
+                byte_start: 10,
+                byte_end: 13,
+                start_line: 1,
+                start_col: 0,
+                end_line: 1,
+                end_col: 3,
+            },
+        ];
+
+        MagellanIntegration::sort_references_for_replacement(&mut references);
+
+        // Should be sorted by file (ascending), then byte_start (descending)
+        assert_eq!(references[0].file_path, PathBuf::from("/src/a.rs"));
+        assert_eq!(references[0].byte_start, 100); // First in a.rs (highest offset)
+
+        assert_eq!(references[1].file_path, PathBuf::from("/src/a.rs"));
+        assert_eq!(references[1].byte_start, 20); // Second in a.rs
+
+        assert_eq!(references[2].file_path, PathBuf::from("/src/b.rs"));
+        assert_eq!(references[2].byte_start, 50); // First in b.rs (highest offset)
+
+        assert_eq!(references[3].file_path, PathBuf::from("/src/b.rs"));
+        assert_eq!(references[3].byte_start, 10); // Second in b.rs
+    }
+
+    #[test]
+    fn test_validate_utf8_span_valid() {
+        let content = "Hello, world!";
+        let file_path = Path::new("/test.rs");
+
+        // Valid span
+        assert!(MagellanIntegration::validate_utf8_span(
+            content.as_bytes(),
+            0,
+            5,
+            file_path
+        ).is_ok());
+
+        // Full span
+        assert!(MagellanIntegration::validate_utf8_span(
+            content.as_bytes(),
+            0,
+            content.len(),
+            file_path
+        ).is_ok());
+    }
+
+    #[test]
+    fn test_validate_utf8_span_out_of_bounds() {
+        let content = "Hello";
+        let file_path = Path::new("/test.rs");
+
+        // Start beyond content length
+        assert!(MagellanIntegration::validate_utf8_span(
+            content.as_bytes(),
+            10,
+            15,
+            file_path
+        ).is_err());
+
+        // End beyond content length
+        assert!(MagellanIntegration::validate_utf8_span(
+            content.as_bytes(),
+            0,
+            10,
+            file_path
+        ).is_err());
+    }
+
+    #[test]
+    fn test_validate_utf8_span_multibyte_boundary() {
+        let content = "Hello 世界"; // "世界" is 6 bytes (3 each)
+        let file_path = Path::new("/test.rs");
+
+        // Span ends in middle of multibyte character (invalid)
+        // "世界" starts at byte 6, first char ends at byte 9
+        assert!(MagellanIntegration::validate_utf8_span(
+            content.as_bytes(),
+            0,
+            8, // Ends in middle of first Chinese character
+            file_path
+        ).is_err());
+
+        // Valid span (full multibyte character)
+        assert!(MagellanIntegration::validate_utf8_span(
+            content.as_bytes(),
+            6,
+            9, // Exactly the first Chinese character
+            file_path
+        ).is_ok());
+    }
+
+    #[test]
+    fn test_validate_utf8_span_invalid_utf8() {
+        // Invalid UTF-8 sequence
+        let content: &[u8] = &[0xFF, 0xFE, 0xFD];
+        let file_path = Path::new("/test.rs");
+
+        // Should fail because content is not valid UTF-8
+        assert!(MagellanIntegration::validate_utf8_span(
+            content,
+            0,
+            1,
+            file_path
+        ).is_err());
+    }
 }
