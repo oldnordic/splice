@@ -599,6 +599,34 @@ pub enum Commands {
         #[arg(long, default_value = "true")]
         create_backup: bool,
     },
+
+    /// Show reachability analysis for a symbol (caller/callee chains)
+    #[command(display_order = 109)]
+    Reachable {
+        /// Symbol name to analyze
+        #[arg(short, long)]
+        symbol: String,
+
+        /// File path containing the symbol
+        #[arg(short, long)]
+        path: std::path::PathBuf,
+
+        /// Path to Magellan database (default: .codemcp/codegraph.db)
+        #[arg(short, long, default_value = ".codemcp/codegraph.db")]
+        db: std::path::PathBuf,
+
+        /// Analysis direction: forward (callees), reverse (callers), both
+        #[arg(long, value_enum, default_value_t = ReachabilityDirection::Forward)]
+        direction: ReachabilityDirection,
+
+        /// Maximum depth to traverse (default: 10)
+        #[arg(short = 'd', long, default_value = "10")]
+        max_depth: usize,
+
+        /// Output format (human, json, pretty)
+        #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
+        output: OutputFormat,
+    },
 }
 
 /// Symbol kind for filtering.
@@ -672,6 +700,17 @@ pub enum CallDirection {
     /// Show callees (what this symbol calls)
     Out,
     /// Show both callers and callees
+    Both,
+}
+
+/// Reachability analysis direction.
+#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReachabilityDirection {
+    /// Forward: symbols this symbol calls (callees)
+    Forward,
+    /// Reverse: symbols that call this symbol (callers)
+    Reverse,
+    /// Both directions
     Both,
 }
 

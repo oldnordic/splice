@@ -295,6 +295,17 @@ fn main() -> ExitCode {
                 json_output,
             )
         }
+
+        splice::cli::Commands::Reachable {
+            symbol,
+            path,
+            db,
+            direction,
+            max_depth,
+            output,
+        } => {
+            execute_reachable(&symbol, &path, &db, &direction, max_depth, output, json_output)
+        }
     };
 
     // Handle result
@@ -4053,6 +4064,194 @@ fn parse_date(input: &str) -> Result<i64, splice::SpliceError> {
         .map_err(|_| SpliceError::InvalidDateFormat {
             input: input.to_string(),
         })
+}
+
+/// Execute reachability analysis for a symbol.
+///
+/// # Arguments
+/// * `symbol` - Symbol name to analyze
+/// * `path` - File path containing the symbol
+/// * `db_path` - Path to Magellan database
+/// * `direction` - Analysis direction (forward/reverse/both)
+/// * `max_depth` - Maximum traversal depth
+/// * `output` - Output format
+/// * `json_output` - Whether to output JSON
+///
+/// # Returns
+/// Result with success payload or error
+fn execute_reachable(
+    symbol: &str,
+    path: &Path,
+    db_path: &Path,
+    direction: &splice::cli::ReachabilityDirection,
+    max_depth: usize,
+    output: splice::cli::OutputFormat,
+    json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::graph::MagellanIntegration;
+    use splice::output::{ReachabilityResult, ReachabilityChain, AffectedFile, SymbolInfo};
+
+    // Get path string early
+    let path_str = path.to_str()
+        .ok_or_else(|| splice::SpliceError::Other("Invalid UTF-8 in path".to_string()))?;
+
+    // First, open database and get root symbol info (requires mutable access)
+    let root_symbol_info = {
+        let mut integration = MagellanIntegration::open(db_path)?;
+        let symbol_facts = integration.inner_mut().symbol_extents(path_str, symbol)
+            .map_err(|e| splice::SpliceError::Other(format!("Failed to find symbol: {}", e)))?;
+
+        if symbol_facts.is_empty() {
+            return Err(splice::SpliceError::SymbolNotFound {
+                message: format!("Symbol '{}' not found in '{}'", symbol, path_str),
+                symbol: symbol.to_string(),
+                file: Some(path.to_path_buf()),
+                hint: format!("Run 'splice find --name {}' to locate the symbol", symbol),
+            });
+        }
+
+        let (entity_id, fact) = &symbol_facts[0];
+        let info = splice::graph::magellan_integration::SymbolInfo {
+            entity_id: *entity_id,
+            name: fact.name.clone().unwrap_or_else(|| symbol.to_string()),
+            file_path: fact.file_path.to_string_lossy().to_string(),
+            kind: fact.kind_normalized.clone(),
+            byte_start: fact.byte_start,
+            byte_end: fact.byte_end,
+        };
+        // Explicitly drop integration before next open
+        drop(integration);
+        info
+    };
+
+    // Now open again for mutable operations
+    let mut integration = MagellanIntegration::open(db_path)?;
+
+    // Collect reachability based on direction
+    let (forward_symbols, reverse_symbols) = match direction {
+        splice::cli::ReachabilityDirection::Forward => {
+            let symbols = integration.reachable_symbols(path, symbol, max_depth)?;
+            (symbols, Vec::new())
+        }
+        splice::cli::ReachabilityDirection::Reverse => {
+            let symbols = integration.reverse_reachable_symbols(path, symbol, max_depth)?;
+            (Vec::new(), symbols)
+        }
+        splice::cli::ReachabilityDirection::Both => {
+            let forward = integration.reachable_symbols(path, symbol, max_depth)?;
+            let reverse = integration.reverse_reachable_symbols(path, symbol, max_depth)?;
+            (forward, reverse)
+        }
+    };
+
+    // Build affected files list
+    let mut affected_files = std::collections::HashMap::new();
+    affected_files.insert(root_symbol_info.file_path.clone(), (0, true)); // root file
+
+    for reachable in &forward_symbols {
+        let entry = affected_files.entry(reachable.symbol.file_path.clone()).or_insert((0, false));
+        entry.0 += 1;
+    }
+    for reachable in &reverse_symbols {
+        let entry = affected_files.entry(reachable.symbol.file_path.clone()).or_insert((0, false));
+        entry.0 += 1;
+    }
+
+    let affected_files_vec: Vec<AffectedFile> = affected_files.into_iter()
+        .map(|(path, (count, is_root))| AffectedFile { path, symbol_count: count, is_root })
+        .collect();
+
+    // Build result
+    let result = ReachabilityResult {
+        symbol: SymbolInfo {
+            symbol_id: None, // Can be added later if needed
+            id_format: None,
+            name: root_symbol_info.name.clone(),
+            kind: root_symbol_info.kind.clone(),
+            file_path: root_symbol_info.file_path.clone(),
+            byte_start: root_symbol_info.byte_start,
+            byte_end: root_symbol_info.byte_end,
+        },
+        direction: format!("{:?}", direction).to_lowercase(),
+        max_depth,
+        forward: if forward_symbols.is_empty() { None } else {
+            Some(ReachabilityChain {
+                count: forward_symbols.len(),
+                depth: forward_symbols.iter().map(|s| s.depth).max().unwrap_or(0),
+                symbols: forward_symbols.into_iter().map(|s| splice::output::ReachableSymbol {
+                    symbol: SymbolInfo {
+                        symbol_id: None,
+                        id_format: None,
+                        name: s.symbol.name,
+                        kind: s.symbol.kind,
+                        file_path: s.symbol.file_path,
+                        byte_start: s.symbol.byte_start,
+                        byte_end: s.symbol.byte_end,
+                    },
+                    depth: s.depth,
+                    path: s.path,
+                }).collect(),
+            })
+        },
+        reverse: if reverse_symbols.is_empty() { None } else {
+            Some(ReachabilityChain {
+                count: reverse_symbols.len(),
+                depth: reverse_symbols.iter().map(|s| s.depth).max().unwrap_or(0),
+                symbols: reverse_symbols.into_iter().map(|s| splice::output::ReachableSymbol {
+                    symbol: SymbolInfo {
+                        symbol_id: None,
+                        id_format: None,
+                        name: s.symbol.name,
+                        kind: s.symbol.kind,
+                        file_path: s.symbol.file_path,
+                        byte_start: s.symbol.byte_start,
+                        byte_end: s.symbol.byte_end,
+                    },
+                    depth: s.depth,
+                    path: s.path,
+                }).collect(),
+            })
+        },
+        affected_files: affected_files_vec,
+    };
+
+    // Format output
+    if output.is_json() || json_output {
+        let json = output.format_json(&result)
+            .map_err(|e| splice::SpliceError::Other(format!("JSON serialization error: {}", e)))?;
+        println!("{}", json);
+        Ok(splice::cli::CliSuccessPayload::message_only("Reachability analysis complete".to_string()).already_emitted())
+    } else {
+        // Human-readable output
+        println!("Reachability Analysis for '{}' in {}", symbol, path_str);
+        println!("Direction: {:?}", direction);
+        println!("Max Depth: {}", max_depth);
+        println!();
+
+        if let Some(ref forward) = result.forward {
+            println!("Forward Reachability ({} callees, depth {}):", forward.count, forward.depth);
+            for s in &forward.symbols {
+                println!("  {} (depth {}): {}", s.symbol.name, s.depth, s.symbol.file_path);
+            }
+            println!();
+        }
+
+        if let Some(ref reverse) = result.reverse {
+            println!("Reverse Reachability ({} callers, depth {}):", reverse.count, reverse.depth);
+            for s in &reverse.symbols {
+                println!("  {} (depth {}): {}", s.symbol.name, s.depth, s.symbol.file_path);
+            }
+            println!();
+        }
+
+        println!("Affected Files ({}):", result.affected_files.len());
+        for file in &result.affected_files {
+            let marker = if file.is_root { " [root]" } else { "" };
+            println!("  {}{} ({} symbols)", file.path, marker, file.symbol_count);
+        }
+
+        Ok(splice::cli::CliSuccessPayload::message_only("Reachability analysis complete".to_string()))
+    }
 }
 
 fn write_stdout_bytes(bytes: &[u8]) -> Result<(), splice::SpliceError> {

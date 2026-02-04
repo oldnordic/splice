@@ -800,6 +800,158 @@ impl MagellanIntegration {
             .index_references(file_path_str, &source)
             .map_err(|e| SpliceError::Other(format!("Failed to index references for {:?}: {}", file_path, e)))
     }
+
+    /// Get forward reachability (callees) from a symbol.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to file containing the symbol
+    /// * `name` - Symbol name
+    /// * `max_depth` - Maximum depth to traverse
+    ///
+    /// # Returns
+    /// Vec<ReachableSymbol> with depth and path information
+    pub fn reachable_symbols(
+        &mut self,
+        file_path: &Path,
+        name: &str,
+        max_depth: usize,
+    ) -> Result<Vec<ReachableSymbol>> {
+        let path_str = file_path
+            .to_str()
+            .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
+
+        // Use BFS traversal using calls_from_symbol
+        let mut result = Vec::new();
+        let mut visited = std::collections::HashSet::new();
+        let mut queue = std::collections::VecDeque::new();
+
+        // Start with direct callees at depth 1
+        let calls = self.inner.calls_from_symbol(path_str, name)
+            .map_err(|e| SpliceError::Other(format!("Failed to get callees: {}", e)))?;
+
+        for call in calls {
+            let key = (call.file_path.to_string_lossy().to_string(), call.callee.clone());
+            if visited.insert(key.clone()) {
+                queue.push_back((call.callee.clone(), call.file_path.to_string_lossy().to_string(), 1, vec![name.to_string()]));
+            }
+        }
+
+        // BFS traversal
+        while let Some((symbol_name, symbol_path, depth, path)) = queue.pop_front() {
+            if depth > max_depth {
+                continue;
+            }
+
+            // Get symbol info
+            if let Ok(symbol_facts) = self.inner.symbol_extents(&symbol_path, &symbol_name) {
+                if let Some((entity_id, fact)) = symbol_facts.first() {
+                    let symbol = ReachableSymbol {
+                        symbol: SymbolInfo {
+                            entity_id: *entity_id,
+                            name: fact.name.clone().unwrap_or_else(|| symbol_name.clone()),
+                            file_path: fact.file_path.to_string_lossy().to_string(),
+                            kind: fact.kind_normalized.clone(),
+                            byte_start: fact.byte_start,
+                            byte_end: fact.byte_end,
+                        },
+                        depth,
+                        path: path.clone(),
+                    };
+                    result.push(symbol);
+
+                    // Continue traversal if not at max depth
+                    if depth < max_depth {
+                        let next_calls = self.inner.calls_from_symbol(&symbol_path, &symbol_name)
+                            .unwrap_or_default();
+                        for call in next_calls {
+                            let key = (call.file_path.to_string_lossy().to_string(), call.callee.clone());
+                            if visited.insert(key.clone()) {
+                                let mut new_path = path.clone();
+                                new_path.push(symbol_name.clone());
+                                queue.push_back((call.callee.clone(), call.file_path.to_string_lossy().to_string(), depth + 1, new_path));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Get reverse reachability (callers) to a symbol.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to file containing the symbol
+    /// * `name` - Symbol name
+    /// * `max_depth` - Maximum depth to traverse
+    ///
+    /// # Returns
+    /// Vec<ReachableSymbol> with depth and path information
+    pub fn reverse_reachable_symbols(
+        &mut self,
+        file_path: &Path,
+        name: &str,
+        max_depth: usize,
+    ) -> Result<Vec<ReachableSymbol>> {
+        let path_str = file_path
+            .to_str()
+            .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
+
+        // Similar to reachable_symbols but uses callers_of_symbol
+        let mut result = Vec::new();
+        let mut visited = std::collections::HashSet::new();
+        let mut queue = std::collections::VecDeque::new();
+
+        let callers = self.inner.callers_of_symbol(path_str, name)
+            .map_err(|e| SpliceError::Other(format!("Failed to get callers: {}", e)))?;
+
+        for call in callers {
+            let key = (call.file_path.to_string_lossy().to_string(), call.caller.clone());
+            if visited.insert(key.clone()) {
+                queue.push_back((call.caller.clone(), call.file_path.to_string_lossy().to_string(), 1, vec![name.to_string()]));
+            }
+        }
+
+        while let Some((symbol_name, symbol_path, depth, path)) = queue.pop_front() {
+            if depth > max_depth {
+                continue;
+            }
+
+            if let Ok(symbol_facts) = self.inner.symbol_extents(&symbol_path, &symbol_name) {
+                if let Some((entity_id, fact)) = symbol_facts.first() {
+                    let symbol = ReachableSymbol {
+                        symbol: SymbolInfo {
+                            entity_id: *entity_id,
+                            name: fact.name.clone().unwrap_or_else(|| symbol_name.clone()),
+                            file_path: fact.file_path.to_string_lossy().to_string(),
+                            kind: fact.kind_normalized.clone(),
+                            byte_start: fact.byte_start,
+                            byte_end: fact.byte_end,
+                        },
+                        depth,
+                        path: path.clone(),
+                    };
+                    result.push(symbol);
+
+                    if depth < max_depth {
+                        let next_callers = self.inner.callers_of_symbol(&symbol_path, &symbol_name)
+                            .unwrap_or_default();
+                        for call in next_callers {
+                            let key = (call.file_path.to_string_lossy().to_string(), call.caller.clone());
+                            if visited.insert(key.clone()) {
+                                let mut new_path = path.clone();
+                                new_path.push(symbol_name.clone());
+                                queue.push_back((call.caller.clone(), call.file_path.to_string_lossy().to_string(), depth + 1, new_path));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(result)
+    }
 }
 
 /// Symbol information extracted from Magellan's SymbolQueryResult.
@@ -878,6 +1030,17 @@ pub struct CallRelationships {
     pub callers: Vec<CallReference>,
     /// Symbols that this symbol calls (if direction is Out or Both).
     pub callees: Vec<CallReference>,
+}
+
+/// A symbol in reachability analysis with depth and path.
+#[derive(Debug, Clone)]
+pub struct ReachableSymbol {
+    /// The symbol's basic information.
+    pub symbol: SymbolInfo,
+    /// Depth from root (0 = root, 1 = direct relationship, etc.).
+    pub depth: usize,
+    /// Call path from root to this symbol.
+    pub path: Vec<String>,
 }
 
 /// File metadata with optional symbol count.

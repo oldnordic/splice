@@ -1243,6 +1243,83 @@ impl From<crate::graph::magellan_integration::CallRelationships> for RefsRespons
 }
 
 // ============================================================================
+// Reachability Analysis Types (Phase 30-01)
+// ============================================================================
+
+/// Reachability analysis result for a symbol.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReachabilityResult {
+    /// The symbol whose reachability was analyzed.
+    pub symbol: SymbolInfo,
+    /// Analysis direction performed.
+    pub direction: String, // "forward", "reverse", "both"
+    /// Maximum depth reached.
+    pub max_depth: usize,
+    /// Forward reachability (callees).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub forward: Option<ReachabilityChain>,
+    /// Reverse reachability (callers).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reverse: Option<ReachabilityChain>,
+    /// Files affected by changes to this symbol.
+    pub affected_files: Vec<AffectedFile>,
+}
+
+/// A reachability chain showing call relationships.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReachabilityChain {
+    /// Number of symbols in the chain.
+    pub count: usize,
+    /// Maximum depth reached.
+    pub depth: usize,
+    /// Symbols in the chain with their relationships.
+    pub symbols: Vec<ReachableSymbol>,
+}
+
+/// A symbol in the reachability chain.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReachableSymbol {
+    /// Symbol information.
+    pub symbol: SymbolInfo,
+    /// Depth from root (0 = root, 1 = direct, etc.).
+    pub depth: usize,
+    /// Path from root to this symbol.
+    pub path: Vec<String>,
+}
+
+/// File affected by changes to the analyzed symbol.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AffectedFile {
+    /// File path.
+    pub path: String,
+    /// Number of affected symbols in this file.
+    pub symbol_count: usize,
+    /// Whether this file contains the root symbol.
+    pub is_root: bool,
+}
+
+/// Symbol info for reachability results (consistent with MagellanSymbol).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SymbolInfo {
+    /// Symbol ID (16-char V1 SHA-256 or 32-char V2 BLAKE3)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symbol_id: Option<String>,
+    /// ID format hint for clients ("v1" for 16-char SHA-256, "v2" for 32-char BLAKE3)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id_format: Option<String>,
+    /// Symbol name
+    pub name: String,
+    /// Symbol kind (fn, struct, class, etc.)
+    pub kind: String,
+    /// File path
+    pub file_path: String,
+    /// Byte offset start (inclusive)
+    pub byte_start: usize,
+    /// Byte offset end (exclusive)
+    pub byte_end: usize,
+}
+
+// ============================================================================
 // Export Data Types (Phase 25-03)
 // ============================================================================
 
