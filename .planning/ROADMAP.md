@@ -119,13 +119,13 @@ See `.planning/milestones/v2.2.4-ROADMAP.md` for complete details of phase 27.
   2. User can read databases with old 16-char SHA-256 Symbol IDs (backward compatible)
   3. User sees new 32-char BLAKE3 Symbol IDs in all JSON responses
   4. User can migrate old databases to new format using migration command
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 28-01: Upgrade magellan to 2.0.0 and sqlitegraph to 1.3.0
-- [ ] 28-02: Add blake3 dependency and implement dual-format SymbolId
-- [ ] 28-03: Update JSON output to use 32-char BLAKE3 IDs
-- [ ] 28-04: Create database migration tool
+- [ ] 28-01: Upgrade magellan to 2.0.0 and sqlitegraph to 1.3.0 ([28-01-PLAN.md](.planning/phases/28-dependency-upgrade/28-01-PLAN.md))
+- [ ] 28-02: Add blake3 dependency and implement dual-format SymbolId ([28-02-PLAN.md](.planning/phases/28-dependency-upgrade/28-02-PLAN.md))
+- [ ] 28-03: Update JSON output to use 32-char BLAKE3 IDs ([28-03-PLAN.md](.planning/phases/28-dependency-upgrade/28-03-PLAN.md))
+- [ ] 28-04: Create database migration tool ([28-04-PLAN.md](.planning/phases/28-dependency-upgrade/28-04-PLAN.md))
 
 #### Phase 29: Cross-File Rename Foundation
 **Goal**: Implement byte-accurate cross-file rename using ReferenceFact spans
@@ -220,7 +220,7 @@ Phases execute in numeric order: 28 → 29 → 30 → 31 → 32
 | 25. Export Command & Error Mapping | v2.2.2 | 4/4 | Complete | 2026-01-24 |
 | 26. Integration Testing | v2.2.2 | 6/6 | Complete | 2026-01-24 |
 | 27. Code Cleanup | v2.2.4 | 3/3 | Complete | 2026-02-04 |
-| 28. Dependency Upgrade | v2.3 | 0/4 | Not started | - |
+| 28. Dependency Upgrade | v2.3 | 0/4 | Ready | - |
 | 29. Cross-File Rename Foundation | v2.3 | 0/5 | Not started | - |
 | 30. Impact Analysis & Graph Algorithms | v2.3 | 0/5 | Not started | - |
 | 31. Proof-Based Refactoring | v2.3 | 0/4 | Not started | - |
@@ -235,4 +235,4 @@ Phases execute in numeric order: 28 → 29 → 30 → 31 → 32
 - v2.3: 0/22 plans complete (0%)
 
 ---
-*Last updated: 2026-02-04*
+*Last updated: 2026-02-04 - Phase 28 plans created*
