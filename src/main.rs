@@ -306,6 +306,28 @@ fn main() -> ExitCode {
         } => {
             execute_reachable(&symbol, &path, &db, &direction, max_depth, output, json_output)
         }
+
+        splice::cli::Commands::DeadCode {
+            entry,
+            path,
+            db,
+            exclude_public,
+            group_by_file,
+            output,
+        } => {
+            execute_dead_code(&entry, &path, &db, exclude_public, group_by_file, output, json_output)
+        }
+
+        splice::cli::Commands::Cycles {
+            db,
+            symbol,
+            path,
+            max_cycles,
+            show_members,
+            output,
+        } => {
+            execute_cycles(&db, symbol.as_deref(), path.as_ref(), max_cycles, show_members, output, json_output)
+        }
     };
 
     // Handle result
@@ -4251,6 +4273,291 @@ fn execute_reachable(
         }
 
         Ok(splice::cli::CliSuccessPayload::message_only("Reachability analysis complete".to_string()))
+    }
+}
+
+/// Execute the cycles command.
+///
+/// Detects cycles in the call graph using Tarjan's SCC algorithm.
+fn execute_cycles(
+    db_path: &Path,
+    symbol: Option<&str>,
+    path: Option<&PathBuf>,
+    max_cycles: usize,
+    show_members: bool,
+    output: splice::cli::OutputFormat,
+    json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::graph::MagellanIntegration;
+    use splice::output::{CycleDetectionResult, CycleInfo, SymbolInfo};
+
+    let mut integration = MagellanIntegration::open(db_path)?;
+
+    let (cycles, queried_symbol) = if let (Some(sym_name), Some(sym_path)) = (symbol, path) {
+        // Find cycles containing specific symbol
+        let cycles = integration.find_cycles_containing(sym_path, sym_name, max_cycles)?;
+
+        // Get queried symbol info
+        let path_str = sym_path.to_str()
+            .ok_or_else(|| splice::SpliceError::Other("Invalid UTF-8 in path".to_string()))?;
+        let symbol_facts = integration.inner_mut().symbol_extents(path_str, sym_name)
+            .map_err(|e| splice::SpliceError::Other(format!("Failed to find symbol: {}", e)))?;
+
+        let queried_symbol = if !symbol_facts.is_empty() {
+            let (_entity_id, fact) = &symbol_facts[0];
+            Some(SymbolInfo {
+                symbol_id: None,
+                id_format: None,
+                name: fact.name.clone().unwrap_or_else(|| sym_name.to_string()),
+                kind: fact.kind_normalized.clone(),
+                file_path: fact.file_path.to_string_lossy().to_string(),
+                byte_start: fact.byte_start,
+                byte_end: fact.byte_end,
+            })
+        } else {
+            None
+        };
+
+        (cycles, queried_symbol)
+    } else {
+        // Find all cycles
+        (integration.detect_cycles(max_cycles)?, None)
+    };
+
+    let total_cycles = cycles.len();
+    let truncated = total_cycles >= max_cycles;
+
+    let result_cycles: Vec<CycleInfo> = cycles.into_iter().map(|c| CycleInfo {
+        id: c.id,
+        size: c.size,
+        members: c.members.into_iter().map(|s| SymbolInfo {
+            symbol_id: None,
+            id_format: None,
+            name: s.name,
+            kind: s.kind,
+            file_path: s.file_path,
+            byte_start: s.byte_start,
+            byte_end: s.byte_end,
+        }).collect(),
+        representative: SymbolInfo {
+            symbol_id: None,
+            id_format: None,
+            name: c.representative.name,
+            kind: c.representative.kind,
+            file_path: c.representative.file_path,
+            byte_start: c.representative.byte_start,
+            byte_end: c.representative.byte_end,
+        },
+        is_self_loop: c.is_self_loop,
+    }).collect();
+
+    let result = CycleDetectionResult {
+        total_cycles,
+        max_cycles,
+        truncated,
+        cycles: result_cycles,
+        queried_symbol,
+    };
+
+    // Format output
+    if output.is_json() || json_output {
+        let json = output.format_json(&result)
+            .map_err(|e| splice::SpliceError::Other(format!("JSON serialization error: {}", e)))?;
+        println!("{}", json);
+        Ok(splice::cli::CliSuccessPayload::message_only("Cycle detection complete".to_string()).already_emitted())
+    } else {
+        // Human-readable output
+        if let Some(ref qs) = result.queried_symbol {
+            println!("Cycles containing '{}' in {}", qs.name, qs.file_path);
+        } else {
+            println!("Call Graph Cycle Detection");
+        }
+        println!();
+
+        if result.total_cycles == 0 {
+            println!("No cycles detected in the call graph.");
+        } else {
+            println!("Found {} cycle(s):", result.total_cycles);
+            if result.truncated {
+                println!("(showing first {} cycles)", result.max_cycles);
+            }
+            println!();
+
+            for cycle in &result.cycles {
+                println!("Cycle {} [{}]:", cycle.id, cycle.size);
+                println!("  Representative: {} ({})", cycle.representative.name, cycle.representative.kind);
+                if cycle.is_self_loop {
+                    println!("  Type: Self-loop");
+                }
+                if show_members {
+                    println!("  Members:");
+                    for member in &cycle.members {
+                        println!("    - {} in {}", member.name, member.file_path);
+                    }
+                }
+                println!();
+            }
+        }
+
+        Ok(splice::cli::CliSuccessPayload::message_only("Cycle detection complete".to_string()))
+    }
+}
+
+fn execute_dead_code(
+    entry: &str,
+    path: &Path,
+    db_path: &Path,
+    exclude_public: bool,
+    group_by_file: bool,
+    output: splice::cli::OutputFormat,
+    json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::graph::MagellanIntegration;
+    use splice::output::{DeadCodeResult, DeadCodeByFile, SymbolInfo};
+    use std::collections::HashMap;
+
+    // Get path string early
+    let path_str = path.to_str()
+        .ok_or_else(|| splice::SpliceError::Other("Invalid UTF-8 in path".to_string()))?;
+
+    // Open Magellan database and get entry point symbol info
+    let entry_symbol_info = {
+        let mut integration = MagellanIntegration::open(db_path)?;
+        let symbol_facts = integration.inner_mut().symbol_extents(path_str, entry)
+            .map_err(|e| splice::SpliceError::Other(format!("Failed to find entry point: {}", e)))?;
+
+        if symbol_facts.is_empty() {
+            return Err(splice::SpliceError::SymbolNotFound {
+                message: format!("Entry point '{}' not found in '{}'", entry, path_str),
+                symbol: entry.to_string(),
+                file: Some(path.to_path_buf()),
+                hint: "Ensure the entry point symbol exists in the specified file".to_string(),
+            });
+        }
+
+        let (entity_id, fact) = &symbol_facts[0];
+        let info = splice::graph::magellan_integration::SymbolInfo {
+            entity_id: *entity_id,
+            name: fact.name.clone().unwrap_or_else(|| entry.to_string()),
+            file_path: fact.file_path.to_string_lossy().to_string(),
+            kind: fact.kind_normalized.clone(),
+            byte_start: fact.byte_start,
+            byte_end: fact.byte_end,
+        };
+        drop(integration);
+        info
+    };
+
+    // Open database for mutable operations
+    let mut integration = MagellanIntegration::open(db_path)?;
+
+    // Get total symbol count
+    let file_nodes = integration.inner_mut().all_file_nodes()
+        .map_err(|e| splice::SpliceError::Other(format!("Failed to get file nodes: {}", e)))?;
+    let mut total_symbols = 0;
+    for file_path in file_nodes.keys() {
+        let symbols = integration.inner_mut().symbols_in_file(file_path)
+            .map_err(|e| splice::SpliceError::Other(format!("Failed to get symbols: {}", e)))?;
+        total_symbols += symbols.len();
+    }
+
+    // Detect dead code
+    let dead_symbols = integration.dead_symbols(path, entry, exclude_public)?;
+
+    let reachable_count = total_symbols.saturating_sub(dead_symbols.len());
+    let dead_count = dead_symbols.len();
+
+    // Group by file if requested
+    let dead_by_file = if group_by_file {
+        let mut by_file: HashMap<String, Vec<splice::graph::magellan_integration::DeadSymbol>> = HashMap::new();
+        for ds in dead_symbols {
+            by_file.entry(ds.symbol.file_path.clone()).or_default().push(ds);
+        }
+
+        by_file.into_iter()
+            .map(|(path, symbols)| {
+                let count = symbols.len();
+                let output_symbols = symbols.into_iter().map(|ds| splice::output::DeadSymbol {
+                    symbol: SymbolInfo {
+                        symbol_id: None,
+                        id_format: None,
+                        name: ds.symbol.name,
+                        kind: ds.symbol.kind,
+                        file_path: ds.symbol.file_path,
+                        byte_start: ds.symbol.byte_start,
+                        byte_end: ds.symbol.byte_end,
+                    },
+                    reason: ds.reason,
+                }).collect();
+                DeadCodeByFile { path, count, symbols: output_symbols }
+            })
+            .collect()
+    } else {
+        vec![DeadCodeByFile {
+            path: "all".to_string(),
+            count: dead_count,
+            symbols: dead_symbols.into_iter().map(|ds| splice::output::DeadSymbol {
+                symbol: SymbolInfo {
+                    symbol_id: None,
+                    id_format: None,
+                    name: ds.symbol.name,
+                    kind: ds.symbol.kind,
+                    file_path: ds.symbol.file_path,
+                    byte_start: ds.symbol.byte_start,
+                    byte_end: ds.symbol.byte_end,
+                },
+                reason: ds.reason,
+            }).collect(),
+        }]
+    };
+
+    let result = DeadCodeResult {
+        entry_point: SymbolInfo {
+            symbol_id: None,
+            id_format: None,
+            name: entry_symbol_info.name.clone(),
+            kind: entry_symbol_info.kind.clone(),
+            file_path: entry_symbol_info.file_path.clone(),
+            byte_start: entry_symbol_info.byte_start,
+            byte_end: entry_symbol_info.byte_end,
+        },
+        total_symbols,
+        reachable_count,
+        dead_count,
+        dead_by_file,
+        excluded_public: exclude_public,
+    };
+
+    // Format output
+    if output.is_json() || json_output {
+        let json = output.format_json(&result)
+            .map_err(|e| splice::SpliceError::Other(format!("JSON serialization error: {}", e)))?;
+        println!("{}", json);
+        Ok(splice::cli::CliSuccessPayload::message_only("Dead code detection complete".to_string()).already_emitted())
+    } else {
+        // Human-readable output
+        println!("Dead Code Detection");
+        println!("Entry Point: {} in {}", entry, path_str);
+        println!();
+        println!("Statistics:");
+        println!("  Total symbols: {}", total_symbols);
+        println!("  Reachable: {}", reachable_count);
+        println!("  Dead (unreachable): {}", dead_count);
+        println!();
+
+        if dead_count == 0 {
+            println!("No dead code found - all symbols are reachable from the entry point.");
+        } else {
+            for file_group in &result.dead_by_file {
+                println!("{} ({} dead symbols):", file_group.path, file_group.count);
+                for ds in &file_group.symbols {
+                    println!("  - {} ({})", ds.symbol.name, ds.symbol.kind);
+                }
+                println!();
+            }
+        }
+
+        Ok(splice::cli::CliSuccessPayload::message_only("Dead code detection complete".to_string()))
     }
 }
 
