@@ -1468,3 +1468,128 @@ Use cases:
 - Refactoring: understand ripple effects
 - Debugging: trace data flow
 - Testing: identify relevant test cases
+
+### Proof-Based Refactoring
+
+Splice provides machine-checkable behavioral equivalence proofs for refactoring operations. A proof captures before/after graph state and validates that structural invariants are preserved through SHA-256 checksums.
+
+#### Generating Proofs
+
+Proofs are automatically generated during rename operations when `--proof` is specified:
+
+```bash
+# Generate proof during rename
+splice rename --name old_func --to new_func --file src/lib.rs \
+  --db .codemcp/codegraph.db --proof --preview
+
+# Proof is written to .splice/proofs/
+```
+
+#### Proof Structure
+
+Each proof contains:
+
+- **Metadata**: operation type, timestamp, git commit, splice version
+- **Before Snapshot**: complete graph state before refactoring
+- **After Snapshot**: complete graph state after refactoring
+- **Invariant Checks**: validation results for:
+  - Reference count preservation
+  - No orphaned symbols
+  - Symbol ID stability
+  - Entry point preservation
+- **Checksums**: SHA-256 hashes for:
+  - Before snapshot hash
+  - After snapshot hash
+  - Overall proof hash
+
+#### Validating Proofs
+
+Validate proof integrity at any time:
+
+```bash
+# Validate proof file
+splice validate-proof --proof .splice/proofs/rename-1736035200.json
+
+# Human-readable output
+Proof Validation: .splice/proofs/rename-1736035200.json
+
+Status: VALID ✓
+
+All SHA-256 checksums verified:
+  ✓ Before snapshot hash
+  ✓ After snapshot hash
+  ✓ Overall proof hash
+
+Audit trail integrity is confirmed.
+
+# JSON output
+splice validate-proof --proof .splice/proofs/rename-1736035200.json --output json
+```
+
+#### Programmatic Usage
+
+Generate and validate proofs from Rust code:
+
+```rust
+use splice::proof::{
+    generate_proof, generate_snapshot,
+    validate_proof_file, write_proof
+};
+use std::path::Path;
+
+fn main() -> splice::error::Result<()> {
+    let db_path = Path::new(".codemcp/codegraph.db");
+
+    // Capture before state
+    let before = generate_snapshot(db_path)?;
+
+    // Perform refactoring...
+
+    // Capture after state
+    let after = generate_snapshot(db_path)?;
+
+    // Generate proof with checksums
+    let proof = generate_proof("rename", db_path, before, after)?;
+
+    // Validate invariants
+    for check in &proof.invariants {
+        if !check.passed {
+            eprintln!("Invariant violation: {}", check.invariant_name);
+            for violation in &check.violations {
+                eprintln!("  - {}: {}", violation.subject, violation.message);
+            }
+        }
+    }
+
+    // Write proof to file
+    let output_dir = Path::new(".splice/proofs/");
+    let proof_path = write_proof(&proof, output_dir)?;
+    println!("Proof written to: {}", proof_path.display());
+
+    // Later, validate the proof file
+    let is_valid = validate_proof_file(&proof_path)?;
+    assert!(is_valid, "Proof checksums are invalid!");
+
+    Ok(())
+}
+```
+
+#### Invariant Validation
+
+The proof system validates four key invariants:
+
+1. **Reference Counts Preserved**: Ensures all symbols maintain the same number of incoming/outgoing references after refactoring.
+
+2. **No Orphaned Symbols**: Verifies that all symbols remain reachable from entry points (detects incomplete renames).
+
+3. **Symbol IDs Stable**: Confirms that no new symbol IDs were generated (pure rename operation).
+
+4. **Entry Points Preserved**: Ensures public API entry points are not accidentally removed.
+
+#### Use Cases
+
+- **Compliance**: audit trail for regulated industries
+- **Safety**: verify refactoring correctness before deployment
+- **Debugging**: detect incomplete refactors early
+- **Documentation**: prove behavioral equivalence
+- **CI/CD**: automated refactoring validation
