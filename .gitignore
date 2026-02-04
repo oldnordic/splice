@@ -17,7 +17,7 @@ Thumbs.db
 
 # Splice specific
 .splice_graph.db
-.splice_graph.checkpoint
+.splice_graph.checkpoint*
 *.db
 *.db-shm
 *.db-wal
@@ -41,6 +41,13 @@ test_splice_magellan_integration.sh
 *.backup-*
 backup-*
 *.bak
+*.backup
+
+# Checkpoint and temp files
+*.checkpoint
+*.checkpoint*
+*.tmp
+*.temp
 
 # Internal markdown docs (keep only the public set below)
 *.md
