@@ -41,6 +41,19 @@ impl std::fmt::Display for Backend {
     }
 }
 
+/// Migration result reporting statistics from a migration operation.
+#[derive(Debug, Clone)]
+pub struct MigrationReport {
+    /// Number of nodes migrated
+    pub nodes_migrated: usize,
+    /// Number of edges migrated
+    pub edges_migrated: usize,
+    /// Snapshot metadata from export
+    pub snapshot_metadata: String,
+    /// Path to the migrated database
+    pub destination: std::path::PathBuf,
+}
+
 /// Graph database handle.
 ///
 /// Wraps SQLiteGraph and provides Splice-specific operations.
@@ -412,6 +425,143 @@ impl CodeGraph {
     /// Access the underlying graph backend mutably for advanced operations.
     pub fn inner_mut(&mut self) -> &mut dyn GraphBackend {
         self.backend.as_mut()
+    }
+
+    /// Migrate this database to native-v2 format.
+    ///
+    /// This method:
+    /// 1. Exports the current database to a snapshot in a temporary directory
+    /// 2. Creates a new native-v2 database at the destination path
+    /// 3. Imports the snapshot into the new database
+    /// 4. Returns a migration report with statistics
+    ///
+    /// The source database is never modified. The destination must not exist.
+    ///
+    /// # Arguments
+    /// * `source_path` - Path to the source database (for verification in plan 34-04)
+    /// * `dest_path` - Path where the native-v2 database will be created
+    /// * `progress` - Optional callback for progress reporting (receives step name)
+    ///
+    /// # Returns
+    /// * `Ok(MigrationReport)` - Statistics about the migration
+    /// * `Err(SpliceError)` - If migration fails at any step
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use splice::graph::CodeGraph;
+    /// # use std::path::Path;
+    /// let src_graph = CodeGraph::open(Path::new("old.db"))?;
+    /// // Note: source_path is passed for verification (added in plan 34-04)
+    /// let report = src_graph.migrate_to_native_v2(
+    ///     Path::new("old.db"),
+    ///     Path::new("new.db"),
+    ///     None
+    /// )?;
+    /// println!("Migrated {} nodes", report.nodes_migrated);
+    /// # Ok::<(), splice::SpliceError>(())
+    /// ```
+    ///
+    /// # Errors
+    /// - If destination path already exists
+    /// - If temporary directory cannot be created
+    /// - If snapshot export fails (database corruption, disk full)
+    /// - If native-v2 database creation fails (requires native-v2 feature)
+    /// - If snapshot import fails
+    #[cfg(feature = "native-v2")]
+    pub fn migrate_to_native_v2(
+        &self,
+        source_path: &Path,
+        dest_path: &Path,
+        progress: Option<&dyn Fn(&str)>,
+    ) -> Result<MigrationReport> {
+        use std::path::PathBuf;
+
+        // Verify destination doesn't exist
+        if dest_path.exists() {
+            return Err(SpliceError::Other(format!(
+                "Destination database already exists: {:?}. \
+                 Please remove it or choose a different path.",
+                dest_path
+            )));
+        }
+
+        // Create temporary directory for snapshot
+        let temp_dir = std::env::temp_dir().join(format!(
+            "splice_migration_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0)
+        ));
+        std::fs::create_dir_all(&temp_dir).map_err(|e| SpliceError::Io {
+            path: temp_dir.clone(),
+            source: e,
+        })?;
+
+        if let Some(p) = progress {
+            p("Exporting snapshot from source database...");
+        }
+
+        // Export snapshot from source database
+        let export_result = self
+            .backend
+            .snapshot_export(&temp_dir)
+            .map_err(|e| SpliceError::Other(format!("Snapshot export failed: {}", e)))?;
+
+        if let Some(p) = progress {
+            p("Creating native-v2 database...");
+        }
+
+        // Create native-v2 database at destination
+        let native_cfg = sqlitegraph::GraphConfig::native();
+        let dest_backend = sqlitegraph::open_graph(dest_path, &native_cfg)
+            .map_err(|e| SpliceError::Other(format!("Failed to create native-v2 database: {}", e)))?;
+
+        if let Some(p) = progress {
+            p("Importing snapshot to native-v2 database...");
+        }
+
+        // Import snapshot to destination
+        let _import_result = dest_backend
+            .snapshot_import(&temp_dir)
+            .map_err(|e| SpliceError::Other(format!("Snapshot import failed: {}", e)))?;
+
+        // Clean up temporary directory
+        let _ = std::fs::remove_dir_all(&temp_dir);
+
+        if let Some(p) = progress {
+            p("Migration complete!");
+        }
+
+        Ok(MigrationReport {
+            nodes_migrated: export_result.entity_count as usize,
+            edges_migrated: export_result.edge_count as usize,
+            snapshot_metadata: format!(
+                "snapshot_path={}, size_bytes={}, entity_count={}, edge_count={}",
+                export_result.snapshot_path.display(),
+                export_result.size_bytes,
+                export_result.entity_count,
+                export_result.edge_count
+            ),
+            destination: dest_path.to_path_buf(),
+        })
+    }
+
+    /// Migration is not available without the native-v2 feature.
+    ///
+    /// Build with: `cargo build --features native-v2 --no-default-features`
+    #[cfg(not(feature = "native-v2"))]
+    pub fn migrate_to_native_v2(
+        &self,
+        _source_path: &Path,
+        _dest_path: &Path,
+        _progress: Option<&dyn Fn(&str)>,
+    ) -> Result<MigrationReport> {
+        Err(SpliceError::Other(
+            "Migration to native-v2 requires the native-v2 feature. \
+             Build with: cargo build --features native-v2 --no-default-features"
+                .to_string(),
+        ))
     }
 }
 
