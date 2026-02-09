@@ -245,14 +245,19 @@ impl SnapshotStorage {
     ///
     /// * `keep_count` - Number of snapshots to keep (most recent)
     ///
+    /// # Returns
+    ///
+    /// List of paths to deleted snapshot files.
+    ///
     /// # Errors
     ///
     /// Returns `SpliceError::Io` if file deletion fails.
-    pub fn cleanup_old_snapshots(&self, keep_count: usize) -> Result<()> {
+    pub fn cleanup_old_snapshots(&self, keep_count: usize) -> Result<Vec<PathBuf>> {
         let snapshots = self.list_snapshots()?;
+        let mut deleted_paths = Vec::new();
 
         if snapshots.len() <= keep_count {
-            return Ok(());
+            return Ok(deleted_paths);
         }
 
         // Delete snapshots beyond keep_count
@@ -261,9 +266,202 @@ impl SnapshotStorage {
                 path: snapshot.snapshot_path.clone(),
                 source: e,
             })?;
+            deleted_paths.push(snapshot.snapshot_path);
         }
 
-        Ok(())
+        Ok(deleted_paths)
+    }
+
+    /// Delete a snapshot by its ID (timestamp-based filename).
+    ///
+    /// # Arguments
+    ///
+    /// * `snapshot_id` - Snapshot identifier (timestamp or filename)
+    ///
+    /// # Returns
+    ///
+    /// `Ok(true)` if snapshot was deleted, `Ok(false)` if not found.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SpliceError::Io` if file deletion fails.
+    pub fn delete_by_id(&self, snapshot_id: &str) -> Result<bool> {
+        // First, try to find the snapshot by exact filename match
+        let snapshot_path = self.find_snapshot_path(snapshot_id)?;
+
+        match snapshot_path {
+            Some(path) => {
+                fs::remove_file(&path).map_err(|e| SpliceError::Io {
+                    path: path.clone(),
+                    source: e,
+                })?;
+                Ok(true)
+            }
+            None => Ok(false),
+        }
+    }
+
+    /// Get a snapshot by its ID (timestamp-based filename).
+    ///
+    /// # Arguments
+    ///
+    /// * `snapshot_id` - Snapshot identifier (timestamp or filename)
+    ///
+    /// # Returns
+    ///
+    /// `Ok(Some((path, metadata)))` if found, `Ok(None)` if not found.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SpliceError::Io` if directory reading fails.
+    pub fn get_by_id(&self, snapshot_id: &str) -> Result<Option<(PathBuf, SnapshotMetadata)>> {
+        let snapshot_path = self.find_snapshot_path(snapshot_id)?;
+
+        match snapshot_path {
+            Some(path) => {
+                // Load the snapshot to get metadata
+                let snapshot = self.load_snapshot(&path)?;
+
+                // Parse operation and timestamp from filename
+                let filename = path.file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("");
+
+                let (operation, _) = filename.split_once('-').unwrap_or((filename, ""));
+
+                let metadata = SnapshotMetadata {
+                    operation: operation.to_string(),
+                    timestamp: snapshot.timestamp,
+                    database_path: PathBuf::new(),
+                    snapshot_path: path.clone(),
+                    symbols_count: snapshot.symbols.len(),
+                    edges_count: snapshot.edges.len(),
+                };
+
+                Ok(Some((path, metadata)))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// List snapshots with optional filtering.
+    ///
+    /// # Arguments
+    ///
+    /// * `operation_filter` - Optional filter by operation type (e.g., "patch", "rename")
+    /// * `limit` - Optional maximum number of snapshots to return
+    ///
+    /// # Returns
+    ///
+    /// Filtered and limited list of snapshot metadata, ordered by timestamp (newest first).
+    ///
+    /// # Errors
+    ///
+    /// Returns `SpliceError::Io` if directory reading fails.
+    pub fn list_snapshots_filtered(
+        &self,
+        operation_filter: Option<&str>,
+        limit: Option<usize>,
+    ) -> Result<Vec<SnapshotMetadata>> {
+        let mut snapshots = self.list_snapshots()?;
+
+        // Apply operation filter if specified
+        if let Some(filter) = operation_filter {
+            snapshots.retain(|s| s.operation == filter);
+        }
+
+        // Apply limit if specified
+        if let Some(limit) = limit {
+            snapshots.truncate(limit);
+        }
+
+        Ok(snapshots)
+    }
+
+    /// Get the total disk usage of all snapshots.
+    ///
+    /// # Returns
+    ///
+    /// Total size in bytes of all snapshot files.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SpliceError::Io` if directory reading or file metadata access fails.
+    pub fn get_total_size(&self) -> Result<u64> {
+        let entries = fs::read_dir(&self.base_dir).map_err(|e| SpliceError::Io {
+            path: self.base_dir.clone(),
+            source: e,
+        })?;
+
+        let mut total_size = 0u64;
+
+        for entry in entries {
+            let entry = entry.map_err(|e| SpliceError::Io {
+                path: self.base_dir.clone(),
+                source: e,
+            })?;
+
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) != Some("json") {
+                continue;
+            }
+
+            let metadata = entry.metadata().map_err(|e| SpliceError::Io {
+                path: path.clone(),
+                source: e,
+            })?;
+
+            total_size += metadata.len();
+        }
+
+        Ok(total_size)
+    }
+
+    /// Find a snapshot file path by ID (timestamp or filename).
+    ///
+    /// # Arguments
+    ///
+    /// * `snapshot_id` - Snapshot identifier (timestamp or filename)
+    ///
+    /// # Returns
+    ///
+    /// `Ok(Some(path))` if found, `Ok(None)` if not found.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SpliceError::Io` if directory reading fails.
+    fn find_snapshot_path(&self, snapshot_id: &str) -> Result<Option<PathBuf>> {
+        let entries = fs::read_dir(&self.base_dir).map_err(|e| SpliceError::Io {
+            path: self.base_dir.clone(),
+            source: e,
+        })?;
+
+        // Normalize the snapshot_id (remove .json extension if present)
+        let normalized_id = snapshot_id.strip_suffix(".json").unwrap_or(snapshot_id);
+
+        for entry in entries {
+            let entry = entry.map_err(|e| SpliceError::Io {
+                path: self.base_dir.clone(),
+                source: e,
+            })?;
+
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) != Some("json") {
+                continue;
+            }
+
+            // Check if filename matches
+            let filename = path.file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("");
+
+            // Match exact filename or timestamp portion
+            if filename == normalized_id || filename.ends_with(&format!("-{}", normalized_id)) {
+                return Ok(Some(path));
+            }
+        }
+
+        Ok(None)
     }
 
     /// Restore a database from a snapshot file (native-v2 only).
