@@ -216,6 +216,7 @@ fn test_status_command_requires_db_flag() {
     // the struct requires the db field by construction
     let _status_variant = Commands::Status {
         db: PathBuf::from("/tmp/test.db"),
+        detect_backend: false,
     };
 
     // If we reached here, the Status command has the required db field

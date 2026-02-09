@@ -5,6 +5,7 @@
 //! and validates that structural invariants are preserved.
 
 pub mod checksums;
+pub mod comparison;
 pub mod data_structures;
 pub mod generation;
 pub mod storage;
@@ -28,6 +29,10 @@ pub use generation::{
 pub use storage::{SnapshotStorage, SnapshotMetadata};
 
 pub use validation::validate_invariants;
+
+pub use comparison::{
+    compare_snapshots, SnapshotDiff, SymbolDiff, EdgeDiff, ChangeType,
+};
 
 use crate::error::Result;
 use std::path::Path;
