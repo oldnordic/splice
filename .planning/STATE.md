@@ -14,18 +14,18 @@ See: `.planning/PROJECT.md` (updated 2026-02-09)
 ## Current Position
 
 **Phase:** 35 of 38 (Snapshots & Verification)
-**Plan:** 1 of 5 in current phase
+**Plan:** 2 of 5 in current phase
 **Status:** Completed
-**Last activity:** 2026-02-09 — Plan 35-01 completed: Snapshot capture with --snapshot-before flag
+**Last activity:** 2026-02-09 — Plan 35-02 completed: Snapshot storage module with RFC 3339 timestamp-based file naming
 
 ---
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6 (v2.5.0)
+- Total plans completed: 7 (v2.5.0)
 - Average duration: 5 min
-- Total execution time: ~0.5 hours
+- Total execution time: ~0.6 hours
 
 **By Phase:**
 
@@ -33,7 +33,7 @@ See: `.planning/PROJECT.md` (updated 2026-02-09)
 |-------|-------|-------|----------|
 | 33 | 4 | 4 | 6 min |
 | 34 | 4 | 4 | 5 min |
-| 35 | 1 | 5 | 7 min |
+| 35 | 2 | 5 | 6 min |
 
 ## Accumulated Context
 
@@ -198,7 +198,21 @@ let cfg = if Self::is_sqlite_db(path)? {
 - Rationale: Snapshot issues shouldn't block legitimate refactoring work
 - Trade-off: Operations continue even if snapshot fails; warning logged for awareness
 
+**35-02: Snapshot Storage with RFC 3339 Timestamp Format**
+- Decision: Use RFC 3339 timestamp format for snapshot filenames
+- Rationale: Provides readable, ISO-compliant timestamps that sort chronologically and prevent filename collisions
+- Implementation: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+- Trade-off: Longer filenames than Unix timestamps, but human-readable and sortable
+- Decision: Chronological ordering (newest first) for list_snapshots() output
+- Rationale: Users typically want most recent snapshots first for rollback operations
+- Implementation: Sort by timestamp descending in list_snapshots()
+- Trade-off: Requires sorting on each call, but list is typically small
+- Decision: Auto-creation of .splice/snapshots/ directory on SnapshotStorage::new()
+- Rationale: No manual setup required, directory exists when needed
+- Implementation: fs::create_dir_all() in constructor, returns Io error on failure
+- Trade-off: May fail if permissions insufficient, but provides clear error message
+
 ---
 
 *State updated: 2026-02-09*
-*Last session: 2026-02-09T22:36:00Z - Completed Phase 35-01*
+*Last session: 2026-02-09T22:46:00Z - Completed Phase 35-02*
