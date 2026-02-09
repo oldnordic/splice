@@ -529,6 +529,13 @@ fn main() -> ExitCode {
         splice::cli::Commands::ValidateProof { proof, output } => {
             execute_validate_proof(&proof, output, json_output)
         }
+
+        splice::cli::Commands::Verify {
+            before,
+            after,
+            detailed,
+            output,
+        } => execute_verify(&before, &after, detailed, output, json_output),
     };
 
     // Handle result
@@ -5601,6 +5608,139 @@ fn execute_validate_proof(
                 "Proof validation complete (no checksums)".to_string()
             },
         ))
+    }
+}
+
+fn execute_verify(
+    before_path: &Path,
+    after_path: &Path,
+    detailed: bool,
+    output_format: splice::cli::OutputFormat,
+    json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::proof::{compare_snapshots, storage::SnapshotStorage};
+    use serde_json::json;
+
+    // Load snapshots
+    let storage = SnapshotStorage::new()?;
+    let before = storage.load_snapshot(before_path)?;
+    let after = storage.load_snapshot(after_path)?;
+
+    // Compare snapshots
+    let diff = compare_snapshots(&before, &after)?;
+
+    // Determine if there are differences
+    let has_symbol_changes = diff.symbols_added > 0 || diff.symbols_removed > 0 || diff.symbols_modified > 0;
+    let has_edge_changes = diff.edges_added > 0 || diff.edges_removed > 0;
+    let has_invariant_failures = diff.invariant_results.iter().any(|c| !c.passed);
+    let has_differences = has_symbol_changes || has_edge_changes || has_invariant_failures;
+
+    // Format output
+    if output_format.is_json() || json_output {
+        // JSON output - return complete diff
+        let result = json!(diff);
+        let json_output = output_format
+            .format_json(&result)
+            .map_err(|e| splice::SpliceError::Other(format!("JSON serialization error: {}", e)))?;
+        println!("{}", json_output);
+
+        let mut payload = splice::cli::CliSuccessPayload::with_data(
+            format!("Snapshot comparison: {} differences", if has_differences { "found" } else { "none" }),
+            result,
+        )
+        .already_emitted();
+
+        if has_differences {
+            payload = payload.with_pending_changes();
+        }
+
+        Ok(payload)
+    } else {
+        // Human-readable output
+        println!("Snapshot Comparison");
+        println!();
+        println!("Before: {}", before_path.display());
+        println!("After: {}", after_path.display());
+        println!();
+
+        // Summary
+        println!("Summary:");
+        if !has_differences {
+            println!("  No differences detected - snapshots are identical");
+        } else {
+            if diff.symbols_added > 0 {
+                println!("  Symbols added: {}", diff.symbols_added);
+            }
+            if diff.symbols_removed > 0 {
+                println!("  Symbols removed: {}", diff.symbols_removed);
+            }
+            if diff.symbols_modified > 0 {
+                println!("  Symbols modified: {}", diff.symbols_modified);
+            }
+            if diff.edges_added > 0 {
+                println!("  Edges added: {}", diff.edges_added);
+            }
+            if diff.edges_removed > 0 {
+                println!("  Edges removed: {}", diff.edges_removed);
+            }
+            if has_invariant_failures {
+                let failed = diff.invariant_results.iter().filter(|c| !c.passed).count();
+                println!("  Invariant failures: {}", failed);
+            }
+        }
+        println!();
+
+        // Detailed symbol differences
+        if detailed && !diff.symbol_details.is_empty() {
+            println!("Symbol Details:");
+            for sym_diff in &diff.symbol_details {
+                let change_marker = match sym_diff.change_type {
+                    splice::proof::ChangeType::Added => "+",
+                    splice::proof::ChangeType::Removed => "-",
+                    splice::proof::ChangeType::Modified => "~",
+                    splice::proof::ChangeType::Unchanged => " ",
+                };
+                println!("  {} {} ({})", change_marker, sym_diff.name, sym_diff.id);
+
+                if sym_diff.change_type == splice::proof::ChangeType::Modified {
+                    if let Some(before) = &sym_diff.before {
+                        println!("    Before: {} @ {}", before.name, before.file_path);
+                    }
+                    if let Some(after) = &sym_diff.after {
+                        println!("    After:  {} @ {}", after.name, after.file_path);
+                    }
+                }
+            }
+            println!();
+        }
+
+        // Invariant results
+        if has_invariant_failures {
+            println!("Invariant Validation:");
+            for check in &diff.invariant_results {
+                if !check.passed {
+                    println!("  FAILED: {}", check.invariant_name);
+                    for violation in &check.violations {
+                        println!("    - {}: {}", violation.subject, violation.message);
+                    }
+                }
+            }
+            println!();
+        }
+
+        let mut payload = splice::cli::CliSuccessPayload::message_only(
+            if has_differences {
+                "Snapshots differ".to_string()
+            } else {
+                "Snapshots are identical".to_string()
+            }
+        );
+
+        if has_differences {
+            payload = payload.with_pending_changes();
+        }
+
+        Ok(payload)
     }
 }
 

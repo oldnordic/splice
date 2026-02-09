@@ -799,6 +799,26 @@ pub enum Commands {
         #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
         output: OutputFormat,
     },
+
+    /// Compare two snapshots and report differences
+    #[command(display_order = 117)]
+    Verify {
+        /// Path to the "before" snapshot file
+        #[arg(short = 'b', long)]
+        before: std::path::PathBuf,
+
+        /// Path to the "after" snapshot file
+        #[arg(short = 'a', long)]
+        after: std::path::PathBuf,
+
+        /// Show detailed symbol-by-symbol differences
+        #[arg(long)]
+        detailed: bool,
+
+        /// Output format (human, json, pretty)
+        #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
+        output: OutputFormat,
+    },
 }
 
 /// Symbol kind for filtering.
