@@ -14,18 +14,18 @@ See: `.planning/PROJECT.md` (updated 2026-02-09)
 ## Current Position
 
 **Phase:** 35 of 38 (Snapshots & Verification)
-**Plan:** 3 of 5 in current phase
+**Plan:** 4 of 5 in current phase
 **Status:** Completed
-**Last activity:** 2026-02-09 — Plan 35-03 completed: Snapshot comparison module with Verify CLI command
+**Last activity:** 2026-02-09 — Plan 35-04 completed: Database restore from snapshot functionality
 
 ---
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8 (v2.5.0)
-- Average duration: 5.4 min
-- Total execution time: ~0.7 hours
+- Total plans completed: 9 (v2.5.0)
+- Average duration: 4.9 min
+- Total execution time: ~0.8 hours
 
 **By Phase:**
 
@@ -33,7 +33,7 @@ See: `.planning/PROJECT.md` (updated 2026-02-09)
 |-------|-------|-------|----------|
 | 33 | 4 | 4 | 6 min |
 | 34 | 4 | 4 | 5 min |
-| 35 | 3 | 8 min | 6 min |
+| 35 | 4 | 8 min | 6 min |
 
 ## Accumulated Context
 
@@ -228,7 +228,21 @@ let cfg = if Self::is_sqlite_db(path)? {
 - Trade-off: O(n log n) sort cost but provides reproducible, testable output
 - Implementation: Sort symbol_diffs by ID, edge_details by (from, to) tuple
 
+**35-04: Database Restore from Snapshot**
+- Decision: SQLite restore not supported - only native-v2 databases can be restored
+- Rationale: sqlitegraph's snapshot_export/import only works with native-v2 backend format
+- Trade-off: Users with SQLite databases must migrate to native-v2 first, but prevents data corruption from incompatible formats
+- Implementation: Backend detection using CodeGraph::detect_backend() returns error for SQLite
+- Decision: Automatic backup creation (.db.backup) before any restore operation
+- Rationale: Restore is destructive operation; backup ensures users can recover if restore fails
+- Trade-off: Uses additional disk space for backup, but provides critical safety net
+- Implementation: fs::copy() creates backup before any modifications
+- Decision: Feature-gated restore with clear error message for non-native-v2 builds
+- Rationale: Prevents runtime errors by catching unsupported configuration at compile time
+- Trade-off: Feature flag required at compile time, but enables safe migration with proper error handling
+- Implementation: #[cfg(feature = "native-v2")] with fallback stub returning helpful error
+
 ---
 
 *State updated: 2026-02-09*
-*Last session: 2026-02-09T22:52:00Z - Completed Phase 35-03*
+*Last session: 2026-02-09T22:58:00Z - Completed Phase 35-04*
