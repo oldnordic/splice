@@ -14,9 +14,9 @@ See: `.planning/PROJECT.md` (updated 2026-02-09)
 ## Current Position
 
 **Phase:** 34 of 38 (Backend Detection & Migration)
-**Plan:** 2 of 4 in current phase
+**Plan:** 4 of 4 in current phase
 **Status:** Completed
-**Last activity:** 2026-02-09 — Plan 34-02 completed: CLI --detect-backend flag for backend format reporting
+**Last activity:** 2026-02-09 — Plan 34-04 completed: Migration verification and rollback with --skip-verify flag
 
 ---
 
@@ -178,7 +178,16 @@ let cfg = if Self::is_sqlite_db(path)? {
 - Implementation: #[cfg(feature = "native-v2")] with fallback error message, uses snapshot_export/import from sqlitegraph
 - Trade-off: Feature flag required at compile time, but enables safe migration with proper error handling
 
+**34-04: Migration Verification with Rollback**
+- Decision: Use entity_ids() and node_degree() for verification instead of dedicated count methods
+- Rationale: sqlitegraph GraphBackend trait doesn't have node_count()/edge_count() methods
+- Trade-off: More expensive (need to iterate all nodes for edge counts) but works with available API
+- Implementation: verify_migration() compares entity_ids().len() and sums node_degree() for all nodes
+- Decision: Default verification to enabled (verify=true) for safety by default
+- Rationale: Migrations are risky operations - users need assurance that migration completed successfully
+- Trade-off: Slower migration by default, but prevents data corruption; --skip-verify flag available for performance
+
 ---
 
 *State updated: 2026-02-09*
-*Last session: 2026-02-09T21:33:00Z - Completed Phase 34-02*
+*Last session: 2026-02-09T21:47:00Z - Completed Phase 34-04*
