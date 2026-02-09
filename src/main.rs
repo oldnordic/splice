@@ -134,6 +134,7 @@ fn main() -> ExitCode {
             unified,
             operation_id,
             metadata,
+            snapshot_before,
         } => execute_delete(
             &file,
             &symbol,
@@ -149,6 +150,7 @@ fn main() -> ExitCode {
             unified,
             operation_id,
             metadata,
+            snapshot_before,
             json_output,
         ),
 
@@ -170,6 +172,7 @@ fn main() -> ExitCode {
             operation_id,
             metadata,
             db,
+            snapshot_before,
         } => match batch {
             Some(batch_path) => execute_patch_batch(
                 &batch_path,
@@ -197,6 +200,7 @@ fn main() -> ExitCode {
                 operation_id,
                 metadata,
                 db,
+                snapshot_before,
                 json_output,
             ),
         },
@@ -390,6 +394,7 @@ fn main() -> ExitCode {
             backup_dir,
             no_backup,
             create_backup: _,
+            snapshot_before,
         } => execute_rename(
             symbol.as_deref(),
             name.as_deref(),
@@ -400,6 +405,7 @@ fn main() -> ExitCode {
             proof,
             backup_dir.as_ref(),
             no_backup,
+            snapshot_before,
             json_output,
         ),
 
@@ -573,6 +579,7 @@ fn execute_delete(
     unified: usize,
     operation_id: Option<String>,
     metadata: Option<String>,
+    snapshot_before: bool,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use ropey::Rope;
@@ -1274,6 +1281,7 @@ fn execute_single_patch(
     operation_id: Option<String>,
     metadata: Option<String>,
     db: Option<PathBuf>,
+    snapshot_before: bool,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     let file_path = require_patch_arg("--file", file_path)?;
@@ -1297,6 +1305,7 @@ fn execute_single_patch(
         operation_id,
         metadata,
         db,
+        snapshot_before,
         json_output,
     )
 }
@@ -1318,6 +1327,7 @@ fn execute_patch(
     operation_id: Option<String>,
     metadata: Option<String>,
     db: Option<PathBuf>,
+    snapshot_before: bool,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::execution::log;
@@ -4431,6 +4441,7 @@ fn execute_rename(
     proof: bool,
     _backup_dir: Option<&PathBuf>,
     no_backup: bool,
+    snapshot_before: bool,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::MagellanIntegration;

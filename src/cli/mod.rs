@@ -132,6 +132,10 @@ pub enum Commands {
         /// Optional JSON metadata to attach to this operation.
         #[arg(long)]
         metadata: Option<String>,
+
+        /// Capture graph snapshot before deleting.
+        #[arg(long)]
+        snapshot_before: bool,
     },
 
     /// Apply a patch to a symbol's span.
@@ -214,6 +218,10 @@ pub enum Commands {
         /// Path to codegraph database (required for symbol resolution).
         #[arg(short = 'd', long, value_name = "FILE")]
         db: Option<std::path::PathBuf>,
+
+        /// Capture graph snapshot before patching.
+        #[arg(long)]
+        snapshot_before: bool,
     },
 
     /// Execute a multi-step refactoring plan.
@@ -642,6 +650,10 @@ pub enum Commands {
         /// Create backup before rename (default: true for safety, use --no-backup to skip)
         #[arg(long, default_value = "true")]
         create_backup: bool,
+
+        /// Capture graph snapshot before renaming.
+        #[arg(long)]
+        snapshot_before: bool,
     },
 
     /// Show reachability analysis for a symbol (caller/callee chains)
