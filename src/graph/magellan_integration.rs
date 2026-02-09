@@ -82,6 +82,7 @@ impl MagellanIntegration {
     /// - Symbol kind labels: "fn", "method", "struct", "class", "enum", "interface", "module", etc.
     ///
     /// Example: `query(&["rust", "fn"])` returns all Rust functions.
+    #[cfg(feature = "sqlite")]
     pub fn query_by_labels(&self, labels: &[&str]) -> Result<Vec<SymbolInfo>> {
         let labels_ref: Vec<&str> = labels.to_vec();
         self.inner
@@ -93,6 +94,7 @@ impl MagellanIntegration {
     }
 
     /// Get all available labels in the graph.
+    #[cfg(feature = "sqlite")]
     pub fn get_all_labels(&self) -> Result<Vec<String>> {
         self.inner
             .get_all_labels()
@@ -100,6 +102,7 @@ impl MagellanIntegration {
     }
 
     /// Count entities with a specific label.
+    #[cfg(feature = "sqlite")]
     pub fn count_by_label(&self, label: &str) -> Result<usize> {
         self.inner
             .count_entities_by_label(label)
@@ -2166,6 +2169,7 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
+    #[cfg(feature = "sqlite")]
     #[test]
     fn test_open_and_query() {
         let temp_dir = TempDir::new().unwrap();
@@ -2183,6 +2187,7 @@ mod tests {
         assert!(labels.is_empty());
     }
 
+    #[cfg(feature = "sqlite")]
     #[test]
     fn test_count_by_label() {
         let temp_dir = TempDir::new().unwrap();

@@ -29,6 +29,7 @@ impl MagellanIngestor {
     }
 
     /// Query symbols by labels.
+    #[cfg(feature = "sqlite")]
     pub fn query_by_labels(
         &self,
         labels: &[&str],
@@ -68,6 +69,7 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
+    #[cfg(feature = "sqlite")]
     #[test]
     fn test_create_ingestor() {
         let temp_dir = TempDir::new().unwrap();
