@@ -14,17 +14,17 @@ See: `.planning/PROJECT.md` (updated 2026-02-09)
 ## Current Position
 
 **Phase:** 35 of 38 (Snapshots & Verification)
-**Plan:** 4 of 5 in current phase
+**Plan:** 5 of 5 in current phase
 **Status:** Completed
-**Last activity:** 2026-02-09 — Plan 35-04 completed: Database restore from snapshot functionality
+**Last activity:** 2026-02-09 — Plan 35-05 completed: Snapshot cleanup and management utilities
 
 ---
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9 (v2.5.0)
-- Average duration: 4.9 min
+- Total plans completed: 10 (v2.5.0)
+- Average duration: 4.8 min
 - Total execution time: ~0.8 hours
 
 **By Phase:**
@@ -33,7 +33,7 @@ See: `.planning/PROJECT.md` (updated 2026-02-09)
 |-------|-------|-------|----------|
 | 33 | 4 | 4 | 6 min |
 | 34 | 4 | 4 | 5 min |
-| 35 | 4 | 8 min | 6 min |
+| 35 | 5 | 20 min | 4 min |
 
 ## Accumulated Context
 
@@ -242,7 +242,25 @@ let cfg = if Self::is_sqlite_db(path)? {
 - Trade-off: Feature flag required at compile time, but enables safe migration with proper error handling
 - Implementation: #[cfg(feature = "native-v2")] with fallback stub returning helpful error
 
+**35-05: Snapshot Management CLI Commands**
+- Decision: Use generic SpliceError::Other for snapshot deletion errors instead of adding new variant
+- Rationale: Simpler error handling, no need for specialized error type for this use case
+- Trade-off: Less specific error type but reduces enum bloat
+- Implementation: Use SpliceError::Other with descriptive error messages
+- Decision: ID-based snapshot lookup uses substring matching for flexibility
+- Rationale: Users can specify full filename or just timestamp portion
+- Trade-off: More flexible input handling
+- Implementation: find_snapshot_path() checks both exact match and suffix match
+- Decision: cleanup_old_snapshots() returns Vec<PathBuf> of deleted paths
+- Rationale: Enables verification and reporting of what was deleted
+- Trade-off: Slightly more complex return type than ()
+- Implementation: Collect deleted paths and return to caller
+- Decision: Confirmation prompts require explicit 'y' or 'yes' input
+- Rationale: Prevents accidental deletions, requires intentional confirmation
+- Trade-off: Extra step for user but improves safety
+- Implementation: confirm_action() checks for lowercase 'y' or 'yes'
+
 ---
 
 *State updated: 2026-02-09*
-*Last session: 2026-02-09T22:58:00Z - Completed Phase 35-04*
+*Last session: 2026-02-09T23:07:21Z - Completed Phase 35-05*
