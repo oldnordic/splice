@@ -77,14 +77,14 @@ Plans:
   4. Verify command reports differences in symbols, edges, and invariants
   5. User can restore database from snapshot (native-v2 only)
 
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 35-01: Implement snapshot capture with --snapshot-before flag
-- [ ] 35-02: Design snapshot directory layout and storage format
-- [ ] 35-03: Implement verify command for snapshot comparison
-- [ ] 35-04: Add database restore from snapshot capability
-- [ ] 35-05: Add snapshot cleanup and management utilities
+- [ ] 35-01-PLAN.md — Implement snapshot capture with --snapshot-before flag
+- [ ] 35-02-PLAN.md — Design snapshot directory layout and storage format
+- [ ] 35-03-PLAN.md — Implement verify command for snapshot comparison
+- [ ] 35-04-PLAN.md — Add database restore from snapshot capability
+- [ ] 35-05-PLAN.md — Add snapshot cleanup and management utilities
 
 #### Phase 36: Advanced Features
 
@@ -161,7 +161,7 @@ Phases execute in numeric order: 33 → 34 → 35 → 36 → 37 → 38
 |-------|-----------|----------------|--------|-----------|
 | 33. Feature Flag Infrastructure | v2.5.0 | 4/4 | Complete | 2026-02-09 |
 | 34. Backend Detection & Migration | v2.5.0 | 0/4 | Ready to execute | - |
-| 35. Snapshots & Verification | v2.5.0 | 0/5 | Not started | - |
+| 35. Snapshots & Verification | v2.5.0 | 0/5 | Ready to execute | - |
 | 36. Advanced Features | v2.5.0 | 0/4 | Not started | - |
 | 37. Testing Infrastructure | v2.5.0 | 0/4 | Not started | - |
 | 38. Documentation | v2.5.0 | 0/4 | Not started | - |
