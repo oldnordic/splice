@@ -472,11 +472,17 @@ pub enum Commands {
     },
 
     /// Show database statistics (files, symbols, refs, calls, chunks)
+    ///
+    /// Use --detect-backend to check which backend format the database uses.
     #[command(display_order = 100)]
     Status {
         /// Path to the Magellan database
         #[arg(short, long)]
         db: std::path::PathBuf,
+
+        /// Detect and report the backend format (sqlite or native-v2)
+        #[arg(long, default_value = "false")]
+        detect_backend: bool,
     },
 
     /// Find symbols by name or 16-character symbol ID
@@ -575,8 +581,24 @@ pub enum Commands {
         dry_run: bool,
     },
 
+    /// Migrate a database from SQLite to native-v2 format
+    #[command(display_order = 109)]
+    Migrate {
+        /// Path to the source database (SQLite format)
+        #[arg(short = 's', long, value_name = "PATH")]
+        source: std::path::PathBuf,
+
+        /// Path to the destination database (will be created in native-v2 format)
+        #[arg(short = 'd', long, value_name = "PATH")]
+        dest: std::path::PathBuf,
+
+        /// Show progress during migration
+        #[arg(long, default_value = "true")]
+        progress: bool,
+    },
+
     /// Rename a symbol across all files using byte-accurate references
-    #[command(display_order = 108)]
+    #[command(display_order = 110)]
     Rename {
         /// Symbol ID (32-char BLAKE3 or 16-char SHA-256)
         #[arg(short, long, conflicts_with = "name")]
@@ -619,7 +641,7 @@ pub enum Commands {
     },
 
     /// Show reachability analysis for a symbol (caller/callee chains)
-    #[command(display_order = 109)]
+    #[command(display_order = 111)]
     Reachable {
         /// Symbol name to analyze
         #[arg(short, long)]
@@ -647,7 +669,7 @@ pub enum Commands {
     },
 
     /// Detect dead code (unreachable symbols) from entry points
-    #[command(display_order = 110)]
+    #[command(display_order = 112)]
     DeadCode {
         /// Entry point symbol name (e.g., "main", "MyApp::run")
         #[arg(short, long)]
@@ -675,7 +697,7 @@ pub enum Commands {
     },
 
     /// Detect cycles in the call graph
-    #[command(display_order = 111)]
+    #[command(display_order = 113)]
     Cycles {
         /// Path to Magellan database (default: .codemcp/codegraph.db)
         #[arg(short, long, default_value = ".codemcp/codegraph.db")]
@@ -703,7 +725,7 @@ pub enum Commands {
     },
 
     /// Analyze condensation graph (SCCs collapsed to DAG)
-    #[command(display_order = 112)]
+    #[command(display_order = 114)]
     Condense {
         /// Path to Magellan database (default: .codemcp/codegraph.db)
         #[arg(short, long, default_value = ".codemcp/codegraph.db")]
@@ -723,7 +745,7 @@ pub enum Commands {
     },
 
     /// Perform program slicing (forward/backward impact analysis)
-    #[command(display_order = 113)]
+    #[command(display_order = 115)]
     Slice {
         /// Target symbol to slice from
         #[arg(short, long)]
@@ -751,7 +773,7 @@ pub enum Commands {
     },
 
     /// Validate proof checksums for refactoring audit trail
-    #[command(display_order = 114)]
+    #[command(display_order = 116)]
     ValidateProof {
         /// Path to the proof JSON file
         #[arg(short, long)]

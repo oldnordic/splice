@@ -337,7 +337,9 @@ fn main() -> ExitCode {
             json_output || json,
         ),
 
-        splice::cli::Commands::Status { db } => execute_status(&db, json_output),
+        splice::cli::Commands::Status { db, detect_backend } => {
+            execute_status(&db, json_output, detect_backend)
+        }
 
         splice::cli::Commands::Find {
             db,
@@ -372,6 +374,10 @@ fn main() -> ExitCode {
             backup,
             dry_run,
         } => execute_migrate_db(&db_path, backup, dry_run, json_output),
+
+        splice::cli::Commands::Migrate { source, dest, progress } => {
+            execute_migrate(&source, &dest, progress, json_output)
+        }
 
         splice::cli::Commands::Rename {
             symbol,
@@ -3770,8 +3776,42 @@ fn execute_search(
 fn execute_status(
     db_path: &Path,
     json_output: bool,
+    detect_backend: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::magellan_integration::MagellanIntegration;
+
+    // If detect_backend flag is set, report backend and exit early
+    if detect_backend {
+        let backend = splice::graph::CodeGraph::detect_backend(db_path)?;
+        if json_output {
+            let output = json!({
+                "backend": backend.to_string(),
+                "database": db_path.to_string_lossy(),
+            });
+            return Ok(splice::cli::CliSuccessPayload::with_data(
+                format!("Backend: {}", backend),
+                output,
+            ));
+        } else {
+            return Ok(splice::cli::CliSuccessPayload::message_only(format!(
+                "Backend: {}\nDatabase: {}",
+                backend,
+                db_path.display()
+            )));
+        }
+    }
+
+    // Check for native-v2 database without native-v2 feature
+    let detected_backend = splice::graph::CodeGraph::detect_backend(db_path)?;
+    if detected_backend == splice::graph::Backend::NativeV2 {
+        #[cfg(not(feature = "native-v2"))]
+        {
+            return Err(splice::SpliceError::Other(
+                "Cannot open native-v2 database without native-v2 feature. \
+                 Build with: cargo build --features native-v2 --no-default-features".to_string()
+            ));
+        }
+    }
 
     let integration = MagellanIntegration::open(db_path)?;
     let stats = integration.get_statistics()?;
@@ -4276,6 +4316,65 @@ fn execute_migrate_db(
             "Migration failed: {}",
             e
         ))),
+    }
+}
+
+/// Execute migrate command: convert SQLite database to native-v2.
+fn execute_migrate(
+    source: &Path,
+    dest: &Path,
+    show_progress: bool,
+    json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    // Open source database
+    let code_graph = splice::graph::CodeGraph::open(source).map_err(|e| {
+        splice::SpliceError::Other(format!("Failed to open source database: {}", e))
+    })?;
+
+    // Verify source is SQLite
+    let detected_backend = splice::graph::CodeGraph::detect_backend(source)?;
+    if detected_backend != splice::graph::Backend::SQLite {
+        return Err(splice::SpliceError::Other(format!(
+            "Source database is not SQLite format (detected: {}). \
+             Migration is only supported from SQLite to native-v2.",
+            detected_backend
+        )));
+    }
+
+    // Progress callback
+    let progress_cb: Option<&dyn Fn(&str)> = if show_progress {
+        Some(&|step: &str| {
+            eprintln!("  {}", step);
+        })
+    } else {
+        None
+    };
+
+    // Perform migration (pass source path for verification in plan 34-04)
+    let report = code_graph.migrate_to_native_v2(source, dest, progress_cb)?;
+
+    // Output results
+    if json_output {
+        let output = json!({
+            "status": "success",
+            "source": source.to_string_lossy(),
+            "destination": dest.to_string_lossy(),
+            "nodes_migrated": report.nodes_migrated,
+            "edges_migrated": report.edges_migrated,
+            "metadata": report.snapshot_metadata,
+        });
+        Ok(splice::cli::CliSuccessPayload::with_data(
+            format!("Migrated to {}", dest.display()),
+            output,
+        ))
+    } else {
+        Ok(splice::cli::CliSuccessPayload::message_only(format!(
+            "Migration complete!\n  Source: {}\n  Destination: {}\n  Nodes: {}\n  Edges: {}",
+            source.display(),
+            dest.display(),
+            report.nodes_migrated,
+            report.edges_migrated
+        )))
     }
 }
 
