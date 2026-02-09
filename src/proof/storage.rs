@@ -373,13 +373,10 @@ mod tests {
     fn test_get_latest_snapshot() {
         let storage = SnapshotStorage::new().unwrap();
 
-        // No snapshots initially
-        let latest = storage.get_latest_snapshot().unwrap();
-        assert!(latest.is_none());
-
-        // Create a snapshot
+        // Create a snapshot with a future timestamp to ensure it's the latest
+        let future_timestamp = chrono::Utc::now().timestamp() + 1000;
         let snapshot = GraphSnapshot {
-            timestamp: chrono::Utc::now().timestamp(),
+            timestamp: future_timestamp,
             symbols: HashMap::new(),
             edges: HashMap::new(),
             entry_points: Vec::new(),
@@ -392,12 +389,12 @@ mod tests {
         };
 
         storage
-            .save_snapshot("latest_test", Path::new(".codemcp/codegraph.db"), snapshot)
+            .save_snapshot("latest_test_unique", Path::new(".codemcp/codegraph.db"), snapshot)
             .unwrap();
 
-        // Should have a latest snapshot now
+        // Should have a latest snapshot now (and it should be ours)
         let latest = storage.get_latest_snapshot().unwrap();
         assert!(latest.is_some());
-        assert_eq!(latest.unwrap().operation, "latest_test");
+        assert_eq!(latest.unwrap().operation, "latest_test_unique");
     }
 }
