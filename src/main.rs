@@ -105,6 +105,9 @@ fn log_execution_error(operation: &str, err: &splice::SpliceError) {
 fn main() -> ExitCode {
     install_broken_pipe_hook();
 
+    // Check platform and warn about limitations
+    splice::platform::check_platform_support();
+
     // Parse CLI arguments
     let cli = splice::cli::parse_args();
     let json_output = cli.json_output();
@@ -2518,7 +2521,8 @@ fn execute_query(
     // Open Magellan integration
     let integration = MagellanIntegration::open(db_path)?;
 
-    // List all labels mode
+    // List all labels mode (SQLite backend only)
+    #[cfg(feature = "sqlite")]
     if list {
         let all_labels = integration.get_all_labels()?;
         write_stdout_line(&format!("{} labels in use:", all_labels.len()))?;
@@ -2548,7 +2552,17 @@ fn execute_query(
         return Ok(splice::cli::CliSuccessPayload::message_only(message));
     }
 
-    // Count mode
+    // If --list was requested but backend is native-v2, provide helpful error
+    #[cfg(not(feature = "sqlite"))]
+    if list {
+        return Err(splice::SpliceError::Other(
+            "The --list flag requires SQLite backend. Native-v2 backend does not support label queries. \
+             Use default SQLite backend: `cargo build` (no --features flag)".to_string()
+        ));
+    }
+
+    // Count mode (SQLite backend only)
+    #[cfg(feature = "sqlite")]
     if count {
         if labels.is_empty() {
             return Err(splice::SpliceError::Other(
@@ -2586,15 +2600,36 @@ fn execute_query(
         ));
     }
 
+    // If --count was requested but backend is native-v2, provide helpful error
+    #[cfg(not(feature = "sqlite"))]
+    if count {
+        return Err(splice::SpliceError::Other(
+            "The --count flag requires SQLite backend. Native-v2 backend does not support label queries. \
+             Use default SQLite backend: `cargo build` (no --features flag)".to_string()
+        ));
+    }
+
     // Query mode - get symbols by label(s)
+    // All label query modes require SQLite backend
+    #[cfg(not(feature = "sqlite"))]
+    return Err(splice::SpliceError::Other(
+        "Label queries require SQLite backend. Native-v2 backend does not support label queries. \
+         Use default SQLite backend: `cargo build` (no --features flag)".to_string()
+    ));
+
+    #[cfg(feature = "sqlite")]
     if labels.is_empty() {
         return Err(splice::SpliceError::Other(
             "No labels specified. Use --label <LABEL> or --list to see all labels".to_string(),
         ));
     }
 
+    #[cfg(feature = "sqlite")]
     let labels_ref: Vec<&str> = labels.iter().map(|s| s.as_str()).collect();
+    #[cfg(feature = "sqlite")]
     let mut results = integration.query_by_labels(&labels_ref)?;
+
+    #[cfg(feature = "sqlite")]
     // Sort results deterministically by file_path, then byte_start
     results.sort_by(|a, b| {
         a.file_path
@@ -2602,6 +2637,7 @@ fn execute_query(
             .then_with(|| a.byte_start.cmp(&b.byte_start))
     });
 
+    #[cfg(feature = "sqlite")]
     if results.is_empty() {
         if labels.len() == 1 {
             write_stdout_line(&format!("No symbols found with label '{}'", labels[0]))?;
@@ -2633,6 +2669,7 @@ fn execute_query(
     }
 
     // Check if JSON output is requested
+    #[cfg(feature = "sqlite")]
     if _json_output {
         use splice::action::{suggest_action, ActionType, Confidence};
         use splice::checksum;
@@ -2834,6 +2871,7 @@ fn execute_query(
     }
 
     // Build response data (for non-JSON output)
+    #[cfg(feature = "sqlite")]
     // Pre-calculate expanded boundaries for all results if expansion is requested
     struct ExpandedResult {
         result: splice::graph::magellan_integration::SymbolInfo,
@@ -2841,6 +2879,7 @@ fn execute_query(
         expanded_end: usize,
     }
 
+    #[cfg(feature = "sqlite")]
     let expanded_results: Vec<ExpandedResult> = results
         .iter()
         .map(|r| {
@@ -2884,6 +2923,7 @@ fn execute_query(
         })
         .collect();
 
+    #[cfg(feature = "sqlite")]
     let symbols_data: Vec<serde_json::Value> = expanded_results
         .iter()
         .map(|er| {
@@ -2910,6 +2950,7 @@ fn execute_query(
         })
         .collect();
 
+    #[cfg(feature = "sqlite")]
     // Print results to console
     if labels.len() == 1 {
         write_stdout_line(&format!(
@@ -2925,6 +2966,7 @@ fn execute_query(
         ))?;
     }
 
+    #[cfg(feature = "sqlite")]
     for er in &expanded_results {
         write_stdout_line("")?;
         write_stdout_line(&format!(
@@ -3021,16 +3063,21 @@ fn execute_query(
         }
     }
 
+    #[cfg(feature = "sqlite")]
     // Record execution for normal query
     let duration_ms = start.elapsed().as_millis() as i64;
+    #[cfg(feature = "sqlite")]
     let results_count = results.len();
+    #[cfg(feature = "sqlite")]
     let message = format!("Found {} symbols", results_count);
+    #[cfg(feature = "sqlite")]
     let parameters = serde_json::json!({
         "db": db_path.to_string_lossy(),
         "labels": labels,
         "show_code": show_code,
         "results_count": results_count,
     });
+    #[cfg(feature = "sqlite")]
     if let Err(e) = log::record_execution_with_params(
         &splice::output::OperationResult::new("query".to_string()).success(message.clone()),
         duration_ms,
@@ -3040,10 +3087,20 @@ fn execute_query(
         log_execution_error("query", &e);
     }
 
-    Ok(splice::cli::CliSuccessPayload::with_data(
-        message,
-        json!(symbols_data),
-    ))
+    #[cfg(feature = "sqlite")]
+    {
+        Ok(splice::cli::CliSuccessPayload::with_data(
+            message,
+            json!(symbols_data),
+        ))
+    }
+
+    #[cfg(not(feature = "sqlite"))]
+    {
+        Ok(splice::cli::CliSuccessPayload::message_only(
+            "Label queries require SQLite backend".to_string()
+        ))
+    }
 }
 
 /// Execute the get command.
