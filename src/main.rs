@@ -375,8 +375,8 @@ fn main() -> ExitCode {
             dry_run,
         } => execute_migrate_db(&db_path, backup, dry_run, json_output),
 
-        splice::cli::Commands::Migrate { source, dest, progress } => {
-            execute_migrate(&source, &dest, progress, json_output)
+        splice::cli::Commands::Migrate { source, dest, progress, skip_verify } => {
+            execute_migrate(&source, &dest, progress, skip_verify, json_output)
         }
 
         splice::cli::Commands::Rename {
@@ -4324,6 +4324,7 @@ fn execute_migrate(
     source: &Path,
     dest: &Path,
     show_progress: bool,
+    skip_verify: bool,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     // Open source database
@@ -4341,6 +4342,12 @@ fn execute_migrate(
         )));
     }
 
+    // Warn if skipping verification
+    if skip_verify {
+        eprintln!("Warning: Skipping verification (--skip-verify flag set)");
+        eprintln!("  The destination database will not be verified after migration.");
+    }
+
     // Progress callback
     let progress_cb: Option<&dyn Fn(&str)> = if show_progress {
         Some(&|step: &str| {
@@ -4350,9 +4357,18 @@ fn execute_migrate(
         None
     };
 
-    // Perform migration (pass source path for verification in plan 34-04)
-    // TODO: Task 2 will add --skip-verify flag, for now always verify
-    let report = code_graph.migrate_to_native_v2(source, dest, progress_cb, true)?;
+    // Perform migration with verification
+    let verify = !skip_verify;
+    let report = code_graph.migrate_to_native_v2(source, dest, progress_cb, verify)?;
+
+    // Determine verification status for display
+    let verification_display = if verify {
+        "passed".to_string()
+    } else if skip_verify {
+        "skipped".to_string()
+    } else {
+        "unknown".to_string()
+    };
 
     // Output results
     if json_output {
@@ -4363,6 +4379,7 @@ fn execute_migrate(
             "nodes_migrated": report.nodes_migrated,
             "edges_migrated": report.edges_migrated,
             "metadata": report.snapshot_metadata,
+            "verification": verification_display,
         });
         Ok(splice::cli::CliSuccessPayload::with_data(
             format!("Migrated to {}", dest.display()),
@@ -4370,11 +4387,12 @@ fn execute_migrate(
         ))
     } else {
         Ok(splice::cli::CliSuccessPayload::message_only(format!(
-            "Migration complete!\n  Source: {}\n  Destination: {}\n  Nodes: {}\n  Edges: {}",
+            "Migration complete!\n  Source:       {}\n  Destination:  {}\n  Nodes:        {}\n  Edges:        {}\n  Verification: {}",
             source.display(),
             dest.display(),
             report.nodes_migrated,
-            report.edges_migrated
+            report.edges_migrated,
+            verification_display
         )))
     }
 }

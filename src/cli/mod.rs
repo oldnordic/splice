@@ -595,6 +595,10 @@ pub enum Commands {
         /// Show progress during migration
         #[arg(long, default_value = "true")]
         progress: bool,
+
+        /// Skip post-migration verification (faster, but less safe)
+        #[arg(long)]
+        skip_verify: bool,
     },
 
     /// Rename a symbol across all files using byte-accurate references
