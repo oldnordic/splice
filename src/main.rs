@@ -536,6 +536,10 @@ fn main() -> ExitCode {
             detailed,
             output,
         } => execute_verify(&before, &after, detailed, output, json_output),
+
+        splice::cli::Commands::Snapshots(subcommand) => {
+            execute_snapshots(subcommand, json_output)
+        }
     };
 
     // Handle result

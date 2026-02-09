@@ -819,6 +819,55 @@ pub enum Commands {
         #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
         output: OutputFormat,
     },
+
+    /// Manage code graph snapshots
+    #[command(display_order = 118, subcommand)]
+    Snapshots(SnapshotsCommands),
+}
+
+/// Snapshot management subcommands.
+#[derive(clap::Subcommand, Debug, Clone)]
+pub enum SnapshotsCommands {
+    /// List all snapshots
+    List {
+        /// Filter by operation type (patch, delete, rename)
+        #[arg(short, long)]
+        operation: Option<String>,
+
+        /// Maximum number of snapshots to show
+        #[arg(short = 'n', long)]
+        limit: Option<usize>,
+
+        /// Show total disk usage
+        #[arg(long)]
+        disk_usage: bool,
+
+        /// Output format (human, json, pretty)
+        #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
+        output: OutputFormat,
+    },
+
+    /// Delete a specific snapshot
+    Delete {
+        /// Snapshot ID (timestamp or filename)
+        #[arg(short, long)]
+        id: String,
+
+        /// Skip confirmation prompt
+        #[arg(long)]
+        force: bool,
+    },
+
+    /// Clean up old snapshots (keep N most recent)
+    Cleanup {
+        /// Number of recent snapshots to keep (default: 10)
+        #[arg(short = 'k', long, default_value = "10")]
+        keep: usize,
+
+        /// Show what would be deleted without deleting
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 /// Symbol kind for filtering.
