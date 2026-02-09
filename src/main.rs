@@ -102,6 +102,48 @@ fn log_execution_error(operation: &str, err: &splice::SpliceError) {
 /// - `-A 5 -B 2`: 5 before, 2 after
 /// - `-C 10 -A 5`: 10 before (from -C), 10 after (max of -C=10 and -A=5)
 /// - No flags: 3 before, 3 after (default -C 3)
+
+/// Capture a graph snapshot before a refactoring operation.
+fn capture_snapshot(db_path: &Path, operation: &str) -> Result<(), splice::SpliceError> {
+    use splice::proof::data_structures::{RefactoringProof, ProofMetadata};
+    use splice::proof::generation::{generate_snapshot, create_metadata, write_proof};
+    use std::fs;
+
+    // Generate snapshot from current database state
+    let snapshot = generate_snapshot(db_path)?;
+
+    // Create snapshots directory if it doesn't exist
+    let snapshots_dir = PathBuf::from(".splice").join("snapshots");
+    fs::create_dir_all(&snapshots_dir)
+        .map_err(|e| splice::SpliceError::Other(format!("Failed to create snapshots dir: {}", e)))?;
+
+    // Create minimal proof metadata
+    let metadata = create_metadata(operation, db_path);
+
+    // Create minimal RefactoringProof (only before snapshot, no after)
+    let proof = RefactoringProof {
+        metadata,
+        before: snapshot.clone(),
+        after: snapshot, // Use same snapshot for before/after (snapshot-only mode)
+        invariants: vec![],
+        checksums: None,
+    };
+
+    // Write proof to file
+    let timestamp = chrono::Utc::now().timestamp();
+    let filename = format!("snapshot-{}-{}.json", operation, timestamp);
+    let snapshot_path = snapshots_dir.join(&filename);
+
+    let json = serde_json::to_string_pretty(&proof)
+        .map_err(|e| splice::SpliceError::Other(format!("Failed to serialize snapshot: {}", e)))?;
+
+    fs::write(&snapshot_path, json)
+        .map_err(|e| splice::SpliceError::Other(format!("Failed to write snapshot: {}", e)))?;
+
+    eprintln!("Snapshot captured: {}", snapshot_path.display());
+    Ok(())
+}
+
 fn main() -> ExitCode {
     install_broken_pipe_hook();
 
@@ -597,6 +639,11 @@ fn execute_delete(
     // Resolve context counts from -A/-B/-C flags
     let (ctx_before, ctx_after) =
         splice::resolve_context_counts(context_before, context_after, context);
+
+    // Capture snapshot before operation if requested
+    if snapshot_before {
+        eprintln!("Warning: --snapshot-before is not yet supported for delete operations");
+    }
 
     // Start timing
     let start = std::time::Instant::now();
@@ -1346,6 +1393,17 @@ fn execute_patch(
     // Resolve context counts from -A/-B/-C flags
     let (ctx_before, ctx_after) =
         splice::resolve_context_counts(context_before, context_after, context_both);
+
+    // Capture snapshot before operation if requested
+    if snapshot_before {
+        if let Some(db_path) = &db {
+            if let Err(e) = capture_snapshot(db_path, "patch") {
+                eprintln!("Warning: Failed to capture snapshot: {}", e);
+            }
+        } else {
+            eprintln!("Warning: --snapshot-before requires --db flag for snapshot capture");
+        }
+    }
 
     // Start timing
     let start = std::time::Instant::now();
@@ -4447,6 +4505,13 @@ fn execute_rename(
     use splice::graph::MagellanIntegration;
     use splice::proof::{generate_proof, write_proof};
     use splice::proof::generation::generate_snapshot;
+
+    // Capture snapshot before operation if requested
+    if snapshot_before {
+        if let Err(e) = capture_snapshot(db_path, "rename") {
+            eprintln!("Warning: Failed to capture snapshot: {}", e);
+        }
+    }
 
     // Validate input: either --symbol or (--name AND --file) must be provided
     let (lookup_id, lookup_name, lookup_file) = match (symbol_id, name, file) {
