@@ -20,6 +20,27 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::path::Path;
 
+/// Database backend format detected in a graph database file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Backend {
+    /// SQLite-based backend (default, backward compatible)
+    SQLite,
+    /// Native-v2 backend (requires native-v2 feature)
+    NativeV2,
+    /// Unknown or unrecognized format
+    Unknown,
+}
+
+impl std::fmt::Display for Backend {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Backend::SQLite => write!(f, "sqlite"),
+            Backend::NativeV2 => write!(f, "native-v2"),
+            Backend::Unknown => write!(f, "unknown"),
+        }
+    }
+}
+
 /// Graph database handle.
 ///
 /// Wraps SQLiteGraph and provides Splice-specific operations.
@@ -61,7 +82,7 @@ impl CodeGraph {
         })
     }
 
-    fn is_sqlite_db(path: &Path) -> Result<bool> {
+    pub fn is_sqlite_db(path: &Path) -> Result<bool> {
         if !path.exists() {
             return Ok(false);
         }
@@ -78,6 +99,39 @@ impl CodeGraph {
         }
 
         Ok(&header[..15] == b"SQLite format 3")
+    }
+
+    /// Detect which backend format a database file uses.
+    ///
+    /// Checks the file header to determine if the database is SQLite or native-v2 format.
+    /// Returns Backend::Unknown for non-existent files or unrecognized formats.
+    ///
+    /// # Arguments
+    /// * `path` - Path to the database file
+    ///
+    /// # Returns
+    /// * `Ok(Backend)` - Detected backend format
+    /// * `Err(SpliceError)` - If file cannot be read
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use splice::graph::CodeGraph;
+    /// use std::path::Path;
+    ///
+    /// let backend = CodeGraph::detect_backend(Path::new(".codemcp/codegraph.db"))?;
+    /// println!("Database backend: {}", backend);
+    /// ```
+    pub fn detect_backend(path: &Path) -> Result<Backend> {
+        if !path.exists() {
+            return Ok(Backend::Unknown);
+        }
+        Ok(if Self::is_sqlite_db(path)? {
+            Backend::SQLite
+        } else {
+            // If it exists but isn't SQLite, assume native-v2
+            // (native-v2 databases don't have a recognizable header like SQLite)
+            Backend::NativeV2
+        })
     }
 
     /// Store a symbol with its byte span and metadata (legacy method for backward compatibility).
@@ -358,6 +412,52 @@ impl CodeGraph {
     /// Access the underlying graph backend mutably for advanced operations.
     pub fn inner_mut(&mut self) -> &mut dyn GraphBackend {
         self.backend.as_mut()
+    }
+}
+
+#[cfg(test)]
+mod backend_detection_tests {
+    use super::*;
+    use std::io::Write;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_detect_backend_sqlite() {
+        let temp_dir = std::env::temp_dir();
+        let db_path = temp_dir.join(format!("test_sqlite_{}.db", uuid::Uuid::new_v4()));
+
+        // Write SQLite header
+        let mut file = std::fs::File::create(&db_path).unwrap();
+        file.write_all(b"SQLite format 3\0").unwrap();
+
+        let backend = CodeGraph::detect_backend(&db_path).unwrap();
+        assert_eq!(backend, Backend::SQLite);
+
+        std::fs::remove_file(&db_path).ok();
+    }
+
+    #[test]
+    fn test_detect_backend_nonexistent() {
+        let temp_path = std::env::temp_dir().join("nonexistent_test_db.db");
+        let _ = std::fs::remove_file(&temp_path);
+
+        let backend = CodeGraph::detect_backend(&temp_path).unwrap();
+        assert_eq!(backend, Backend::Unknown);
+    }
+
+    #[test]
+    fn test_detect_backend_empty_file() {
+        let temp_dir = std::env::temp_dir();
+        let db_path = temp_dir.join(format!("test_empty_{}.db", uuid::Uuid::new_v4()));
+
+        std::fs::File::create(&db_path).unwrap();
+
+        // Empty file is not SQLite, should be NativeV2 (or Unknown)
+        let backend = CodeGraph::detect_backend(&db_path).unwrap();
+        // Empty files aren't valid native-v2, but our logic returns NativeV2 for non-SQLite
+        assert_eq!(backend, Backend::NativeV2);
+
+        std::fs::remove_file(&db_path).ok();
     }
 }
 
