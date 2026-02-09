@@ -13,17 +13,17 @@ See: `.planning/PROJECT.md` (updated 2026-02-09)
 
 ## Current Position
 
-**Phase:** 34 of 38 (Backend Detection & Migration)
-**Plan:** 4 of 4 in current phase
+**Phase:** 35 of 38 (Snapshots & Verification)
+**Plan:** 1 of 5 in current phase
 **Status:** Completed
-**Last activity:** 2026-02-09 — Plan 34-04 completed: Migration verification and rollback with --skip-verify flag
+**Last activity:** 2026-02-09 — Plan 35-01 completed: Snapshot capture with --snapshot-before flag
 
 ---
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5 (v2.5.0)
+- Total plans completed: 6 (v2.5.0)
 - Average duration: 5 min
 - Total execution time: ~0.5 hours
 
@@ -32,9 +32,8 @@ See: `.planning/PROJECT.md` (updated 2026-02-09)
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 33 | 4 | 4 | 6 min |
-| 34 | 1 | 4 | 2 min |
-| Phase 34 P03 | 8 | 2 tasks | 3 files |
-| Phase 34-backend-detection-migration P02 | 1770673050 | 1 tasks | 2 files |
+| 34 | 4 | 4 | 5 min |
+| 35 | 1 | 5 | 7 min |
 
 ## Accumulated Context
 
@@ -187,7 +186,19 @@ let cfg = if Self::is_sqlite_db(path)? {
 - Rationale: Migrations are risky operations - users need assurance that migration completed successfully
 - Trade-off: Slower migration by default, but prevents data corruption; --skip-verify flag available for performance
 
+**35-01: Snapshot Capture with --snapshot-before Flag**
+- Decision: Snapshot capture requires --db flag for patch operations
+- Rationale: generate_snapshot() requires Magellan database path; patch has optional --db flag
+- Trade-off: Snapshot only captured when both --snapshot-before AND --db are provided
+- Implementation: capture_snapshot() checks for db path, logs warning if missing
+- Decision: Delete operations log warning for --snapshot-before (not supported)
+- Rationale: Delete uses local CodeGraph instance, not Magellan database
+- Trade-off: Users informed of limitation, operation continues without snapshot
+- Decision: Non-blocking error handling for snapshot capture failures
+- Rationale: Snapshot issues shouldn't block legitimate refactoring work
+- Trade-off: Operations continue even if snapshot fails; warning logged for awareness
+
 ---
 
 *State updated: 2026-02-09*
-*Last session: 2026-02-09T21:47:00Z - Completed Phase 34-04*
+*Last session: 2026-02-09T22:36:00Z - Completed Phase 35-01*
