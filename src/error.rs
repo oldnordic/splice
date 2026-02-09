@@ -191,6 +191,26 @@ pub enum SpliceError {
         message: String,
     },
 
+    /// Invalid batch specification format
+    #[error("Invalid batch specification in {path}: {reason}")]
+    InvalidBatchSpec {
+        /// Path to the batch file
+        path: std::path::PathBuf,
+        /// Error reason
+        reason: String,
+    },
+
+    /// Batch operation failed during execution
+    #[error("Batch operation {index} ({op_type}) failed: {source}")]
+    BatchOperationFailed {
+        /// Operation index that failed (1-based for user display)
+        index: usize,
+        /// Operation type (patch, delete, rename)
+        op_type: String,
+        /// Underlying error
+        source: Box<SpliceError>,
+    },
+
     /// Invalid batch JSON schema.
     #[error("Invalid batch schema: {message}")]
     InvalidBatchSchema {
@@ -307,6 +327,22 @@ impl From<std::io::Error> for SpliceError {
         SpliceError::Io {
             path: PathBuf::from("<unknown>"),
             source: err,
+        }
+    }
+}
+
+impl From<crate::batch::BatchError> for SpliceError {
+    fn from(err: crate::batch::BatchError) -> Self {
+        match err {
+            crate::batch::BatchError::Io { ref path, .. } => SpliceError::InvalidBatchSpec {
+                path: path.clone(),
+                reason: err.to_string(),
+            },
+            crate::batch::BatchError::ParseError { ref path, .. } => SpliceError::InvalidBatchSpec {
+                path: path.clone(),
+                reason: err.to_string(),
+            },
+            _ => SpliceError::Other(err.to_string()),
         }
     }
 }
@@ -532,6 +568,8 @@ impl SpliceError {
             SpliceError::AnalyzerNotAvailable { .. } => "AnalyzerNotAvailable",
             SpliceError::AnalyzerFailed { .. } => "AnalyzerFailed",
             SpliceError::InvalidPlanSchema { .. } => "InvalidPlanSchema",
+            SpliceError::InvalidBatchSpec { .. } => "InvalidBatchSpec",
+            SpliceError::BatchOperationFailed { .. } => "BatchOperationFailed",
             SpliceError::InvalidBatchSchema { .. } => "InvalidBatchSchema",
             SpliceError::PlanExecutionFailed { .. } => "PlanExecutionFailed",
             SpliceError::Utf8(_) => "Utf8",

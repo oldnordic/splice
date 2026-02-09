@@ -397,6 +397,14 @@ impl SpliceErrorCode {
             // Rename operation errors
             crate::SpliceError::RenameFailed { .. } => Some(SpliceErrorCode::RenameFailed),
 
+            // Batch operation errors
+            crate::SpliceError::InvalidBatchSpec { .. } => {
+                Some(SpliceErrorCode::InvalidBatchSchema)
+            }
+            crate::SpliceError::BatchOperationFailed { .. } => {
+                Some(SpliceErrorCode::PlanExecutionFailed)
+            }
+
             // Intentionally unmapped errors:
             // - BrokenPipe: terminal state, not user-fixable
             // - Utf8: covered by InvalidUtf8 variant

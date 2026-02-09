@@ -4,5 +4,5 @@
 
 pub mod spec;
 
-pub use spec::{BatchSpec, BatchOperation, PatchOp, DeleteOp, RenameOp, parse_batch_spec};
+pub use spec::{BatchSpec, BatchOperation, PatchOp, DeleteOp, RenameOp, ExecutionMode, parse_batch_spec};
 pub use spec::BatchSpecError as BatchError;
