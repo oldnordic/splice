@@ -100,7 +100,7 @@ Plans:
   3. Batch command accepts YAML spec file listing operations to perform
   4. Batch command provides automatic rollback if any operation fails
 
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
 - [ ] 36-01: Implement --impact-graph flag with DOT output generation
@@ -122,7 +122,7 @@ Plans:
   3. All tests pass in both backend configurations
   4. Test coverage report includes both backend variants
 
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
 - [ ] 37-01: Create CI matrix workflow for dual backend testing
@@ -144,7 +144,7 @@ Plans:
   3. Manual explains migration command usage and workflow
   4. Manual documents native-v2 specific features (snapshots, verify, batch)
 
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
 - [ ] 38-01: Write "Which Backend Should I Use?" decision guide
@@ -162,8 +162,8 @@ Phases execute in numeric order: 33 → 34 → 35 → 36 → 37 → 38
 | 33. Feature Flag Infrastructure | v2.5.0 | 4/4 | Complete | 2026-02-09 |
 | 34. Backend Detection & Migration | v2.5.0 | 0/4 | Ready to execute | - |
 | 35. Snapshots & Verification | v2.5.0 | 0/5 | Ready to execute | - |
-| 36. Advanced Features | v2.5.0 | 0/4 | Not started | - |
-| 37. Testing Infrastructure | v2.5.0 | 0/4 | Not started | - |
-| 38. Documentation | v2.5.0 | 0/4 | Not started | - |
+| 36. Advanced Features | v2.5.0 | 0/4 | Ready to execute | - |
+| 37. Testing Infrastructure | v2.5.0 | 0/4 | Ready to execute | - |
+| 38. Documentation | v2.5.0 | 0/4 | Ready to execute | - |
 
 **v2.5.0 Progress:** [███░░░░░░░░] 17% (4/24 plans)
