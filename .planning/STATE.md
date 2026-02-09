@@ -7,16 +7,16 @@
 See: `.planning/PROJECT.md` (updated 2026-02-09)
 
 **Core value:** Safe code transformation with byte-level precision and rollback support
-**Current focus:** Phase 34 - Backend Detection & Migration
+**Current focus:** Phase 36 - Advanced Features
 
 ---
 
 ## Current Position
 
-**Phase:** 35 of 38 (Snapshots & Verification)
-**Plan:** 5 of 5 in current phase
+**Phase:** 36 of 38 (Advanced Features)
+**Plan:** 2 of 4 in current phase
 **Status:** Completed
-**Last activity:** 2026-02-09 — Plan 35-05 completed: Snapshot cleanup and management utilities
+**Last activity:** 2026-02-09 — Plan 36-02 completed: YAML batch specification schema
 
 ---
 
@@ -260,7 +260,18 @@ let cfg = if Self::is_sqlite_db(path)? {
 - Trade-off: Extra step for user but improves safety
 - Implementation: confirm_action() checks for lowercase 'y' or 'yes'
 
+**36-02: YAML Batch Specification Schema**
+- Decision: Use serde tag-based enum deserialization for operation discrimination
+- Rationale: Using #[serde(tag = "type")] ensures type-safe discrimination while maintaining readable YAML format
+- Trade-off: Slightly more verbose YAML (requires "type: patch" field) but prevents invalid operation specifications at parse time
+- Decision: Path validation in parse_batch_spec() happens at parse time, not execution time
+- Rationale: Checking file existence during parsing provides immediate feedback to users
+- Trade-off: Valid specs at parse time may still fail at execution (e.g., file deleted between parse and execute)
+- Decision: BatchError integration via From trait
+- Rationale: Converting BatchError to SpliceError enables seamless error handling without changing existing call sites
+- Trade-off: Some BatchError variants map to generic SpliceError::Other instead of dedicated variants
+
 ---
 
 *State updated: 2026-02-09*
-*Last session: 2026-02-09T23:07:21Z - Completed Phase 35-05*
+*Last session: 2026-02-09T23:47:55Z - Completed Phase 36-02*
