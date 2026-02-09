@@ -33,6 +33,7 @@ pub mod graph;
 pub mod hints;
 pub mod ingest;
 pub mod output;
+pub mod batch;
 pub mod patch;
 pub mod platform;
 pub mod plan;
@@ -88,6 +89,9 @@ pub use relationships::{Relationship, RelationshipCache, Relationships};
 
 /// Re-export expansion API for convenience.
 pub use expand::{expand_symbol, expand_symbol_with_level, ExpansionLevel, SymbolExpander};
+
+/// Re-export batch operations for convenience.
+pub use batch::{BatchSpec, BatchOperation, ExecutionMode};
 
 // ============================================================================
 // Graph Algorithm Response Types (Phase 30)
