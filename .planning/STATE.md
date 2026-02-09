@@ -14,18 +14,18 @@ See: `.planning/PROJECT.md` (updated 2026-02-09)
 ## Current Position
 
 **Phase:** 35 of 38 (Snapshots & Verification)
-**Plan:** 2 of 5 in current phase
+**Plan:** 3 of 5 in current phase
 **Status:** Completed
-**Last activity:** 2026-02-09 — Plan 35-02 completed: Snapshot storage module with RFC 3339 timestamp-based file naming
+**Last activity:** 2026-02-09 — Plan 35-03 completed: Snapshot comparison module with Verify CLI command
 
 ---
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7 (v2.5.0)
-- Average duration: 5 min
-- Total execution time: ~0.6 hours
+- Total plans completed: 8 (v2.5.0)
+- Average duration: 5.4 min
+- Total execution time: ~0.7 hours
 
 **By Phase:**
 
@@ -33,7 +33,7 @@ See: `.planning/PROJECT.md` (updated 2026-02-09)
 |-------|-------|-------|----------|
 | 33 | 4 | 4 | 6 min |
 | 34 | 4 | 4 | 5 min |
-| 35 | 2 | 5 | 6 min |
+| 35 | 3 | 8 min | 6 min |
 
 ## Accumulated Context
 
@@ -212,7 +212,23 @@ let cfg = if Self::is_sqlite_db(path)? {
 - Implementation: fs::create_dir_all() in constructor, returns Io error on failure
 - Trade-off: May fail if permissions insufficient, but provides clear error message
 
+**35-03: Snapshot Comparison with Diff Algorithm**
+- Decision: Use owned String types in HashMap for diff operations
+- Rationale: Avoids complex lifetime issues with references; HashSet<&String> caused borrow checker errors
+- Trade-off: Slightly more memory usage but significantly simpler code
+- Implementation: Use .cloned().collect() on HashMap keys to create owned sets
+- Decision: Track all SymbolInfo fields for modification detection
+- Rationale: Any change to symbol (name, file_path, kind, byte_span, fan_in, fan_out) represents a meaningful diff
+- Trade-off: More comprehensive than tracking just name changes; catches all refactoring side effects
+- Decision: Conditional exit code handling with mutable payload
+- Rationale: with_pending_changes() takes no arguments; must conditionally call based on diff detection
+- Trade-off: Slightly more verbose than hypothetical with_pending_changes_if(bool) method
+- Decision: Sort diff results by ID for consistency
+- Rationale: Unsorted HashMap iteration produces non-deterministic output order
+- Trade-off: O(n log n) sort cost but provides reproducible, testable output
+- Implementation: Sort symbol_diffs by ID, edge_details by (from, to) tuple
+
 ---
 
 *State updated: 2026-02-09*
-*Last session: 2026-02-09T22:46:00Z - Completed Phase 35-02*
+*Last session: 2026-02-09T22:52:00Z - Completed Phase 35-03*

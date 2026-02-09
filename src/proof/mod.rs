@@ -26,7 +26,7 @@ pub use generation::{
     generate_snapshot, create_metadata, write_proof,
 };
 
-pub use storage::{SnapshotStorage, SnapshotMetadata};
+pub use storage::{SnapshotStorage, SnapshotMetadata, RestoreResult};
 
 pub use validation::validate_invariants;
 
