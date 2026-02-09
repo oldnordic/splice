@@ -7,6 +7,7 @@
 pub mod checksums;
 pub mod data_structures;
 pub mod generation;
+pub mod storage;
 pub mod validation;
 
 pub use checksums::{
@@ -23,6 +24,8 @@ pub use data_structures::{
 pub use generation::{
     generate_snapshot, create_metadata, write_proof,
 };
+
+pub use storage::{SnapshotStorage, SnapshotMetadata};
 
 pub use validation::validate_invariants;
 

@@ -135,6 +135,7 @@ pub use proof::{
     RefactoringProof, GraphSnapshot, ProofMetadata, InvariantCheck,
     InvariantViolation, ViolationSeverity, ProofChecksums,
     SymbolInfo as ProofSymbolInfo, GraphStats,
+    SnapshotStorage, SnapshotMetadata,
 };
 
 /// Splice version.
