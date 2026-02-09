@@ -539,6 +539,10 @@ pub enum Commands {
         /// Output format (human, json, pretty)
         #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
         output: OutputFormat,
+
+        /// Generate DOT graph output for visualization
+        #[arg(long)]
+        impact_graph: bool,
     },
 
     /// List all indexed files
@@ -617,7 +621,7 @@ pub enum Commands {
         symbol: Option<String>,
 
         /// Symbol name (requires --file)
-        #[arg(short, long, conflicts_with = "symbol")]
+        #[arg(long, conflicts_with = "symbol")]
         name: Option<String>,
 
         /// File path for symbol name resolution (required with --name)
@@ -654,6 +658,10 @@ pub enum Commands {
         /// Capture graph snapshot before renaming.
         #[arg(long)]
         snapshot_before: bool,
+
+        /// Generate DOT graph output for visualization (requires --preview)
+        #[arg(long, requires = "preview")]
+        impact_graph: bool,
     },
 
     /// Show reachability analysis for a symbol (caller/callee chains)
@@ -682,6 +690,10 @@ pub enum Commands {
         /// Output format (human, json, pretty)
         #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
         output: OutputFormat,
+
+        /// Generate DOT graph output for visualization
+        #[arg(long)]
+        impact_graph: bool,
     },
 
     /// Detect dead code (unreachable symbols) from entry points

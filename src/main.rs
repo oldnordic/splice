@@ -401,7 +401,8 @@ fn main() -> ExitCode {
             path,
             direction,
             output,
-        } => execute_refs(&db, &name, &path, direction, output, json_output),
+            impact_graph,
+        } => execute_refs(&db, &name, &path, direction, output, impact_graph, json_output),
 
         splice::cli::Commands::Files {
             db,
@@ -437,6 +438,7 @@ fn main() -> ExitCode {
             no_backup,
             create_backup: _,
             snapshot_before,
+            impact_graph,
         } => execute_rename(
             symbol.as_deref(),
             name.as_deref(),
@@ -448,6 +450,7 @@ fn main() -> ExitCode {
             backup_dir.as_ref(),
             no_backup,
             snapshot_before,
+            impact_graph,
             json_output,
         ),
 
@@ -458,6 +461,7 @@ fn main() -> ExitCode {
             direction,
             max_depth,
             output,
+            impact_graph,
         } => execute_reachable(
             &symbol,
             &path,
@@ -465,6 +469,7 @@ fn main() -> ExitCode {
             &direction,
             max_depth,
             output,
+            impact_graph,
             json_output,
         ),
 
@@ -4007,6 +4012,7 @@ fn execute_refs(
     path: &Path,
     direction: splice::cli::CallDirection,
     _output: splice::cli::OutputFormat,
+    impact_graph: bool,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::magellan_integration::{CallDirection, MagellanIntegration};
@@ -4511,6 +4517,7 @@ fn execute_rename(
     _backup_dir: Option<&PathBuf>,
     no_backup: bool,
     snapshot_before: bool,
+    impact_graph: bool,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::MagellanIntegration;
@@ -4886,6 +4893,7 @@ fn execute_reachable(
     direction: &splice::cli::ReachabilityDirection,
     max_depth: usize,
     output: splice::cli::OutputFormat,
+    impact_graph: bool,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::MagellanIntegration;
