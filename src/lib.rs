@@ -7,6 +7,18 @@
 // env_logger is used by src/main.rs (binary), not this library
 #![expect(unused_crate_dependencies)]
 
+// Compile-time guard: prevent enabling both backends simultaneously
+#[cfg(all(feature = "sqlite", feature = "native-v2"))]
+compile_error!(
+    "Features 'sqlite' and 'native-v2' are mutually exclusive. \
+     Enable only one backend feature. Remove one of: \
+     --features sqlite \
+     --features native-v2 \
+     \
+     Default is SQLite, so use `cargo build` with no features, or \
+     `cargo build --features native-v2` for the native-v2 backend."
+);
+
 pub mod action;
 pub mod checksum;
 pub mod cli;
@@ -22,6 +34,7 @@ pub mod hints;
 pub mod ingest;
 pub mod output;
 pub mod patch;
+pub mod platform;
 pub mod plan;
 pub mod proof;
 pub mod relationships;
