@@ -14,9 +14,9 @@ See: `.planning/PROJECT.md` (updated 2026-02-09)
 ## Current Position
 
 **Phase:** 34 of 38 (Backend Detection & Migration)
-**Plan:** 3 of 4 in current phase
-**Status:** In Progress
-**Last activity:** 2026-02-09 — Plan 34-03 completed: Database migration command (SQLite → native-v2)
+**Plan:** 2 of 4 in current phase
+**Status:** Completed
+**Last activity:** 2026-02-09 — Plan 34-02 completed: CLI --detect-backend flag for backend format reporting
 
 ---
 
@@ -34,6 +34,7 @@ See: `.planning/PROJECT.md` (updated 2026-02-09)
 | 33 | 4 | 4 | 6 min |
 | 34 | 1 | 4 | 2 min |
 | Phase 34 P03 | 8 | 2 tasks | 3 files |
+| Phase 34-backend-detection-migration P02 | 1770673050 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -165,6 +166,12 @@ let cfg = if Self::is_sqlite_db(path)? {
 - Implementation: Backend enum with Display trait (outputs lowercase strings), detect_backend() function using file header magic string detection
 - Trade-off: detect_backend() returns Ok(Unknown) for non-existent files rather than error for graceful handling
 
+**34-02: CLI Backend Detection Flag**
+- Decision: Use standard JSON response format with human-readable message field for --detect-backend flag
+- Rationale: Maintains consistency with other CLI commands while keeping backend info readable
+- Implementation: Early-exit pattern when flag is set, returns immediately without opening database
+- Trade-off: Backend info in message field requires parsing for programmatic use, but enables human-readable output
+
 **34-03: Database Migration Command**
 - Decision: Use cfg-gated implementation for migrate_to_native_v2() method
 - Rationale: Prevents users from calling migrate without proper build configuration, provides clear error message
@@ -174,4 +181,4 @@ let cfg = if Self::is_sqlite_db(path)? {
 ---
 
 *State updated: 2026-02-09*
-*Last session: 2026-02-09T21:43:00Z - Completed Phase 34-03*
+*Last session: 2026-02-09T21:33:00Z - Completed Phase 34-02*
