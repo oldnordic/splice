@@ -7,33 +7,32 @@
 See: `.planning/PROJECT.md` (updated 2026-02-09)
 
 **Core value:** Safe code transformation with byte-level precision and rollback support
-**Current focus:** Phase 33 - Feature Flag Infrastructure
+**Current focus:** Phase 34 - Backend Detection & Migration
 
 ---
 
 ## Current Position
 
-**Phase:** 33 of 38 (Feature Flag Infrastructure)
-**Plan:** 4 of 4 in current phase
-**Status:** Complete
-**Last activity:** 2026-02-09 — Plan 33-04 completed: Gap closure for native-v2 compilation
+**Phase:** 34 of 38 (Backend Detection & Migration)
+**Plan:** 1 of 4 in current phase
+**Status:** In Progress
+**Last activity:** 2026-02-09 — Plan 34-01 completed: Public Backend enum and detect_backend() API
 
 ---
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4 (v2.5.0)
-- Average duration: 6 min
-- Total execution time: ~0.4 hours
+- Total plans completed: 5 (v2.5.0)
+- Average duration: 5 min
+- Total execution time: ~0.5 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 33 | 4 | 4 | 6 min |
-
----
+| 34 | 1 | 4 | 2 min |
 
 ## Accumulated Context
 
@@ -159,6 +158,13 @@ let cfg = if Self::is_sqlite_db(path)? {
 - Trade-off: --list, --count, and --label CLI flags unavailable with native-v2 backend; clear error messages guide users to SQLite backend
 - Implementation: Added #[cfg(feature = "sqlite")] to MagellanIntegration methods, CLI query paths, and 50+ tests
 
+**34-01: Backend Enum and Detection API**
+- Decision: Add public Backend enum with SQLite, NativeV2, and Unknown variants
+- Rationale: Type-safe backend detection prevents confusion between sqlite and native-v2 formats
+- Implementation: Backend enum with Display trait (outputs lowercase strings), detect_backend() function using file header magic string detection
+- Trade-off: detect_backend() returns Ok(Unknown) for non-existent files rather than error for graceful handling
+
 ---
 
 *State updated: 2026-02-09*
+*Last session: 2026-02-09T21:26:03Z - Completed Phase 34-01*
