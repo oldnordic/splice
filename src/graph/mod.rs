@@ -52,6 +52,10 @@ pub struct MigrationReport {
     pub snapshot_metadata: String,
     /// Path to the migrated database
     pub destination: std::path::PathBuf,
+    /// Whether post-migration verification passed
+    pub verification_passed: bool,
+    /// Verification error message (if verification failed)
+    pub verification_error: Option<String>,
 }
 
 /// Graph database handle.
@@ -427,6 +431,92 @@ impl CodeGraph {
         self.backend.as_mut()
     }
 
+    /// Verify that a migration completed successfully.
+    ///
+    /// Compares node and edge counts between source and destination databases.
+    /// Returns true if counts match exactly.
+    ///
+    /// # Arguments
+    /// * `source_path` - Path to the original source database
+    /// * `dest_path` - Path to the migrated destination database
+    ///
+    /// # Returns
+    /// * `Ok(())` - Verification passed, counts match
+    /// * `Err(SpliceError)` - Verification failed or could not be performed
+    pub fn verify_migration(source_path: &Path, dest_path: &Path) -> Result<()> {
+        // Open source database
+        let source_cfg = if Self::is_sqlite_db(source_path)? {
+            sqlitegraph::GraphConfig::sqlite()
+        } else {
+            sqlitegraph::GraphConfig::native()
+        };
+        let source_backend = sqlitegraph::open_graph(source_path, &source_cfg)
+            .map_err(|e| SpliceError::Other(format!("Failed to open source for verification: {}", e)))?;
+
+        // Open destination database
+        let dest_backend = sqlitegraph::open_graph(dest_path, &sqlitegraph::GraphConfig::native())
+            .map_err(|e| SpliceError::Other(format!("Failed to open destination for verification: {}", e)))?;
+
+        // Get node counts using entity_ids()
+        let source_nodes = source_backend
+            .entity_ids()
+            .map_err(|e| SpliceError::Other(format!("Failed to get source node count: {}", e)))?
+            .len();
+        let dest_nodes = dest_backend
+            .entity_ids()
+            .map_err(|e| SpliceError::Other(format!("Failed to get destination node count: {}", e)))?
+            .len();
+
+        // For edge counts, we need to iterate through all nodes and sum their degrees
+        // This is expensive but necessary for verification
+        let snapshot_id = SnapshotId::current();
+
+        let source_node_ids = source_backend.entity_ids().map_err(|e| SpliceError::Other(format!("Failed to get source nodes: {}", e)))?;
+        let mut source_edges = 0usize;
+        for node_id in source_node_ids {
+            let (in_degree, out_degree) = source_backend
+                .node_degree(snapshot_id, node_id)
+                .map_err(|e| SpliceError::Other(format!("Failed to get source node degree: {}", e)))?;
+            source_edges += in_degree + out_degree;
+        }
+
+        let dest_node_ids = dest_backend.entity_ids().map_err(|e| SpliceError::Other(format!("Failed to get dest nodes: {}", e)))?;
+        let mut dest_edges = 0usize;
+        for node_id in dest_node_ids {
+            let (in_degree, out_degree) = dest_backend
+                .node_degree(snapshot_id, node_id)
+                .map_err(|e| SpliceError::Other(format!("Failed to get dest node degree: {}", e)))?;
+            dest_edges += in_degree + out_degree;
+        }
+
+        // Verify counts match
+        let nodes_match = source_nodes == dest_nodes;
+        let edges_match = source_edges == dest_edges;
+
+        if nodes_match && edges_match {
+            Ok(())
+        } else {
+            // Return detailed error
+            let mut error_parts = Vec::new();
+            if !nodes_match {
+                error_parts.push(format!(
+                    "node count mismatch: source={}, dest={}",
+                    source_nodes, dest_nodes
+                ));
+            }
+            if !edges_match {
+                error_parts.push(format!(
+                    "edge count mismatch: source={}, dest={}",
+                    source_edges, dest_edges
+                ));
+            }
+            Err(SpliceError::Other(format!(
+                "Migration verification failed: {}",
+                error_parts.join(", ")
+            )))
+        }
+    }
+
     /// Migrate this database to native-v2 format.
     ///
     /// This method:
@@ -473,6 +563,7 @@ impl CodeGraph {
         source_path: &Path,
         dest_path: &Path,
         progress: Option<&dyn Fn(&str)>,
+        verify: bool,
     ) -> Result<MigrationReport> {
         use std::path::PathBuf;
 
@@ -529,6 +620,27 @@ impl CodeGraph {
         // Clean up temporary directory
         let _ = std::fs::remove_dir_all(&temp_dir);
 
+        // Verify migration if requested (default: true)
+        let (verification_passed, verification_error) = if verify {
+            if let Some(p) = progress {
+                p("Verifying migration...");
+            }
+
+            match Self::verify_migration(source_path, dest_path) {
+                Ok(()) => (true, None),
+                Err(e) => {
+                    // Verification failed - clean up destination and return error
+                    let _ = std::fs::remove_file(dest_path);
+                    if let Some(p) = progress {
+                        p("Verification failed - rolling back...");
+                    }
+                    return Err(e);
+                }
+            }
+        } else {
+            (true, None)  // Skip verification, assume success
+        };
+
         if let Some(p) = progress {
             p("Migration complete!");
         }
@@ -544,6 +656,8 @@ impl CodeGraph {
                 export_result.edge_count
             ),
             destination: dest_path.to_path_buf(),
+            verification_passed,
+            verification_error,
         })
     }
 
@@ -556,6 +670,7 @@ impl CodeGraph {
         _source_path: &Path,
         _dest_path: &Path,
         _progress: Option<&dyn Fn(&str)>,
+        _verify: bool,
     ) -> Result<MigrationReport> {
         Err(SpliceError::Other(
             "Migration to native-v2 requires the native-v2 feature. \

@@ -4351,7 +4351,8 @@ fn execute_migrate(
     };
 
     // Perform migration (pass source path for verification in plan 34-04)
-    let report = code_graph.migrate_to_native_v2(source, dest, progress_cb)?;
+    // TODO: Task 2 will add --skip-verify flag, for now always verify
+    let report = code_graph.migrate_to_native_v2(source, dest, progress_cb, true)?;
 
     // Output results
     if json_output {
