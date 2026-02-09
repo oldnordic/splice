@@ -678,6 +678,63 @@ impl CodeGraph {
                 .to_string(),
         ))
     }
+
+    /// Restore a database from a snapshot file (native-v2 only).
+    ///
+    /// This method restores a code graph database from a previously captured snapshot.
+    /// The snapshot must have been created from the same database.
+    ///
+    /// # Arguments
+    ///
+    /// * `db_path` - Path to the database file to restore
+    /// * `snapshot_path` - Path to the snapshot file to restore from
+    ///
+    /// # Returns
+    ///
+    /// `Ok(RestoreResult)` with backup path and restored symbol/edge counts
+    ///
+    /// # Errors
+    ///
+    /// - If database backend is SQLite (restore only supported for native-v2)
+    /// - If snapshot file doesn't exist or is corrupted
+    /// - If backup creation fails
+    /// - If database restoration fails
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use splice::graph::CodeGraph;
+    /// # use std::path::Path;
+    /// // Restore database from snapshot
+    /// let result = CodeGraph::restore_from_snapshot(
+    ///     Path::new(".codemcp/codegraph.db"),
+    ///     Path::new(".splice/snapshots/rename-2023-01-15.json")
+    /// )?;
+    /// println!("Restored {} symbols from snapshot", result.symbols_restored);
+    /// println!("Backup created at: {:?}", result.backup_path);
+    /// # Ok::<(), splice::SpliceError>(())
+    /// ```
+    #[cfg(feature = "native-v2")]
+    pub fn restore_from_snapshot(
+        db_path: &Path,
+        snapshot_path: &Path,
+    ) -> Result<crate::proof::storage::RestoreResult> {
+        crate::proof::storage::SnapshotStorage::restore_from_snapshot(db_path, snapshot_path)
+    }
+
+    /// Restore is not available without the native-v2 feature.
+    ///
+    /// Build with: `cargo build --features native-v2 --no-default-features`
+    #[cfg(not(feature = "native-v2"))]
+    pub fn restore_from_snapshot(
+        _db_path: &Path,
+        _snapshot_path: &Path,
+    ) -> Result<crate::proof::storage::RestoreResult> {
+        Err(SpliceError::Other(
+            "Database restore requires the native-v2 feature. \
+             Build with: cargo build --features native-v2 --no-default-features"
+                .to_string(),
+        ))
+    }
 }
 
 #[cfg(test)]
