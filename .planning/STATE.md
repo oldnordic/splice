@@ -14,9 +14,9 @@ See: `.planning/PROJECT.md` (updated 2026-02-09)
 ## Current Position
 
 **Phase:** 34 of 38 (Backend Detection & Migration)
-**Plan:** 1 of 4 in current phase
+**Plan:** 3 of 4 in current phase
 **Status:** In Progress
-**Last activity:** 2026-02-09 — Plan 34-01 completed: Public Backend enum and detect_backend() API
+**Last activity:** 2026-02-09 — Plan 34-03 completed: Database migration command (SQLite → native-v2)
 
 ---
 
@@ -33,6 +33,7 @@ See: `.planning/PROJECT.md` (updated 2026-02-09)
 |-------|-------|-------|----------|
 | 33 | 4 | 4 | 6 min |
 | 34 | 1 | 4 | 2 min |
+| Phase 34 P03 | 8 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -164,7 +165,13 @@ let cfg = if Self::is_sqlite_db(path)? {
 - Implementation: Backend enum with Display trait (outputs lowercase strings), detect_backend() function using file header magic string detection
 - Trade-off: detect_backend() returns Ok(Unknown) for non-existent files rather than error for graceful handling
 
+**34-03: Database Migration Command**
+- Decision: Use cfg-gated implementation for migrate_to_native_v2() method
+- Rationale: Prevents users from calling migrate without proper build configuration, provides clear error message
+- Implementation: #[cfg(feature = "native-v2")] with fallback error message, uses snapshot_export/import from sqlitegraph
+- Trade-off: Feature flag required at compile time, but enables safe migration with proper error handling
+
 ---
 
 *State updated: 2026-02-09*
-*Last session: 2026-02-09T21:26:03Z - Completed Phase 34-01*
+*Last session: 2026-02-09T21:43:00Z - Completed Phase 34-03*
