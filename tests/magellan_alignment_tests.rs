@@ -13,6 +13,8 @@
 //! Note: These tests validate Splice's correct usage of Magellan API.
 //! External database compatibility is Magellan's responsibility.
 
+#![cfg(feature = "sqlite")]
+
 use splice::graph::magellan_integration::MagellanIntegration;
 use splice::output::{JsonResponse, LabelQueryResponse, Span, SymbolMatch};
 use sqlitegraph::SnapshotId;
@@ -80,6 +82,7 @@ fn test_magellan_integration_open() {
 }
 
 /// Test index_file() ingests file into Magellan database.
+#[cfg(feature = "sqlite")]
 #[test]
 fn test_magellan_index_file() {
     let (mut integration, temp_dir) = create_test_magellan_integration();

@@ -6,6 +6,8 @@
 //! - Code chunk retrieval without file re-reading
 //! - Error handling at integration boundaries
 
+#![cfg(feature = "sqlite")]
+
 use splice::graph::magellan_integration::{
     CodeChunk, MagellanIntegration, SymbolInfo, SymbolWithRelations,
 };
