@@ -14,24 +14,24 @@ See: `.planning/PROJECT.md` (updated 2026-02-09)
 ## Current Position
 
 **Phase:** 33 of 38 (Feature Flag Infrastructure)
-**Plan:** 3 of 3 in current phase
+**Plan:** 4 of 4 in current phase
 **Status:** Complete
-**Last activity:** 2026-02-09 — Plan 33-03 completed: Public API stability verified across backends
+**Last activity:** 2026-02-09 — Plan 33-04 completed: Gap closure for native-v2 compilation
 
 ---
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3 (v2.5.0)
-- Average duration: 5 min
-- Total execution time: ~0.3 hours
+- Total plans completed: 4 (v2.5.0)
+- Average duration: 6 min
+- Total execution time: ~0.4 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 33 | 3 | 3 | 5 min |
+| 33 | 4 | 4 | 6 min |
 
 ---
 
@@ -90,17 +90,18 @@ let cfg = if Self::is_sqlite_db(path)? {
 
 ### Known Issues
 
-**API Incompatibility with native-v2 Backend:**
-- Splice code uses `get_all_labels()` and `count_entities_by_label()` methods
-- These methods are only available in SQLite backend (`#[cfg(not(feature = "native-v2"))]` in magellan)
-- Native-v2 backend feature flag exists in Cargo.toml but won't compile without code changes
-- Needs resolution in Phase 34 (Backend Detection & Migration)
+**Label Query Limitations with native-v2 Backend:**
+- Label queries (--list, --count, --label) require SQLite backend
+- Native-v2 backend does not support label queries (not implemented in magellan)
+- Clear error messages guide users when attempting to use these features with native-v2
+- For full feature parity, label queries would need to be implemented for native-v2 backend (future work)
 
 **Feature Flag Infrastructure:**
 - Feature flags now in place (sqlite, native-v2)
 - Compile-time guard prevents both features being enabled simultaneously
 - Default: SQLite backend for backward compatibility
 - Usage: `cargo build --features native-v2 --no-default-features` for native-v2 backend
+- Status: Both backends now compile successfully
 
 ---
 
@@ -151,6 +152,12 @@ let cfg = if Self::is_sqlite_db(path)? {
 - Decision: Verified that public API is identical across SQLite and native-v2 backends
 - Rationale: Ensures backend choice is implementation detail only, no breaking changes for library users
 - Verification: cargo-public-api confirmed 6,690 identical public items; no cfg-gated public items in lib.rs; CodeGraph uses Box<dyn GraphBackend> abstraction
+
+**33-04: Gap Closure for Native-V2 Compilation**
+- Decision: cfg-gate SQLite-only label query methods (query_by_labels, get_all_labels, count_by_label)
+- Rationale: Native-v2 backend does not support label queries; cfg guards enable compilation while preserving SQLite functionality
+- Trade-off: --list, --count, and --label CLI flags unavailable with native-v2 backend; clear error messages guide users to SQLite backend
+- Implementation: Added #[cfg(feature = "sqlite")] to MagellanIntegration methods, CLI query paths, and 50+ tests
 
 ---
 
