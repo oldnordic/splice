@@ -79,53 +79,135 @@ splice performs byte-accurate, AST-validated refactoring operations on code in 7
 
 ## Installation
 
+### Quick Install (SQLite Backend)
+
 ```bash
 cargo install splice
 ```
 
-Or build from source:
+This installs splice with the SQLite backend (default).
+
+### Backend Selection
+
+splice supports two database backends via compile-time feature flags. Choose your backend based on your needs (see [Which Backend Should I Use?](#which-backend-should-i-use) for guidance).
+
+**SQLite Backend (Default)**
+
+The SQLite backend is stable and recommended for most users.
 
 ```bash
+# Install from crates.io (SQLite backend)
+cargo install splice
+
+# Build from source (SQLite backend)
 git clone https://github.com/oldnordic/splice
 cd splice
 cargo build --release
 cp target/release/splice ~/.local/bin/
+
+# Explicit SQLite feature
+cargo build --release --features sqlite
 ```
 
-## Platform Support
+**Native-V2 Backend**
 
-splice uses a shared platform feature model across the SQLiteGraph toolset:
-
-| Platform | Feature | Status |
-|----------|---------|--------|
-| **Linux** | `unix` (default) | ✅ Full support |
-| **macOS** | `unix` (default) | ✅ Full support |
-| **Windows** | `windows` (opt-in) | ✅ Full support |
-
-### Building for Windows
-
-Windows support is opt-in via feature flag:
+The native-v2 backend uses an embedded Rust database for improved performance and is ideal for large-scale projects.
 
 ```bash
-# Build for Windows
+# Install with native-v2 backend
+cargo install splice --features native-v2 --no-default-features
+
+# Build from source (native-v2 backend)
+git clone https://github.com/oldnordic/splice
+cd splice
+cargo build --release --features native-v2 --no-default-features
+cp target/release/splice ~/.local/bin/
+```
+
+**Note:** The `--no-default-features` flag is required for native-v2 builds to exclude the SQLite default.
+
+### Platform Features
+
+Platform support is controlled via feature flags:
+
+| Platform | Feature | Default |
+|----------|---------|---------|
+| Linux/macOS | `unix` | Yes |
+| Windows | `windows` | No |
+
+Build for specific platforms:
+
+```bash
+# Build for Windows (with SQLite backend)
 cargo build --release --features windows
 
-# Install from source on Windows
+# Build for Windows (with native-v2 backend)
+cargo build --release --features native-v2,windows --no-default-features
+```
+
+For installation on Windows:
+
+```bash
+# Install on Windows (SQLite backend)
 cargo install splice --features windows
+
+# Install on Windows (native-v2 backend)
+cargo install splice --features native-v2,windows --no-default-features
 ```
 
-**splice is fully functional on Windows.**
+## Which Backend Should I Use?
 
-splice performs code editing, patch application, and refactoring operations. All features work identically across platforms.
+splice supports two database backends for storing code graph data: **SQLite** (default) and **native-v2** (opt-in). Both backends provide full functionality, but they have different characteristics that may make one more suitable for your use case.
 
-### Feature Model
+### Backend Comparison
 
-```toml
-[features]
-default = ["unix"]
-unix = []
-windows = []
-```
+| Aspect | SQLite Backend | Native-V2 Backend |
+|--------|----------------|-------------------|
+| **Feature flag** | `--features sqlite` (default) | `--features native-v2` |
+| **Database format** | SQLite format 3 | Custom key-value format |
+| **Default behavior** | Default backend | Opt-in (must enable feature) |
+| **File size** | Larger (2-3x for large codebases) | ~70% smaller |
+| **Symbol lookup** | Table scan (O(n)) | O(1) KV get |
+| **File listing** | JOIN query | Prefix scan |
+| **Graph traversal** | Row-by-row iteration | Clustered adjacency |
+| **Performance** | Good for small/medium codebases | 2-100x faster for large codebases |
+| **Snapshot support** | Manual export/import | Native snapshot/restore system |
+| **Tools compatibility** | All SQLiteGraph tools | All SQLiteGraph tools |
+| **Maturity** | Stable, battle-tested | Stable (v2.5.0+) |
+
+### Feature Availability
+
+| Feature | SQLite | Native-V2 |
+|---------|--------|-----------|
+| Basic operations (patch, delete, rename) | ✅ | ✅ |
+| Graph algorithms (reachable, cycles, dead-code) | ✅ | ✅ |
+| Snapshot capture | ✅ (v2.5.0, manual export) | ✅ (v2.5.0, native) |
+| Database restore | ⚠️ Manual import | ✅ Native restore |
+| Batch operations with rollback | ⚠️ Limited | ✅ Full support (v2.5.0) |
+| Magellan compatibility | ✅ Full | ✅ Full |
+
+### Choose SQLite If:
+
+- ✅ You're just getting started with splice
+- ✅ You need maximum compatibility with standard SQLite tools
+- ✅ You work with small to medium codebases (<100K LOC)
+- ✅ You prefer battle-tested, stable defaults
+- ✅ You want to inspect database with standard SQLite tools (sqlite3, DB Browser)
+
+### Choose Native-V2 If:
+
+- ✅ You work with large codebases (100K+ LOC)
+- ✅ You need faster graph operations and symbol lookups
+- ✅ You want smaller database file sizes for CI/CD storage
+- ✅ You need native snapshot/restore for rollback workflows
+- ✅ You use batch operations with transaction safety
+- ✅ You want the latest performance optimizations
+
+### Migrating Between Backends
+
+If you want to switch backends, see the [Native-V2 Migration Guide](docs/NATIVE-V2-MIGRATION.md) for detailed instructions. The migration process preserves all your graph data and ensures no loss of information.
+
+**Note:** New databases created with native-v2 support enabled will use the native-v2 format by default, even if the sqlite feature is also enabled.
 
 ## Quick Start
 
