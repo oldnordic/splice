@@ -31,6 +31,7 @@ fn test_reachable_command_basic() {
                 direction,
                 max_depth,
                 output,
+                impact_graph: false,
             } => {
                 assert_eq!(symbol, "main");
                 assert_eq!(path, PathBuf::from("src/main.rs"));

@@ -4,7 +4,7 @@ Comprehensive guide for Splice span-safe refactoring with Magellan integration.
 
 ---
 
-## Splice v2.4.0 Overview
+## Splice v2.5.0 Overview
 
 ### What is Splice?
 

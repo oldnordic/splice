@@ -52,6 +52,19 @@ This milestone delivers dual backend support with SQLite as default and native-v
 - `docs/NATIVE-V2-FEATURES.md` comprehensive feature overview
 - Migration workflow documentation in MANUAL.md
 
+### Fixed
+
+**Native-V2 Persistence Query**
+- `all_symbol_names()` now queries database directly via `backend.entity_ids()` and `backend.get_node()` instead of only reading in-memory cache
+- `find_symbols_by_name()` now queries database directly instead of only reading in-memory cache
+- File nodes (kind "File" and "file") are filtered out from symbol query results
+- Added `backend.flush()` call after write operations for data safety
+- Root cause: Native-v2 backend was correctly persisting data, but splice's query methods only searched in-memory `symbol_cache`
+
+**Dependencies**
+- Updated to sqlitegraph 1.5.7 (KV recovery and flush fixes)
+- Updated to magellan 2.2 (alignment with sqlitegraph)
+
 ### Changed
 
 - New databases created with native-v2 feature enabled use native-v2 format by default

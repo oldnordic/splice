@@ -309,6 +309,7 @@ fn test_refs_command_has_direction_field() {
         path: PathBuf::from("/tmp/test.rs"),
         direction: CallDirection::Both,
         output: OutputFormat::Human,
+        impact_graph: false,
     };
 
     // If we reached here, the Refs command has all required fields
