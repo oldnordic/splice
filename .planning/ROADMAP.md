@@ -110,25 +110,24 @@ Plans:
 
 #### Phase 37: Testing Infrastructure
 
-**Goal**: CI tests both SQLite and native-v2 backends with feature-gated test coverage.
+**Goal**: Local test scripts for dual backend validation without CI.
 
 **Depends on**: Phase 34
 
 **Requirements**: TEST-01, TEST-02
 
 **Success Criteria** (what must be TRUE):
-  1. CI workflow runs full test suite against both SQLite and native-v2 backends
+  1. `./scripts/test-all.sh` runs full test suite against both SQLite and native-v2 backends
   2. Feature-gated tests verify backend-specific code paths (snapshot restore, native-v2 operations)
   3. All tests pass in both backend configurations
   4. Test coverage report includes both backend variants
 
-**Plans**: 4 plans
+**Plans**: 3 plans
 
 Plans:
-- [ ] 37-01: Create CI matrix workflow for dual backend testing
-- [ ] 37-02: Add feature-gated tests for backend-specific functionality
-- [ ] 37-03: Add integration tests for migration workflow
-- [ ] 37-04: Configure test coverage reporting across feature variants
+- [ ] 37-01-PLAN.md — Create test scripts directory and dual-backend test script
+- [ ] 37-02-PLAN.md — Add feature-gated tests for backend-specific functionality
+- [ ] 37-03-PLAN.md — Add integration tests for migration workflow
 
 #### Phase 38: Documentation
 
@@ -163,7 +162,7 @@ Phases execute in numeric order: 33 → 34 → 35 → 36 → 37 → 38
 | 34. Backend Detection & Migration | v2.5.0 | 4/4 | Complete | 2026-02-09 |
 | 35. Snapshots & Verification | v2.5.0 | 5/5 | Complete | 2026-02-10 |
 | 36. Advanced Features | v2.5.0 | 4/4 | Complete | 2026-02-10 |
-| 37. Testing Infrastructure | v2.5.0 | 0/4 | Not started | - |
+| 37. Testing Infrastructure | v2.5.0 | 0/3 | Planned | - |
 | 38. Documentation | v2.5.0 | 0/4 | Not started | - |
 
 **v2.5.0 Progress:** [████████░░░] 71% (17/24 plans)
