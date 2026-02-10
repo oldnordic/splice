@@ -14,18 +14,18 @@ See: `.planning/PROJECT.md` (updated 2026-02-09)
 ## Current Position
 
 **Phase:** 36 of 38 (Advanced Features)
-**Plan:** 2 of 4 in current phase
+**Plan:** 1 of 4 in current phase
 **Status:** Completed
-**Last activity:** 2026-02-09 — Plan 36-02 completed: YAML batch specification schema
+**Last activity:** 2026-02-10 — Plan 36-01 completed: Impact graph visualization with DOT output
 
 ---
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10 (v2.5.0)
-- Average duration: 4.8 min
-- Total execution time: ~0.8 hours
+- Total plans completed: 11 (v2.5.0)
+- Average duration: 5.2 min
+- Total execution time: ~1.0 hours
 
 **By Phase:**
 
@@ -260,6 +260,24 @@ let cfg = if Self::is_sqlite_db(path)? {
 - Trade-off: Extra step for user but improves safety
 - Implementation: confirm_action() checks for lowercase 'y' or 'yes'
 
+**36-01: Impact Graph Visualization with DOT Output**
+- Decision: Use DOT format for graph visualization instead of custom binary format
+- Rationale: DOT is the de facto standard for graph visualization, supported by Graphviz and many other tools
+- Trade-off: Requires external tools (dot) for rendering but provides maximum flexibility
+- Implementation: ImpactDotConfig struct with show_symbol_kinds, max_depth, highlight_symbol options
+- Decision: --impact-graph flag is mutually exclusive with --output json
+- Rationale: DOT is text-only format, JSON serialization would add unnecessary complexity
+- Trade-off: Users must choose between structured JSON and visual DOT output
+- Implementation: Early exit pattern when --impact-graph is set, bypasses normal JSON formatting
+- Decision: Rename command --impact-graph requires --preview flag
+- Rationale: Impact graph is most useful for previewing changes before applying them
+- Trade-off: Extra flag required but prevents unintended modifications
+- Implementation: Added #[arg(long, requires = "preview")] to Rename impact_graph field
+- Decision: Reuse existing graph traversal from Phase 30 (reachable_symbols, reverse_reachable_symbols)
+- Rationale: DOT generation is a view layer, should not duplicate traversal logic
+- Trade-off: None - pure code reuse with no behavioral changes
+- Implementation: generate_impact_dot() calls existing reachable_symbols()/reverse_reachable_symbols()
+
 **36-02: YAML Batch Specification Schema**
 - Decision: Use serde tag-based enum deserialization for operation discrimination
 - Rationale: Using #[serde(tag = "type")] ensures type-safe discrimination while maintaining readable YAML format
@@ -273,5 +291,5 @@ let cfg = if Self::is_sqlite_db(path)? {
 
 ---
 
-*State updated: 2026-02-09*
-*Last session: 2026-02-09T23:47:55Z - Completed Phase 36-02*
+*State updated: 2026-02-10*
+*Last session: 2026-02-10T00:08:00Z - Completed Phase 36-01*
