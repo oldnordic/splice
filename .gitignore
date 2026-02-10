@@ -54,6 +54,8 @@ backup-*
 !README.md
 !CHANGELOG.md
 !MANUAL.md
+!docs/NATIVE-V2-FEATURES.md
+!docs/NATIVE-V2-MIGRATION.md
 
 # Planning folder
 .planning/
