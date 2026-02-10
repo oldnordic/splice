@@ -123,6 +123,7 @@ splice reachable --symbol <name> --path <file> [OPTIONS]
 - `--direction <forward|backward>`: Traversal direction (default: forward)
 - `--max-depth <n>`: Maximum traversal depth (default: 10)
 - `--output <format>`: Output format (human, json, pretty)
+- `--impact-graph`: Generate DOT graph for impact visualization
 
 ### splice dead-code
 
@@ -237,6 +238,110 @@ splice validate-proof --proof <path> [OPTIONS]
 
 **Optional Arguments:**
 - `--output <format>`: Output format (human, json, pretty)
+
+### splice verify
+
+Compare two snapshots to detect changes in symbols and edges.
+
+```bash
+splice verify --before <SNAPSHOT> --after <SNAPSHOT> [OPTIONS]
+```
+
+**Required Arguments:**
+- `--before <SNAPSHOT>`: Path to before snapshot (JSON file)
+- `--after <SNAPSHOT>`: Path to after snapshot (JSON file)
+
+**Optional Arguments:**
+- `--detailed`: Show per-symbol changes with before/after comparison
+- `--output <format>`: Output format (human, json, pretty)
+- `--json`: Output JSON format
+
+**Exit Codes:**
+- `0`: Snapshots are identical
+- `1`: Differences detected
+- `2`: Error occurred
+
+**Example:**
+
+```bash
+# Compare snapshots before and after a refactor
+splice verify --before .splice/snapshots/snapshot-before-123456.json \
+              --after .splice/snapshots/snapshot-after-789012.json \
+              --detailed
+
+# JSON output for programmatic use
+splice verify --before before.json --after after.json --output json
+```
+
+### splice batch
+
+Execute multi-file refactoring operations from a YAML specification.
+
+```bash
+splice batch --spec <FILE> [OPTIONS]
+```
+
+**Required Arguments:**
+- `--spec <FILE>`: Path to YAML specification file
+
+**Optional Arguments:**
+- `--db <PATH>`: Path to codegraph.db (default: .codemcp/codegraph.db)
+- `--dry-run`: Preview changes without applying
+- `--continue-on-error`: Continue after failures (default: stop on error)
+- `--rollback <MODE>`: Rollback mode (on-failure, never, always)
+- `--json`: Output JSON format
+
+**YAML Specification Format:**
+
+```yaml
+# Example batch spec for renaming across multiple files
+operations:
+  - type: rename
+    symbol: old_function_name
+    file: src/lib.rs
+    to: new_function_name
+
+  - type: patch
+    symbol: process_data
+    file: src/process.rs
+    with: replacements/new_process.rs
+
+  - type: delete
+    symbol: deprecated_function
+    file: src/utils.rs
+```
+
+**Rollback Modes:**
+- `on-failure`: Automatic rollback if any operation fails (native-v2 only)
+- `never`: No rollback (default)
+- `always`: Always rollback after execution (for testing)
+
+### splice snapshots
+
+Manage graph snapshots for verification and rollback.
+
+```bash
+splice snapshots <subcommand> [OPTIONS]
+```
+
+**Subcommands:**
+
+- `list [--operation <NAME>] [--limit <N>] [--disk-use]`: List snapshots
+- `delete <id> [--force]`: Delete a snapshot by ID
+- `cleanup [--keep <N>] [--dry-run]`: Remove old snapshots, keeping N most recent
+
+**Examples:**
+
+```bash
+# List all snapshots
+splice snapshots list
+
+# Delete a specific snapshot
+splice snapshots delete snapshot-1234567890 --force
+
+# Clean up old snapshots (keep 10 most recent)
+splice snapshots cleanup --keep 10
+```
 
 ---
 
@@ -371,6 +476,36 @@ Export graph data.
 ```bash
 splice export --db <FILE> --format FORMAT --file <PATH>
 ```
+
+---
+
+## Native-V2 Features
+
+The following features require the native-v2 backend (build with `--features native-v2`):
+
+- **Snapshots**: `--snapshot-before` flag captures graph state for rollback
+- **Verify**: Compare snapshots to detect changes
+- **Batch**: Multi-file operations with automatic rollback
+- **Impact Graph**: DOT visualization of refactoring impact
+
+See [Native-V2 Features](docs/NATIVE-V2-FEATURES.md) for detailed examples.
+
+**Building with Native-V2:**
+
+```bash
+# Install with native-v2 backend
+cargo install splice --features native-v2 --no-default-features
+
+# Build from source (native-v2 backend)
+cargo build --release --features native-v2 --no-default-features
+```
+
+**Native-V2 Advantages:**
+
+- **Performance**: 2-100x faster for large codebases (100K+ LOC)
+- **File Size**: ~70% smaller database files
+- **Snapshot System**: Native snapshot/restore for rollback workflows
+- **Batch Operations**: Transaction-safe multi-file refactors
 
 ---
 
