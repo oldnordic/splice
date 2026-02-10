@@ -563,6 +563,78 @@ cargo build --release --features native-v2 --no-default-features
 
 ---
 
+## Performance
+
+| Operation | Typical Time | Notes |
+|-----------|--------------|-------|
+| Patch (single file) | 50-200ms | Parse + validate + compiler |
+| Rename (cross-file) | 100-500ms | Depends on reference count |
+| Delete (with cleanup) | 100-400ms | Cross-file removal |
+| Graph algorithms | 10-60ms | For 1K symbols |
+| Snapshot (native-v2) | 50-150ms | Full graph serialization |
+
+**See [docs/PERFORMANCE.md](docs/PERFORMANCE.md)** for detailed benchmarks and optimization strategies.
+
+## Best Practices
+
+### For LLM Integration
+
+1. **Always use `--preview`** before applying changes
+2. **Check impact** with `reachable` or `refs` before refactoring
+3. **Generate proofs** with `--proof` for audit trail
+4. **Use snapshots** for rollback capability (native-v2)
+
+### For Interactive Use
+
+1. **Use `--preview --json`** to see exact changes
+2. **Create backups** with `--create-backup` for critical operations
+3. **Run tests** after each operation to verify correctness
+4. **Use batch operations** for multiple related changes
+
+### For Scripting
+
+1. **Use `--json` output** for programmatic consumption
+2. **Parse operation_id** for tracking and undo capability
+3. **Validate proofs** after operations for verification
+4. **Use snapshots** for before/after comparison
+
+**See [docs/BEST_PRACTICES.md](docs/BEST_PRACTICES.md)** for detailed workflows and patterns.
+
+## Error Codes
+
+| Code | Description | Solution |
+|------|-------------|----------|
+| SPL-E001 | Symbol not found | Check name/path or use symbol-id |
+| SPL-E002 | Multiple symbols found | Add --path filter |
+| SPL-E010 | File not found | Verify file path |
+| SPL-E020 | Parse error | Check file syntax |
+| SPL-E030 | Validation failed | Fix replacement code |
+| SPL-E040 | Ambiguous symbol | Use more specific path |
+| SPL-E050 | UTF-8 boundary error | Report bug |
+| SPL-E060 | Backup creation failed | Check disk space |
+| SPL-E070 | Backup restoration failed | Verify backup manifest |
+| SPL-E080 | Snapshot failed | Check disk space |
+| SPL-E090 | Native-V2 required | Rebuild with native-v2 |
+| SPL-E091 | Magellan error | Check Magelliand installation |
+| SPL-E100 | Batch operation failed | Check --continue-on-error |
+
+**See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** for detailed error recovery procedures.
+
+---
+
 ## License
 
 GPL-3.0-only. See [LICENSE.md](../LICENSE.md).
+
+## Further Documentation
+
+- **[README.md](README.md)** — Quick start and overview
+- **[CHANGELOG.md](CHANGELOG.md)** — Version history
+- **[docs/PERFORMANCE.md](docs/PERFORMANCE.md)** — Benchmarks and optimization strategies
+- **[docs/BEST_PRACTICES.md](docs/BEST_PRACTICES.md)** — Recommended workflows and patterns
+- **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** — Common issues and solutions
+- **[docs/NATIVE-V2-MIGRATION.md](docs/NATIVE-V2-MIGRATION.md)** — Backend migration guide
+- **[docs/NATIVE-V2-FEATURES.md](docs/NATIVE-V2-FEATURES.md)** — Native-v2 feature overview
+- **[docs/examples/rename_examples.md](docs/examples/rename_examples.md)** — Cross-file rename examples
+- **[docs/examples/graph_algorithm_examples.md](docs/examples/graph_algorithm_examples.md)** — Graph algorithm usage
+- **[docs/examples/proof_examples.md](docs/examples/proof_examples.md)** — Proof-based refactoring

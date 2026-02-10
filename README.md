@@ -77,6 +77,49 @@ splice performs byte-accurate, AST-validated refactoring operations on code in 7
 - ✅ Multi-language validation (tree-sitter + compiler gates)
 - ✅ Backup and rollback with automatic checksum verification
 
+---
+
+## When NOT to Use splice
+
+splice excels at span-safe refactoring with graph-aware impact analysis, but it's not the right tool for every task:
+
+| Task | Use This Instead | Why |
+|------|----------------|-----|
+| Simple text replacement | `sed`/`find` + `replace` | Faster for simple operations |
+| Interactive refactoring | IDE (rust-analyzer, IntelliJ) | Real-time feedback, visual UI |
+| Full-text search | `ripgrep` (`rg`) | No indexing needed |
+| Semantic code discovery | [llmgrep](https://github.com/oldnordic/llmgrep) | Specialized search tool |
+| Code indexing | [Magellan](https://github.com/oldnordic/magellan) | splice is read-only for indexing |
+| CFG analysis | [Mirage](https://github.com/oldnordic/mirage) | Dedicated CFG tool |
+| Type information | Compiler/LSP | splice has no type checker |
+
+**Quick Decision Guide:**
+- Need **span-safe refactoring**? → Use splice
+- Need **semantic search**? → Use llmgrep
+- Need **interactive editing**? → Use IDE
+- Need **to index code**? → Use Magellan
+
+## Performance Characteristics
+
+splice is designed for fast, safe refactoring operations. Here's what to expect:
+
+| Operation | Typical Time | Notes |
+|-----------|--------------|-------|
+| Patch (single file) | 50-200ms | Parse + validate + compiler gate |
+| Rename (cross-file) | 100-500ms | Depends on reference count |
+| Delete (with cleanup) | 100-400ms | Cross-file reference removal |
+| Graph algorithms (1K symbols) | 10-60ms | In-process graph traversal |
+| Snapshot (native-v2) | 50-150ms | Full graph serialization |
+
+**Token efficiency** — splice outputs are typically 95-99% smaller than source code:
+
+```
+Task: "Rename function across codebase"
+- cat all files:           ~50,000 tokens
+- splice rename --json:   ~200 tokens (just the changes)
+- Savings: 99.6%
+```
+
 ## Installation
 
 ### Quick Install (SQLite Backend)
@@ -369,6 +412,50 @@ splice apply-files --glob "src/**/*.rs" --find "old_func" --replace "new_func"
 splice apply-files --glob "tests/**/*.rs" --find "42" --replace "99" --create-backup
 ```
 
+### Realistic LLM Workflow
+
+splice is designed for AI assistants to use safely. Here's how an LLM would work with splice:
+
+```markdown
+# User: "Rename process_request to handle_request across all files"
+
+# LLM generates:
+# 1. Find the symbol
+splice find --name process_request --path src/lib.rs --db .codemcp/codegraph.db
+# Returns: symbol_id, file_path, byte_range
+
+# 2. Preview the change
+splice rename --symbol <id> --file src/lib.rs --to handle_request --preview --json
+
+# 3. Check impact (optional)
+splice reachable --symbol process_request --path src/lib.rs --max-depth 3 --output json
+
+# 4. Apply the change
+splice rename --symbol <id> --file src/lib.rs --to handle_request --proof
+
+# Response: 200 tokens of structured JSON with:
+# - files_modified: ["src/lib.rs", "src/handler.rs", "tests/integration.rs"]
+# - references_replaced: 5
+# - proof_file: ".splice/proofs/rename-{timestamp}.json"
+```
+
+**Complete refactor workflow:**
+
+```bash
+# LLM coordinates the full workflow:
+# 1. Discover: llmgrep finds symbols
+llmgrep --db .codemcp/codegraph.db search --query "process" --output json
+
+# 2. Analyze: splice checks impact
+splice reachable --symbol main --path src/main.rs --max-depth 3 --output json
+
+# 3. Refactor: splice applies changes
+splice patch --file src/lib.rs --symbol process --with new_process.rs --create-backup
+
+# 4. Verify: splice validates with compiler
+# (automatic via cargo check gate)
+```
+
 ## Supported Languages
 
 | Language | Extensions | Patch | Delete | Validation |
@@ -395,9 +482,16 @@ splice apply-files --glob "tests/**/*.rs" --find "42" --replace "99" --create-ba
 - `splice <command> --help` — Built-in usage examples
 - [MANUAL.md](MANUAL.md) — Complete CLI reference manual
 - [CHANGELOG.md](CHANGELOG.md) — Version history
+
+**Further Documentation:**
 - [docs/examples/rename_examples.md](docs/examples/rename_examples.md) — Cross-file rename examples
 - [docs/examples/graph_algorithm_examples.md](docs/examples/graph_algorithm_examples.md) — Graph algorithm usage
 - [docs/examples/proof_examples.md](docs/examples/proof_examples.md) — Proof-based refactoring
+- [docs/PERFORMANCE.md](docs/PERFORMANCE.md) — Benchmarks and optimization strategies
+- [docs/BEST_PRACTICES.md](docs/BEST_PRACTICES.md) — Recommended workflows and patterns
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — Common issues and solutions
+- [docs/NATIVE-V2-MIGRATION.md](docs/NATIVE-V2-MIGRATION.md) — Backend migration guide
+- [docs/NATIVE-V2-FEATURES.md](docs/NATIVE-V2-FEATURES.md) — Native-v2 feature overview
 
 ## License
 
