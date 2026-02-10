@@ -30,6 +30,9 @@ windows = []
 sqlite = ["magellan", "sqlitegraph/sqlite-backend"]
 native-v2 = ["magellan/native-v2", "sqlitegraph/native-v2"]
 
+# Migration testing feature - enables BOTH backends for migration tests
+migration = ["magellan", "sqlitegraph/sqlite-backend", "sqlitegraph/native-v2"]
+
 [dependencies]
 # Magellan for code indexing and label queries
 magellan = { version = "2.1", path = "../magellan", default-features = false, optional = true }

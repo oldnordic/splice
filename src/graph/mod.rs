@@ -555,9 +555,9 @@ impl CodeGraph {
     /// - If destination path already exists
     /// - If temporary directory cannot be created
     /// - If snapshot export fails (database corruption, disk full)
-    /// - If native-v2 database creation fails (requires native-v2 feature)
+    /// - If native-v2 database creation fails (requires native-v2 or migration feature)
     /// - If snapshot import fails
-    #[cfg(feature = "native-v2")]
+    #[cfg(any(feature = "native-v2", feature = "migration"))]
     pub fn migrate_to_native_v2(
         &self,
         source_path: &Path,
@@ -661,10 +661,11 @@ impl CodeGraph {
         })
     }
 
-    /// Migration is not available without the native-v2 feature.
+    /// Migration is not available without the native-v2 or migration feature.
     ///
     /// Build with: `cargo build --features native-v2 --no-default-features`
-    #[cfg(not(feature = "native-v2"))]
+    /// Or for migration tests: `cargo build --features migration`
+    #[cfg(not(any(feature = "native-v2", feature = "migration")))]
     pub fn migrate_to_native_v2(
         &self,
         _source_path: &Path,
@@ -673,8 +674,9 @@ impl CodeGraph {
         _verify: bool,
     ) -> Result<MigrationReport> {
         Err(SpliceError::Other(
-            "Migration to native-v2 requires the native-v2 feature. \
-             Build with: cargo build --features native-v2 --no-default-features"
+            "Migration to native-v2 requires the native-v2 or migration feature. \
+             Build with: cargo build --features native-v2 --no-default-features \
+             or cargo build --features migration"
                 .to_string(),
         ))
     }
@@ -713,7 +715,7 @@ impl CodeGraph {
     /// println!("Backup created at: {:?}", result.backup_path);
     /// # Ok::<(), splice::SpliceError>(())
     /// ```
-    #[cfg(feature = "native-v2")]
+    #[cfg(any(feature = "native-v2", feature = "migration"))]
     pub fn restore_from_snapshot(
         db_path: &Path,
         snapshot_path: &Path,
@@ -721,17 +723,18 @@ impl CodeGraph {
         crate::proof::storage::SnapshotStorage::restore_from_snapshot(db_path, snapshot_path)
     }
 
-    /// Restore is not available without the native-v2 feature.
+    /// Restore is not available without the native-v2 or migration feature.
     ///
     /// Build with: `cargo build --features native-v2 --no-default-features`
-    #[cfg(not(feature = "native-v2"))]
+    #[cfg(not(any(feature = "native-v2", feature = "migration")))]
     pub fn restore_from_snapshot(
         _db_path: &Path,
         _snapshot_path: &Path,
     ) -> Result<crate::proof::storage::RestoreResult> {
         Err(SpliceError::Other(
-            "Database restore requires the native-v2 feature. \
-             Build with: cargo build --features native-v2 --no-default-features"
+            "Database restore requires the native-v2 or migration feature. \
+             Build with: cargo build --features native-v2 --no-default-features \
+             or cargo build --features migration"
                 .to_string(),
         ))
     }
