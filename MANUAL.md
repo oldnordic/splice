@@ -56,6 +56,8 @@ splice patch --file <PATH> --symbol <NAME> --with <FILE> [OPTIONS]
 - `--json`: Output JSON format
 - `--create-backup`: Create backup before patching
 - `--operation-id <ID>`: Custom operation ID for auditing
+- `--snapshot-before`: Capture graph snapshot before patching (requires --db)
+- `--db <PATH>`: Path to codegraph.db (default: .codemcp/codegraph.db)
 
 **Preview JSON Output:**
 ```json
@@ -95,6 +97,8 @@ splice rename --symbol <id> --file <path> --to <new_name> [OPTIONS]
 - `--db <path>`: Path to codegraph.db (default: `.codemcp/codegraph.db`)
 - `--preview`: Show changes without applying (no file modifications)
 - `--proof`: Generate refactoring proof for audit trail
+- `--snapshot-before`: Capture graph snapshot before renaming (requires --db)
+- `--impact-graph`: Generate DOT graph for impact visualization (requires --preview)
 
 **Features:**
 - Byte-accurate replacement at exact reference spans
@@ -240,11 +244,101 @@ splice validate-proof --proof <path> [OPTIONS]
 
 ### splice status
 
-Display database statistics.
+Display database statistics including backend detection.
 
 ```bash
 splice status --db <FILE>
 ```
+
+**Required Arguments:**
+- `--db <FILE>`: Path to codegraph.db
+
+**Optional Arguments:**
+- `--detect-backend`: Show which backend the database uses (sqlite or native-v2)
+
+**Backend Detection:**
+
+The `--detect-backend` flag reports which backend format a database file uses:
+
+- `sqlite`: SQLite format 3 database (default backend)
+- `native-v2`: Native KV format database
+- `unknown`: File doesn't exist or format unrecognized
+
+**Examples:**
+
+```bash
+# Show database statistics with backend detection
+splice status --db .codemcp/codegraph.db --detect-backend
+
+# Output:
+# Database: .codemcp/codegraph.db
+# Backend: sqlite
+# Symbols: 1,234
+# Files: 42
+```
+
+### splice migrate
+
+Migrate a database from SQLite to native-v2 format.
+
+```bash
+splice migrate --source <PATH> --dest <PATH> [OPTIONS]
+```
+
+**Required Arguments:**
+- `--source <PATH>`: Path to source database (SQLite format)
+- `--dest <PATH>`: Path to destination database (native-v2 format)
+
+**Optional Arguments:**
+- `--progress`: Show progress during migration (default: true)
+- `--skip-verify`: Skip verification after migration (not recommended)
+- `--json`: Output JSON format instead of human-readable
+
+**Migration Workflow:**
+
+1. **Check current backend:**
+   ```bash
+   splice status --db .codemcp/codegraph.db --detect-backend
+   ```
+
+2. **Build splice with native-v2 feature:**
+   ```bash
+   cargo build --release --features native-v2 --no-default-features
+   ```
+
+3. **Run migration:**
+   ```bash
+   splice migrate --source .codemcp/codegraph.db --dest .codemcp/codegraph-native.db
+   ```
+
+4. **Verify migration:**
+   ```bash
+   splice status --db .codemcp/codegraph-native.db --detect-backend
+   ```
+
+5. **Update tooling to use new database:**
+   ```bash
+   # Use the new database path with splice commands
+   splice reachable --symbol main --db .codemcp/codegraph-native.db
+   ```
+
+**Migration Report:**
+
+The migration command reports:
+- `nodes_migrated`: Number of symbols/entities migrated
+- `edges_migrated`: Number of relationships migrated
+- `snapshot_metadata`: Information about the migration snapshot
+
+**Important Notes:**
+
+- Migration requires native-v2 feature enabled at build time
+- Source database must be SQLite format
+- Migration creates a new database (does not modify source)
+- Verify migration before replacing your original database
+
+**See Also:**
+- [Migration Guide](../docs/NATIVE-V2-MIGRATION.md) — Detailed migration documentation
+- [Which Backend Should I Use?](../README.md#which-backend-should-i-use) — Backend selection guidance
 
 ### splice find
 
