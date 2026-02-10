@@ -144,6 +144,34 @@ fn capture_snapshot(db_path: &Path, operation: &str) -> Result<(), splice::Splic
     Ok(())
 }
 
+/// Generate and output DOT graph for impact visualization.
+fn execute_impact_graph(
+    db_path: &Path,
+    symbol_id: &str,
+    direction: &splice::cli::ReachabilityDirection,
+    max_depth: Option<usize>,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::graph::magellan_integration::{ImpactDotConfig, MagellanIntegration};
+
+    let mut integration = MagellanIntegration::open(db_path)?;
+
+    let config = ImpactDotConfig {
+        show_symbol_kinds: true,
+        max_depth,
+        highlight_symbol: None,
+    };
+
+    let dot = integration.generate_impact_dot(symbol_id, direction, &config)?;
+
+    // Output DOT to stdout
+    println!("{}", dot);
+
+    Ok(splice::cli::CliSuccessPayload::message_only(
+        "Impact graph generated".to_string(),
+    )
+    .already_emitted())
+}
+
 fn main() -> ExitCode {
     install_broken_pipe_hook();
 
@@ -4015,9 +4043,20 @@ fn execute_refs(
     impact_graph: bool,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
-    use splice::graph::magellan_integration::{CallDirection, MagellanIntegration};
+    use splice::graph::magellan_integration::{CallDirection, ImpactDotConfig, MagellanIntegration};
 
     let mut integration = MagellanIntegration::open(db_path)?;
+
+    // Handle impact graph generation
+    if impact_graph {
+        let config = ImpactDotConfig::default();
+        let dot = integration.generate_refs_dot(name, path, &config)?;
+        println!("{}", dot);
+        return Ok(splice::cli::CliSuccessPayload::message_only(
+            "Impact graph generated".to_string(),
+        )
+        .already_emitted());
+    }
 
     let magellan_direction = match direction {
         splice::cli::CallDirection::In => CallDirection::In,
@@ -4696,6 +4735,20 @@ fn execute_rename(
     // PREVIEW MODE: Generate unified diffs without filesystem writes
     // Preview is pure - no backup creation, no file modifications
     if preview {
+        // Generate impact graph if requested
+        if impact_graph {
+            use splice::cli::ReachabilityDirection;
+            use splice::graph::magellan_integration::ImpactDotConfig;
+            let symbol_id = format!("{}:{}", symbol_info.file_path, symbol_info.name);
+            let config = ImpactDotConfig {
+                show_symbol_kinds: true,
+                max_depth: Some(10),
+                highlight_symbol: Some(symbol_info.name.clone()),
+            };
+            let dot = magellan.generate_impact_dot(&symbol_id, &ReachabilityDirection::Both, &config)?;
+            println!("{}", dot);
+        }
+
         let mut diffs = Vec::new();
         for (file_path, refs) in &grouped {
             let content = fs::read_to_string(file_path).map_err(|e| splice::SpliceError::Io {
@@ -4903,6 +4956,11 @@ fn execute_reachable(
     let path_str = path
         .to_str()
         .ok_or_else(|| splice::SpliceError::Other("Invalid UTF-8 in path".to_string()))?;
+
+    // Handle impact graph generation
+    if impact_graph {
+        return execute_impact_graph(db_path, &format!("{}:{}", path_str, symbol), direction, Some(max_depth));
+    }
 
     // First, open database and get root symbol info (requires mutable access)
     let root_symbol_info = {
