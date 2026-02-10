@@ -832,6 +832,30 @@ pub enum Commands {
         output: OutputFormat,
     },
 
+    /// Execute batch operations from YAML spec
+    #[command(display_order = 250)]
+    Batch {
+        /// Path to the batch specification YAML file
+        #[arg(short = 'f', long)]
+        spec: std::path::PathBuf,
+
+        /// Database path for snapshot/impact analysis (required for rollback)
+        #[arg(short = 'd', long)]
+        db: Option<std::path::PathBuf>,
+
+        /// Preview changes without applying (alias: --dry-run, -n)
+        #[arg(short = 'n', long = "dry-run")]
+        dry_run: bool,
+
+        /// Continue on error instead of stopping
+        #[arg(long = "continue-on-error")]
+        continue_on_error: bool,
+
+        /// Rollback mode: auto, never, always
+        #[arg(long, value_enum, default_value_t = CliRollbackMode::Auto)]
+        rollback: CliRollbackMode,
+    },
+
     /// Manage code graph snapshots
     #[command(display_order = 118, subcommand)]
     Snapshots(SnapshotsCommands),
@@ -1043,6 +1067,17 @@ pub enum AnalyzerMode {
 
     /// Use analyzer from explicit path.
     Path,
+}
+
+/// Rollback mode for batch operations.
+#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CliRollbackMode {
+    /// Auto: rollback on failure if --db is provided
+    Auto,
+    /// Never: never rollback, even on failure
+    Never,
+    /// Always: rollback after successful batch (for testing)
+    Always,
 }
 
 /// Parse command-line arguments.

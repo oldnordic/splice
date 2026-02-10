@@ -3,6 +3,7 @@
 //! Executes multi-file refactoring operations from a BatchSpec.
 
 use crate::batch::spec::{BatchSpec, BatchOperation, ExecutionMode, PatchOp, DeleteOp, RenameOp};
+use crate::batch::transaction::{BatchTransaction, RollbackMode, TransactionResult};
 use crate::error::{Result, SpliceError};
 use crate::graph::{CodeGraph, MagellanIntegration};
 use crate::symbol::Symbol;
@@ -117,6 +118,32 @@ impl BatchExecutor {
             total_duration_ms,
             stopped_early,
         })
+    }
+
+    /// Execute a batch as a transaction with automatic rollback.
+    ///
+    /// This is a convenience method that creates a BatchTransaction
+    /// and executes the spec with rollback support.
+    pub fn execute_transaction(
+        &mut self,
+        spec: &BatchSpec,
+        dry_run: bool,
+        rollback_mode: RollbackMode,
+    ) -> Result<TransactionResult>
+    where
+        Self: Sized,
+    {
+        let db_path = self.db_path.as_ref().ok_or_else(|| {
+            SpliceError::Other("Transaction requires database path for snapshots".to_string())
+        })?;
+
+        let transaction = BatchTransaction::new(
+            db_path.clone(),
+            rollback_mode,
+            true, // Always snapshot before transaction
+        );
+
+        transaction.execute(spec, dry_run)
     }
 
     fn execute_operation(
