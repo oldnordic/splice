@@ -222,6 +222,10 @@ pub enum Commands {
         /// Capture graph snapshot before patching.
         #[arg(long)]
         snapshot_before: bool,
+
+        /// Generate DOT graph output for visualization (requires --preview)
+        #[arg(long, requires = "preview")]
+        impact_graph: bool,
     },
 
     /// Execute a multi-step refactoring plan.
