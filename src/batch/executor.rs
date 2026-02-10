@@ -3,9 +3,9 @@
 //! Executes multi-file refactoring operations from a BatchSpec.
 
 use crate::batch::spec::{BatchSpec, BatchOperation, ExecutionMode, PatchOp, DeleteOp, RenameOp};
-use crate::batch::transaction::{BatchTransaction, RollbackMode, TransactionResult};
 use crate::error::{Result, SpliceError};
 use crate::graph::{CodeGraph, MagellanIntegration};
+use crate::symbol::Symbol;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -74,24 +74,27 @@ impl BatchExecutor {
             let result = self.execute_operation(op, op_index, &spec.mode);
 
             let duration_ms = op_start.elapsed().as_millis() as u64;
+            let is_success = result.is_ok();
+            let error_msg = result.err().map(|e| e.to_string());
+
             let op_result = OperationResult {
                 index: op_index,
                 op_type: op_type.clone(),
-                success: result.is_ok(),
-                error: result.err().map(|e| e.to_string()),
+                success: is_success,
+                error: error_msg,
                 duration_ms,
             };
 
             // Report progress
             self.report_progress(&op_result);
 
-            match (&result, spec.mode) {
-                (Ok(_), _) => successful += 1,
-                (Err(_), ExecutionMode::StopOnError) => {
+            match (is_success, spec.mode) {
+                (true, _) => successful += 1,
+                (false, ExecutionMode::StopOnError) => {
                     failed += 1;
                     stopped_early = true;
                 }
-                (Err(_), ExecutionMode::ContinueOnError) => {
+                (false, ExecutionMode::ContinueOnError) => {
                     failed += 1;
                 }
             }
@@ -116,37 +119,11 @@ impl BatchExecutor {
         })
     }
 
-    /// Execute a batch as a transaction with automatic rollback.
-    ///
-    /// This is a convenience method that creates a BatchTransaction
-    /// and executes the spec with rollback support.
-    pub fn execute_transaction(
-        &mut self,
-        spec: &BatchSpec,
-        dry_run: bool,
-        rollback_mode: RollbackMode,
-    ) -> Result<TransactionResult>
-    where
-        Self: Sized,
-    {
-        let db_path = self.db_path.as_ref().ok_or_else(|| {
-            SpliceError::Other("Transaction requires database path for snapshots".to_string())
-        })?;
-
-        let transaction = BatchTransaction::new(
-            db_path.clone(),
-            rollback_mode,
-            true, // Always snapshot before transaction
-        );
-
-        transaction.execute(spec, dry_run)
-    }
-
     fn execute_operation(
         &mut self,
         op: &BatchOperation,
         index: usize,
-        mode: &ExecutionMode,
+        _mode: &ExecutionMode,
     ) -> Result<()> {
         match op {
             BatchOperation::Patch(patch_op) => self.execute_patch(patch_op, index),
@@ -335,8 +312,8 @@ impl BatchExecutor {
         // Use the first match
         let symbol_info = matches.into_iter().next().unwrap();
 
-        // Get references
-        let references = magellan.find_references(&symbol_info.id)?;
+        // Get references using entity_id
+        let references = magellan.get_all_references(symbol_info.entity_id)?;
 
         if references.is_empty() {
             eprintln!("Warning: No references found for symbol '{}'", op.from);
