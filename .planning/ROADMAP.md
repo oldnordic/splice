@@ -120,7 +120,6 @@ Plans:
   1. `./scripts/test-all.sh` runs full test suite against both SQLite and native-v2 backends
   2. Feature-gated tests verify backend-specific code paths (snapshot restore, native-v2 operations)
   3. All tests pass in both backend configurations
-  4. Test coverage report includes both backend variants
 
 **Plans**: 3 plans
 

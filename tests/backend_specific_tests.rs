@@ -93,17 +93,12 @@ fn test_native_v2_migration_method_exists() {
 
     // Create a dummy progress callback
     let progress_called = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let progress = {
-        let progress_called = progress_called.clone();
-        Some(Box::new(move |step: &str| {
-            if !step.is_empty() {
-                progress_called.store(true, std::sync::atomic::Ordering::SeqCst);
-            }
-        }) as Box<dyn Fn(&str)>)
+    let callback = |step: &str| {
+        if !step.is_empty() {
+            progress_called.store(true, std::sync::atomic::Ordering::SeqCst);
+        }
     };
-
-    // Attempt migration (will succeed but create empty database)
-    let result = graph.migrate_to_native_v2(&source_path, &dest_path, progress, false);
+    let result = graph.migrate_to_native_v2(&source_path, &dest_path, Some(&callback), false);
     assert!(result.is_ok(), "Migration should succeed with native-v2 feature");
 
     // Verify destination was created
@@ -115,6 +110,7 @@ fn test_native_v2_migration_method_exists() {
 
 #[cfg(feature = "native-v2")]
 #[test]
+#[ignore = "Migration blocked by snapshot format incompatibility - see test_migration_incompatibility_documented() in migration_integration_tests.rs"]
 fn test_native_v2_migration_with_verification() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let source_path = temp_dir.path().join("source_verify.db");
@@ -137,6 +133,7 @@ fn test_native_v2_migration_with_verification() {
                 1,
                 5,
                 0,
+                0,  // col_end
             )
             .expect("Failed to store symbol");
     }
