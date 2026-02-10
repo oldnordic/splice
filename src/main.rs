@@ -243,6 +243,7 @@ fn main() -> ExitCode {
             metadata,
             db,
             snapshot_before,
+            impact_graph,
         } => match batch {
             Some(batch_path) => execute_patch_batch(
                 &batch_path,
@@ -271,6 +272,7 @@ fn main() -> ExitCode {
                 metadata,
                 db,
                 snapshot_before,
+                impact_graph,
                 json_output,
             ),
         },
@@ -1381,6 +1383,7 @@ fn execute_single_patch(
     metadata: Option<String>,
     db: Option<PathBuf>,
     snapshot_before: bool,
+    impact_graph: bool,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     let file_path = require_patch_arg("--file", file_path)?;
@@ -1405,6 +1408,7 @@ fn execute_single_patch(
         metadata,
         db,
         snapshot_before,
+        impact_graph,
         json_output,
     )
 }
@@ -1427,6 +1431,7 @@ fn execute_patch(
     metadata: Option<String>,
     db: Option<PathBuf>,
     snapshot_before: bool,
+    impact_graph: bool,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::execution::log;
@@ -1560,6 +1565,32 @@ fn execute_patch(
     } else {
         None
     };
+
+    // Generate impact graph if requested (in preview mode only)
+    if impact_graph {
+        use splice::cli::ReachabilityDirection;
+        use splice::graph::magellan_integration::{ImpactDotConfig, MagellanIntegration};
+
+        // Open Magellan database for impact graph generation
+        let mut magellan = MagellanIntegration::open(&graph_db_path)?;
+
+        // Generate symbol_id for impact graph
+        let symbol_id = format!("{}:{}", file_path.display(), symbol_name);
+
+        let config = ImpactDotConfig {
+            show_symbol_kinds: true,
+            max_depth: Some(10),
+            highlight_symbol: Some(symbol_name.to_string()),
+        };
+
+        let dot = magellan.generate_impact_dot(&symbol_id, &ReachabilityDirection::Both, &config)?;
+        println!("{}", dot);
+
+        // Return early - impact graph is the complete output
+        return Ok(splice::cli::CliSuccessPayload::message_only(
+            "Impact graph generated".to_string(),
+        ).already_emitted());
+    }
 
     if preview {
         // Dry-run mode: show unified diff with summary header
