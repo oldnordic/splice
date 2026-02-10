@@ -559,30 +559,10 @@ impl SnapshotStorage {
         }
 
         // Step 7: Insert all edges from snapshot
-        for (from, to_list) in &snapshot.edges {
-            for to in to_list {
-                // Look up symbol info to get node IDs
-                // Note: In a real implementation, we'd need to track the mapping from
-                // snapshot symbol IDs to the new database's node IDs. For now, we'll
-                // create a simple approach using symbol names as identifiers.
-                if let (Some(from_symbol), Some(to_symbol)) = (
-                    snapshot.symbols.get(from),
-                    snapshot.symbols.get(to),
-                ) {
-                    // We need to query the backend to get the actual node IDs
-                    // For now, this is a simplified version that works with the
-                    // assumption that symbol names are unique
-                    let edge_spec = EdgeSpec {
-                        from: from.clone(), // This would need to be the actual node_id
-                        to: to.clone(),     // Same here
-                        edge_type: "CALLS".to_string(),
-                        data: serde_json::json!({}),
-                    };
-                    // Skip edge insertion for now - would need proper ID mapping
-                    let _ = edge_spec;
-                }
-            }
-        }
+        // Note: Edge restoration requires tracking the mapping from snapshot symbol IDs
+        // (String) to database node IDs (i64). This is not yet implemented.
+        // TODO: Implement symbol ID → node ID mapping during symbol insertion
+        let _edges_count = snapshot.edges.len();
 
         // Step 8: Replace original database with restored one
         fs::remove_file(db_path).map_err(|e| SpliceError::Io {

@@ -1,5 +1,6 @@
 //! Integration tests for Splice.
 
+mod backend_compatibility_tests;
 mod cli_output_tests;
 mod compiler_error_tests;
 mod cross_language_tests;
