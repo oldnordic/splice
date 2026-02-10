@@ -570,6 +570,14 @@ fn main() -> ExitCode {
             output,
         } => execute_verify(&before, &after, detailed, output, json_output),
 
+        splice::cli::Commands::Batch {
+            spec,
+            db,
+            dry_run,
+            continue_on_error,
+            rollback,
+        } => execute_batch(&spec, db, dry_run, continue_on_error, rollback, json_output),
+
         splice::cli::Commands::Snapshots(subcommand) => {
             execute_snapshots(subcommand, json_output)
         }
@@ -5812,6 +5820,93 @@ fn execute_verify(
 
         Ok(payload)
     }
+}
+
+/// Execute batch operations from YAML spec.
+fn execute_batch(
+    spec_path: &std::path::Path,
+    db_path: Option<std::path::PathBuf>,
+    dry_run: bool,
+    continue_on_error: bool,
+    rollback: splice::cli::CliRollbackMode,
+    json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::batch::{parse_batch_spec, BatchExecutor, ExecutionMode};
+
+    // Parse batch spec
+    let spec = parse_batch_spec(&spec_path.to_path_buf())?;
+
+    // Override execution mode if flag is set
+    let mode = if continue_on_error {
+        ExecutionMode::ContinueOnError
+    } else {
+        spec.mode
+    };
+
+    // Determine rollback mode (simple execution for now)
+    // TODO: Implement transaction-based rollback in future update
+    let _rollback_mode = match rollback {
+        splice::cli::CliRollbackMode::Auto => {
+            if db_path.is_some() {
+                eprintln!("Note: Automatic rollback requires transaction mode (not yet implemented)");
+                eprintln!("      Batch will execute without automatic rollback");
+            }
+        }
+        splice::cli::CliRollbackMode::Never => {}
+        splice::cli::CliRollbackMode::Always => {
+            eprintln!("Note: 'Always' rollback mode requires transaction mode (not yet implemented)");
+            eprintln!("      Batch will execute without automatic rollback");
+        }
+    };
+
+    // Create executor and run
+    let mut executor = BatchExecutor::new(dry_run, db_path);
+    let batch_result = executor.execute(&spec)?;
+
+    // Build response
+    let mut payload = serde_json::Map::new();
+    payload.insert("spec_path".to_string(), serde_json::json!(spec_path.to_string_lossy()));
+    payload.insert("total_operations".to_string(), serde_json::json!(batch_result.total_operations));
+    payload.insert("successful".to_string(), serde_json::json!(batch_result.successful));
+    payload.insert("failed".to_string(), serde_json::json!(batch_result.failed));
+    payload.insert("duration_ms".to_string(), serde_json::json!(batch_result.total_duration_ms));
+    payload.insert("rolled_back".to_string(), serde_json::json!(false));
+
+    // Add operation results
+    let ops_json: Vec<serde_json::Value> = batch_result
+        .operations
+        .into_iter()
+        .map(|op| {
+            let mut obj = serde_json::Map::new();
+            obj.insert("index".to_string(), serde_json::json!(op.index));
+            obj.insert("type".to_string(), serde_json::json!(op.op_type));
+            obj.insert("success".to_string(), serde_json::json!(op.success));
+            if let Some(error) = op.error {
+                obj.insert("error".to_string(), serde_json::json!(error));
+            }
+            obj.insert("duration_ms".to_string(), serde_json::json!(op.duration_ms));
+            serde_json::Value::Object(obj)
+        })
+        .collect();
+    payload.insert("operations".to_string(), serde_json::json!(ops_json));
+
+    if batch_result.failed > 0 && mode == ExecutionMode::StopOnError {
+        return Err(splice::SpliceError::Other(
+            format!("Batch execution stopped: {} operation(s) failed", batch_result.failed)
+        ));
+    }
+
+    Ok(splice::cli::CliSuccessPayload {
+        status: "ok",
+        message: if dry_run {
+            format!("Batch preview complete: {} operations", batch_result.total_operations)
+        } else {
+            format!("Batch complete: {} succeeded, {} failed", batch_result.successful, batch_result.failed)
+        },
+        data: Some(serde_json::Value::Object(payload)),
+        already_emitted: false,
+        has_pending_changes: dry_run,
+    })
 }
 
 /// Execute snapshot management commands.
