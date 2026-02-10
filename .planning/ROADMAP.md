@@ -80,11 +80,11 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 35-01-PLAN.md — Implement snapshot capture with --snapshot-before flag
-- [ ] 35-02-PLAN.md — Design snapshot directory layout and storage format
-- [ ] 35-03-PLAN.md — Implement verify command for snapshot comparison
-- [ ] 35-04-PLAN.md — Add database restore from snapshot capability
-- [ ] 35-05-PLAN.md — Add snapshot cleanup and management utilities
+- [x] 35-01-PLAN.md — Implement snapshot capture with --snapshot-before flag
+- [x] 35-02-PLAN.md — Design snapshot directory layout and storage format
+- [x] 35-03-PLAN.md — Implement verify command for snapshot comparison
+- [x] 35-04-PLAN.md — Add database restore from snapshot capability
+- [x] 35-05-PLAN.md — Add snapshot cleanup and management utilities
 
 #### Phase 36: Advanced Features
 
@@ -103,10 +103,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 36-01: Implement --impact-graph flag with DOT output generation
-- [ ] 36-02: Design batch command YAML schema
-- [ ] 36-03: Implement batch operation executor
-- [ ] 36-04: Add transaction-based rollback for batch failures
+- [x] 36-01-PLAN.md — Implement --impact-graph flag with DOT output generation
+- [x] 36-02-PLAN.md — Design batch command YAML schema
+- [x] 36-03-PLAN.md — Implement batch operation executor
+- [x] 36-04-PLAN.md — Add transaction-based rollback for batch failures
 
 #### Phase 37: Testing Infrastructure
 
@@ -160,10 +160,10 @@ Phases execute in numeric order: 33 → 34 → 35 → 36 → 37 → 38
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 33. Feature Flag Infrastructure | v2.5.0 | 4/4 | Complete | 2026-02-09 |
-| 34. Backend Detection & Migration | v2.5.0 | 0/4 | Ready to execute | - |
-| 35. Snapshots & Verification | v2.5.0 | 0/5 | Ready to execute | - |
-| 36. Advanced Features | v2.5.0 | 0/4 | Ready to execute | - |
-| 37. Testing Infrastructure | v2.5.0 | 0/4 | Ready to execute | - |
-| 38. Documentation | v2.5.0 | 0/4 | Ready to execute | - |
+| 34. Backend Detection & Migration | v2.5.0 | 4/4 | Complete | 2026-02-09 |
+| 35. Snapshots & Verification | v2.5.0 | 5/5 | Complete | 2026-02-10 |
+| 36. Advanced Features | v2.5.0 | 4/4 | Ready to execute | - |
+| 37. Testing Infrastructure | v2.5.0 | 0/4 | Not started | - |
+| 38. Documentation | v2.5.0 | 0/4 | Not started | - |
 
-**v2.5.0 Progress:** [███░░░░░░░░] 17% (4/24 plans)
+**v2.5.0 Progress:** [██████░░░░░] 54% (13/24 plans)

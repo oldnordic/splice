@@ -5831,7 +5831,7 @@ fn execute_batch(
     rollback: splice::cli::CliRollbackMode,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
-    use splice::batch::{parse_batch_spec, BatchExecutor, ExecutionMode};
+    use splice::batch::{parse_batch_spec, BatchExecutor, ExecutionMode, RollbackMode};
 
     // Parse batch spec
     let spec = parse_batch_spec(&spec_path.to_path_buf())?;
@@ -5843,25 +5843,48 @@ fn execute_batch(
         spec.mode
     };
 
-    // Determine rollback mode (simple execution for now)
-    // TODO: Implement transaction-based rollback in future update
-    let _rollback_mode = match rollback {
+    // Determine rollback mode
+    let rollback_mode = match rollback {
         splice::cli::CliRollbackMode::Auto => {
             if db_path.is_some() {
-                eprintln!("Note: Automatic rollback requires transaction mode (not yet implemented)");
-                eprintln!("      Batch will execute without automatic rollback");
+                splice::batch::RollbackMode::OnFailure
+            } else {
+                eprintln!("Warning: Automatic rollback requires --db flag");
+                eprintln!("         Batch will execute without automatic rollback");
+                splice::batch::RollbackMode::Never
             }
         }
-        splice::cli::CliRollbackMode::Never => {}
+        splice::cli::CliRollbackMode::Never => splice::batch::RollbackMode::Never,
         splice::cli::CliRollbackMode::Always => {
-            eprintln!("Note: 'Always' rollback mode requires transaction mode (not yet implemented)");
-            eprintln!("      Batch will execute without automatic rollback");
+            if db_path.is_some() {
+                splice::batch::RollbackMode::Always
+            } else {
+                eprintln!("Warning: 'Always' rollback mode requires --db flag");
+                eprintln!("         Batch will execute without automatic rollback");
+                splice::batch::RollbackMode::Never
+            }
         }
     };
 
-    // Create executor and run
-    let mut executor = BatchExecutor::new(dry_run, db_path);
-    let batch_result = executor.execute(&spec)?;
+    // Determine if we should use transaction mode
+    let use_transaction = rollback_mode != RollbackMode::Never && db_path.is_some();
+
+    // Create executor and run with transaction if rollback is enabled
+    let mut executor = BatchExecutor::new(dry_run, db_path.clone());
+
+    let (batch_result, rolled_back, rollback_snapshot) = if use_transaction {
+        // Use transaction mode with rollback
+        let txn_result = executor.execute_transaction(&spec, dry_run, rollback_mode)?;
+        (
+            txn_result.batch_result,
+            txn_result.rolled_back,
+            txn_result.rollback_snapshot.map(|p| p.to_string_lossy().to_string()),
+        )
+    } else {
+        // Simple execution without rollback
+        let result = executor.execute(&spec)?;
+        (result, false, None)
+    };
 
     // Build response
     let mut payload = serde_json::Map::new();
@@ -5870,7 +5893,10 @@ fn execute_batch(
     payload.insert("successful".to_string(), serde_json::json!(batch_result.successful));
     payload.insert("failed".to_string(), serde_json::json!(batch_result.failed));
     payload.insert("duration_ms".to_string(), serde_json::json!(batch_result.total_duration_ms));
-    payload.insert("rolled_back".to_string(), serde_json::json!(false));
+    payload.insert("rolled_back".to_string(), serde_json::json!(rolled_back));
+    if let Some(snapshot) = rollback_snapshot {
+        payload.insert("rollback_snapshot".to_string(), serde_json::json!(snapshot));
+    }
 
     // Add operation results
     let ops_json: Vec<serde_json::Value> = batch_result

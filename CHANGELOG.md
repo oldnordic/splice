@@ -3,6 +3,22 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1] - 2026-02-04
+
+### Added
+- **Windows Support:** Full cross-platform compatibility via explicit feature flag
+  - Use `--features windows` to enable Windows builds
+  - Default: `--features unix` (Linux/macOS)
+  - Platform detection centralized in `platform.rs` module
+  - splice is fully functional on Windows (all features work identically)
+
+### Changed
+- Feature model: `default = ["unix"]`, `windows` opt-in
+- Updated magellan dependency to 2.1 (path for local development)
+
+**One sentence for the docs:**
+> Windows support is opt-in via `--features windows`. Fully supported — all features work identically across platforms.
+
 ## [2.4.0] - 2026-02-04
 
 ### Fixed

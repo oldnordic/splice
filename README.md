@@ -92,6 +92,41 @@ cargo build --release
 cp target/release/splice ~/.local/bin/
 ```
 
+## Platform Support
+
+splice uses a shared platform feature model across the SQLiteGraph toolset:
+
+| Platform | Feature | Status |
+|----------|---------|--------|
+| **Linux** | `unix` (default) | ✅ Full support |
+| **macOS** | `unix` (default) | ✅ Full support |
+| **Windows** | `windows` (opt-in) | ✅ Full support |
+
+### Building for Windows
+
+Windows support is opt-in via feature flag:
+
+```bash
+# Build for Windows
+cargo build --release --features windows
+
+# Install from source on Windows
+cargo install splice --features windows
+```
+
+**splice is fully functional on Windows.**
+
+splice performs code editing, patch application, and refactoring operations. All features work identically across platforms.
+
+### Feature Model
+
+```toml
+[features]
+default = ["unix"]
+unix = []
+windows = []
+```
+
 ## Quick Start
 
 ### 1. Install the Toolset

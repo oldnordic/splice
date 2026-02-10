@@ -4,6 +4,7 @@
 //! On failure, automatically rolls back using snapshot restore.
 
 use crate::batch::spec::BatchSpec;
+use crate::batch::executor::BatchExecutor;
 use crate::error::{Result, SpliceError};
 use crate::graph::CodeGraph;
 use crate::proof::storage::SnapshotStorage;
@@ -34,21 +35,8 @@ pub struct TransactionResult {
 }
 
 /// Result of executing a batch operation.
-#[derive(Debug, Clone)]
-pub struct BatchResult {
-    /// Path to the batch spec file
-    pub spec_path: PathBuf,
-    /// Total operations in spec
-    pub total_operations: usize,
-    /// Number of successful operations
-    pub successful: usize,
-    /// Number of failed operations
-    pub failed: usize,
-    /// Total duration
-    pub total_duration_ms: u64,
-    /// Whether execution was stopped early
-    pub stopped_early: bool,
-}
+/// Re-exported from executor module for convenience.
+pub use crate::batch::executor::BatchResult;
 
 /// A batch transaction with automatic rollback support.
 pub struct BatchTransaction {
@@ -137,19 +125,11 @@ impl BatchTransaction {
         })
     }
 
-    /// Execute a batch spec (placeholder - requires executor from plan 36-03).
-    fn execute_batch(&self, spec: &BatchSpec, _dry_run: bool) -> Result<BatchResult> {
-        // Placeholder implementation - plan 36-03 executor is not yet implemented
-        // This will be replaced by the actual executor when plan 36-03 is completed
-        let total_operations = spec.operations.len();
-        Ok(BatchResult {
-            spec_path: PathBuf::from("<unknown>"),
-            total_operations,
-            successful: 0,
-            failed: 0,
-            total_duration_ms: 0,
-            stopped_early: false,
-        })
+    /// Execute a batch spec using the provided executor.
+    fn execute_batch(&self, spec: &BatchSpec, dry_run: bool) -> Result<BatchResult> {
+        // Create executor with the same dry_run setting
+        let mut executor = BatchExecutor::new(dry_run, Some(self.db_path.clone()));
+        executor.execute(spec)
     }
 
     /// Capture a snapshot before batch execution.
