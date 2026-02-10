@@ -3,7 +3,7 @@
 //! Provides ACID-like semantics for batch refactoring operations.
 //! On failure, automatically rolls back using snapshot restore.
 
-use crate::batch::spec::{BatchSpec, ExecutionMode};
+use crate::batch::spec::BatchSpec;
 use crate::error::{Result, SpliceError};
 use crate::graph::CodeGraph;
 use crate::proof::storage::SnapshotStorage;

@@ -143,64 +143,6 @@ impl BatchExecutor {
     }
 
     fn execute_operation(
-        let start = Instant::now();
-        let total_operations = spec.operations.len();
-        let mut operations = Vec::with_capacity(total_operations);
-        let mut successful = 0;
-        let mut failed = 0;
-        let mut stopped_early = false;
-
-        for (index, op) in spec.operations.iter().enumerate() {
-            let op_start = Instant::now();
-            let op_index = index + 1; // 1-based for user display
-            let op_type = self.operation_type_name(op);
-
-            let result = self.execute_operation(op, op_index, &spec.mode);
-
-            let duration_ms = op_start.elapsed().as_millis() as u64;
-            let op_result = OperationResult {
-                index: op_index,
-                op_type: op_type.clone(),
-                success: result.is_ok(),
-                error: result.err().map(|e| e.to_string()),
-                duration_ms,
-            };
-
-            // Report progress
-            self.report_progress(&op_result);
-
-            match (&result, spec.mode) {
-                (Ok(_), _) => successful += 1,
-                (Err(_), ExecutionMode::StopOnError) => {
-                    failed += 1;
-                    stopped_early = true;
-                }
-                (Err(_), ExecutionMode::ContinueOnError) => {
-                    failed += 1;
-                }
-            }
-
-            operations.push(op_result);
-
-            if stopped_early {
-                break;
-            }
-        }
-
-        let total_duration_ms = start.elapsed().as_millis() as u64;
-
-        Ok(BatchResult {
-            spec_path: PathBuf::from("<unknown>"), // Set by caller
-            total_operations,
-            successful,
-            failed,
-            operations,
-            total_duration_ms,
-            stopped_early,
-        })
-    }
-
-    fn execute_operation(
         &mut self,
         op: &BatchOperation,
         index: usize,

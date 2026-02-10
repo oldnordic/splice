@@ -91,7 +91,8 @@ pub use relationships::{Relationship, RelationshipCache, Relationships};
 pub use expand::{expand_symbol, expand_symbol_with_level, ExpansionLevel, SymbolExpander};
 
 /// Re-export batch operations for convenience.
-pub use batch::{BatchSpec, BatchOperation, ExecutionMode};
+pub use batch::{BatchSpec, BatchOperation, BatchExecutor, BatchResult, BatchTransaction,
+                RollbackMode, TransactionResult, ExecutionMode};
 
 // ============================================================================
 // Graph Algorithm Response Types (Phase 30)
