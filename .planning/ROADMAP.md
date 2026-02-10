@@ -2,19 +2,19 @@
 
 ## Milestones
 
-- ✅ **v2.0 - v2.4** - Phases 1-32 (shipped previously)
-- 🚧 **v2.5.0** - Phases 33-38 (native-v2 backend support)
+- **v2.0 - v2.4** - Phases 1-32 (shipped previously)
+- **v2.5.0** - Phases 33-38 (native-v2 backend support)
 
 ## Phases
 
 <details>
-<summary>✅ v1.0 - v2.4 (Phases 1-32) - SHIPPED PREVIOUSLY</summary>
+<summary> v1.0 - v2.4 (Phases 1-32) - SHIPPED PREVIOUSLY</summary>
 
 Previous milestones completed. See git history for details.
 
 </details>
 
-### 🚧 v2.5.0 Native-V2 Backend Support (In Progress)
+###  v2.5.0 Native-V2 Backend Support (In Progress)
 
 **Milestone Goal:** Deliver dual backend support with SQLite as default and native-v2 as opt-in, including snapshot-based rollback and advanced refactoring features.
 
@@ -145,15 +145,15 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 38-01: Write "Which Backend Should I Use?" decision guide
-- [ ] 38-02: Document installation and build options
-- [ ] 38-03: Document migration workflow and command reference
-- [ ] 38-04: Document native-v2 exclusive features
+- [ ] 38-01-PLAN.md — Write "Which Backend Should I Use?" decision guide
+- [ ] 38-02-PLAN.md — Document installation and build options
+- [ ] 38-03-PLAN.md — Document migration workflow and command reference
+- [ ] 38-04-PLAN.md — Document native-v2 exclusive features
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 33 → 34 → 35 → 36 → 37 → 38
+Phases execute in numeric order: 33 -> 34 -> 35 -> 36 -> 37 -> 38
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -162,6 +162,6 @@ Phases execute in numeric order: 33 → 34 → 35 → 36 → 37 → 38
 | 35. Snapshots & Verification | v2.5.0 | 5/5 | Complete | 2026-02-10 |
 | 36. Advanced Features | v2.5.0 | 4/4 | Complete | 2026-02-10 |
 | 37. Testing Infrastructure | v2.5.0 | 0/3 | Planned | - |
-| 38. Documentation | v2.5.0 | 0/4 | Not started | - |
+| 38. Documentation | v2.5.0 | 0/4 | Planned | - |
 
 **v2.5.0 Progress:** [████████░░░] 71% (17/24 plans)
