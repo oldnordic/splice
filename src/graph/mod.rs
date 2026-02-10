@@ -189,6 +189,9 @@ impl CodeGraph {
         let node_id_i64 = self.backend.insert_node(node_spec)?;
         let node_id = NodeId::from(node_id_i64);
 
+        // Flush to ensure data is written to disk (critical for native-v2 backend)
+        let _ = self.backend.flush();
+
         // Cache the symbol name → NodeId mapping
         self.symbol_cache
             .entry(name.to_string())
@@ -258,6 +261,10 @@ impl CodeGraph {
             data: json!({}),
         };
         self.backend.insert_edge(edge_spec)?;
+
+        // Flush to ensure data is written to disk (critical for native-v2 backend)
+        // Native-v2 uses sparse files - without flush, data is lost on reopen
+        let _ = self.backend.flush();
 
         // Cache the symbol name → NodeId mapping (by file)
         let cache_key = format!("{}::{}", file_path_str, name);
@@ -344,7 +351,7 @@ impl CodeGraph {
     pub fn find_symbols_by_name(&self, name: &str) -> Vec<(NodeId, Option<String>)> {
         let mut results = Vec::new();
 
-        // Search through cache keys that end with "::name"
+        // First, search through cache keys that end with "::name"
         for (key, ids) in &self.symbol_cache {
             if key.ends_with(&format!("::{}", name)) || key == name {
                 for &node_id in ids {
@@ -352,6 +359,21 @@ impl CodeGraph {
                     // Use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
                     if let Ok(node) = self.backend.get_node(SnapshotId(0), node_id.as_i64()) {
                         let file_path = node.data.get("file_path").and_then(|v| v.as_str());
+                        results.push((node_id, file_path.map(|s| s.to_string())));
+                    }
+                }
+            }
+        }
+
+        // Then, search through database for persisted symbols (critical for native-v2)
+        // This finds symbols that were written before the current process started
+        if let Ok(all_ids) = self.backend.entity_ids() {
+            let snapshot = SnapshotId(0);
+            for node_id in all_ids {
+                if let Ok(node) = self.backend.get_node(snapshot, node_id) {
+                    if node.name == name && node.kind != "File" && node.kind != "file" {
+                        let file_path = node.data.get("file_path").and_then(|v| v.as_str());
+                        let node_id = NodeId::from(node_id);
                         results.push((node_id, file_path.map(|s| s.to_string())));
                     }
                 }
@@ -382,7 +404,7 @@ impl CodeGraph {
 
         let mut names = HashSet::new();
 
-        // Collect all symbol names from cache keys
+        // First, collect from cache (for recently written symbols)
         for key in self.symbol_cache.keys() {
             // Cache keys are either "name" or "file_path::name"
             // Extract just the name part
@@ -390,6 +412,20 @@ impl CodeGraph {
                 names.insert(name.to_string());
             } else {
                 names.insert(key.clone());
+            }
+        }
+
+        // Then, collect from database (for persisted symbols across reopen)
+        // This is critical for native-v2 backend where cache is not persisted
+        if let Ok(all_ids) = self.backend.entity_ids() {
+            let snapshot = SnapshotId(0);
+            for node_id in all_ids {
+                if let Ok(node) = self.backend.get_node(snapshot, node_id) {
+                    // Skip File nodes - only include actual symbols
+                    if node.kind != "File" && node.kind != "file" {
+                        names.insert(node.name);
+                    }
+                }
             }
         }
 
