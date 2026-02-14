@@ -1,21 +1,21 @@
 //! Migration workflow integration tests.
 //!
-//! These tests verify the complete migration workflow from SQLite to native-v2:
+//! These tests verify the complete migration workflow from SQLite to native-v3:
 //! 1. Create SQLite database with symbols and edges
-//! 2. Migrate to native-v2 format
+//! 2. Migrate to native-v3 format
 //! 3. Verify migration preserves all data
 //! 4. Test rollback on verification failure
 //!
-//! Requires 'migration' feature (enables both sqlite and native-v2 backends) to run:
+//! Requires 'migration' feature (enables both sqlite and native-v3 backends) to run:
 //!   cargo test --features migration migration_integration
 //!
 //! The migration feature enables BOTH backends simultaneously, which is needed
-//! to migrate FROM SQLite TO native-v2.
+//! to migrate FROM SQLite TO native-v3.
 //!
 //! ## NOTE: Migration Tests Currently Disabled
 //!
 //! The migration functionality as implemented in Phase 34 uses snapshot export/import,
-//! but SQLite and native-v2 backends use incompatible snapshot formats:
+//! but SQLite and native-v3 backends use incompatible snapshot formats:
 //! - SQLite backend: exports to `snapshot.json` format
 //! - Native-v2 backend: expects `export.manifest` format
 //!
@@ -26,7 +26,7 @@
 //! To fix migration, one of these approaches is needed:
 //! 1. Add format conversion between snapshot.json and export.manifest
 //! 2. Implement direct entity-by-entity migration (not snapshot-based)
-//! 3. Make SQLite backend export in native-v2 compatible format
+//! 3. Make SQLite backend export in native-v3 compatible format
 
 use splice::CodeGraph;
 use splice::graph::Backend;
@@ -133,7 +133,7 @@ fn create_populated_sqlite_db(dir: &PathBuf) -> PathBuf {
 
 /// Test that documents the migration incompatibility issue.
 ///
-/// This test verifies that attempting to migrate from SQLite to native-v2
+/// This test verifies that attempting to migrate from SQLite to native-v3
 /// produces an informative error about the snapshot format incompatibility.
 #[cfg(feature = "migration")]
 #[test]
@@ -151,7 +151,7 @@ fn test_migration_incompatibility_documented() {
 
     // Attempt migration (will fail due to snapshot format incompatibility)
     let graph = CodeGraph::open(&source_path).expect("Failed to open source graph");
-    let result = graph.migrate_to_native_v2(&source_path, &dest_path, None, false);
+    let result = graph.migrate_to_native_v3(&source_path, &dest_path, None, false);
 
     // Migration should fail
     assert!(result.is_err(), "Migration should fail due to snapshot format incompatibility");
@@ -168,12 +168,12 @@ fn test_migration_incompatibility_documented() {
 
     eprintln!("Expected migration failure: {}", err_msg);
     eprintln!("This error documents the incompatibility between SQLite snapshot.json");
-    eprintln!("format and native-v2 export.manifest format.");
+    eprintln!("format and native-v3 export.manifest format.");
 }
 
 #[cfg(feature = "migration")]
 #[test]
-#[ignore = "Migration implementation broken: SQLite and native-v2 use incompatible snapshot formats"]
+#[ignore = "Migration implementation broken: SQLite and native-v3 use incompatible snapshot formats"]
 fn test_migration_full_workflow() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -185,7 +185,7 @@ fn test_migration_full_workflow() {
     assert_eq!(Backend::SQLite, source_backend, "Source should be SQLite");
 
     // Step 2: Define destination path
-    let dest_path = temp_dir.path().join("migrated_native_v2.db");
+    let dest_path = temp_dir.path().join("migrated_native_v3.db");
     let _ = fs::remove_file(&dest_path);
 
     // Step 3: Perform migration
@@ -200,7 +200,7 @@ fn test_migration_full_workflow() {
     };
     let progress = Some(progress_box.as_ref());
 
-    let result = graph.migrate_to_native_v2(&source_path, &dest_path, progress, true);
+    let result = graph.migrate_to_native_v3(&source_path, &dest_path, progress, true);
 
     if let Err(ref e) = result {
         eprintln!("Migration error: {:?}", e);
@@ -211,9 +211,9 @@ fn test_migration_full_workflow() {
     assert!(report.verification_passed, "Migration should pass verification");
     assert!(dest_path.exists(), "Destination database should exist");
 
-    // Step 4: Verify destination is native-v2
+    // Step 4: Verify destination is native-v3
     let dest_backend = CodeGraph::detect_backend(&dest_path).expect("Detection failed");
-    assert_eq!(Backend::NativeV2, dest_backend, "Destination should be NativeV2");
+    assert_eq!(Backend::NativeV3, dest_backend, "Destination should be NativeV3");
 
     // Progress should have been reported
     let steps = progress_steps.lock().unwrap();
@@ -222,7 +222,7 @@ fn test_migration_full_workflow() {
 
 #[cfg(feature = "migration")]
 #[test]
-#[ignore = "Migration implementation broken: SQLite and native-v2 use incompatible snapshot formats"]
+#[ignore = "Migration implementation broken: SQLite and native-v3 use incompatible snapshot formats"]
 fn test_migration_preserves_symbols() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -236,7 +236,7 @@ fn test_migration_preserves_symbols() {
     let source_symbols = source_graph.all_symbol_names();
 
     // Migrate
-    let result = source_graph.migrate_to_native_v2(&source_path, &dest_path, None, true);
+    let result = source_graph.migrate_to_native_v3(&source_path, &dest_path, None, true);
     assert!(result.is_ok(), "Migration should succeed");
 
     // Verify destination has same symbols
@@ -261,7 +261,7 @@ fn test_migration_preserves_symbols() {
 
 #[cfg(feature = "migration")]
 #[test]
-#[ignore = "Migration implementation broken: SQLite and native-v2 use incompatible snapshot formats"]
+#[ignore = "Migration implementation broken: SQLite and native-v3 use incompatible snapshot formats"]
 fn test_migration_creates_backup_on_failure() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -278,7 +278,7 @@ fn test_migration_creates_backup_on_failure() {
 
     // Migrate with verification (should pass and not need rollback)
     let graph = CodeGraph::open(&source_path).expect("Failed to open graph");
-    let result = graph.migrate_to_native_v2(&source_path, &dest_path, None, true);
+    let result = graph.migrate_to_native_v3(&source_path, &dest_path, None, true);
 
     assert!(result.is_ok(), "Migration should succeed");
 
@@ -289,7 +289,7 @@ fn test_migration_creates_backup_on_failure() {
 
 #[cfg(feature = "migration")]
 #[test]
-#[ignore = "Migration implementation broken: SQLite and native-v2 use incompatible snapshot formats"]
+#[ignore = "Migration implementation broken: SQLite and native-v3 use incompatible snapshot formats"]
 fn test_migration_destination_exists_error() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -302,7 +302,7 @@ fn test_migration_destination_exists_error() {
     let graph = CodeGraph::open(&source_path).expect("Failed to open graph");
 
     // Migration should fail because destination exists
-    let result = graph.migrate_to_native_v2(&source_path, &dest_path, None, false);
+    let result = graph.migrate_to_native_v3(&source_path, &dest_path, None, false);
 
     assert!(result.is_err(), "Migration should fail when destination exists");
 
@@ -316,7 +316,7 @@ fn test_migration_destination_exists_error() {
 
 #[cfg(feature = "migration")]
 #[test]
-#[ignore = "Migration implementation broken: SQLite and native-v2 use incompatible snapshot formats"]
+#[ignore = "Migration implementation broken: SQLite and native-v3 use incompatible snapshot formats"]
 fn test_migration_verification() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -326,7 +326,7 @@ fn test_migration_verification() {
 
     // Migrate with verification enabled
     let graph = CodeGraph::open(&source_path).expect("Failed to open graph");
-    let result = graph.migrate_to_native_v2(&source_path, &dest_path, None, true);
+    let result = graph.migrate_to_native_v3(&source_path, &dest_path, None, true);
 
     assert!(result.is_ok(), "Migration should succeed");
 
@@ -347,7 +347,7 @@ fn test_migration_verification() {
 
 #[cfg(feature = "migration")]
 #[test]
-#[ignore = "Migration implementation broken: SQLite and native-v2 use incompatible snapshot formats"]
+#[ignore = "Migration implementation broken: SQLite and native-v3 use incompatible snapshot formats"]
 fn test_migration_with_progress_reporting() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -366,7 +366,7 @@ fn test_migration_with_progress_reporting() {
     let progress = Some(progress_box.as_ref());
 
     let graph = CodeGraph::open(&source_path).expect("Failed to open graph");
-    let result = graph.migrate_to_native_v2(&source_path, &dest_path, progress, true);
+    let result = graph.migrate_to_native_v3(&source_path, &dest_path, progress, true);
 
     assert!(result.is_ok(), "Migration should succeed");
 
@@ -394,13 +394,13 @@ fn test_migration_with_progress_reporting() {
 ///////////////////////////////////////////////////////////////////////////////
 
 #[test]
-fn test_migration_not_available_without_native_v2() {
+fn test_migration_not_available_without_native_v3() {
     // This test verifies that migration methods are not available
-    // without the native-v2 feature enabled
+    // without the native-v3 feature enabled
 
     #[cfg(not(feature = "migration"))]
     {
-        // Without native-v2 feature, we should not be able to call migrate_to_native_v2
+        // Without native-v3 feature, we should not be able to call migrate_to_native_v3
         // This is enforced at compile time via the cfg attribute
         // If this test compiles, the feature gating is working
     }
@@ -412,7 +412,7 @@ fn test_migration_not_available_without_native_v2() {
 
 #[cfg(feature = "migration")]
 #[test]
-#[ignore = "Migration implementation broken: SQLite and native-v2 use incompatible snapshot formats"]
+#[ignore = "Migration implementation broken: SQLite and native-v3 use incompatible snapshot formats"]
 fn test_migration_report_contents() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -421,7 +421,7 @@ fn test_migration_report_contents() {
     let _ = fs::remove_file(&dest_path);
 
     let graph = CodeGraph::open(&source_path).expect("Failed to open graph");
-    let result = graph.migrate_to_native_v2(&source_path, &dest_path, None, true);
+    let result = graph.migrate_to_native_v3(&source_path, &dest_path, None, true);
 
     assert!(result.is_ok(), "Migration should succeed");
 
@@ -447,7 +447,7 @@ fn test_migration_report_contents() {
 
 #[cfg(feature = "migration")]
 #[test]
-#[ignore = "Migration implementation broken: SQLite and native-v2 use incompatible snapshot formats"]
+#[ignore = "Migration implementation broken: SQLite and native-v3 use incompatible snapshot formats"]
 fn test_migration_empty_database() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -464,7 +464,7 @@ fn test_migration_empty_database() {
 
     // Migrate empty database
     let graph = CodeGraph::open(&source_path).expect("Failed to open graph");
-    let result = graph.migrate_to_native_v2(&source_path, &dest_path, None, true);
+    let result = graph.migrate_to_native_v3(&source_path, &dest_path, None, true);
 
     assert!(result.is_ok(), "Empty database migration should succeed");
 
@@ -475,7 +475,7 @@ fn test_migration_empty_database() {
 
 #[cfg(feature = "migration")]
 #[test]
-#[ignore = "Migration implementation broken: SQLite and native-v2 use incompatible snapshot formats"]
+#[ignore = "Migration implementation broken: SQLite and native-v3 use incompatible snapshot formats"]
 fn test_migration_large_symbol_count() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -507,7 +507,7 @@ fn test_migration_large_symbol_count() {
     let _ = fs::remove_file(&dest_path);
 
     // Migrate
-    let result = graph.migrate_to_native_v2(&source_path, &dest_path, None, true);
+    let result = graph.migrate_to_native_v3(&source_path, &dest_path, None, true);
 
     assert!(result.is_ok(), "Large database migration should succeed");
 

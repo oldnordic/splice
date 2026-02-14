@@ -1,10 +1,10 @@
-//! Snapshot and restore tests (native-v2 backend only).
+//! Snapshot and restore tests (native-v3 backend only).
 //!
 //! These tests verify the snapshot capture, storage, and restore functionality.
-//! Restore operations are only available with the native-v2 feature.
+//! Restore operations are only available with the native-v3 feature.
 //!
 //! Run with:
-//!   cargo test --features native-v2 snapshot
+//!   cargo test --features native-v3 snapshot
 
 use splice::proof::{GraphSnapshot, SnapshotStorage, compare_snapshots};
 use splice::CodeGraph;
@@ -173,17 +173,17 @@ fn test_get_latest_snapshot() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Snapshot restore tests (native-v2 only)
+// Snapshot restore tests (native-v3 only)
 ///////////////////////////////////////////////////////////////////////////////
 
-#[cfg(feature = "native-v2")]
+#[cfg(feature = "native-v3")]
 #[test]
 fn test_restore_from_snapshot_file() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let db_path = temp_dir.path().join("restore_test.db");
     let _ = fs::remove_file(&db_path);
 
-    // Create a native-v2 database
+    // Create a native-v3 database
     {
         let _graph = CodeGraph::open(&db_path).expect("Failed to create graph");
     }
@@ -224,7 +224,7 @@ fn test_restore_from_snapshot_file() {
         .expect("Failed to save snapshot");
 
     // Note: Full restore test is complex as it requires proper ID mapping
-    // This test verifies the API exists and compiles with native-v2
+    // This test verifies the API exists and compiles with native-v3
     let result = CodeGraph::restore_from_snapshot(&db_path, &snapshot_path);
 
     // Result may be Ok or Err depending on implementation details
@@ -232,7 +232,7 @@ fn test_restore_from_snapshot_file() {
     let _ = result;
 }
 
-#[cfg(feature = "native-v2")]
+#[cfg(feature = "native-v3")]
 #[test]
 fn test_restore_fails_for_sqlite_backend() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -253,8 +253,8 @@ fn test_restore_fails_for_sqlite_backend() {
     let err = result.unwrap_err();
     let err_msg = format!("{}", err);
     assert!(
-        err_msg.contains("native-v2") || err_msg.contains("SQLite"),
-        "Error should mention native-v2 requirement or SQLite incompatibility"
+        err_msg.contains("native-v3") || err_msg.contains("SQLite"),
+        "Error should mention native-v3 requirement or SQLite incompatibility"
     );
 }
 
