@@ -578,7 +578,7 @@ impl CodeGraph {
     /// # use std::path::Path;
     /// let src_graph = CodeGraph::open(Path::new("old.db"))?;
     /// // Note: source_path is passed for verification (added in plan 34-04)
-    /// let report = src_graph.migrate_to_native_v2(
+    /// let report = src_graph.migrate_to_native_v3(
     ///     Path::new("old.db"),
     ///     Path::new("new.db"),
     ///     None

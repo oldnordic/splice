@@ -685,6 +685,12 @@ mod tests {
     #[test]
     fn test_cleanup_old_snapshots() {
         let storage = SnapshotStorage::new().unwrap();
+        
+        // Clean up any existing snapshots first to ensure test isolation
+        let existing = storage.list_snapshots().unwrap();
+        for snapshot in existing {
+            let _ = fs::remove_file(&snapshot.snapshot_path);
+        }
 
         // Create test snapshots
         for i in 0..5 {

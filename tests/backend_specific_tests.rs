@@ -5,7 +5,7 @@
 //!
 //! Run with:
 //!   cargo test                          # SQLite backend (default)
-//!   cargo test --features native-v2     # Native-v2 backend
+//!   cargo test --features native-v3     # Native-v2 backend
 
 use splice::CodeGraph;
 use splice::graph::Backend;
@@ -60,29 +60,29 @@ fn test_sqlite_graph_open_existing() {
 // Native-V2 backend specific tests
 ///////////////////////////////////////////////////////////////////////////////
 
-#[cfg(feature = "native-v2")]
+#[cfg(feature = "native-v3")]
 #[test]
-fn test_native_v2_header_detection() {
+fn test_native_v3_header_detection() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db_path = temp_dir.path().join("test_native_v2.db");
+    let db_path = temp_dir.path().join("test_native_v3.db");
     let _ = fs::remove_file(&db_path);
 
-    // Create a graph with native-v2 (requires --features native-v2)
+    // Create a graph with native-v3 (requires --features native-v3)
     let _graph = CodeGraph::open(&db_path).expect("Failed to open graph");
 
     // Native-v2 databases don't have the SQLite header
     let is_sqlite = CodeGraph::is_sqlite_db(&db_path).expect("is_sqlite_db failed");
     assert!(!is_sqlite, "Native-v2 database should not be detected as SQLite");
 
-    // Should be detected as NativeV2
+    // Should be detected as NativeV3
     let detected = CodeGraph::detect_backend(&db_path).expect("Detection failed");
-    assert_eq!(Backend::NativeV2, detected, "Should detect NativeV2 format");
+    assert_eq!(Backend::NativeV3, detected, "Should detect NativeV3 format");
 }
 
-#[cfg(feature = "native-v2")]
+#[cfg(feature = "native-v3")]
 #[test]
-fn test_native_v2_migration_method_exists() {
-    // This test verifies that the migration method compiles with native-v2 feature
+fn test_native_v3_migration_method_exists() {
+    // This test verifies that the migration method compiles with native-v3 feature
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let source_path = temp_dir.path().join("source.db");
     let dest_path = temp_dir.path().join("dest.db");
@@ -98,8 +98,8 @@ fn test_native_v2_migration_method_exists() {
             progress_called.store(true, std::sync::atomic::Ordering::SeqCst);
         }
     };
-    let result = graph.migrate_to_native_v2(&source_path, &dest_path, Some(&callback), false);
-    assert!(result.is_ok(), "Migration should succeed with native-v2 feature");
+    let result = graph.migrate_to_native_v3(&source_path, &dest_path, Some(&callback), false);
+    assert!(result.is_ok(), "Migration should succeed with native-v3 feature");
 
     // Verify destination was created
     assert!(dest_path.exists(), "Destination database should be created");
@@ -108,10 +108,10 @@ fn test_native_v2_migration_method_exists() {
     assert!(report.verification_passed, "Migration should pass verification");
 }
 
-#[cfg(feature = "native-v2")]
+#[cfg(feature = "native-v3")]
 #[test]
 #[ignore = "Migration blocked by snapshot format incompatibility - see test_migration_incompatibility_documented() in migration_integration_tests.rs"]
-fn test_native_v2_migration_with_verification() {
+fn test_native_v3_migration_with_verification() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let source_path = temp_dir.path().join("source_verify.db");
     let dest_path = temp_dir.path().join("dest_verify.db");
@@ -140,7 +140,7 @@ fn test_native_v2_migration_with_verification() {
 
     // Migrate with verification enabled
     let graph = CodeGraph::open(&source_path).expect("Failed to reopen graph");
-    let result = graph.migrate_to_native_v2(&source_path, &dest_path, None, true);
+    let result = graph.migrate_to_native_v3(&source_path, &dest_path, None, true);
 
     assert!(result.is_ok(), "Migration with verification should succeed");
 
@@ -198,25 +198,25 @@ fn test_only_one_backend_active() {
     // This test verifies that only one backend is active at a time
     // The compile_error in src/lib.rs should prevent both being enabled
 
-    #[cfg(all(feature = "sqlite", feature = "native-v2"))]
+    #[cfg(all(feature = "sqlite", feature = "native-v3"))]
     compile_error!(
-        "Both sqlite and native-v2 features should not be enabled simultaneously. \
+        "Both sqlite and native-v3 features should not be enabled simultaneously. \
          This test should not compile if both are enabled."
     );
 
     // If we reach here, only one backend is enabled (as expected)
     let sqlite_enabled = cfg!(feature = "sqlite");
-    let native_v2_enabled = cfg!(feature = "native-v2");
+    let native_v3_enabled = cfg!(feature = "native-v3");
 
     // At least one should be enabled (via default features)
     assert!(
-        sqlite_enabled || native_v2_enabled,
+        sqlite_enabled || native_v3_enabled,
         "At least one backend should be enabled"
     );
 
     // Both should not be enabled (enforced by compile_error)
     assert!(
-        !(sqlite_enabled && native_v2_enabled),
+        !(sqlite_enabled && native_v3_enabled),
         "Both backends cannot be enabled simultaneously"
     );
 }

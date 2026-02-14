@@ -1,11 +1,11 @@
 //! Backend compatibility tests.
 //!
 //! These tests verify that the public API works identically
-//! regardless of which backend (SQLite or native-v2) is enabled.
+//! regardless of which backend (SQLite or native-v3) is enabled.
 //!
 //! Run with:
 //!   cargo test                          # SQLite backend (default)
-//!   cargo test --features native-v2     # Native-v2 backend
+//!   cargo test --features native-v3     # Native-v2 backend
 
 use splice::graph::{Backend, CodeGraph};
 use std::fs;
@@ -42,7 +42,7 @@ fn test_backend_detection() {
     assert!(detected.is_ok(), "Backend detection failed: {:?}", detected.err());
 
     let backend = detected.unwrap();
-    // We should detect either SQLite or NativeV2 (not Unknown for existing files)
+    // We should detect either SQLite or NativeV3 (not Unknown for existing files)
     assert_ne!(Backend::Unknown, backend, "Detected Unknown backend for existing file");
 }
 
@@ -157,17 +157,17 @@ fn test_multiple_symbols_both_backends() {
     assert!(id2.as_i64() > 0);
 }
 
-/// Feature-gated test: Verify native-v2 specific operations only work with that feature.
-#[cfg(feature = "native-v2")]
+/// Feature-gated test: Verify native-v3 specific operations only work with that feature.
+#[cfg(feature = "native-v3")]
 #[test]
-fn test_native_v2_feature_enabled() {
-    // This test only compiles with native-v2 feature
-    // Verify that we can open graphs with native-v2 backend
+fn test_native_v3_feature_enabled() {
+    // This test only compiles with native-v3 feature
+    // Verify that we can open graphs with native-v3 backend
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db_path = temp_dir.path().join("native_v2_test.db");
+    let db_path = temp_dir.path().join("native_v3_test.db");
     let _ = fs::remove_file(&db_path);
 
-    let mut graph = CodeGraph::open(&db_path).expect("Failed to open graph with native-v2");
+    let mut graph = CodeGraph::open(&db_path).expect("Failed to open graph with native-v3");
 
     // Store a symbol to verify operations work
     let file_path = temp_dir.path().join("native.rs");
