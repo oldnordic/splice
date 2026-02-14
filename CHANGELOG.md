@@ -3,6 +3,11 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.2] - 2026-02-14
+
+### Changed
+- **Documentation:** Updated MANUAL version to 2.5.2
+
 ## [2.5.1] - 2026-02-14
 
 ### Changed
