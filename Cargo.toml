@@ -1,6 +1,6 @@
 [package]
 name = "splice"
-version = "2.5.0"
+version = "2.5.1"
 edition = "2021"
 description = "Span-safe refactoring kernel for 7 languages with Magellan code graph integration"
 license = "GPL-3.0-or-later"
@@ -27,17 +27,17 @@ unix = []
 windows = []
 
 # Backend selection - mutually exclusive, SQLite is default
-sqlite = ["magellan", "sqlitegraph/sqlite-backend"]
-native-v2 = ["magellan/native-v2", "sqlitegraph/native-v2"]
+sqlite = ["magellan/sqlite-backend", "sqlitegraph/sqlite-backend"]
+native-v3 = ["magellan/native-v3", "sqlitegraph/native-v3"]
 
 # Migration testing feature - enables BOTH backends for migration tests
-migration = ["magellan", "sqlitegraph/sqlite-backend", "sqlitegraph/native-v2"]
+migration = ["magellan/sqlite-backend", "magellan/native-v3", "sqlitegraph/sqlite-backend", "sqlitegraph/native-v3"]
 
 [dependencies]
 # Magellan for code indexing and label queries
-magellan = { version = "2.2", default-features = false, optional = true }
+magellan = { version = "2.4", default-features = false, optional = true }
 # SQLiteGraph re-exported from Magellan, also keep for direct access
-sqlitegraph = { version = "1.5.7", default-features = false }
+sqlitegraph = { version = "2.0", default-features = false }
 
 # AST parsing (kept for patch validation)
 tree-sitter = "0.22"

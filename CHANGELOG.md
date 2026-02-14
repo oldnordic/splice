@@ -3,6 +3,21 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.1] - 2026-02-14
+
+### Changed
+- **Native-V3 Backend:** Migrated from native-v2 to native-v3
+  - Feature flag changed from `native-v2` to `native-v3`
+  - Dependencies updated: magellan 2.2 → 2.4.3, sqlitegraph 1.5.7 → 2.0.3
+  - Full feature parity with SQLite backend
+
+### Fixed
+- **Tests:** Fixed `cleanup_old_snapshots` to properly sort snapshots by timestamp
+- All lib tests now pass (409 tests)
+
+### Documentation
+- Rewrote README in concise format (100 lines)
+
 ## [2.5.0] - 2026-02-10
 
 ### Native-V2 Backend Support — Dual Backend Architecture with Advanced Refactoring Features

@@ -2709,7 +2709,7 @@ fn execute_query(
         return Ok(splice::cli::CliSuccessPayload::message_only(message));
     }
 
-    // If --list was requested but backend is native-v2, provide helpful error
+    // If --list was requested but backend is native-v3, provide helpful error
     #[cfg(not(feature = "sqlite"))]
     if list {
         return Err(splice::SpliceError::Other(
@@ -2757,7 +2757,7 @@ fn execute_query(
         ));
     }
 
-    // If --count was requested but backend is native-v2, provide helpful error
+    // If --count was requested but backend is native-v3, provide helpful error
     #[cfg(not(feature = "sqlite"))]
     if count {
         return Err(splice::SpliceError::Other(
@@ -3952,14 +3952,14 @@ fn execute_status(
         }
     }
 
-    // Check for native-v2 database without native-v2 feature
+    // Check for native-v3 database without native-v3 feature
     let detected_backend = splice::graph::CodeGraph::detect_backend(db_path)?;
-    if detected_backend == splice::graph::Backend::NativeV2 {
-        #[cfg(not(feature = "native-v2"))]
+    if detected_backend == splice::graph::Backend::NativeV3 {
+        #[cfg(not(feature = "native-v3"))]
         {
             return Err(splice::SpliceError::Other(
-                "Cannot open native-v2 database without native-v2 feature. \
-                 Build with: cargo build --features native-v2 --no-default-features".to_string()
+                "Cannot open native-v3 database without native-v3 feature. \
+                 Build with: cargo build --features native-v3 --no-default-features".to_string()
             ));
         }
     }
@@ -4482,7 +4482,7 @@ fn execute_migrate_db(
     }
 }
 
-/// Execute migrate command: convert SQLite database to native-v2.
+/// Execute migrate command: convert SQLite database to native-v3.
 fn execute_migrate(
     source: &Path,
     dest: &Path,
@@ -4500,7 +4500,7 @@ fn execute_migrate(
     if detected_backend != splice::graph::Backend::SQLite {
         return Err(splice::SpliceError::Other(format!(
             "Source database is not SQLite format (detected: {}). \
-             Migration is only supported from SQLite to native-v2.",
+             Migration is only supported from SQLite to native-v3.",
             detected_backend
         )));
     }
@@ -4522,7 +4522,7 @@ fn execute_migrate(
 
     // Perform migration with verification
     let verify = !skip_verify;
-    let report = code_graph.migrate_to_native_v2(source, dest, progress_cb, verify)?;
+    let report = code_graph.migrate_to_native_v3(source, dest, progress_cb, verify)?;
 
     // Determine verification status for display
     let verification_display = if verify {

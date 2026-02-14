@@ -154,11 +154,11 @@ impl BatchTransaction {
 
     /// Perform rollback from a snapshot.
     fn perform_rollback(&self, snapshot_path: &Path) -> Result<()> {
-        // Verify backend is native-v2 (restore only works with native-v2)
+        // Verify backend is native-v3 (restore only works with native-v3)
         let backend = CodeGraph::detect_backend(&self.db_path)?;
-        if backend != crate::graph::Backend::NativeV2 {
+        if backend != crate::graph::Backend::NativeV3 {
             return Err(SpliceError::Other(format!(
-                "Rollback requires native-v2 backend, detected: {}",
+                "Rollback requires native-v3 backend, detected: {}",
                 backend
             )));
         }

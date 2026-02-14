@@ -25,8 +25,8 @@ use std::path::Path;
 pub enum Backend {
     /// SQLite-based backend (default, backward compatible)
     SQLite,
-    /// Native-v2 backend (requires native-v2 feature)
-    NativeV2,
+    /// Native-v3 backend (requires native-v3 feature)
+    NativeV3,
     /// Unknown or unrecognized format
     Unknown,
 }
@@ -35,7 +35,7 @@ impl std::fmt::Display for Backend {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Backend::SQLite => write!(f, "sqlite"),
-            Backend::NativeV2 => write!(f, "native-v2"),
+            Backend::NativeV3 => write!(f, "native-v3"),
             Backend::Unknown => write!(f, "unknown"),
         }
     }
@@ -120,7 +120,7 @@ impl CodeGraph {
 
     /// Detect which backend format a database file uses.
     ///
-    /// Checks the file header to determine if the database is SQLite or native-v2 format.
+    /// Checks the file header to determine if the database is SQLite or native-v3 format.
     /// Returns Backend::Unknown for non-existent files or unrecognized formats.
     ///
     /// # Arguments
@@ -145,9 +145,9 @@ impl CodeGraph {
         Ok(if Self::is_sqlite_db(path)? {
             Backend::SQLite
         } else {
-            // If it exists but isn't SQLite, assume native-v2
-            // (native-v2 databases don't have a recognizable header like SQLite)
-            Backend::NativeV2
+            // If it exists but isn't SQLite, assume native-v3
+            // (native-v3 databases don't have a recognizable header like SQLite)
+            Backend::NativeV3
         })
     }
 
@@ -189,7 +189,7 @@ impl CodeGraph {
         let node_id_i64 = self.backend.insert_node(node_spec)?;
         let node_id = NodeId::from(node_id_i64);
 
-        // Flush to ensure data is written to disk (critical for native-v2 backend)
+        // Flush to ensure data is written to disk (critical for native-v3 backend)
         let _ = self.backend.flush();
 
         // Cache the symbol name → NodeId mapping
@@ -262,8 +262,8 @@ impl CodeGraph {
         };
         self.backend.insert_edge(edge_spec)?;
 
-        // Flush to ensure data is written to disk (critical for native-v2 backend)
-        // Native-v2 uses sparse files - without flush, data is lost on reopen
+        // Flush to ensure data is written to disk (critical for native-v3 backend)
+        // Native-v3 uses sparse files - without flush, data is lost on reopen
         let _ = self.backend.flush();
 
         // Cache the symbol name → NodeId mapping (by file)
@@ -365,7 +365,7 @@ impl CodeGraph {
             }
         }
 
-        // Then, search through database for persisted symbols (critical for native-v2)
+        // Then, search through database for persisted symbols (critical for native-v3)
         // This finds symbols that were written before the current process started
         if let Ok(all_ids) = self.backend.entity_ids() {
             let snapshot = SnapshotId(0);
@@ -416,7 +416,7 @@ impl CodeGraph {
         }
 
         // Then, collect from database (for persisted symbols across reopen)
-        // This is critical for native-v2 backend where cache is not persisted
+        // This is critical for native-v3 backend where cache is not persisted
         if let Ok(all_ids) = self.backend.entity_ids() {
             let snapshot = SnapshotId(0);
             for node_id in all_ids {
@@ -553,11 +553,11 @@ impl CodeGraph {
         }
     }
 
-    /// Migrate this database to native-v2 format.
+    /// Migrate this database to native-v3 format.
     ///
     /// This method:
     /// 1. Exports the current database to a snapshot in a temporary directory
-    /// 2. Creates a new native-v2 database at the destination path
+    /// 2. Creates a new native-v3 database at the destination path
     /// 3. Imports the snapshot into the new database
     /// 4. Returns a migration report with statistics
     ///
@@ -565,7 +565,7 @@ impl CodeGraph {
     ///
     /// # Arguments
     /// * `source_path` - Path to the source database (for verification in plan 34-04)
-    /// * `dest_path` - Path where the native-v2 database will be created
+    /// * `dest_path` - Path where the native-v3 database will be created
     /// * `progress` - Optional callback for progress reporting (receives step name)
     ///
     /// # Returns
@@ -591,10 +591,10 @@ impl CodeGraph {
     /// - If destination path already exists
     /// - If temporary directory cannot be created
     /// - If snapshot export fails (database corruption, disk full)
-    /// - If native-v2 database creation fails (requires native-v2 or migration feature)
+    /// - If native-v3 database creation fails (requires native-v3 or migration feature)
     /// - If snapshot import fails
-    #[cfg(any(feature = "native-v2", feature = "migration"))]
-    pub fn migrate_to_native_v2(
+    #[cfg(any(feature = "native-v3", feature = "migration"))]
+    pub fn migrate_to_native_v3(
         &self,
         source_path: &Path,
         dest_path: &Path,
@@ -636,16 +636,16 @@ impl CodeGraph {
             .map_err(|e| SpliceError::Other(format!("Snapshot export failed: {}", e)))?;
 
         if let Some(p) = progress {
-            p("Creating native-v2 database...");
+            p("Creating native-v3 database...");
         }
 
-        // Create native-v2 database at destination
+        // Create native-v3 database at destination
         let native_cfg = sqlitegraph::GraphConfig::native();
         let dest_backend = sqlitegraph::open_graph(dest_path, &native_cfg)
-            .map_err(|e| SpliceError::Other(format!("Failed to create native-v2 database: {}", e)))?;
+            .map_err(|e| SpliceError::Other(format!("Failed to create native-v3 database: {}", e)))?;
 
         if let Some(p) = progress {
-            p("Importing snapshot to native-v2 database...");
+            p("Importing snapshot to native-v3 database...");
         }
 
         // Import snapshot to destination
@@ -697,12 +697,12 @@ impl CodeGraph {
         })
     }
 
-    /// Migration is not available without the native-v2 or migration feature.
+    /// Migration is not available without the native-v3 or migration feature.
     ///
-    /// Build with: `cargo build --features native-v2 --no-default-features`
+    /// Build with: `cargo build --features native-v3 --no-default-features`
     /// Or for migration tests: `cargo build --features migration`
-    #[cfg(not(any(feature = "native-v2", feature = "migration")))]
-    pub fn migrate_to_native_v2(
+    #[cfg(not(any(feature = "native-v3", feature = "migration")))]
+    pub fn migrate_to_native_v3(
         &self,
         _source_path: &Path,
         _dest_path: &Path,
@@ -710,14 +710,14 @@ impl CodeGraph {
         _verify: bool,
     ) -> Result<MigrationReport> {
         Err(SpliceError::Other(
-            "Migration to native-v2 requires the native-v2 or migration feature. \
-             Build with: cargo build --features native-v2 --no-default-features \
+            "Migration to native-v3 requires the native-v3 or migration feature. \
+             Build with: cargo build --features native-v3 --no-default-features \
              or cargo build --features migration"
                 .to_string(),
         ))
     }
 
-    /// Restore a database from a snapshot file (native-v2 only).
+    /// Restore a database from a snapshot file (native-v3 only).
     ///
     /// This method restores a code graph database from a previously captured snapshot.
     /// The snapshot must have been created from the same database.
@@ -733,7 +733,7 @@ impl CodeGraph {
     ///
     /// # Errors
     ///
-    /// - If database backend is SQLite (restore only supported for native-v2)
+    /// - If database backend is SQLite (restore only supported for native-v3)
     /// - If snapshot file doesn't exist or is corrupted
     /// - If backup creation fails
     /// - If database restoration fails
@@ -751,7 +751,7 @@ impl CodeGraph {
     /// println!("Backup created at: {:?}", result.backup_path);
     /// # Ok::<(), splice::SpliceError>(())
     /// ```
-    #[cfg(any(feature = "native-v2", feature = "migration"))]
+    #[cfg(any(feature = "native-v3", feature = "migration"))]
     pub fn restore_from_snapshot(
         db_path: &Path,
         snapshot_path: &Path,
@@ -759,17 +759,17 @@ impl CodeGraph {
         crate::proof::storage::SnapshotStorage::restore_from_snapshot(db_path, snapshot_path)
     }
 
-    /// Restore is not available without the native-v2 or migration feature.
+    /// Restore is not available without the native-v3 or migration feature.
     ///
-    /// Build with: `cargo build --features native-v2 --no-default-features`
-    #[cfg(not(any(feature = "native-v2", feature = "migration")))]
+    /// Build with: `cargo build --features native-v3 --no-default-features`
+    #[cfg(not(any(feature = "native-v3", feature = "migration")))]
     pub fn restore_from_snapshot(
         _db_path: &Path,
         _snapshot_path: &Path,
     ) -> Result<crate::proof::storage::RestoreResult> {
         Err(SpliceError::Other(
-            "Database restore requires the native-v2 or migration feature. \
-             Build with: cargo build --features native-v2 --no-default-features \
+            "Database restore requires the native-v3 or migration feature. \
+             Build with: cargo build --features native-v3 --no-default-features \
              or cargo build --features migration"
                 .to_string(),
         ))
@@ -813,10 +813,10 @@ mod backend_detection_tests {
 
         std::fs::File::create(&db_path).unwrap();
 
-        // Empty file is not SQLite, should be NativeV2 (or Unknown)
+        // Empty file is not SQLite, should be NativeV3 (or Unknown)
         let backend = CodeGraph::detect_backend(&db_path).unwrap();
-        // Empty files aren't valid native-v2, but our logic returns NativeV2 for non-SQLite
-        assert_eq!(backend, Backend::NativeV2);
+        // Empty files aren't valid native-v3, but our logic returns NativeV3 for non-SQLite
+        assert_eq!(backend, Backend::NativeV3);
 
         std::fs::remove_file(&db_path).ok();
     }

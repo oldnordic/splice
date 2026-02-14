@@ -492,7 +492,7 @@ pub enum Commands {
         #[arg(short, long)]
         db: std::path::PathBuf,
 
-        /// Detect and report the backend format (sqlite or native-v2)
+        /// Detect and report the backend format (sqlite or native-v3)
         #[arg(long, default_value = "false")]
         detect_backend: bool,
     },
@@ -597,14 +597,14 @@ pub enum Commands {
         dry_run: bool,
     },
 
-    /// Migrate a database from SQLite to native-v2 format
+    /// Migrate a database from SQLite to native-v3 format
     #[command(display_order = 109)]
     Migrate {
         /// Path to the source database (SQLite format)
         #[arg(short = 's', long, value_name = "PATH")]
         source: std::path::PathBuf,
 
-        /// Path to the destination database (will be created in native-v2 format)
+        /// Path to the destination database (will be created in native-v3 format)
         #[arg(short = 'd', long, value_name = "PATH")]
         dest: std::path::PathBuf,
 

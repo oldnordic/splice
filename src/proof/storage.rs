@@ -253,12 +253,15 @@ impl SnapshotStorage {
     ///
     /// Returns `SpliceError::Io` if file deletion fails.
     pub fn cleanup_old_snapshots(&self, keep_count: usize) -> Result<Vec<PathBuf>> {
-        let snapshots = self.list_snapshots()?;
+        let mut snapshots = self.list_snapshots()?;
         let mut deleted_paths = Vec::new();
 
         if snapshots.len() <= keep_count {
             return Ok(deleted_paths);
         }
+
+        // Sort by timestamp descending (newest first) to keep the most recent
+        snapshots.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
 
         // Delete snapshots beyond keep_count
         for snapshot in snapshots.into_iter().skip(keep_count) {
@@ -464,14 +467,14 @@ impl SnapshotStorage {
         Ok(None)
     }
 
-    /// Restore a database from a snapshot file (native-v2 only).
+    /// Restore a database from a snapshot file (native-v3 only).
     ///
     /// This operation:
     /// 1. Detects the backend format of the existing database
-    /// 2. Returns an error if the backend is SQLite (only native-v2 supports restore)
+    /// 2. Returns an error if the backend is SQLite (only native-v3 supports restore)
     /// 3. Creates a backup of the existing database file
     /// 4. Loads the snapshot from disk
-    /// 5. Creates a new native-v2 database with the snapshot content
+    /// 5. Creates a new native-v3 database with the snapshot content
     /// 6. Replaces the original database with the restored one
     ///
     /// # Arguments
@@ -485,11 +488,11 @@ impl SnapshotStorage {
     ///
     /// # Errors
     ///
-    /// - If database backend is SQLite (restore only supported for native-v2)
+    /// - If database backend is SQLite (restore only supported for native-v3)
     /// - If snapshot file doesn't exist or is corrupted
     /// - If backup creation fails
     /// - If database creation or restoration fails
-    #[cfg(feature = "native-v2")]
+    #[cfg(feature = "native-v3")]
     pub fn restore_from_snapshot(
         db_path: &Path,
         snapshot_path: &Path,
@@ -502,7 +505,7 @@ impl SnapshotStorage {
         let backend = CodeGraph::detect_backend(db_path)?;
         if backend == crate::graph::Backend::SQLite {
             return Err(SpliceError::Other(
-                "Database restore is only supported for native-v2 backend databases. \
+                "Database restore is only supported for native-v3 backend databases. \
                  SQLite databases cannot be restored from snapshots."
                     .to_string(),
             ));
@@ -533,10 +536,10 @@ impl SnapshotStorage {
             })?;
         }
 
-        // Step 5: Create new native-v2 database
+        // Step 5: Create new native-v3 database
         let cfg = GraphConfig::native();
         let mut backend = sqlitegraph::open_graph(&temp_db_path, &cfg)
-            .map_err(|e| SpliceError::Other(format!("Failed to create native-v2 database: {}", e)))?;
+            .map_err(|e| SpliceError::Other(format!("Failed to create native-v3 database: {}", e)))?;
 
         // Step 6: Insert all symbols from snapshot
         for (_id, symbol_info) in &snapshot.symbols {
@@ -581,17 +584,17 @@ impl SnapshotStorage {
         })
     }
 
-    /// Database restore is not available without the native-v2 feature.
+    /// Database restore is not available without the native-v3 feature.
     ///
-    /// Build with: `cargo build --features native-v2 --no-default-features`
-    #[cfg(not(feature = "native-v2"))]
+    /// Build with: `cargo build --features native-v3 --no-default-features`
+    #[cfg(not(feature = "native-v3"))]
     pub fn restore_from_snapshot(
         _db_path: &Path,
         _snapshot_path: &Path,
     ) -> Result<RestoreResult> {
         Err(SpliceError::Other(
-            "Database restore requires the native-v2 feature. \
-             Build with: cargo build --features native-v2 --no-default-features"
+            "Database restore requires the native-v3 feature. \
+             Build with: cargo build --features native-v3 --no-default-features"
                 .to_string(),
         ))
     }
