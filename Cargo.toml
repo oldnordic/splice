@@ -11,6 +11,7 @@ keywords = ["refactoring", "cli", "code-analysis", "ast", "tree-sitter"]
 categories = ["command-line-utilities", "development-tools", "development-tools::build-utils"]
 exclude = [
     ".planning/",
+    ".splice/",
     "CLAUDE.md",
     "AGENTS.md",
     "QUICKSTART.md",

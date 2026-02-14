@@ -27,6 +27,7 @@ codemcp
 .fastembed_cache/
 .mcp.json
 CLAUDE.md
+.splice/
 
 # Local agent configs
 AGENTS.md
