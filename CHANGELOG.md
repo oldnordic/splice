@@ -3,6 +3,11 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.3] - 2026-02-20
+
+### Updated
+- Update sqlitegraph from 2.0.3 to 2.0.7 (bug fixes)
+
 ## [2.5.2] - 2026-02-14
 
 ### Changed
