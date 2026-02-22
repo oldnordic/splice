@@ -137,6 +137,7 @@ impl CodeGraph {
     ///
     /// let backend = CodeGraph::detect_backend(Path::new(".codemcp/codegraph.db"))?;
     /// println!("Database backend: {}", backend);
+    /// # Ok::<(), splice::SpliceError>(())
     /// ```
     pub fn detect_backend(path: &Path) -> Result<Backend> {
         if !path.exists() {

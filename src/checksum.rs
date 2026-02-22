@@ -154,13 +154,15 @@ pub fn has_file_changed(path: &Path, expected_checksum: &str) -> Result<bool> {
 ///
 /// ```no_run
 /// use splice::checksum;
+/// use std::path::Path;
 ///
 /// // Compute checksum of changes to verify later
 /// let changes = vec![
 ///     (10, 20, "new content 1"),
 ///     (50, 60, "new content 2"),
 /// ];
-/// let checksum = checksum::checksum_diff(path, &changes)?;
+/// let checksum = checksum::checksum_diff(Path::new("file.rs"), &changes)?;
+/// # Ok::<(), splice::SpliceError>(())
 /// ```
 pub fn checksum_diff(path: &Path, changes: &[(usize, usize, &str)]) -> Result<Checksum> {
     // Read file to validate bounds

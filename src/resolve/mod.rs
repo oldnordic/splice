@@ -36,10 +36,12 @@
 //! ```
 //!
 //! ### User-friendly lookup with suggestions
-//! ```no_run
+//! ```ignore
 //! use splice::resolve::find_symbol_or_suggest;
+//! use splice::graph::CodeGraph;
 //!
 //! // Returns helpful suggestions if symbol name is misspelled
+//! let graph = CodeGraph::open(".codemcp/codegraph.db").unwrap();
 //! match find_symbol_or_suggest(&graph, "my_functoin", None) {
 //!     Ok(id) => println!("Found: {:?}", id),
 //!     Err(e) => eprintln!("{}", e), // "Did you mean: my_function?"

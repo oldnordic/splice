@@ -144,7 +144,8 @@ pub fn is_enabled() -> bool {
 /// let enabled = is_enabled_with_config(None);
 ///
 /// // Explicit control (useful for testing)
-/// let enabled = is_enabled_with_config(Some(ExecutionLogConfig::disabled()));
+/// let config = ExecutionLogConfig::disabled();
+/// let enabled = is_enabled_with_config(Some(&config));
 /// ```
 #[must_use]
 pub fn is_enabled_with_config(config: Option<&ExecutionLogConfig>) -> bool {
