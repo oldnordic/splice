@@ -252,13 +252,70 @@ pub fn verify_workspace_resources(
 }
 
 /// Get available disk space on the filesystem containing the given path.
-fn get_disk_space(_path: &Path) -> Result<(u64, u64)> {
-    // Use std::fs::metadata to get file system stats
-    // Note: This is a simplified implementation
-    // A more robust implementation would use sysinfo or similar crate
-    // For now, we return a large number to avoid false positives
-    // TODO: Implement proper disk space checking
-    Ok((1_000_000_000_000, 1_000_000_000_000)) // 1TB default
+///
+/// Returns (available_bytes, total_bytes) for the filesystem.
+fn get_disk_space(path: &Path) -> Result<(u64, u64)> {
+    #[cfg(unix)]
+    {
+        // Use statvfs on Unix systems
+        use std::ffi::CString;
+        use std::os::unix::ffi::OsStrExt;
+
+        // Convert path to CString
+        let c_path = CString::new(path.as_os_str().as_bytes())
+            .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "path contains null byte"))?;
+
+        // Unsafe block to call statvfs
+        unsafe {
+            let mut stat: libc::statvfs = std::mem::zeroed();
+
+            if libc::statvfs(c_path.as_ptr(), &mut stat) != 0 {
+                return Err(std::io::Error::last_os_error().into());
+            }
+
+            // Calculate available and total bytes
+            // statvfs.f_bsize = filesystem block size
+            // statvfs.f_blocks = total blocks
+            // statvfs.f_bavail = free blocks available to non-privileged user
+            let frsize = stat.f_frsize as u64;  // Fragment size (fundamental file system block size)
+            let total = stat.f_blocks as u64 * frsize;
+            let available = stat.f_bavail as u64 * frsize;
+
+            Ok((available, total))
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        // Use GetDiskFreeSpaceExW on Windows
+        use std::os::windows::ffi::OsStrExt;
+        use std::ptr;
+
+        // Convert path to UTF-16
+        let path_wide: Vec<u16> = path.as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+
+        unsafe {
+            let mut free_bytes: u64 = 0;
+            let mut total_bytes: u64 = 0;
+            let mut available_bytes: u64 = 0;
+
+            // GetDiskFreeSpaceExW retrieves information about the amount of space
+            // that is available on a disk volume
+            if winapi::um::GetDiskFreeSpaceExW(
+                path_wide.as_ptr(),
+                &mut free_bytes,
+                &mut total_bytes,
+                ptr::null_mut(),
+            ) != 0 {
+                Ok((available_bytes, total_bytes))
+            } else {
+                Err(std::io::Error::last_os_error().into())
+            }
+        }
+    }
 }
 
 /// Verify graph database is in sync with files.
@@ -860,5 +917,65 @@ mod tests {
         result.add_error("test error");
         assert_eq!(result.errors.len(), 1);
         assert_eq!(result.errors[0], "test error");
+    }
+
+    // TDD test for actual disk space checking
+    #[test]
+    fn test_get_disk_space_returns_actual_values() {
+        use std::path::Path;
+
+        let temp_dir = TempDir::new().unwrap();
+
+        // Test that get_disk_space returns actual values, not hardcoded 1TB stub
+        let result = get_disk_space(temp_dir.path());
+
+        assert!(result.is_ok(), "get_disk_space should succeed");
+        let (available, total) = result.unwrap();
+
+        // Actual disk space should be non-zero
+        assert!(available > 0, "Available space should be greater than 0");
+        assert!(total > 0, "Total space should be greater than 0");
+
+        // Available should be <= total
+        assert!(available <= total, "Available should not exceed total");
+
+        // CRITICAL: The stub returns exactly 1_000_000_000_000 (1TB)
+        // This should NOT match actual disk space
+        // If available is exactly 1TB, it's the stub
+        assert_ne!(
+            available,
+            1_000_000_000_000,
+            "get_disk_space returned stub value (1TB). Implement actual disk space checking!"
+        );
+
+        // Also check total isn't the stub value
+        assert_ne!(
+            total,
+            1_000_000_000_000,
+            "get_disk_space returned stub value (1TB) for total. Implement actual disk space checking!"
+        );
+    }
+
+    #[test]
+    fn test_get_disk_space_on_tmp_is_not_stub() {
+        use std::path::Path;
+
+        // Test on /tmp which should have actual disk space, not 1TB stub
+        let result = get_disk_space(Path::new("/tmp"));
+
+        assert!(result.is_ok(), "get_disk_space on /tmp should succeed");
+        let (available, total) = result.unwrap();
+
+        // Should have some space
+        assert!(available > 0, "Available should be greater than 0");
+        assert!(total > 0, "Total should be greater than 0");
+
+        // /tmp on this system has ~30GB, NOT 1TB
+        // The stub returns 1TB which is wrong
+        assert_ne!(
+            available,
+            1_000_000_000_000,
+            "get_disk_space on /tmp returned stub value (1TB). /tmp typically has less space."
+        );
     }
 }

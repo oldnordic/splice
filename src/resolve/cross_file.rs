@@ -173,8 +173,8 @@ impl<'a> CrossFileResolver<'a> {
     /// - Absolute paths: crate::foo::bar
     /// - Super references: super, super::super
     /// - Self references: self
-    /// - Python imports (TODO: implement Python-specific resolution)
-    /// - C/C++ includes (TODO: implement C/C++ specific resolution)
+    /// - Python imports: module.py, package/__init__.py, relative imports
+    /// - C/C++ includes: local header files in same directory
     fn resolve_import_path(&self, current_file: &str, import: &ImportFact) -> Option<String> {
         let module_path_str = import.path.join("::");
 
@@ -195,25 +195,156 @@ impl<'a> CrossFileResolver<'a> {
                 // External crates not supported yet
                 None
             }
-            // Python imports - not yet implemented for cross-file resolution
-            ImportKind::PythonImport
-            | ImportKind::PythonFrom
-            | ImportKind::PythonFromRelative
-            | ImportKind::PythonFromParent
-            | ImportKind::PythonFromAncestor => None,
-            // C/C++ includes - not yet implemented for cross-file resolution
-            ImportKind::CppSystemInclude | ImportKind::CppLocalInclude => None,
-            // JavaScript/TypeScript imports - not yet implemented for cross-file resolution
+            // Python imports
+            ImportKind::PythonImport => {
+                // `import foo` or `import foo.bar`
+                // Try to resolve as Python module path
+                self.resolve_python_module(&import.path.join("."))
+            }
+            ImportKind::PythonFrom => {
+                // `from foo import bar`
+                // Resolve the module part
+                self.resolve_python_module(&import.path.join("."))
+            }
+            ImportKind::PythonFromRelative => {
+                // `from . import foo` - same package
+                self.resolve_python_relative_import(current_file, 1, &import.path.join("."))
+            }
+            ImportKind::PythonFromParent => {
+                // `from .. import foo` - parent package
+                self.resolve_python_relative_import(current_file, 2, &import.path.join("."))
+            }
+            ImportKind::PythonFromAncestor => {
+                // `from ... import foo` - count dots for levels
+                let levels = import.path.len();
+                self.resolve_python_relative_import(current_file, levels, &import.path.join("."))
+            }
+            // C/C++ includes
+            ImportKind::CppLocalInclude => {
+                // `#include "header.h"` - look in same directory
+                self.resolve_cpp_local_include(current_file, &module_path_str)
+            }
+            // C++ system includes and other languages - not yet implemented
+            ImportKind::CppSystemInclude => None,
             ImportKind::JsImport
             | ImportKind::JsDefaultImport
             | ImportKind::JsNamespaceImport
             | ImportKind::JsSideEffectImport
             | ImportKind::JsRequire => None,
-            // Java imports - not yet implemented for cross-file resolution
             ImportKind::JavaImport | ImportKind::JavaStaticImport => None,
-            // TypeScript type-only imports - not yet implemented for cross-file resolution
             ImportKind::TsTypeImport | ImportKind::TsTypeDefaultImport => None,
         }
+    }
+
+    /// Resolve a Python module path to a file path.
+    ///
+    /// Python modules can be:
+    /// - `foo.py` - single file module
+    /// - `foo/__init__.py` - package module
+    /// - `foo/bar.py` - nested module
+    /// - `foo/bar/__init__.py` - nested package
+    fn resolve_python_module(&self, module_path: &str) -> Option<String> {
+        // Try direct module.py file
+        let py_file = format!("{}.py", module_path);
+        if let Some(file) = self.index.resolve(&py_file) {
+            return Some(file);
+        }
+
+        // Try package/__init__.py
+        let init_file = format!("{}/__init__.py", module_path);
+        if let Some(file) = self.index.resolve(&init_file) {
+            return Some(file);
+        }
+
+        // Try with dots replaced by slashes (Python module notation)
+        // e.g., "foo.bar" -> "foo/bar.py"
+        let module_with_slashes = module_path.replace('.', "/");
+        let py_file_slash = format!("{}.py", module_with_slashes);
+        if let Some(file) = self.index.resolve(&py_file_slash) {
+            return Some(file);
+        }
+
+        let init_file_slash = format!("{}/__init__.py", module_with_slashes);
+        if let Some(file) = self.index.resolve(&init_file_slash) {
+            return Some(file);
+        }
+
+        None
+    }
+
+    /// Resolve a Python relative import.
+    ///
+    /// `levels` indicates how many parent directories to go up:
+    /// - 1 = `.` (current package)
+    /// - 2 = `..` (parent package)
+    /// - 3 = `...` (grandparent package)
+    fn resolve_python_relative_import(
+        &self,
+        current_file: &str,
+        levels: usize,
+        target: &str,
+    ) -> Option<String> {
+        use std::path::Path;
+
+        // Get current file's directory
+        let current_path = Path::new(current_file);
+        let mut dir = current_path.parent()?;
+
+        // Go up `levels` directories
+        for _ in 0..levels {
+            dir = dir.parent()?;
+        }
+
+        // Construct target path
+        let target_path = if target.is_empty() {
+            // `from . import *` - use __init__.py
+            dir.join("__init__.py")
+        } else {
+            // `from . import foo` - use foo.py or foo/__init__.py
+            let as_py = dir.join(format!("{}.py", target));
+            if as_py.exists() {
+                as_py
+            } else {
+                dir.join(target).join("__init__.py")
+            }
+        };
+
+        // Convert to string and check if it's in the index
+        let path_str = target_path.to_str()?;
+        self.index.resolve(path_str)
+            .or_else(|| {
+                // Try direct path if not in index
+                Some(path_str.to_string())
+            })
+    }
+
+    /// Resolve a C/C++ local include.
+    ///
+    /// `#include "header.h"` looks in:
+    /// 1. Same directory as current file
+    /// 2. Project include directories (if indexed)
+    fn resolve_cpp_local_include(&self, current_file: &str, header_name: &str) -> Option<String> {
+        use std::path::Path;
+
+        // Get current file's directory
+        let current_path = Path::new(current_file);
+        let dir = current_path.parent()?;
+
+        // Try same directory
+        let same_dir = dir.join(header_name);
+        let path_str = same_dir.to_str()?;
+
+        // Check if it's in the index
+        if let Some(file) = self.index.resolve(path_str) {
+            return Some(file);
+        }
+
+        // Try direct path (file might not be indexed yet)
+        if same_dir.exists() {
+            return Some(path_str.to_string());
+        }
+
+        None
     }
 
     /// Find a specific symbol in a file.

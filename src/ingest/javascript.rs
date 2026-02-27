@@ -419,6 +419,145 @@ mod tests {
         assert_eq!(symbols[0].parameters, vec!["a", "b"]);
     }
 
-    // TODO: TypeScript-specific tests require tree-sitter-typescript parser
-    // For now, these are skipped since we're using the JavaScript parser
+    // TypeScript-specific tests using tree-sitter-typescript parser
+
+    #[test]
+    fn test_extract_typescript_interface() {
+        let mut parser = tree_sitter::Parser::new();
+        parser
+            .set_language(&tree_sitter_typescript::language_typescript())
+            .expect("Failed to load TypeScript grammar");
+
+        let source = b"interface User { name: string; age: number; }\n";
+        let tree = parser.parse(source, None).unwrap();
+        let rope = Rope::from_reader(&source[..]).unwrap();
+
+        let mut symbols = Vec::new();
+        extract_symbols(tree.root_node(), source, &rope, &mut symbols, "", false);
+
+        assert_eq!(symbols.len(), 1);
+        assert_eq!(symbols[0].name, "User");
+        assert_eq!(symbols[0].kind, JavaScriptSymbolKind::Interface);
+    }
+
+    #[test]
+    fn test_extract_typescript_type_alias() {
+        let mut parser = tree_sitter::Parser::new();
+        parser
+            .set_language(&tree_sitter_typescript::language_typescript())
+            .expect("Failed to load TypeScript grammar");
+
+        let source = b"type UserId = string | number;\n";
+        let tree = parser.parse(source, None).unwrap();
+        let rope = Rope::from_reader(&source[..]).unwrap();
+
+        let mut symbols = Vec::new();
+        extract_symbols(tree.root_node(), source, &rope, &mut symbols, "", false);
+
+        assert_eq!(symbols.len(), 1);
+        assert_eq!(symbols[0].name, "UserId");
+        assert_eq!(symbols[0].kind, JavaScriptSymbolKind::TypeAlias);
+    }
+
+    #[test]
+    fn test_extract_typescript_enum() {
+        let mut parser = tree_sitter::Parser::new();
+        parser
+            .set_language(&tree_sitter_typescript::language_typescript())
+            .expect("Failed to load TypeScript grammar");
+
+        let source = b"enum Color { Red, Green, Blue }\n";
+        let tree = parser.parse(source, None).unwrap();
+        let rope = Rope::from_reader(&source[..]).unwrap();
+
+        let mut symbols = Vec::new();
+        extract_symbols(tree.root_node(), source, &rope, &mut symbols, "", false);
+
+        assert_eq!(symbols.len(), 1);
+        assert_eq!(symbols[0].name, "Color");
+        assert_eq!(symbols[0].kind, JavaScriptSymbolKind::Enum);
+    }
+
+    #[test]
+    fn test_extract_typescript_namespace() {
+        let mut parser = tree_sitter::Parser::new();
+        parser
+            .set_language(&tree_sitter_typescript::language_typescript())
+            .expect("Failed to load TypeScript grammar");
+
+        let source = b"namespace Utils { export function helper() {} }\n";
+        let tree = parser.parse(source, None).unwrap();
+        let rope = Rope::from_reader(&source[..]).unwrap();
+
+        let mut symbols = Vec::new();
+        extract_symbols(tree.root_node(), source, &rope, &mut symbols, "", false);
+
+        // Debug: print what was actually found
+        // At minimum, the function inside should be extracted
+        assert!(!symbols.is_empty(), "Should extract at least the function from namespace");
+        // The function helper should be found
+        assert!(symbols.iter().any(|s| s.name == "helper"), "Should find helper function");
+    }
+
+    #[test]
+    fn test_extract_typescript_typed_function() {
+        let mut parser = tree_sitter::Parser::new();
+        parser
+            .set_language(&tree_sitter_typescript::language_typescript())
+            .expect("Failed to load TypeScript grammar");
+
+        let source = b"function add(a: number, b: number): number { return a + b; }\n";
+        let tree = parser.parse(source, None).unwrap();
+        let rope = Rope::from_reader(&source[..]).unwrap();
+
+        let mut symbols = Vec::new();
+        extract_symbols(tree.root_node(), source, &rope, &mut symbols, "", false);
+
+        assert_eq!(symbols.len(), 1);
+        assert_eq!(symbols[0].name, "add");
+        assert_eq!(symbols[0].kind, JavaScriptSymbolKind::Function);
+        // Note: TypeScript parameter extraction may differ from JavaScript
+    }
+
+    #[test]
+    fn test_extract_typescript_class_with_implements() {
+        let mut parser = tree_sitter::Parser::new();
+        parser
+            .set_language(&tree_sitter_typescript::language_typescript())
+            .expect("Failed to load TypeScript grammar");
+
+        let source = b"class MyClass implements Serializable { serialize() {} }\n";
+        let tree = parser.parse(source, None).unwrap();
+        let rope = Rope::from_reader(&source[..]).unwrap();
+
+        let mut symbols = Vec::new();
+        extract_symbols(tree.root_node(), source, &rope, &mut symbols, "", false);
+
+        assert_eq!(symbols.len(), 2); // class + method
+        assert_eq!(symbols[0].name, "MyClass");
+        assert_eq!(symbols[0].kind, JavaScriptSymbolKind::Class);
+        assert_eq!(symbols[1].name, "serialize");
+        assert_eq!(symbols[1].kind, JavaScriptSymbolKind::Method);
+    }
+
+    #[test]
+    fn test_extract_typescript_interface_with_extends() {
+        let mut parser = tree_sitter::Parser::new();
+        parser
+            .set_language(&tree_sitter_typescript::language_typescript())
+            .expect("Failed to load TypeScript grammar");
+
+        let source = b"interface Animal { name: string; }\ninterface Dog extends Animal { bark(): void; }\n";
+        let tree = parser.parse(source, None).unwrap();
+        let rope = Rope::from_reader(&source[..]).unwrap();
+
+        let mut symbols = Vec::new();
+        extract_symbols(tree.root_node(), source, &rope, &mut symbols, "", false);
+
+        assert_eq!(symbols.len(), 2);
+        assert_eq!(symbols[0].name, "Animal");
+        assert_eq!(symbols[0].kind, JavaScriptSymbolKind::Interface);
+        assert_eq!(symbols[1].name, "Dog");
+        assert_eq!(symbols[1].kind, JavaScriptSymbolKind::Interface);
+    }
 }

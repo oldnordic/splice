@@ -1,4 +1,4 @@
-# Splice v2.5.3 Manual
+# Splice v2.5.4 Manual
 
 Comprehensive guide for Splice span-safe refactoring with Magellan integration.
 

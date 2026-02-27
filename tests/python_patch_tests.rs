@@ -94,6 +94,8 @@ def greet(name: str) -> str:
             workspace_path,    // For validation
             Language::Python,  // Python file
             AnalyzerMode::Off, // rust-analyzer OFF for Python
+            false,  // strict: test mode doesn't need strict validation
+            false,  // skip: still run validation for test
         );
 
         // Should succeed
@@ -190,6 +192,8 @@ def valid_function() -> int:
             workspace_path,
             Language::Python,
             AnalyzerMode::Off,
+            false,  // strict: test mode doesn't need strict validation
+            false,  // skip: still run validation for test
         );
 
         // For Python, syntax errors are caught by tree-sitter reparse gate
@@ -276,6 +280,8 @@ x = undefined_variable  # This will cause NameError
             workspace_path,
             Language::Python,
             AnalyzerMode::Off,
+            false,  // strict: test mode doesn't need strict validation
+            false,  // skip: still run validation for test
         );
 
         // Note: Python -m py_compile only checks syntax, not runtime errors

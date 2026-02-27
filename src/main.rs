@@ -90,6 +90,27 @@ fn log_execution_error(operation: &str, err: &splice::SpliceError) {
     );
 }
 
+/// Count lines in a byte span within a file.
+///
+/// This helper function counts how many lines are covered by a byte span.
+/// Used to calculate lines_removed for delete operations.
+fn count_lines_in_span(file_path: &Path, start: usize, end: usize) -> usize {
+    use std::fs;
+
+    if end <= start {
+        return 0;
+    }
+
+    // Read the file and count newlines in the span
+    if let Ok(content) = fs::read_to_string(file_path) {
+        let span_end = end.min(content.len());
+        let span = &content[start..span_end];
+        span.lines().count()
+    } else {
+        0
+    }
+}
+
 /// Resolve context counts from -A, -B, -C flags following grep conventions.
 ///
 /// # Convention
@@ -222,6 +243,8 @@ fn main() -> ExitCode {
             metadata,
             snapshot_before,
             json_output,
+            cli.strict,
+            true,  // skip_pre_verify: delete operations don't require graph DB by default
         ),
 
         splice::cli::Commands::Patch {
@@ -274,6 +297,8 @@ fn main() -> ExitCode {
                 snapshot_before,
                 impact_graph,
                 json_output,
+                cli.strict,
+                true,  // skip_pre_verify: patch operations don't require graph DB by default
             ),
         },
 
@@ -677,6 +702,8 @@ fn execute_delete(
     metadata: Option<String>,
     snapshot_before: bool,
     json_output: bool,
+    strict: bool,
+    skip_pre_verify: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use ropey::Rope;
     use splice::execution::log;
@@ -918,6 +945,8 @@ fn execute_delete(
                 workspace_dir,
                 file_lang,
                 analyzer_mode,
+                strict,
+                skip_pre_verify,
             )?;
             deleted_count += 1;
         }
@@ -935,6 +964,8 @@ fn execute_delete(
         workspace_dir,
         symbol_lang,
         analyzer_mode,
+        strict,
+        skip_pre_verify,
     )?;
     deleted_count += 1;
 
@@ -1284,6 +1315,31 @@ fn execute_delete(
             .sum::<usize>()
             + (def.byte_end - def.byte_start);
 
+        // Calculate total lines removed
+        let total_lines_removed: usize = {
+            // Count lines in definition
+            let def_lines = if def.byte_end > def.byte_start {
+                count_lines_in_span(file_path, def.byte_start, def.byte_end)
+            } else {
+                0
+            };
+
+            // Count lines in each reference
+            let ref_lines: usize = ref_set
+                .references
+                .iter()
+                .map(|r| {
+                    if r.byte_end > r.byte_start {
+                        count_lines_in_span(Path::new(&r.file_path), r.byte_start, r.byte_end)
+                    } else {
+                        0
+                    }
+                })
+                .sum();
+
+            def_lines + ref_lines
+        };
+
         // Compute file checksum before deletion
         let file_checksum_before = checksum::checksum_file(file_path)
             .map(|cs| cs.value)
@@ -1313,7 +1369,7 @@ fn execute_delete(
             kind: _kind_str.unwrap_or("unknown").to_string(),
             spans,
             bytes_removed: total_bytes_removed,
-            lines_removed: 0, // TODO: Calculate from diff
+            lines_removed: total_lines_removed,
             references_removed: deleted_count - 1,
             file_checksum_before,
             span_checksums,
@@ -1385,6 +1441,8 @@ fn execute_single_patch(
     snapshot_before: bool,
     impact_graph: bool,
     json_output: bool,
+    strict: bool,
+    skip_pre_verify: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     let file_path = require_patch_arg("--file", file_path)?;
     let symbol_name = require_patch_arg("--symbol", symbol_name)?;
@@ -1410,6 +1468,8 @@ fn execute_single_patch(
         snapshot_before,
         impact_graph,
         json_output,
+        strict,
+        skip_pre_verify,
     )
 }
 
@@ -1433,6 +1493,8 @@ fn execute_patch(
     snapshot_before: bool,
     impact_graph: bool,
     json_output: bool,
+    strict: bool,
+    skip_pre_verify: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::execution::log;
     use splice::format_colored_diff;
@@ -1441,6 +1503,7 @@ fn execute_patch(
     use splice::graph::CodeGraph;
     use splice::patch::{
         apply_patch_with_validation, preview_patch_with_content, FilePatchSummary,
+        compute_preview_report,
     };
     use splice::resolve::resolve_symbol;
     use splice::should_use_color;
@@ -1734,6 +1797,16 @@ fn execute_patch(
         workspace_dir,
         symbol_lang,
         analyzer_mode,
+        strict,
+        skip_pre_verify,
+    )?;
+
+    // Calculate line counts for the patch
+    let line_report = compute_preview_report(
+        file_path,
+        resolved.byte_start,
+        resolved.byte_end,
+        &replacement_content,
     )?;
 
     let summary = FilePatchSummary {
@@ -1961,8 +2034,8 @@ fn execute_patch(
             spans: vec![span],
             before_hash: summary.before_hash.clone(),
             after_hash: summary.after_hash.clone(),
-            lines_added: 0,   // TODO: Calculate from diff
-            lines_removed: 0, // TODO: Calculate from diff
+            lines_added: line_report.lines_added,
+            lines_removed: line_report.lines_removed,
         };
 
         let message = format!(

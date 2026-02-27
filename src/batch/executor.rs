@@ -233,6 +233,8 @@ impl BatchExecutor {
                 workspace_dir,
                 language,
                 crate::validate::AnalyzerMode::Off,
+                false,  // strict: batch mode uses normal validation
+                false,  // skip: still run validation
             )?;
             Ok(())
         }
@@ -302,6 +304,8 @@ impl BatchExecutor {
                 workspace_dir,
                 language,
                 crate::validate::AnalyzerMode::Off,
+                false,  // strict: batch mode uses normal validation
+                false,  // skip: still run validation
             )?;
             Ok(())
         }

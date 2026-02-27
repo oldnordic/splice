@@ -127,11 +127,23 @@ pub fn generate_snapshot(
     let total_edges = edges.values().map(|v| v.len()).sum();
     let entry_point_count = entry_points.len();
 
+    // Compute maximum cyclomatic complexity
+    // For a call graph, complexity of a symbol = fan_out + 1 (McCabe's metric)
+    // We take the maximum across all symbols
+    let max_complexity = symbols.values()
+        .map(|s| s.fan_out + 1)
+        .max()
+        .filter(|&x| x > 1) // Only meaningful if there's at least one edge
+        .or_else(|| {
+            // If no edges, complexity is 1 (trivial case) or 0 (empty graph)
+            if total_symbols > 0 { Some(1) } else { Some(0) }
+        });
+
     let stats = GraphStats {
         total_symbols,
         total_edges,
         entry_point_count,
-        max_complexity: None, // TODO: compute from Magellan if available
+        max_complexity,
     };
 
     Ok(GraphSnapshot {

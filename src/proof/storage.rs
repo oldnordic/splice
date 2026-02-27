@@ -523,7 +523,6 @@ impl SnapshotStorage {
         let snapshot = storage.load_snapshot(snapshot_path)?;
 
         let symbols_count = snapshot.symbols.len();
-        let edges_count = snapshot.edges.len();
 
         // Step 4: Create temp database for restoration
         let temp_db_path = db_path.with_extension("db.tmp");
@@ -541,8 +540,11 @@ impl SnapshotStorage {
         let mut backend = sqlitegraph::open_graph(&temp_db_path, &cfg)
             .map_err(|e| SpliceError::Other(format!("Failed to create native-v3 database: {}", e)))?;
 
-        // Step 6: Insert all symbols from snapshot
-        for (_id, symbol_info) in &snapshot.symbols {
+        // Step 6: Insert all symbols from snapshot, tracking snapshot ID → node ID mapping
+        use std::collections::HashMap;
+        let mut snapshot_id_to_node_id: HashMap<String, i64> = HashMap::new();
+
+        for (snapshot_id, symbol_info) in &snapshot.symbols {
             let node_spec = NodeSpec {
                 kind: symbol_info.kind.clone(),
                 name: symbol_info.name.clone(),
@@ -556,16 +558,44 @@ impl SnapshotStorage {
                     "fan_out": symbol_info.fan_out,
                 }),
             };
-            backend.insert_node(node_spec).map_err(|e| {
+            let node_id = backend.insert_node(node_spec).map_err(|e| {
                 SpliceError::Other(format!("Failed to insert symbol {}: {}", symbol_info.id, e))
             })?;
+            snapshot_id_to_node_id.insert(snapshot_id.clone(), node_id);
         }
 
-        // Step 7: Insert all edges from snapshot
-        // Note: Edge restoration requires tracking the mapping from snapshot symbol IDs
-        // (String) to database node IDs (i64). This is not yet implemented.
-        // TODO: Implement symbol ID → node ID mapping during symbol insertion
-        let _edges_count = snapshot.edges.len();
+        // Step 7: Insert all edges from snapshot using the ID mapping
+        let edge_type = crate::graph::schema::EDGE_CALLS;
+        let mut edges_inserted = 0usize;
+
+        for (caller_snapshot_id, callee_snapshot_ids) in &snapshot.edges {
+            // Skip if caller ID not in mapping (shouldn't happen with valid snapshots)
+            let Some(&caller_node_id) = snapshot_id_to_node_id.get(caller_snapshot_id) else {
+                continue;
+            };
+
+            for callee_snapshot_id in callee_snapshot_ids {
+                // Skip if callee ID not in mapping
+                let Some(&callee_node_id) = snapshot_id_to_node_id.get(callee_snapshot_id) else {
+                    continue;
+                };
+
+                let edge_spec = sqlitegraph::EdgeSpec {
+                    from: caller_node_id,
+                    to: callee_node_id,
+                    edge_type: edge_type.to_string(),
+                    data: serde_json::json!({}),
+                };
+
+                backend.insert_edge(edge_spec).map_err(|e| {
+                    SpliceError::Other(format!(
+                        "Failed to insert edge {} -> {}: {}",
+                        caller_snapshot_id, callee_snapshot_id, e
+                    ))
+                })?;
+                edges_inserted += 1;
+            }
+        }
 
         // Step 8: Replace original database with restored one
         fs::remove_file(db_path).map_err(|e| SpliceError::Io {
@@ -580,7 +610,7 @@ impl SnapshotStorage {
         Ok(RestoreResult {
             backup_path,
             symbols_restored: symbols_count,
-            edges_restored: edges_count,
+            edges_restored: edges_inserted,
         })
     }
 

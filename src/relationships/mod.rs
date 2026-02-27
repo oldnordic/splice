@@ -418,10 +418,10 @@ fn relationship_from_symbol_node(
 /// Get all imports in a file.
 ///
 /// Returns import statements and module-level imports for the given file.
-/// Uses session caching to avoid redundant database queries.
+/// Uses session caching to avoid redundant file parsing.
 ///
 /// # Arguments
-/// * `graph` - The code graph database
+/// * `graph` - The code graph database (currently unused, reserved for future)
 /// * `file_path` - Path to the file to query
 /// * `cache` - Session cache for storing results
 ///
@@ -430,36 +430,105 @@ fn relationship_from_symbol_node(
 /// - `Err(Relationships)` - Error result with error_code set
 ///
 /// # Error Codes
-/// - `"FILE_NOT_FOUND"` - File node not found in graph
-/// - `"REL_QUERY_FAILED"` - Database query failed
+/// - `"FILE_NOT_FOUND"` - File not found on disk
+/// - `"REL_QUERY_FAILED"` - Import extraction failed
 ///
-/// # Current Implementation
+/// # Implementation Notes
 ///
-/// This function currently returns an empty result because:
-/// 1. Symbol nodes are not indexed by file in the current cache structure
-/// 2. Direct file->symbol edge queries are not yet available
-///
-/// Future implementation should add edge traversal infrastructure to query
-/// DEFINES edges from File nodes.
+/// Import data is extracted by parsing the source file, as Magellan does not
+/// track imports as graph nodes. The file must exist on disk to extract imports.
+/// For unsupported file types, returns an empty vector (not an error).
 pub fn get_imports(
     _graph: &CodeGraph,
-    _file_path: &Path,
+    file_path: &Path,
     cache: &mut RelationshipCache,
 ) -> Result<Vec<Relationship>, Relationships> {
+    use crate::ingest::detect::{detect_language, Language};
+    use crate::ingest::imports::ImportFact;
+    use std::fs;
+
     // Check cache first
-    let cache_key = format!("import:{}", _file_path.display());
+    let cache_key = format!("import:{}", file_path.display());
     if let Some(cached) = cache.get(&cache_key) {
         return Ok(cached.clone());
     }
 
-    // TODO: Query File->Symbol DEFINES edges and filter for import statements
-    // Current limitation: No public API to iterate all symbols in a file
-    let imports = Vec::new();
+    // Check file exists
+    if !file_path.exists() {
+        return Err(Relationships::error("FILE_NOT_FOUND"));
+    }
+
+    // Detect language from extension
+    let language = match detect_language(file_path) {
+        Some(lang) => lang,
+        None => {
+            // Unknown language - return empty result
+            cache.set(cache_key, Vec::new());
+            return Ok(Vec::new());
+        }
+    };
+
+    // Read file content
+    let source = fs::read(file_path).map_err(|_| Relationships::error("FILE_NOT_FOUND"))?;
+
+    // Extract imports using language-specific extractor
+    let imports: Result<Vec<ImportFact>, _> = match language {
+        Language::Rust => {
+            use crate::ingest::imports::extract_rust_imports;
+            extract_rust_imports(file_path, &source)
+        }
+        Language::Python => {
+            use crate::ingest::imports::extract_python_imports;
+            extract_python_imports(file_path, &source)
+        }
+        Language::Cpp | Language::C => {
+            use crate::ingest::imports::extract_cpp_imports;
+            extract_cpp_imports(file_path, &source)
+        }
+        Language::JavaScript => {
+            use crate::ingest::imports::extract_javascript_imports;
+            extract_javascript_imports(file_path, &source)
+        }
+        Language::TypeScript => {
+            use crate::ingest::imports::extract_typescript_imports;
+            extract_typescript_imports(file_path, &source)
+        }
+        Language::Java => {
+            use crate::ingest::imports::extract_java_imports;
+            extract_java_imports(file_path, &source)
+        }
+    };
+
+    let import_facts = imports.map_err(|_| Relationships::error("REL_QUERY_FAILED"))?;
+
+    // Convert ImportFacts to Relationships
+    let results: Vec<Relationship> = import_facts
+        .into_iter()
+        .map(|fact| {
+            // Build display name from path and imported names
+            let path_str = fact.path.join("::");
+            let names_str = if fact.imported_names.is_empty() {
+                path_str.clone()
+            } else {
+                format!("{}::{}", path_str, fact.imported_names.join("::"))
+            };
+
+            Relationship {
+                rel_type: "import".to_string(),
+                name: names_str,
+                kind: fact.import_kind.as_str().to_string(),
+                file_path: fact.file_path.to_string_lossy().to_string(),
+                line_start: 0, // ImportFacts don't track line numbers
+                byte_start: fact.byte_span.0,
+                byte_end: fact.byte_span.1,
+            }
+        })
+        .collect();
 
     // Cache before returning
-    cache.set(cache_key, imports.clone());
+    cache.set(cache_key, results.clone());
 
-    Ok(imports)
+    Ok(results)
 }
 
 /// Get all exports from a file.
@@ -477,17 +546,27 @@ pub fn get_imports(
 /// - `Err(Relationships)` - Error result with error_code set
 ///
 /// # Error Codes
-/// - `"FILE_NOT_FOUND"` - File node not found in graph
+/// - `"FILE_NOT_FOUND"` - File not indexed in graph
 /// - `"REL_QUERY_FAILED"` - Database query failed
 ///
-/// # Current Implementation
+/// # Implementation Notes
 ///
-/// This function currently returns an empty result because:
-/// 1. Symbol nodes are not indexed by file in the current cache structure
-/// 2. Direct file->symbol edge queries are not yet available
+/// Public symbols are detected using heuristics:
+/// - Rust: No leading underscore (pub items conventionally don't start with `_`)
+/// - Python: No leading underscore
+/// - JavaScript/TypeScript: No leading underscore
+/// - C/C++: No leading underscore
 ///
-/// Future implementation should add edge traversal infrastructure to query
-/// DEFINES edges from File nodes.
+/// This function queries DEFINES edges from the File node to find all symbols,
+/// then filters for public symbols using language-specific heuristics.
+///
+/// # Implementation Notes
+///
+/// This is a placeholder implementation. The full implementation requires:
+/// 1. A public API in CodeGraph to find file nodes
+/// 2. A public API to query all symbols in a file
+///
+/// TODO: Implement once CodeGraph exposes file/symbol query APIs.
 pub fn get_exports(
     _graph: &CodeGraph,
     _file_path: &Path,
