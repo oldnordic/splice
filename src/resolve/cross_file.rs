@@ -311,11 +311,10 @@ impl<'a> CrossFileResolver<'a> {
 
         // Convert to string and check if it's in the index
         let path_str = target_path.to_str()?;
-        self.index.resolve(path_str)
-            .or_else(|| {
-                // Try direct path if not in index
-                Some(path_str.to_string())
-            })
+        self.index.resolve(path_str).or_else(|| {
+            // Try direct path if not in index
+            Some(path_str.to_string())
+        })
     }
 
     /// Resolve a C/C++ local include.

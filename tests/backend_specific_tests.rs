@@ -7,8 +7,8 @@
 //!   cargo test                          # SQLite backend (default)
 //!   cargo test --features native-v3     # Native-v2 backend
 
-use splice::CodeGraph;
 use splice::graph::Backend;
+use splice::CodeGraph;
 use std::fs;
 use std::io::Write;
 use tempfile::TempDir;
@@ -26,7 +26,8 @@ fn test_sqlite_header_detection() {
     // Write SQLite format 3 header
     {
         let mut file = fs::File::create(&db_path).expect("Failed to create file");
-        file.write_all(b"SQLite format 3\0").expect("Failed to write header");
+        file.write_all(b"SQLite format 3\0")
+            .expect("Failed to write header");
     }
 
     let detected = CodeGraph::detect_backend(&db_path).expect("Detection failed");
@@ -43,7 +44,8 @@ fn test_sqlite_graph_open_existing() {
     // Create a SQLite format file first
     {
         let mut file = fs::File::create(&db_path).expect("Failed to create file");
-        file.write_all(b"SQLite format 3\0").expect("Failed to write header");
+        file.write_all(b"SQLite format 3\0")
+            .expect("Failed to write header");
     }
 
     // Open should detect SQLite format and use appropriate backend
@@ -53,7 +55,11 @@ fn test_sqlite_graph_open_existing() {
 
     // Verify it's detected as SQLite
     let detected = CodeGraph::detect_backend(&db_path).expect("Detection failed");
-    assert_eq!(Backend::SQLite, detected, "Should detect SQLite format from header");
+    assert_eq!(
+        Backend::SQLite,
+        detected,
+        "Should detect SQLite format from header"
+    );
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -72,7 +78,10 @@ fn test_native_v3_header_detection() {
 
     // Native-v2 databases don't have the SQLite header
     let is_sqlite = CodeGraph::is_sqlite_db(&db_path).expect("is_sqlite_db failed");
-    assert!(!is_sqlite, "Native-v2 database should not be detected as SQLite");
+    assert!(
+        !is_sqlite,
+        "Native-v2 database should not be detected as SQLite"
+    );
 
     // Should be detected as NativeV3
     let detected = CodeGraph::detect_backend(&db_path).expect("Detection failed");
@@ -99,13 +108,19 @@ fn test_native_v3_migration_method_exists() {
         }
     };
     let result = graph.migrate_to_native_v3(&source_path, &dest_path, Some(&callback), false);
-    assert!(result.is_ok(), "Migration should succeed with native-v3 feature");
+    assert!(
+        result.is_ok(),
+        "Migration should succeed with native-v3 feature"
+    );
 
     // Verify destination was created
     assert!(dest_path.exists(), "Destination database should be created");
 
     let report = result.unwrap();
-    assert!(report.verification_passed, "Migration should pass verification");
+    assert!(
+        report.verification_passed,
+        "Migration should pass verification"
+    );
 }
 
 #[cfg(feature = "native-v3")]
@@ -133,7 +148,7 @@ fn test_native_v3_migration_with_verification() {
                 1,
                 5,
                 0,
-                0,  // col_end
+                0, // col_end
             )
             .expect("Failed to store symbol");
     }
@@ -146,8 +161,10 @@ fn test_native_v3_migration_with_verification() {
 
     let report = result.unwrap();
     assert!(report.verification_passed, "Verification should pass");
-    assert!(report.nodes_migrated > 0 || report.edges_migrated > 0 || report.nodes_migrated == 0,
-            "Should report migration statistics");
+    assert!(
+        report.nodes_migrated > 0 || report.edges_migrated > 0 || report.nodes_migrated == 0,
+        "Should report migration statistics"
+    );
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -161,7 +178,11 @@ fn test_backend_format_detectable() {
     // Test non-existent file
     let nonexistent = temp_dir.path().join("nonexistent.db");
     let detected = CodeGraph::detect_backend(&nonexistent).expect("Detection failed");
-    assert_eq!(Backend::Unknown, detected, "Non-existent file should be Unknown");
+    assert_eq!(
+        Backend::Unknown,
+        detected,
+        "Non-existent file should be Unknown"
+    );
 }
 
 #[test]
@@ -172,7 +193,8 @@ fn test_is_sqlite_db_helper() {
     let sqlite_path = temp_dir.path().join("sqlite_test.db");
     {
         let mut file = fs::File::create(&sqlite_path).expect("Failed to create file");
-        file.write_all(b"SQLite format 3\0").expect("Failed to write header");
+        file.write_all(b"SQLite format 3\0")
+            .expect("Failed to write header");
     }
 
     let is_sqlite = CodeGraph::is_sqlite_db(&sqlite_path).expect("is_sqlite_db failed");
@@ -182,7 +204,8 @@ fn test_is_sqlite_db_helper() {
     let other_path = temp_dir.path().join("other_test.db");
     {
         let mut file = fs::File::create(&other_path).expect("Failed to create file");
-        file.write_all(b"Other format data").expect("Failed to write");
+        file.write_all(b"Other format data")
+            .expect("Failed to write");
     }
 
     let is_sqlite = CodeGraph::is_sqlite_db(&other_path).expect("is_sqlite_db failed");

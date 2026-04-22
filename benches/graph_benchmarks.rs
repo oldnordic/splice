@@ -5,7 +5,7 @@
 //! Results are stored in target/criterion/ and can be compared
 //! across commits to detect performance regressions.
 
-use criterion::{black_box, BenchmarkId, Criterion, criterion_group, criterion_main};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use splice::graph::MagellanIntegration;
 use std::fs;
 use std::path::PathBuf;
@@ -99,9 +99,8 @@ path = "src/lib.rs"
 fn ingest_project(project_path: &PathBuf) {
     let src_path = project_path.join("src");
 
-    let mut integration =
-        MagellanIntegration::open(&project_path.join(".codemcp/codegraph.db"))
-            .expect("Failed to open code graph");
+    let mut integration = MagellanIntegration::open(&project_path.join(".codemcp/codegraph.db"))
+        .expect("Failed to open code graph");
 
     let entries = fs::read_dir(&src_path).unwrap();
     for entry in entries.flatten() {
@@ -188,8 +187,9 @@ fn bench_cycles(c: &mut Criterion) {
                         for symbol_fact in symbols {
                             if let Some(name) = symbol_fact.name {
                                 let key = (file_meta.path.clone(), name.clone());
-                                if let Ok(calls) =
-                                    integration.inner_mut().calls_from_symbol(&file_meta.path, &name)
+                                if let Ok(calls) = integration
+                                    .inner_mut()
+                                    .calls_from_symbol(&file_meta.path, &name)
                                 {
                                     let callees: std::collections::HashSet<(String, String)> =
                                         calls
@@ -239,8 +239,9 @@ fn bench_condense(c: &mut Criterion) {
                         for symbol_fact in symbols {
                             if let Some(name) = symbol_fact.name {
                                 let key = (file_meta.path.clone(), name.clone());
-                                if let Ok(calls) =
-                                    integration.inner_mut().calls_from_symbol(&file_meta.path, &name)
+                                if let Ok(calls) = integration
+                                    .inner_mut()
+                                    .calls_from_symbol(&file_meta.path, &name)
                                 {
                                     let callees: std::collections::HashSet<(String, String)> =
                                         calls

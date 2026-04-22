@@ -243,8 +243,8 @@ fn execute_single_step(
         workspace_dir,
         Language::Rust,
         AnalyzerMode::Off,
-        false,  // strict: plan mode uses normal validation
-        false,  // skip: still run validation
+        false, // strict: plan mode uses normal validation
+        false, // skip: still run validation
     )?;
 
     // Step 9: Return success message

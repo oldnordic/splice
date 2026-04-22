@@ -1,4 +1,4 @@
-# Splice v2.5.4 Manual
+# Splice v2.6.0 Manual
 
 Comprehensive guide for Splice span-safe refactoring with Magellan integration.
 
@@ -219,6 +219,83 @@ splice apply-files --glob <GLOB> --find <PATTERN> --replace <REPLACEMENT>
 **Optional Arguments:**
 - `--language <LANG>`: Language override
 - `--create-backup`: Create backup before applying
+
+### splice create
+
+Create a new file with validation, enabling safer code generation and LLM integration.
+
+```bash
+cat <<'EOF' | splice create --file <PATH> [OPTIONS]
+pub fn my_function() -> i32 {
+    42
+}
+EOF
+```
+
+**Required Arguments:**
+- `--file <PATH>`: Path where file should be created
+
+**Optional Arguments:**
+- `--validate-only`: Validate code without creating file
+- `--with-mod`: Add `mod filename;` to parent module
+- `--workspace <PATH>`: Workspace directory (default: current directory)
+- `--output <format>`: Output format (human, json, pretty)
+
+**Behavior:**
+1. Reads Rust code from stdin
+2. Validates with rust-analyzer (if available)
+3. Creates file atomically (if validation passes)
+4. Prevents overwriting existing files
+5. Creates parent directories as needed
+6. Optionally adds module declarations
+
+**Examples:**
+
+Create a new file:
+```bash
+echo 'pub fn hello() -> String { "Hello".to_string() }' | \
+  splice create --file src/hello.rs
+```
+
+Validate without writing:
+```bash
+echo 'pub fn test() -> i32 { 42 }' | \
+  splice create --file src/test.rs --validate-only
+```
+
+Create with module declaration:
+```bash
+echo 'pub fn handler() -> i32 { 200 }' | \
+  splice create --file src/commands/handler.rs --with-mod
+```
+
+JSON output:
+```bash
+echo 'pub fn test() -> i32 { 42 }' | \
+  splice create --file test.rs --output json
+```
+
+**Validation Result (JSON):**
+```json
+{
+  "rust_analyzer_ok": true,
+  "cargo_check_ok": null,
+  "errors": [],
+  "warnings": [],
+  "writable": true
+}
+```
+
+**Error Handling:**
+- Validation fails: File NOT created, errors shown
+- File exists: Returns error, preserves original
+- rust-analyzer unavailable: Graceful degradation (assumes OK)
+
+**Use Cases:**
+- LLM code generation (validate before writing)
+- Interactive file creation with validation
+- Batch file creation from templates
+- Automated code generation pipelines
 
 ### splice undo
 

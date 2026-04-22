@@ -21,7 +21,11 @@ compile_error!(
 
 pub mod action;
 pub mod checksum;
+pub mod cfg_analysis;
 pub mod cli;
+pub mod code_validator;
+pub mod commands;
+pub mod create;
 pub mod context;
 pub mod diff;
 pub mod error;
@@ -45,6 +49,7 @@ pub mod symbol;
 pub mod symbol_id;
 pub mod validate;
 pub mod verify;
+pub mod write;
 
 /// Re-export common error types for convenience.
 pub use error::{Result, SpliceError};

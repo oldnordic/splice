@@ -262,8 +262,9 @@ fn get_disk_space(path: &Path) -> Result<(u64, u64)> {
         use std::os::unix::ffi::OsStrExt;
 
         // Convert path to CString
-        let c_path = CString::new(path.as_os_str().as_bytes())
-            .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "path contains null byte"))?;
+        let c_path = CString::new(path.as_os_str().as_bytes()).map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, "path contains null byte")
+        })?;
 
         // Unsafe block to call statvfs
         unsafe {
@@ -277,7 +278,7 @@ fn get_disk_space(path: &Path) -> Result<(u64, u64)> {
             // statvfs.f_bsize = filesystem block size
             // statvfs.f_blocks = total blocks
             // statvfs.f_bavail = free blocks available to non-privileged user
-            let frsize = stat.f_frsize as u64;  // Fragment size (fundamental file system block size)
+            let frsize = stat.f_frsize as u64; // Fragment size (fundamental file system block size)
             let total = stat.f_blocks as u64 * frsize;
             let available = stat.f_bavail as u64 * frsize;
 
@@ -292,7 +293,8 @@ fn get_disk_space(path: &Path) -> Result<(u64, u64)> {
         use std::ptr;
 
         // Convert path to UTF-16
-        let path_wide: Vec<u16> = path.as_os_str()
+        let path_wide: Vec<u16> = path
+            .as_os_str()
             .encode_wide()
             .chain(std::iter::once(0))
             .collect();
@@ -309,7 +311,8 @@ fn get_disk_space(path: &Path) -> Result<(u64, u64)> {
                 &mut free_bytes,
                 &mut total_bytes,
                 ptr::null_mut(),
-            ) != 0 {
+            ) != 0
+            {
                 Ok((available_bytes, total_bytes))
             } else {
                 Err(std::io::Error::last_os_error().into())
@@ -602,9 +605,26 @@ pub fn verify_after_patch(
     // A full implementation would use tree-sitter here
     result.syntax_ok = true;
 
-    // Compiler validation: skip for now (requires language-specific logic)
-    // This is a placeholder - full implementation would run cargo check, python -m py_compile, etc.
-    result.compiler_ok = true;
+    // Compiler validation: run cargo check for Rust projects
+    result.compiler_ok = match run_cargo_check(_workspace_root) {
+        Ok(output) => {
+            if output.status.success() {
+                log::info!("Cargo check passed");
+                true
+            } else {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                result.add_error(format!("Cargo check failed: {}", stderr));
+                log::warn!("Cargo check failed: {}", stderr);
+                false
+            }
+        }
+        Err(e) => {
+            // Don't block if cargo check unavailable (not a Rust project or cargo not installed)
+            result.add_warning(format!("Unable to run cargo check: {}", e));
+            log::debug!("Unable to run cargo check: {}", e);
+            true // Allow patch to proceed
+        }
+    };
 
     // Semantic validation (advisory)
     // For now, we can't do deep semantic checks without more infrastructure
@@ -943,8 +963,7 @@ mod tests {
         // This should NOT match actual disk space
         // If available is exactly 1TB, it's the stub
         assert_ne!(
-            available,
-            1_000_000_000_000,
+            available, 1_000_000_000_000,
             "get_disk_space returned stub value (1TB). Implement actual disk space checking!"
         );
 
@@ -973,9 +992,39 @@ mod tests {
         // /tmp on this system has ~30GB, NOT 1TB
         // The stub returns 1TB which is wrong
         assert_ne!(
-            available,
-            1_000_000_000_000,
+            available, 1_000_000_000_000,
             "get_disk_space on /tmp returned stub value (1TB). /tmp typically has less space."
         );
     }
+}
+
+/// Run cargo check to validate Rust compilation
+///
+/// This helper function runs `cargo check --quiet` in the workspace directory
+/// to verify that the code compiles after a patch operation.
+///
+/// # Arguments
+/// * `workspace_dir` - Path to the workspace directory
+///
+/// # Returns
+/// * `Ok(Output)` - Process output from cargo check
+/// * `Err(SpliceError)` - Failed to run cargo check
+///
+/// # Notes
+/// - Uses --quiet flag to suppress build output (only show errors)
+/// - Non-Rust projects or missing cargo will return an error
+/// - Caller should decide whether to block on failure (we don't block here)
+fn run_cargo_check(workspace_dir: &Path) -> Result<std::process::Output> {
+    use std::process::Command;
+
+    let output = Command::new("cargo")
+        .args(["check", "--quiet"])
+        .current_dir(workspace_dir)
+        .output()
+        .map_err(|e| crate::error::SpliceError::IoContext {
+            context: format!("Failed to run cargo check: {}", e),
+            source: e,
+        })?;
+
+    Ok(output)
 }

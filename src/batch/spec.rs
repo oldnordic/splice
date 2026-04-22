@@ -119,14 +119,13 @@ pub struct RenameOp {
 
 /// Parse a batch spec from YAML file.
 pub fn parse_batch_spec(path: &PathBuf) -> Result<BatchSpec, BatchSpecError> {
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| BatchSpecError::Io {
-            path: path.clone(),
-            source: e,
-        })?;
+    let content = std::fs::read_to_string(path).map_err(|e| BatchSpecError::Io {
+        path: path.clone(),
+        source: e,
+    })?;
 
-    let spec: BatchSpec = serde_yaml::from_str(&content)
-        .map_err(|e| BatchSpecError::ParseError {
+    let spec: BatchSpec =
+        serde_yaml::from_str(&content).map_err(|e| BatchSpecError::ParseError {
             path: path.clone(),
             reason: e.to_string(),
         })?;
@@ -189,7 +188,10 @@ fn validate_operation(op: &BatchOperation, idx: usize) -> Result<(), BatchSpecEr
 #[derive(Debug, thiserror::Error)]
 pub enum BatchSpecError {
     #[error("IO error reading {path}: {source}")]
-    Io { path: PathBuf, source: std::io::Error },
+    Io {
+        path: PathBuf,
+        source: std::io::Error,
+    },
 
     #[error("Failed to parse {path}: {reason}")]
     ParseError { path: PathBuf, reason: String },

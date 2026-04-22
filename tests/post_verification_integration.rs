@@ -69,8 +69,8 @@ fn test_post_verification_catches_syntax_error() {
         workspace.path(),
         SymbolLanguage::Rust,
         AnalyzerMode::Off,
-        false,  // strict: test mode doesn't need strict validation
-        false,  // skip: still run validation for test
+        false, // strict: test mode doesn't need strict validation
+        false, // skip: still run validation for test
     );
 
     // Should fail with validation error (syntax error)
@@ -113,8 +113,8 @@ fn test_post_verification_allows_valid_patch() {
         workspace.path(),
         SymbolLanguage::Rust,
         AnalyzerMode::Off,
-        false,  // strict: test mode doesn't need strict validation
-        false,  // skip: still run validation for test
+        false, // strict: test mode doesn't need strict validation
+        false, // skip: still run validation for test
     );
 
     // Should succeed
@@ -152,8 +152,8 @@ fn test_post_verification_warnings_non_blocking() {
         workspace.path(),
         SymbolLanguage::Rust,
         AnalyzerMode::Off,
-        false,  // strict: test mode doesn't need strict validation
-        false,  // skip: still run validation for test
+        false, // strict: test mode doesn't need strict validation
+        false, // skip: still run validation for test
     );
 
     // Should succeed even with warnings (warnings are non-blocking)
@@ -184,8 +184,8 @@ fn test_localized_change_verification() {
         workspace.path(),
         SymbolLanguage::Rust,
         AnalyzerMode::Off,
-        false,  // strict: test mode doesn't need strict validation
-        false,  // skip: still run validation for test
+        false, // strict: test mode doesn't need strict validation
+        false, // skip: still run validation for test
     );
 
     // Should succeed

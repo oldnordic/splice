@@ -61,3 +61,4 @@ backup-*
 
 # Planning folder
 .planning/
+*.geo

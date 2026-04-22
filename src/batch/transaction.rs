@@ -3,8 +3,8 @@
 //! Provides ACID-like semantics for batch refactoring operations.
 //! On failure, automatically rolls back using snapshot restore.
 
-use crate::batch::spec::BatchSpec;
 use crate::batch::executor::BatchExecutor;
+use crate::batch::spec::BatchSpec;
 use crate::error::{Result, SpliceError};
 use crate::graph::CodeGraph;
 use crate::proof::storage::SnapshotStorage;
@@ -55,11 +55,7 @@ impl BatchTransaction {
     /// * `db_path` - Path to the code graph database (required for snapshots)
     /// * `rollback_mode` - When to perform rollback
     /// * `snapshot_before` - Whether to capture snapshot before execution
-    pub fn new(
-        db_path: PathBuf,
-        rollback_mode: RollbackMode,
-        snapshot_before: bool,
-    ) -> Self {
+    pub fn new(db_path: PathBuf, rollback_mode: RollbackMode, snapshot_before: bool) -> Self {
         Self {
             db_path,
             rollback_mode,
@@ -68,17 +64,11 @@ impl BatchTransaction {
     }
 
     /// Execute a batch spec with automatic rollback on failure.
-    pub fn execute(
-        &self,
-        spec: &BatchSpec,
-        dry_run: bool,
-    ) -> Result<TransactionResult> {
+    pub fn execute(&self, spec: &BatchSpec, dry_run: bool) -> Result<TransactionResult> {
         use std::time::Instant;
 
         // Capture pre-execution snapshot if needed
-        let snapshot_path = if self.snapshot_before
-            || self.rollback_mode != RollbackMode::Never
-        {
+        let snapshot_path = if self.snapshot_before || self.rollback_mode != RollbackMode::Never {
             Some(self.capture_pre_snapshot(spec)?)
         } else {
             None
@@ -140,7 +130,8 @@ impl BatchTransaction {
         let snapshot = generate_snapshot(&self.db_path)?;
 
         // Use description from spec or default
-        let operation = spec.metadata
+        let operation = spec
+            .metadata
             .description
             .as_ref()
             .map(|d| format!("batch-{}", d.replace(' ', "-")))
@@ -156,7 +147,7 @@ impl BatchTransaction {
     fn perform_rollback(&self, snapshot_path: &Path) -> Result<()> {
         // Verify backend is native-v3 (restore only works with native-v3)
         let backend = CodeGraph::detect_backend(&self.db_path)?;
-        if backend != crate::graph::Backend::NativeV3 {
+        if backend != crate::graph::BackendType::NativeV3 {
             return Err(SpliceError::Other(format!(
                 "Rollback requires native-v3 backend, detected: {}",
                 backend

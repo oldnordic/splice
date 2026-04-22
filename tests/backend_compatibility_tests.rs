@@ -39,11 +39,19 @@ fn test_backend_detection() {
     let _graph = CodeGraph::open(&db_path).expect("Failed to open graph");
 
     let detected = CodeGraph::detect_backend(&db_path);
-    assert!(detected.is_ok(), "Backend detection failed: {:?}", detected.err());
+    assert!(
+        detected.is_ok(),
+        "Backend detection failed: {:?}",
+        detected.err()
+    );
 
     let backend = detected.unwrap();
     // We should detect either SQLite or NativeV3 (not Unknown for existing files)
-    assert_ne!(Backend::Unknown, backend, "Detected Unknown backend for existing file");
+    assert_ne!(
+        Backend::Unknown,
+        backend,
+        "Detected Unknown backend for existing file"
+    );
 }
 
 /// Test that symbol storage works with both backends.
@@ -73,7 +81,11 @@ fn test_symbol_storage_both_backends() {
         .expect("Failed to store symbol");
 
     // Node ID should be valid (non-zero)
-    assert!(node_id.as_i64() > 0, "Node ID should be positive, got: {}", node_id.as_i64());
+    assert!(
+        node_id.as_i64() > 0,
+        "Node ID should be positive, got: {}",
+        node_id.as_i64()
+    );
 }
 
 /// Test that backend can be queried after operations.
@@ -105,7 +117,11 @@ fn test_backend_persistence() {
 
     // Re-open and verify backend is still detected correctly
     let backend = CodeGraph::detect_backend(&db_path).expect("Detection failed");
-    assert_ne!(Backend::Unknown, backend, "Backend should persist after close");
+    assert_ne!(
+        Backend::Unknown,
+        backend,
+        "Backend should persist after close"
+    );
 }
 
 /// Test that multiple symbols can be stored and retrieved.

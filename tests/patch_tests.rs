@@ -120,8 +120,8 @@ pub fn greet(name: &str) -> String {
             workspace_path,    // For compiler check
             Language::Rust,    // Rust file
             AnalyzerMode::Off, // rust-analyzer OFF for this test
-            false,  // strict: test mode doesn't need strict validation
-            false,  // skip: still run validation for test
+            false,             // strict: test mode doesn't need strict validation
+            false,             // skip: still run validation for test
         );
 
         // Should succeed
@@ -242,8 +242,8 @@ pub fn valid_function() -> i32 {
             workspace_path,
             Language::Rust,    // Rust file
             AnalyzerMode::Off, // rust-analyzer OFF for this test
-            false,  // strict: test mode doesn't need strict validation
-            false,  // skip: still run validation for test
+            false,             // strict: test mode doesn't need strict validation
+            false,             // skip: still run validation for test
         );
 
         // Should fail with parse validation error
@@ -367,8 +367,8 @@ pub fn get_number() -> i32 {
             workspace_path,
             Language::Rust,    // Rust file
             AnalyzerMode::Off, // rust-analyzer OFF for this test
-            false,  // strict: test mode doesn't need strict validation
-            false,  // skip: still run validation for test
+            false,             // strict: test mode doesn't need strict validation
+            false,             // skip: still run validation for test
         );
 
         // Should fail with compiler validation error

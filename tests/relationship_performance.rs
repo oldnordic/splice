@@ -325,9 +325,8 @@ mod tests {
 
         // Verify the first node exists
         let snapshot_id = SnapshotId::current();
-        let node = builder
-            .graph()
-            .inner()
+        let backend = builder.graph().inner().expect("Failed to get backend");
+        let node = backend
             .get_node(snapshot_id, first_node.as_i64())
             .expect("Failed to retrieve node");
 
@@ -345,9 +344,8 @@ mod tests {
 
         // Verify the target exists
         let snapshot_id = SnapshotId::current();
-        let node = builder
-            .graph()
-            .inner()
+        let backend = builder.graph().inner().expect("Failed to get backend");
+        let node = backend
             .get_node(snapshot_id, target_id.as_i64())
             .expect("Failed to retrieve node");
 
@@ -367,10 +365,9 @@ mod tests {
 
         // Verify all nodes exist
         let snapshot_id = SnapshotId::current();
+        let backend = builder.graph().inner().expect("Failed to get backend");
         for node_id in cycle_nodes {
-            let node = builder
-                .graph()
-                .inner()
+            let node = backend
                 .get_node(snapshot_id, node_id.as_i64())
                 .expect("Failed to retrieve node");
             assert!(node.name.contains("cycle_"));

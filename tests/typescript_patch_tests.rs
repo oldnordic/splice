@@ -101,8 +101,8 @@ function greet(name: string): number {
             workspace_path,
             Language::TypeScript,
             AnalyzerMode::Off,
-            false,  // strict: test mode doesn't need strict validation
-            false,  // skip: still run validation for test
+            false, // strict: test mode doesn't need strict validation
+            false, // skip: still run validation for test
         );
 
         // Should succeed if tsc is available
@@ -206,8 +206,8 @@ function validFunction(): number {
             workspace_path,
             Language::TypeScript,
             AnalyzerMode::Off,
-            false,  // strict: test mode doesn't need strict validation
-            false,  // skip: still run validation for test
+            false, // strict: test mode doesn't need strict validation
+            false, // skip: still run validation for test
         );
 
         // Should fail on syntax error
@@ -304,8 +304,8 @@ interface User {
             workspace_path,
             Language::TypeScript,
             AnalyzerMode::Off,
-            false,  // strict: test mode doesn't need strict validation
-            false,  // skip: still run validation for test
+            false, // strict: test mode doesn't need strict validation
+            false, // skip: still run validation for test
         );
 
         // Should succeed if tsc is available

@@ -257,8 +257,8 @@ impl DemoStruct {
     // Verify we can get a node from the graph
     if let Some(symbol) = fn_symbols.first() {
         let snapshot_id = SnapshotId::current();
-        let node = graph
-            .inner()
+        let backend = graph.inner().expect("Should get backend");
+        let node = backend
             .get_node(snapshot_id, symbol.entity_id)
             .expect("Should retrieve node by entity_id");
         assert_eq!(node.name, "demo_function");

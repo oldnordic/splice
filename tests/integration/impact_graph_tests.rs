@@ -37,7 +37,7 @@ fn test_refs_command_has_impact_graph_flag() {
         path: PathBuf::from("/tmp/test.rs"),
         direction: CallDirection::Both,
         output: OutputFormat::Human,
-        impact_graph: true,  // This field must exist
+        impact_graph: true, // This field must exist
     };
 
     // If we reach here, the Refs command has impact_graph field
@@ -59,7 +59,7 @@ fn test_reachable_command_has_impact_graph_flag() {
         direction: ReachabilityDirection::Forward,
         max_depth: 10,
         output: OutputFormat::Human,
-        impact_graph: true,  // This field must exist
+        impact_graph: true, // This field must exist
     };
 
     match reachable_cmd {
@@ -85,7 +85,7 @@ fn test_rename_command_has_impact_graph_flag() {
         no_backup: false,
         create_backup: true,
         snapshot_before: false,
-        impact_graph: true,  // This field must exist
+        impact_graph: true, // This field must exist
     };
 
     match rename_cmd {
@@ -118,7 +118,7 @@ fn test_patch_command_has_impact_graph_flag() {
         metadata: None,
         db: Some(PathBuf::from("/tmp/test.db")),
         snapshot_before: false,
-        impact_graph: true,  // This field must exist
+        impact_graph: true, // This field must exist
     };
 
     match patch_cmd {

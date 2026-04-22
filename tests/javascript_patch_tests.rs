@@ -90,8 +90,8 @@ function greet(name) {
             workspace_path,
             Language::JavaScript,
             AnalyzerMode::Off,
-            false,  // strict: test mode doesn't need strict validation
-            false,  // skip: still run validation for test
+            false, // strict: test mode doesn't need strict validation
+            false, // skip: still run validation for test
         );
 
         // Should succeed if node is available
@@ -184,8 +184,8 @@ function validFunction() {
             workspace_path,
             Language::JavaScript,
             AnalyzerMode::Off,
-            false,  // strict: test mode doesn't need strict validation
-            false,  // skip: still run validation for test
+            false, // strict: test mode doesn't need strict validation
+            false, // skip: still run validation for test
         );
 
         // Should fail on syntax error
@@ -276,8 +276,8 @@ const greet = (name) => {
             workspace_path,
             Language::JavaScript,
             AnalyzerMode::Off,
-            false,  // strict: test mode doesn't need strict validation
-            false,  // skip: still run validation for test
+            false, // strict: test mode doesn't need strict validation
+            false, // skip: still run validation for test
         );
 
         // Should succeed if node is available

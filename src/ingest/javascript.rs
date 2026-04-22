@@ -494,9 +494,15 @@ mod tests {
 
         // Debug: print what was actually found
         // At minimum, the function inside should be extracted
-        assert!(!symbols.is_empty(), "Should extract at least the function from namespace");
+        assert!(
+            !symbols.is_empty(),
+            "Should extract at least the function from namespace"
+        );
         // The function helper should be found
-        assert!(symbols.iter().any(|s| s.name == "helper"), "Should find helper function");
+        assert!(
+            symbols.iter().any(|s| s.name == "helper"),
+            "Should find helper function"
+        );
     }
 
     #[test]
@@ -547,7 +553,8 @@ mod tests {
             .set_language(&tree_sitter_typescript::language_typescript())
             .expect("Failed to load TypeScript grammar");
 
-        let source = b"interface Animal { name: string; }\ninterface Dog extends Animal { bark(): void; }\n";
+        let source =
+            b"interface Animal { name: string; }\ninterface Dog extends Animal { bark(): void; }\n";
         let tree = parser.parse(source, None).unwrap();
         let rope = Rope::from_reader(&source[..]).unwrap();
 

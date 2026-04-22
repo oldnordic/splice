@@ -126,8 +126,8 @@ fn count_lines_in_span(file_path: &Path, start: usize, end: usize) -> usize {
 
 /// Capture a graph snapshot before a refactoring operation.
 fn capture_snapshot(db_path: &Path, operation: &str) -> Result<(), splice::SpliceError> {
-    use splice::proof::data_structures::{RefactoringProof, ProofMetadata};
-    use splice::proof::generation::{generate_snapshot, create_metadata, write_proof};
+    use splice::proof::data_structures::{ProofMetadata, RefactoringProof};
+    use splice::proof::generation::{create_metadata, generate_snapshot, write_proof};
     use std::fs;
 
     // Generate snapshot from current database state
@@ -135,8 +135,9 @@ fn capture_snapshot(db_path: &Path, operation: &str) -> Result<(), splice::Splic
 
     // Create snapshots directory if it doesn't exist
     let snapshots_dir = PathBuf::from(".splice").join("snapshots");
-    fs::create_dir_all(&snapshots_dir)
-        .map_err(|e| splice::SpliceError::Other(format!("Failed to create snapshots dir: {}", e)))?;
+    fs::create_dir_all(&snapshots_dir).map_err(|e| {
+        splice::SpliceError::Other(format!("Failed to create snapshots dir: {}", e))
+    })?;
 
     // Create minimal proof metadata
     let metadata = create_metadata(operation, db_path);
@@ -187,10 +188,10 @@ fn execute_impact_graph(
     // Output DOT to stdout
     println!("{}", dot);
 
-    Ok(splice::cli::CliSuccessPayload::message_only(
-        "Impact graph generated".to_string(),
+    Ok(
+        splice::cli::CliSuccessPayload::message_only("Impact graph generated".to_string())
+            .already_emitted(),
     )
-    .already_emitted())
 }
 
 fn main() -> ExitCode {
@@ -244,7 +245,7 @@ fn main() -> ExitCode {
             snapshot_before,
             json_output,
             cli.strict,
-            true,  // skip_pre_verify: delete operations don't require graph DB by default
+            true, // skip_pre_verify: delete operations don't require graph DB by default
         ),
 
         splice::cli::Commands::Patch {
@@ -298,8 +299,35 @@ fn main() -> ExitCode {
                 impact_graph,
                 json_output,
                 cli.strict,
-                true,  // skip_pre_verify: patch operations don't require graph DB by default
+                true, // skip_pre_verify: patch operations don't require graph DB by default
             ),
+        },
+
+        splice::cli::Commands::Create {
+            file,
+            validate_only,
+            with_mod,
+            workspace,
+        } => {
+            match splice::commands::cmd_create(
+                &file,
+                validate_only,
+                with_mod,
+                &workspace,
+                json_output,
+            ) {
+                Ok(()) => Ok(splice::cli::CliSuccessPayload::message_only(
+                    if validate_only {
+                        "Validation complete (file not created)".to_string()
+                    } else {
+                        format!("File created: {}", file.display())
+                    }
+                )),
+                Err(e) => {
+                    eprintln!("Failed to create file: {}", e);
+                    std::process::exit(1);
+                }
+            }
         },
 
         splice::cli::Commands::Plan {
@@ -457,7 +485,15 @@ fn main() -> ExitCode {
             direction,
             output,
             impact_graph,
-        } => execute_refs(&db, &name, &path, direction, output, impact_graph, json_output),
+        } => execute_refs(
+            &db,
+            &name,
+            &path,
+            direction,
+            output,
+            impact_graph,
+            json_output,
+        ),
 
         splice::cli::Commands::Files {
             db,
@@ -477,9 +513,12 @@ fn main() -> ExitCode {
             dry_run,
         } => execute_migrate_db(&db_path, backup, dry_run, json_output),
 
-        splice::cli::Commands::Migrate { source, dest, progress, skip_verify } => {
-            execute_migrate(&source, &dest, progress, skip_verify, json_output)
-        }
+        splice::cli::Commands::Migrate {
+            source,
+            dest,
+            progress,
+            skip_verify,
+        } => execute_migrate(&source, &dest, progress, skip_verify, json_output),
 
         splice::cli::Commands::Rename {
             symbol,
@@ -605,9 +644,7 @@ fn main() -> ExitCode {
             rollback,
         } => execute_batch(&spec, db, dry_run, continue_on_error, rollback, json_output),
 
-        splice::cli::Commands::Snapshots(subcommand) => {
-            execute_snapshots(subcommand, json_output)
-        }
+        splice::cli::Commands::Snapshots(subcommand) => execute_snapshots(subcommand, json_output),
     };
 
     // Handle result
@@ -1502,8 +1539,8 @@ fn execute_patch(
     use splice::format_unified_diff;
     use splice::graph::CodeGraph;
     use splice::patch::{
-        apply_patch_with_validation, preview_patch_with_content, FilePatchSummary,
-        compute_preview_report,
+        apply_patch_with_validation, compute_preview_report, preview_patch_with_content,
+        FilePatchSummary,
     };
     use splice::resolve::resolve_symbol;
     use splice::should_use_color;
@@ -1646,13 +1683,15 @@ fn execute_patch(
             highlight_symbol: Some(symbol_name.to_string()),
         };
 
-        let dot = magellan.generate_impact_dot(&symbol_id, &ReachabilityDirection::Both, &config)?;
+        let dot =
+            magellan.generate_impact_dot(&symbol_id, &ReachabilityDirection::Both, &config)?;
         println!("{}", dot);
 
         // Return early - impact graph is the complete output
         return Ok(splice::cli::CliSuccessPayload::message_only(
             "Impact graph generated".to_string(),
-        ).already_emitted());
+        )
+        .already_emitted());
     }
 
     if preview {
@@ -1708,8 +1747,9 @@ fn execute_patch(
             });
             // Use a simple operation result for logging only
             use splice::output::OperationResult;
-            let log_result = OperationResult::with_execution_id("patch".to_string(), operation_id.clone())
-                .success(message.clone());
+            let log_result =
+                OperationResult::with_execution_id("patch".to_string(), operation_id.clone())
+                    .success(message.clone());
             if let Err(e) = log::record_execution_with_params(
                 &log_result,
                 duration_ms,
@@ -2844,7 +2884,8 @@ fn execute_query(
     #[cfg(not(feature = "sqlite"))]
     return Err(splice::SpliceError::Other(
         "Label queries require SQLite backend. Native-v2 backend does not support label queries. \
-         Use default SQLite backend: `cargo build` (no --features flag)".to_string()
+         Use default SQLite backend: `cargo build` (no --features flag)"
+            .to_string(),
     ));
 
     #[cfg(feature = "sqlite")]
@@ -3328,7 +3369,7 @@ fn execute_query(
     #[cfg(not(feature = "sqlite"))]
     {
         Ok(splice::cli::CliSuccessPayload::message_only(
-            "Label queries require SQLite backend".to_string()
+            "Label queries require SQLite backend".to_string(),
         ))
     }
 }
@@ -4027,12 +4068,13 @@ fn execute_status(
 
     // Check for native-v3 database without native-v3 feature
     let detected_backend = splice::graph::CodeGraph::detect_backend(db_path)?;
-    if detected_backend == splice::graph::Backend::NativeV3 {
+    if detected_backend == splice::graph::BackendType::NativeV3 {
         #[cfg(not(feature = "native-v3"))]
         {
             return Err(splice::SpliceError::Other(
                 "Cannot open native-v3 database without native-v3 feature. \
-                 Build with: cargo build --features native-v3 --no-default-features".to_string()
+                 Build with: cargo build --features native-v3 --no-default-features"
+                    .to_string(),
             ));
         }
     }
@@ -4120,6 +4162,8 @@ fn execute_find(
                     "file_path": s.file_path,
                     "byte_start": s.byte_start,
                     "byte_end": s.byte_end,
+                    "start_line": s.start_line,
+                    "end_line": s.end_line,
                 })
             })
             .collect();
@@ -4132,9 +4176,10 @@ fn execute_find(
         let lines: Vec<String> = results
             .iter()
             .map(|s| {
+                let line = s.start_line.unwrap_or(s.byte_start);
                 format!(
                     "{} :: {} at {}:{}",
-                    s.kind, s.name, s.file_path, s.byte_start
+                    s.kind, s.name, s.file_path, line
                 )
             })
             .collect();
@@ -4155,7 +4200,9 @@ fn execute_refs(
     impact_graph: bool,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
-    use splice::graph::magellan_integration::{CallDirection, ImpactDotConfig, MagellanIntegration};
+    use splice::graph::magellan_integration::{
+        CallDirection, ImpactDotConfig, MagellanIntegration,
+    };
 
     let mut integration = MagellanIntegration::open(db_path)?;
 
@@ -4570,7 +4617,7 @@ fn execute_migrate(
 
     // Verify source is SQLite
     let detected_backend = splice::graph::CodeGraph::detect_backend(source)?;
-    if detected_backend != splice::graph::Backend::SQLite {
+    if detected_backend != splice::graph::BackendType::SQLite {
         return Err(splice::SpliceError::Other(format!(
             "Source database is not SQLite format (detected: {}). \
              Migration is only supported from SQLite to native-v3.",
@@ -4672,8 +4719,8 @@ fn execute_rename(
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::MagellanIntegration;
-    use splice::proof::{generate_proof, write_proof};
     use splice::proof::generation::generate_snapshot;
+    use splice::proof::{generate_proof, write_proof};
 
     // Capture snapshot before operation if requested
     if snapshot_before {
@@ -4804,10 +4851,12 @@ fn execute_rename(
 
     // Generate before snapshot if proof generation is requested
     let before_snapshot = if proof {
-        Some(generate_snapshot(db_path).map_err(|e| splice::SpliceError::RenameFailed {
-            reason: format!("Failed to generate before snapshot: {}", e),
-            symbol: new_name.to_string(),
-        })?)
+        Some(
+            generate_snapshot(db_path).map_err(|e| splice::SpliceError::RenameFailed {
+                reason: format!("Failed to generate before snapshot: {}", e),
+                symbol: new_name.to_string(),
+            })?,
+        )
     } else {
         None
     };
@@ -4857,7 +4906,8 @@ fn execute_rename(
                 max_depth: Some(10),
                 highlight_symbol: Some(symbol_info.name.clone()),
             };
-            let dot = magellan.generate_impact_dot(&symbol_id, &ReachabilityDirection::Both, &config)?;
+            let dot =
+                magellan.generate_impact_dot(&symbol_id, &ReachabilityDirection::Both, &config)?;
             println!("{}", dot);
         }
 
@@ -4947,27 +4997,30 @@ fn execute_rename(
     // Generate after snapshot and write proof if requested
     if proof {
         if let Some(before) = before_snapshot {
-            let after_snapshot = generate_snapshot(db_path).map_err(|e| splice::SpliceError::RenameFailed {
-                reason: format!("Failed to generate after snapshot: {}", e),
-                symbol: new_name.to_string(),
-            })?;
-
-            // Use generate_proof to create complete proof with invariant validation
-            let proof_data = generate_proof("rename", db_path, before, after_snapshot)
-                .map_err(|e| splice::SpliceError::RenameFailed {
-                    reason: format!("Failed to generate proof: {}", e),
+            let after_snapshot =
+                generate_snapshot(db_path).map_err(|e| splice::SpliceError::RenameFailed {
+                    reason: format!("Failed to generate after snapshot: {}", e),
                     symbol: new_name.to_string(),
                 })?;
 
+            // Use generate_proof to create complete proof with invariant validation
+            let proof_data =
+                generate_proof("rename", db_path, before, after_snapshot).map_err(|e| {
+                    splice::SpliceError::RenameFailed {
+                        reason: format!("Failed to generate proof: {}", e),
+                        symbol: new_name.to_string(),
+                    }
+                })?;
+
             // Check invariant validation results
-            let failed_invariants: Vec<_> = proof_data.invariants.iter()
-                .filter(|c| !c.passed)
-                .collect();
+            let failed_invariants: Vec<_> =
+                proof_data.invariants.iter().filter(|c| !c.passed).collect();
 
             let invariant_status = if failed_invariants.is_empty() {
                 "All invariants passed".to_string()
             } else {
-                let failed_names: Vec<&str> = failed_invariants.iter()
+                let failed_names: Vec<&str> = failed_invariants
+                    .iter()
                     .map(|c| c.invariant_name.as_str())
                     .collect();
                 format!(
@@ -4978,13 +5031,20 @@ fn execute_rename(
             };
 
             let proof_dir = std::path::PathBuf::from(".splice/proofs");
-            let proof_path = write_proof(&proof_data, &proof_dir).map_err(|e| splice::SpliceError::RenameFailed {
-                reason: format!("Failed to write proof: {}", e),
-                symbol: new_name.to_string(),
+            let proof_path = write_proof(&proof_data, &proof_dir).map_err(|e| {
+                splice::SpliceError::RenameFailed {
+                    reason: format!("Failed to write proof: {}", e),
+                    symbol: new_name.to_string(),
+                }
             })?;
 
             return Ok(splice::cli::CliSuccessPayload::with_data(
-                format!("{}\nProof written to: {}\nInvariant status: {}", message, proof_path.display(), invariant_status),
+                format!(
+                    "{}\nProof written to: {}\nInvariant status: {}",
+                    message,
+                    proof_path.display(),
+                    invariant_status
+                ),
                 serde_json::json!({
                     "old_name": symbol_info.name,
                     "new_name": new_name,
@@ -5071,18 +5131,21 @@ fn execute_reachable(
 
     // Handle impact graph generation
     if impact_graph {
-        return execute_impact_graph(db_path, &format!("{}:{}", path_str, symbol), direction, Some(max_depth));
+        return execute_impact_graph(
+            db_path,
+            &format!("{}:{}", path_str, symbol),
+            direction,
+            Some(max_depth),
+        );
     }
 
-    // First, open database and get root symbol info (requires mutable access)
-    let root_symbol_info = {
-        let mut integration = MagellanIntegration::open(db_path)?;
-        let symbol_facts = integration
-            .inner_mut()
-            .symbol_extents(path_str, symbol)
-            .map_err(|e| splice::SpliceError::Other(format!("Failed to find symbol: {}", e)))?;
+    // Open database for operations
+    let mut integration = MagellanIntegration::open(db_path)?;
 
-        if symbol_facts.is_empty() {
+    // Get root symbol info using backend-neutral method
+    let root_symbol_info = match integration.find_symbol_by_path_and_name(path, symbol)? {
+        Some(info) => info,
+        None => {
             return Err(splice::SpliceError::SymbolNotFound {
                 message: format!("Symbol '{}' not found in '{}'", symbol, path_str),
                 symbol: symbol.to_string(),
@@ -5090,23 +5153,7 @@ fn execute_reachable(
                 hint: format!("Run 'splice find --name {}' to locate the symbol", symbol),
             });
         }
-
-        let (entity_id, fact) = &symbol_facts[0];
-        let info = splice::graph::magellan_integration::SymbolInfo {
-            entity_id: *entity_id,
-            name: fact.name.clone().unwrap_or_else(|| symbol.to_string()),
-            file_path: fact.file_path.to_string_lossy().to_string(),
-            kind: fact.kind_normalized.clone(),
-            byte_start: fact.byte_start,
-            byte_end: fact.byte_end,
-        };
-        // Explicitly drop integration before next open
-        drop(integration);
-        info
     };
-
-    // Now open again for mutable operations
-    let mut integration = MagellanIntegration::open(db_path)?;
 
     // Collect reachability based on direction
     let (forward_symbols, reverse_symbols) = match direction {
@@ -5293,28 +5340,18 @@ fn execute_cycles(
         // Find cycles containing specific symbol
         let cycles = integration.find_cycles_containing(sym_path, sym_name, max_cycles)?;
 
-        // Get queried symbol info
-        let path_str = sym_path
-            .to_str()
-            .ok_or_else(|| splice::SpliceError::Other("Invalid UTF-8 in path".to_string()))?;
-        let symbol_facts = integration
-            .inner_mut()
-            .symbol_extents(path_str, sym_name)
-            .map_err(|e| splice::SpliceError::Other(format!("Failed to find symbol: {}", e)))?;
-
-        let queried_symbol = if !symbol_facts.is_empty() {
-            let (_entity_id, fact) = &symbol_facts[0];
-            Some(SymbolInfo {
+        // Get queried symbol info using backend-neutral method
+        let queried_symbol = match integration.find_symbol_by_path_and_name(sym_path, sym_name)? {
+            Some(info) => Some(SymbolInfo {
                 symbol_id: None,
                 id_format: None,
-                name: fact.name.clone().unwrap_or_else(|| sym_name.to_string()),
-                kind: fact.kind_normalized.clone(),
-                file_path: fact.file_path.to_string_lossy().to_string(),
-                byte_start: fact.byte_start,
-                byte_end: fact.byte_end,
-            })
-        } else {
-            None
+                name: info.name,
+                kind: info.kind,
+                file_path: info.file_path,
+                byte_start: info.byte_start,
+                byte_end: info.byte_end,
+            }),
+            None => None,
         };
 
         (cycles, queried_symbol)
@@ -5588,30 +5625,22 @@ fn execute_slice(
         }
     };
 
-    // Get target symbol info
-    let path_str = path
-        .to_str()
-        .ok_or_else(|| splice::SpliceError::Other("Invalid UTF-8 in path".to_string()))?;
-    let target_facts = integration
-        .inner_mut()
-        .symbol_extents(path_str, target)
-        .map_err(|e| splice::SpliceError::Other(format!("Failed to find target: {}", e)))?;
-
-    let (_target_id, target_fact) = target_facts
-        .first()
-        .ok_or_else(|| splice::SpliceError::Other("Target symbol not found".to_string()))?;
+    // Get target symbol info using backend-neutral method
+    let target_symbol_info = match integration.find_symbol_by_path_and_name(path, target)? {
+        Some(info) => info,
+        None => {
+            return Err(splice::SpliceError::Other("Target symbol not found".to_string()));
+        }
+    };
 
     let target_symbol = SymbolInfo {
         symbol_id: None,
         id_format: None,
-        name: target_fact
-            .name
-            .clone()
-            .unwrap_or_else(|| target.to_string()),
-        kind: target_fact.kind_normalized.clone(),
-        file_path: target_fact.file_path.to_string_lossy().to_string(),
-        byte_start: target_fact.byte_start,
-        byte_end: target_fact.byte_end,
+        name: target_symbol_info.name,
+        kind: target_symbol_info.kind,
+        file_path: target_symbol_info.file_path,
+        byte_start: target_symbol_info.byte_start,
+        byte_end: target_symbol_info.byte_end,
     };
 
     // Compute affected files
@@ -5732,8 +5761,8 @@ fn execute_validate_proof(
     output: splice::cli::OutputFormat,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
-    use splice::proof::validate_proof_file;
     use serde_json::json;
+    use splice::proof::validate_proof_file;
 
     // Validate proof file
     let is_valid = validate_proof_file(proof_path)?;
@@ -5751,16 +5780,12 @@ fn execute_validate_proof(
             .map_err(|e| splice::SpliceError::Other(format!("JSON serialization error: {}", e)))?;
         println!("{}", json_output);
 
-        Ok(
-            splice::cli::CliSuccessPayload::message_only(
-                if is_valid {
-                    "Proof checksums are valid".to_string()
-                } else {
-                    "Proof has no checksums".to_string()
-                }
-            )
-            .already_emitted(),
-        )
+        Ok(splice::cli::CliSuccessPayload::message_only(if is_valid {
+            "Proof checksums are valid".to_string()
+        } else {
+            "Proof has no checksums".to_string()
+        })
+        .already_emitted())
     } else {
         // Human-readable output
         println!("Proof Validation: {}", proof_path.display());
@@ -5783,13 +5808,11 @@ fn execute_validate_proof(
             println!("Proof may have been generated with an older version.");
         }
 
-        Ok(splice::cli::CliSuccessPayload::message_only(
-            if is_valid {
-                "Proof validation complete".to_string()
-            } else {
-                "Proof validation complete (no checksums)".to_string()
-            },
-        ))
+        Ok(splice::cli::CliSuccessPayload::message_only(if is_valid {
+            "Proof validation complete".to_string()
+        } else {
+            "Proof validation complete (no checksums)".to_string()
+        }))
     }
 }
 
@@ -5800,8 +5823,8 @@ fn execute_verify(
     output_format: splice::cli::OutputFormat,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
-    use splice::proof::{compare_snapshots, storage::SnapshotStorage};
     use serde_json::json;
+    use splice::proof::{compare_snapshots, storage::SnapshotStorage};
 
     // Load snapshots
     let storage = SnapshotStorage::new()?;
@@ -5812,7 +5835,8 @@ fn execute_verify(
     let diff = compare_snapshots(&before, &after)?;
 
     // Determine if there are differences
-    let has_symbol_changes = diff.symbols_added > 0 || diff.symbols_removed > 0 || diff.symbols_modified > 0;
+    let has_symbol_changes =
+        diff.symbols_added > 0 || diff.symbols_removed > 0 || diff.symbols_modified > 0;
     let has_edge_changes = diff.edges_added > 0 || diff.edges_removed > 0;
     let has_invariant_failures = diff.invariant_results.iter().any(|c| !c.passed);
     let has_differences = has_symbol_changes || has_edge_changes || has_invariant_failures;
@@ -5827,7 +5851,10 @@ fn execute_verify(
         println!("{}", json_output);
 
         let mut payload = splice::cli::CliSuccessPayload::with_data(
-            format!("Snapshot comparison: {} differences", if has_differences { "found" } else { "none" }),
+            format!(
+                "Snapshot comparison: {} differences",
+                if has_differences { "found" } else { "none" }
+            ),
             result,
         )
         .already_emitted();
@@ -5910,13 +5937,11 @@ fn execute_verify(
             println!();
         }
 
-        let mut payload = splice::cli::CliSuccessPayload::message_only(
-            if has_differences {
-                "Snapshots differ".to_string()
-            } else {
-                "Snapshots are identical".to_string()
-            }
-        );
+        let mut payload = splice::cli::CliSuccessPayload::message_only(if has_differences {
+            "Snapshots differ".to_string()
+        } else {
+            "Snapshots are identical".to_string()
+        });
 
         if has_differences {
             payload = payload.with_pending_changes();
@@ -5982,7 +6007,9 @@ fn execute_batch(
         (
             txn_result.batch_result,
             txn_result.rolled_back,
-            txn_result.rollback_snapshot.map(|p| p.to_string_lossy().to_string()),
+            txn_result
+                .rollback_snapshot
+                .map(|p| p.to_string_lossy().to_string()),
         )
     } else {
         // Simple execution without rollback
@@ -5992,11 +6019,23 @@ fn execute_batch(
 
     // Build response
     let mut payload = serde_json::Map::new();
-    payload.insert("spec_path".to_string(), serde_json::json!(spec_path.to_string_lossy()));
-    payload.insert("total_operations".to_string(), serde_json::json!(batch_result.total_operations));
-    payload.insert("successful".to_string(), serde_json::json!(batch_result.successful));
+    payload.insert(
+        "spec_path".to_string(),
+        serde_json::json!(spec_path.to_string_lossy()),
+    );
+    payload.insert(
+        "total_operations".to_string(),
+        serde_json::json!(batch_result.total_operations),
+    );
+    payload.insert(
+        "successful".to_string(),
+        serde_json::json!(batch_result.successful),
+    );
     payload.insert("failed".to_string(), serde_json::json!(batch_result.failed));
-    payload.insert("duration_ms".to_string(), serde_json::json!(batch_result.total_duration_ms));
+    payload.insert(
+        "duration_ms".to_string(),
+        serde_json::json!(batch_result.total_duration_ms),
+    );
     payload.insert("rolled_back".to_string(), serde_json::json!(rolled_back));
     if let Some(snapshot) = rollback_snapshot {
         payload.insert("rollback_snapshot".to_string(), serde_json::json!(snapshot));
@@ -6021,17 +6060,24 @@ fn execute_batch(
     payload.insert("operations".to_string(), serde_json::json!(ops_json));
 
     if batch_result.failed > 0 && mode == ExecutionMode::StopOnError {
-        return Err(splice::SpliceError::Other(
-            format!("Batch execution stopped: {} operation(s) failed", batch_result.failed)
-        ));
+        return Err(splice::SpliceError::Other(format!(
+            "Batch execution stopped: {} operation(s) failed",
+            batch_result.failed
+        )));
     }
 
     Ok(splice::cli::CliSuccessPayload {
         status: "ok",
         message: if dry_run {
-            format!("Batch preview complete: {} operations", batch_result.total_operations)
+            format!(
+                "Batch preview complete: {} operations",
+                batch_result.total_operations
+            )
         } else {
-            format!("Batch complete: {} succeeded, {} failed", batch_result.successful, batch_result.failed)
+            format!(
+                "Batch complete: {} succeeded, {} failed",
+                batch_result.successful, batch_result.failed
+            )
         },
         data: Some(serde_json::Value::Object(payload)),
         already_emitted: false,
@@ -6068,14 +6114,11 @@ fn execute_snapshots_list(
     output_format: splice::cli::OutputFormat,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
-    use splice::proof::storage::SnapshotStorage;
     use serde_json::json;
+    use splice::proof::storage::SnapshotStorage;
 
     let storage = SnapshotStorage::new()?;
-    let snapshots = storage.list_snapshots_filtered(
-        operation_filter.as_deref(),
-        limit,
-    )?;
+    let snapshots = storage.list_snapshots_filtered(operation_filter.as_deref(), limit)?;
 
     // Calculate total disk usage if requested
     let total_size = if disk_usage {
@@ -6116,7 +6159,8 @@ fn execute_snapshots_list(
         Ok(splice::cli::CliSuccessPayload::with_data(
             format!("Listed {} snapshots", snapshots.len()),
             result,
-        ).already_emitted())
+        )
+        .already_emitted())
     } else {
         // Human-readable output
         if snapshots.is_empty() {
@@ -6134,26 +6178,22 @@ fn execute_snapshots_list(
                 .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
                 .unwrap_or_else(|| "Unknown".to_string());
 
-            println!("  {} | {} | {} symbols, {} edges",
-                timestamp_str,
-                meta.operation,
-                meta.symbols_count,
-                meta.edges_count,
+            println!(
+                "  {} | {} | {} symbols, {} edges",
+                timestamp_str, meta.operation, meta.symbols_count, meta.edges_count,
             );
             println!("    Path: {}", meta.snapshot_path.display());
         }
 
         if let Some(size) = total_size {
             println!();
-            println!("Total disk usage: {} bytes ({} MB)",
-                size,
-                size / 1_048_576,
-            );
+            println!("Total disk usage: {} bytes ({} MB)", size, size / 1_048_576,);
         }
 
-        Ok(splice::cli::CliSuccessPayload::message_only(
-            format!("Listed {} snapshots", snapshots.len()),
-        ))
+        Ok(splice::cli::CliSuccessPayload::message_only(format!(
+            "Listed {} snapshots",
+            snapshots.len()
+        )))
     }
 }
 
@@ -6215,12 +6255,14 @@ fn execute_snapshots_delete(
         Ok(splice::cli::CliSuccessPayload::with_data(
             format!("Deleted snapshot '{}'", snapshot_id),
             result,
-        ).already_emitted())
+        )
+        .already_emitted())
     } else {
         println!("Deleted snapshot: {}", path.display());
-        Ok(splice::cli::CliSuccessPayload::message_only(
-            format!("Deleted snapshot '{}'", snapshot_id),
-        ))
+        Ok(splice::cli::CliSuccessPayload::message_only(format!(
+            "Deleted snapshot '{}'",
+            snapshot_id
+        )))
     }
 }
 
@@ -6250,10 +6292,7 @@ fn execute_snapshots_cleanup(
                 "dry_run": dry_run,
             });
             println!("{}", result);
-            return Ok(splice::cli::CliSuccessPayload::with_data(
-                message,
-                result,
-            ).already_emitted());
+            return Ok(splice::cli::CliSuccessPayload::with_data(message, result).already_emitted());
         } else {
             println!("{}", message);
             return Ok(splice::cli::CliSuccessPayload::message_only(message));
@@ -6266,8 +6305,7 @@ fn execute_snapshots_cleanup(
     if dry_run {
         let message = format!(
             "Would delete {} snapshots (keeping {} most recent)",
-            to_delete_count,
-            keep
+            to_delete_count, keep
         );
 
         if json_output {
@@ -6283,10 +6321,7 @@ fn execute_snapshots_cleanup(
                 "to_delete": snapshot_paths,
             });
             println!("{}", result);
-            return Ok(splice::cli::CliSuccessPayload::with_data(
-                message,
-                result,
-            ).already_emitted());
+            return Ok(splice::cli::CliSuccessPayload::with_data(message, result).already_emitted());
         } else {
             println!("{}", message);
             println!();
@@ -6316,15 +6351,21 @@ fn execute_snapshots_cleanup(
         Ok(splice::cli::CliSuccessPayload::with_data(
             format!("Deleted {} snapshots", deleted_paths.len()),
             result,
-        ).already_emitted())
+        )
+        .already_emitted())
     } else {
-        println!("Deleted {} snapshots (kept {} most recent)", deleted_paths.len(), keep);
+        println!(
+            "Deleted {} snapshots (kept {} most recent)",
+            deleted_paths.len(),
+            keep
+        );
         for path in &deleted_paths {
             println!("  - {}", path.display());
         }
-        Ok(splice::cli::CliSuccessPayload::message_only(
-            format!("Deleted {} snapshots", deleted_paths.len()),
-        ))
+        Ok(splice::cli::CliSuccessPayload::message_only(format!(
+            "Deleted {} snapshots",
+            deleted_paths.len()
+        )))
     }
 }
 
@@ -6333,16 +6374,20 @@ fn confirm_action(prompt: &str) -> Result<bool, splice::SpliceError> {
     use std::io::{self, Write};
 
     print!("{}", prompt);
-    io::stdout().flush().map_err(|e| splice::SpliceError::IoContext {
-        context: "Failed to flush stdout".to_string(),
-        source: e,
-    })?;
+    io::stdout()
+        .flush()
+        .map_err(|e| splice::SpliceError::IoContext {
+            context: "Failed to flush stdout".to_string(),
+            source: e,
+        })?;
 
     let mut input = String::new();
-    io::stdin().read_line(&mut input).map_err(|e| splice::SpliceError::IoContext {
-        context: "Failed to read user input".to_string(),
-        source: e,
-    })?;
+    io::stdin()
+        .read_line(&mut input)
+        .map_err(|e| splice::SpliceError::IoContext {
+            context: "Failed to read user input".to_string(),
+            source: e,
+        })?;
 
     let input = input.trim().to_lowercase();
     Ok(input == "y" || input == "yes")
@@ -6366,17 +6411,13 @@ fn execute_dead_code(
         .to_str()
         .ok_or_else(|| splice::SpliceError::Other("Invalid UTF-8 in path".to_string()))?;
 
-    // Open Magellan database and get entry point symbol info
-    let entry_symbol_info = {
-        let mut integration = MagellanIntegration::open(db_path)?;
-        let symbol_facts = integration
-            .inner_mut()
-            .symbol_extents(path_str, entry)
-            .map_err(|e| {
-                splice::SpliceError::Other(format!("Failed to find entry point: {}", e))
-            })?;
+    // Open database for operations
+    let mut integration = MagellanIntegration::open(db_path)?;
 
-        if symbol_facts.is_empty() {
+    // Get entry point symbol info using backend-neutral method
+    let entry_symbol_info = match integration.find_symbol_by_path_and_name(path, entry)? {
+        Some(info) => info,
+        None => {
             return Err(splice::SpliceError::SymbolNotFound {
                 message: format!("Entry point '{}' not found in '{}'", entry, path_str),
                 symbol: entry.to_string(),
@@ -6384,36 +6425,10 @@ fn execute_dead_code(
                 hint: "Ensure the entry point symbol exists in the specified file".to_string(),
             });
         }
-
-        let (entity_id, fact) = &symbol_facts[0];
-        let info = splice::graph::magellan_integration::SymbolInfo {
-            entity_id: *entity_id,
-            name: fact.name.clone().unwrap_or_else(|| entry.to_string()),
-            file_path: fact.file_path.to_string_lossy().to_string(),
-            kind: fact.kind_normalized.clone(),
-            byte_start: fact.byte_start,
-            byte_end: fact.byte_end,
-        };
-        drop(integration);
-        info
     };
 
-    // Open database for mutable operations
-    let mut integration = MagellanIntegration::open(db_path)?;
-
-    // Get total symbol count
-    let file_nodes = integration
-        .inner_mut()
-        .all_file_nodes()
-        .map_err(|e| splice::SpliceError::Other(format!("Failed to get file nodes: {}", e)))?;
-    let mut total_symbols = 0;
-    for file_path in file_nodes.keys() {
-        let symbols = integration
-            .inner_mut()
-            .symbols_in_file(file_path)
-            .map_err(|e| splice::SpliceError::Other(format!("Failed to get symbols: {}", e)))?;
-        total_symbols += symbols.len();
-    }
+    // Get total symbol count using backend-neutral statistics
+    let total_symbols = integration.get_statistics()?.symbols;
 
     // Detect dead code
     let dead_symbols = integration.dead_symbols(path, entry, exclude_public)?;
@@ -6639,7 +6654,13 @@ fn build_success_payload(
 }
 
 fn find_workspace_root(path: &Path) -> Result<PathBuf, splice::SpliceError> {
-    let mut current = path.parent();
+    // Get absolute path first
+    let absolute_path = std::fs::canonicalize(path).map_err(|e| splice::SpliceError::Io {
+        path: path.to_path_buf(),
+        source: e,
+    })?;
+
+    let mut current = absolute_path.parent();
     while let Some(dir) = current {
         if dir.join("Cargo.toml").exists() {
             return Ok(dir.to_path_buf());

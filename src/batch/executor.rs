@@ -2,7 +2,7 @@
 //!
 //! Executes multi-file refactoring operations from a BatchSpec.
 
-use crate::batch::spec::{BatchSpec, BatchOperation, ExecutionMode, PatchOp, DeleteOp, RenameOp};
+use crate::batch::spec::{BatchOperation, BatchSpec, DeleteOp, ExecutionMode, PatchOp, RenameOp};
 use crate::batch::transaction::{BatchTransaction, RollbackMode, TransactionResult};
 use crate::error::{Result, SpliceError};
 use crate::graph::{CodeGraph, MagellanIntegration};
@@ -168,13 +168,19 @@ impl BatchExecutor {
         }
 
         // Read the replacement content
-        let replacement = std::fs::read_to_string(&op.with)
-            .map_err(|e| SpliceError::Other(format!("Failed to read replacement file '{}': {}",
-                op.with.display(), e)))?;
+        let replacement = std::fs::read_to_string(&op.with).map_err(|e| {
+            SpliceError::Other(format!(
+                "Failed to read replacement file '{}': {}",
+                op.with.display(),
+                e
+            ))
+        })?;
 
         // We need to resolve the symbol to get its span
         let db_path = self.db_path.as_ref().ok_or_else(|| {
-            SpliceError::Other("Batch patch operations require --db flag for symbol resolution".to_string())
+            SpliceError::Other(
+                "Batch patch operations require --db flag for symbol resolution".to_string(),
+            )
         })?;
 
         let mut code_graph = CodeGraph::open(db_path)?;
@@ -183,8 +189,8 @@ impl BatchExecutor {
         let source = std::fs::read(&op.file)?;
 
         // Detect language
-        let language = crate::symbol::Language::from_path(&op.file)
-            .ok_or_else(|| SpliceError::Parse {
+        let language =
+            crate::symbol::Language::from_path(&op.file).ok_or_else(|| SpliceError::Parse {
                 file: op.file.clone(),
                 message: "Cannot detect language - unknown file extension".to_string(),
             })?;
@@ -210,7 +216,8 @@ impl BatchExecutor {
 
         // Resolve symbol to get span
         let kind_str = op.kind.as_deref();
-        let resolved = crate::resolve::resolve_symbol(&code_graph, Some(&op.file), kind_str, &op.symbol)?;
+        let resolved =
+            crate::resolve::resolve_symbol(&code_graph, Some(&op.file), kind_str, &op.symbol)?;
 
         // Get workspace directory
         let workspace_dir = op.file.parent().ok_or_else(|| {
@@ -220,8 +227,12 @@ impl BatchExecutor {
         // Apply patch (with dry-run support)
         if self.dry_run {
             // Preview mode - just show what would change
-            eprintln!("[PREVIEW] Would patch {}::{} in file: {}",
-                     kind_str.unwrap_or("symbol"), op.symbol, op.file.display());
+            eprintln!(
+                "[PREVIEW] Would patch {}::{} in file: {}",
+                kind_str.unwrap_or("symbol"),
+                op.symbol,
+                op.file.display()
+            );
             Ok(())
         } else {
             // Actual patch
@@ -233,8 +244,8 @@ impl BatchExecutor {
                 workspace_dir,
                 language,
                 crate::validate::AnalyzerMode::Off,
-                false,  // strict: batch mode uses normal validation
-                false,  // skip: still run validation
+                false, // strict: batch mode uses normal validation
+                false, // skip: still run validation
             )?;
             Ok(())
         }
@@ -248,7 +259,9 @@ impl BatchExecutor {
         }
 
         let db_path = self.db_path.as_ref().ok_or_else(|| {
-            SpliceError::Other("Batch delete operations require --db flag for symbol resolution".to_string())
+            SpliceError::Other(
+                "Batch delete operations require --db flag for symbol resolution".to_string(),
+            )
         })?;
 
         let mut code_graph = CodeGraph::open(db_path)?;
@@ -257,8 +270,8 @@ impl BatchExecutor {
         let source = std::fs::read(&op.file)?;
 
         // Detect language
-        let language = crate::symbol::Language::from_path(&op.file)
-            .ok_or_else(|| SpliceError::Parse {
+        let language =
+            crate::symbol::Language::from_path(&op.file).ok_or_else(|| SpliceError::Parse {
                 file: op.file.clone(),
                 message: "Cannot detect language - unknown file extension".to_string(),
             })?;
@@ -284,7 +297,8 @@ impl BatchExecutor {
 
         // Resolve symbol to get span
         let kind_str = op.kind.as_deref();
-        let resolved = crate::resolve::resolve_symbol(&code_graph, Some(&op.file), kind_str, &op.symbol)?;
+        let resolved =
+            crate::resolve::resolve_symbol(&code_graph, Some(&op.file), kind_str, &op.symbol)?;
 
         // Delete means replacing with empty string
         let workspace_dir = op.file.parent().ok_or_else(|| {
@@ -292,8 +306,12 @@ impl BatchExecutor {
         })?;
 
         if self.dry_run {
-            eprintln!("[PREVIEW] Would delete {}::{} in file: {}",
-                     kind_str.unwrap_or("symbol"), op.symbol, op.file.display());
+            eprintln!(
+                "[PREVIEW] Would delete {}::{} in file: {}",
+                kind_str.unwrap_or("symbol"),
+                op.symbol,
+                op.file.display()
+            );
             Ok(())
         } else {
             crate::patch::apply_patch_with_validation(
@@ -304,8 +322,8 @@ impl BatchExecutor {
                 workspace_dir,
                 language,
                 crate::validate::AnalyzerMode::Off,
-                false,  // strict: batch mode uses normal validation
-                false,  // skip: still run validation
+                false, // strict: batch mode uses normal validation
+                false, // skip: still run validation
             )?;
             Ok(())
         }
@@ -356,7 +374,8 @@ impl BatchExecutor {
                 .iter()
                 .map(|p| p.to_string_lossy().to_string())
                 .collect();
-            references.into_iter()
+            references
+                .into_iter()
                 .filter(|r| file_set.contains(&r.file_path.to_string_lossy().to_string()))
                 .collect()
         } else {
@@ -364,8 +383,12 @@ impl BatchExecutor {
         };
 
         if self.dry_run {
-            eprintln!("[PREVIEW] Would rename '{}' to '{}' in {} file(s)",
-                     op.from, op.to, filtered_refs.len());
+            eprintln!(
+                "[PREVIEW] Would rename '{}' to '{}' in {} file(s)",
+                op.from,
+                op.to,
+                filtered_refs.len()
+            );
             Ok(())
         } else {
             // Group references by file
@@ -374,10 +397,7 @@ impl BatchExecutor {
             // Apply replacements in each file
             for (file_path, refs) in grouped {
                 crate::graph::rename::apply_replacements_in_file(
-                    &file_path,
-                    &op.from,
-                    &op.to,
-                    &refs,
+                    &file_path, &op.from, &op.to, &refs,
                 )?;
             }
 
@@ -386,8 +406,8 @@ impl BatchExecutor {
     }
 
     fn capture_snapshot(&self, db_path: &Path, operation: &str) -> Result<()> {
-        use crate::proof::storage::SnapshotStorage;
         use crate::proof::generation::generate_snapshot;
+        use crate::proof::storage::SnapshotStorage;
 
         let storage = SnapshotStorage::new()?;
         let snapshot = generate_snapshot(db_path)?;

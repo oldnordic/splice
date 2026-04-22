@@ -585,7 +585,7 @@ pub enum Commands {
     #[command(display_order = 107)]
     MigrateDb {
         /// Path to the Magellan database
-        #[arg(short, long, default_value = ".codemcp/codegraph.db")]
+        #[arg(short, long, default_value = ".magellan/magellan.db")]
         db_path: std::path::PathBuf,
 
         /// Create backup before migrating
@@ -636,8 +636,8 @@ pub enum Commands {
         #[arg(short, long)]
         to: String,
 
-        /// Path to Magellan database (default: .codemcp/codegraph.db)
-        #[arg(short, long, default_value = ".codemcp/codegraph.db")]
+        /// Path to Magellan database (default: .magellan/magellan.db)
+        #[arg(short, long, default_value = ".magellan/magellan.db")]
         db: std::path::PathBuf,
 
         /// Preview changes without applying
@@ -679,8 +679,8 @@ pub enum Commands {
         #[arg(short, long)]
         path: std::path::PathBuf,
 
-        /// Path to Magellan database (default: .codemcp/codegraph.db)
-        #[arg(short, long, default_value = ".codemcp/codegraph.db")]
+        /// Path to Magellan database (default: .magellan/magellan.db)
+        #[arg(short, long, default_value = ".magellan/magellan.db")]
         db: std::path::PathBuf,
 
         /// Analysis direction: forward (callees), reverse (callers), both
@@ -711,8 +711,8 @@ pub enum Commands {
         #[arg(short, long)]
         path: std::path::PathBuf,
 
-        /// Path to Magellan database (default: .codemcp/codegraph.db)
-        #[arg(short, long, default_value = ".codemcp/codegraph.db")]
+        /// Path to Magellan database (default: .magellan/magellan.db)
+        #[arg(short, long, default_value = ".magellan/magellan.db")]
         db: std::path::PathBuf,
 
         /// Exclude public symbols from dead code list
@@ -731,8 +731,8 @@ pub enum Commands {
     /// Detect cycles in the call graph
     #[command(display_order = 113)]
     Cycles {
-        /// Path to Magellan database (default: .codemcp/codegraph.db)
-        #[arg(short, long, default_value = ".codemcp/codegraph.db")]
+        /// Path to Magellan database (default: .magellan/magellan.db)
+        #[arg(short, long, default_value = ".magellan/magellan.db")]
         db: std::path::PathBuf,
 
         /// Optional: find cycles containing this specific symbol
@@ -759,8 +759,8 @@ pub enum Commands {
     /// Analyze condensation graph (SCCs collapsed to DAG)
     #[command(display_order = 114)]
     Condense {
-        /// Path to Magellan database (default: .codemcp/codegraph.db)
-        #[arg(short, long, default_value = ".codemcp/codegraph.db")]
+        /// Path to Magellan database (default: .magellan/magellan.db)
+        #[arg(short, long, default_value = ".magellan/magellan.db")]
         db: std::path::PathBuf,
 
         /// Show SCC members (default: true for human output)
@@ -787,8 +787,8 @@ pub enum Commands {
         #[arg(short, long)]
         path: std::path::PathBuf,
 
-        /// Path to Magellan database (default: .codemcp/codegraph.db)
-        #[arg(short, long, default_value = ".codemcp/codegraph.db")]
+        /// Path to Magellan database (default: .magellan/magellan.db)
+        #[arg(short, long, default_value = ".magellan/magellan.db")]
         db: std::path::PathBuf,
 
         /// Slice direction: forward (what this affects) or backward (what affects this)
@@ -858,6 +858,26 @@ pub enum Commands {
         /// Rollback mode: auto, never, always
         #[arg(long, value_enum, default_value_t = CliRollbackMode::Auto)]
         rollback: CliRollbackMode,
+    },
+
+    /// Create a new file with validation
+    #[command(display_order = 105)]
+    Create {
+        /// Path to the file to create
+        #[arg(short, long)]
+        file: std::path::PathBuf,
+
+        /// Validate only (don't write file)
+        #[arg(short = 'V', long)]
+        validate_only: bool,
+
+        /// Add module declaration to parent module
+        #[arg(short = 'm', long)]
+        with_mod: bool,
+
+        /// Workspace directory (default: current directory)
+        #[arg(short, long, default_value = ".")]
+        workspace: std::path::PathBuf,
     },
 
     /// Manage code graph snapshots
@@ -1311,6 +1331,10 @@ impl From<crate::error::Diagnostic> for DiagnosticPayload {
         }
     }
 }
+
+// CLI tests
+#[cfg(test)]
+mod tests;
 
 // Re-export Magellan-compatible response types for external use
 pub use crate::output::{

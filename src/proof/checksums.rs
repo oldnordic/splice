@@ -6,9 +6,9 @@
 //! - After snapshot hash
 //! Overall proof hash (for tamper detection)
 
-use sha2::{Digest, Sha256};
 use crate::error::{Result, SpliceError};
-use crate::proof::data_structures::{GraphSnapshot, RefactoringProof, ProofChecksums};
+use crate::proof::data_structures::{GraphSnapshot, ProofChecksums, RefactoringProof};
+use sha2::{Digest, Sha256};
 use std::path::Path;
 
 /// Compute SHA-256 hash of a graph snapshot.
@@ -124,11 +124,10 @@ pub fn validate_proof_checksums(proof: &RefactoringProof) -> Result<bool> {
 /// * Err if proof is invalid or cannot be read
 pub fn validate_proof_file(proof_path: &Path) -> Result<bool> {
     // Read proof file
-    let json = std::fs::read_to_string(proof_path)
-        .map_err(|e| SpliceError::Io {
-            path: proof_path.to_path_buf(),
-            source: e,
-        })?;
+    let json = std::fs::read_to_string(proof_path).map_err(|e| SpliceError::Io {
+        path: proof_path.to_path_buf(),
+        source: e,
+    })?;
 
     // Deserialize proof
     let proof: RefactoringProof = serde_json::from_str(&json)
@@ -141,7 +140,7 @@ pub fn validate_proof_file(proof_path: &Path) -> Result<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::proof::data_structures::{ProofMetadata, GraphStats};
+    use crate::proof::data_structures::{GraphStats, ProofMetadata};
     use std::collections::HashMap;
     use std::path::PathBuf;
 
