@@ -4,7 +4,7 @@
 //! and detect changes in symbols, edges, and invariants.
 
 use crate::error::Result;
-use crate::proof::data_structures::{GraphSnapshot, SymbolInfo, InvariantCheck};
+use crate::proof::data_structures::{GraphSnapshot, InvariantCheck, SymbolInfo};
 use crate::proof::validation;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -110,10 +110,7 @@ pub struct SnapshotDiff {
 /// # Ok(())
 /// # }
 /// ```
-pub fn compare_snapshots(
-    before: &GraphSnapshot,
-    after: &GraphSnapshot,
-) -> Result<SnapshotDiff> {
+pub fn compare_snapshots(before: &GraphSnapshot, after: &GraphSnapshot) -> Result<SnapshotDiff> {
     // Compare symbols
     let (symbol_diffs, added, removed, modified) = diff_symbols(before, after);
 
@@ -232,10 +229,7 @@ fn diff_symbols(
 /// - Vector of edge differences (sorted by from->to)
 /// - Count of added edges
 /// - Count of removed edges
-fn diff_edges(
-    before: &GraphSnapshot,
-    after: &GraphSnapshot,
-) -> (Vec<EdgeDiff>, usize, usize) {
+fn diff_edges(before: &GraphSnapshot, after: &GraphSnapshot) -> (Vec<EdgeDiff>, usize, usize) {
     let mut edge_diffs = Vec::new();
 
     // Build sets of all edges in both snapshots
@@ -278,11 +272,9 @@ fn diff_edges(
     }
 
     // Sort by from->to for consistent output
-    edge_diffs.sort_by(|a, b| {
-        match a.from.cmp(&b.from) {
-            std::cmp::Ordering::Equal => a.to.cmp(&b.to),
-            other => other,
-        }
+    edge_diffs.sort_by(|a, b| match a.from.cmp(&b.from) {
+        std::cmp::Ordering::Equal => a.to.cmp(&b.to),
+        other => other,
     });
 
     (edge_diffs, added_edges.len(), removed_edges.len())
@@ -324,7 +316,10 @@ mod tests {
         );
 
         let mut edges = HashMap::new();
-        edges.insert("0000000000000001".to_string(), vec!["0000000000000002".to_string()]);
+        edges.insert(
+            "0000000000000001".to_string(),
+            vec!["0000000000000002".to_string()],
+        );
         edges.insert("0000000000000002".to_string(), vec![]);
 
         GraphSnapshot {
@@ -465,7 +460,10 @@ mod tests {
         );
 
         // Add edge from helper to util
-        after.edges.insert("0000000000000002".to_string(), vec!["0000000000000003".to_string()]);
+        after.edges.insert(
+            "0000000000000002".to_string(),
+            vec!["0000000000000003".to_string()],
+        );
         after.stats.total_symbols = 3;
         after.stats.total_edges = 2;
 

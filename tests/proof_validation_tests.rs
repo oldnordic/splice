@@ -3,13 +3,12 @@
 //! These tests verify that invariant validation works correctly
 //! for real refactoring operations.
 
-use std::collections::HashMap;
-use std::path::PathBuf;
 use splice::proof::data_structures::{
-    GraphSnapshot, InvariantCheck, InvariantViolation, ViolationSeverity,
-    SymbolInfo, GraphStats,
+    GraphSnapshot, GraphStats, InvariantCheck, InvariantViolation, SymbolInfo, ViolationSeverity,
 };
 use splice::proof::validation::validate_invariants;
+use std::collections::HashMap;
+use std::path::PathBuf;
 
 /// Helper to create a minimal graph snapshot for testing.
 fn create_minimal_snapshot() -> GraphSnapshot {
@@ -42,7 +41,10 @@ fn create_minimal_snapshot() -> GraphSnapshot {
     );
 
     let mut edges = HashMap::new();
-    edges.insert("0000000000000001".to_string(), vec!["0000000000000002".to_string()]);
+    edges.insert(
+        "0000000000000001".to_string(),
+        vec!["0000000000000002".to_string()],
+    );
     edges.insert("0000000000000002".to_string(), vec![]);
 
     GraphSnapshot {
@@ -260,7 +262,10 @@ fn test_validate_invariants_realistic_rename() {
     );
 
     let mut edges = HashMap::new();
-    edges.insert("0000000000000001".to_string(), vec!["0000000000000002".to_string()]);
+    edges.insert(
+        "0000000000000001".to_string(),
+        vec!["0000000000000002".to_string()],
+    );
     edges.insert("0000000000000002".to_string(), vec![]);
 
     let after = GraphSnapshot {

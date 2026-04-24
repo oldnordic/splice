@@ -167,7 +167,7 @@ pub fn apply_patch_with_validation(
     // Note: skip=true for patch operations since they don't require a code graph database
     // (graph DB is only needed for query/get commands using Magellan)
     // strict and skip flags now passed from CLI
-    let db_path = workspace_dir.join(".splice_graph.db"); // Splice's convention, not used when skip=true
+    let db_path = workspace_dir.join(".magellan/magellan.db"); // Updated to use Magellan convention
     let pre_checks =
         verify::pre_verify_patch(file_path, None, workspace_dir, &db_path, strict, skip)?;
 
@@ -185,6 +185,52 @@ pub fn apply_patch_with_validation(
         if check.is_warning() {
             log::warn!("Pre-verification warning: {:?}", check);
         }
+    }
+
+    // Step 0.5: Check CFG complexity if Mirage available (non-blocking)
+    // This uses Mirage's 4D spatial coordinates to assess function complexity
+    if let Some(function_name) = extract_function_name_from_patch(new_content) {
+        if let Ok(complexity) = crate::cfg_analysis::check_function_complexity(
+            &db_path, &function_name, file_path
+        ) {
+            match complexity.risk_level {
+                crate::cfg_analysis::RiskLevel::VeryHigh => {
+                    log::warn!(
+                        "VERY HIGH COMPLEXITY: Function '{}' has branch distance={}, dominator depth={}, loop nesting={}. \
+                        Consider manual review before automated refactoring.",
+                        function_name,
+                        complexity.max_branch_distance,
+                        complexity.max_dominator_depth,
+                        complexity.max_loop_nesting
+                    );
+                }
+                crate::cfg_analysis::RiskLevel::High => {
+                    log::warn!(
+                        "HIGH COMPLEXITY: Function '{}' has branch distance={}, dominator depth={}. \
+                        Automated refactoring may be risky.",
+                        function_name,
+                        complexity.max_branch_distance,
+                        complexity.max_dominator_depth
+                    );
+                }
+                crate::cfg_analysis::RiskLevel::Medium => {
+                    log::info!(
+                        "Medium complexity: Function '{}' (branch distance={}, dominator depth={})",
+                        function_name,
+                        complexity.max_branch_distance,
+                        complexity.max_dominator_depth
+                    );
+                }
+                crate::cfg_analysis::RiskLevel::Low => {
+                    log::debug!(
+                        "Low complexity: Function '{}' (branch distance={})",
+                        function_name,
+                        complexity.max_branch_distance
+                    );
+                }
+            }
+        }
+        // Don't fail if Mirage unavailable - just log and continue
     }
 
     // Step 1: Read original file and compute hash
@@ -391,11 +437,11 @@ pub fn preview_patch(
         preview_workspace.path(),
         language,
         analyzer_mode,
-        false,  // strict: preview mode doesn't need strict validation
-        true,   // skip: preview mode also doesn't need graph DB
+        false, // strict: preview mode doesn't need strict validation
+        true,  // skip: preview mode also doesn't need graph DB
     )?;
 
-    let preview_report = compute_preview_report(file_path, start, end, new_content)?;
+    let preview_report = compute_preview_report(&file_path, start, end, new_content)?;
 
     Ok((
         FilePatchSummary {
@@ -452,10 +498,24 @@ pub fn preview_patch_with_content(
     language: SymbolLanguage,
     analyzer_mode: AnalyzerMode,
 ) -> Result<(FilePatchSummary, PreviewReport, String, String)> {
-    let preview_workspace = clone_workspace_for_preview(workspace_root)?;
-    let relative = file_path
-        .strip_prefix(workspace_root)
-        .map_err(|_| SpliceError::Other("File not under workspace root".to_string()))?;
+    // Ensure both paths are absolute for consistent prefix stripping
+    let file_path = std::fs::canonicalize(file_path).map_err(|e| SpliceError::Io {
+        path: file_path.to_path_buf(),
+        source: e,
+    })?;
+    let workspace_root = std::fs::canonicalize(workspace_root).map_err(|e| SpliceError::Io {
+        path: workspace_root.to_path_buf(),
+        source: e,
+    })?;
+
+    let preview_workspace = clone_workspace_for_preview(&workspace_root)?;
+    let relative = file_path.strip_prefix(&workspace_root).map_err(|_| {
+        SpliceError::Other(format!(
+            "File {} not under workspace root {}",
+            file_path.display(),
+            workspace_root.display()
+        ))
+    })?;
     let preview_file = preview_workspace.path().join(relative);
 
     // Read original file content before patching
@@ -469,14 +529,14 @@ pub fn preview_patch_with_content(
         preview_workspace.path(),
         language,
         analyzer_mode,
-        false,  // strict: preview mode doesn't need strict validation
-        true,   // skip: preview mode also doesn't need graph DB
+        false, // strict: preview mode doesn't need strict validation
+        true,  // skip: preview mode also doesn't need graph DB
     )?;
 
     // Read patched file content
     let after_content = std::fs::read_to_string(&preview_file)?;
 
-    let preview_report = compute_preview_report(file_path, start, end, new_content)?;
+    let preview_report = compute_preview_report(&file_path, start, end, new_content)?;
 
     Ok((
         FilePatchSummary {
@@ -705,13 +765,33 @@ fn tool_invocation_for_language(language: SymbolLanguage) -> Option<ToolInvocati
 /// Cargo check gate (Rust-specific).
 ///
 /// Validates that the workspace compiles after the patch.
+/// Uses a 60-second timeout to prevent hanging on large projects.
 fn gate_cargo_check(workspace_dir: &Path) -> Result<()> {
     use std::process::Command;
+    use std::thread;
+    use std::time::Duration;
 
-    let output = Command::new("cargo")
-        .arg("check")
-        .current_dir(workspace_dir)
-        .output()?;
+    // Spawn cargo check in a separate thread to allow timeout
+    let workspace_path = workspace_dir.to_path_buf();
+    let (tx, rx) = std::sync::mpsc::channel();
+    
+    thread::spawn(move || {
+        let output = Command::new("cargo")
+            .arg("check")
+            .current_dir(&workspace_path)
+            .output();
+        let _ = tx.send(output);
+    });
+
+    // Wait for completion with 120-second timeout (cargo check can take 50+ seconds on large projects)
+    let output = match rx.recv_timeout(Duration::from_secs(120)) {
+        Ok(result) => result?,
+        Err(_) => {
+            return Err(SpliceError::Other(
+                "cargo check timed out after 120 seconds".to_string()
+            ));
+        }
+    };
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -1258,6 +1338,33 @@ pub fn validate_utf8_span(source: &str, start: usize, end: usize) -> Result<()> 
     Ok(())
 }
 
+/// Extract function name from patch content for CFG complexity analysis
+///
+/// This is a simple heuristic that looks for common function declaration patterns.
+/// It's used to query Mirage for CFG complexity metrics before applying a patch.
+///
+/// # Arguments
+/// * `patch_content` - The new content being patched in
+///
+/// # Returns
+/// * `Some(function_name)` - If a function declaration is found
+/// * `None` - If no function declaration detected
+///
+/// # Notes
+/// - Uses simple regex patterns (not full parsing)
+/// - Supports `fn name`, `pub fn name`, `async fn name`, etc.
+/// - Falls back gracefully if not found (Mirage check is optional)
+fn extract_function_name_from_patch(patch_content: &str) -> Option<String> {
+    // Look for Rust function declarations
+    // Patterns: "fn name(", "pub fn name(", "async fn name(", etc.
+    use regex::Regex;
+
+    // Lazy-init regex to avoid compiling on every call
+    let fn_regex = Regex::new(r"(?m)^(?:pub\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+(\w+)\s*\(").ok()?;
+
+    fn_regex.captures(patch_content).map(|caps| caps[1].to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1280,12 +1387,7 @@ mod tests {
         let end = source.find("line 4").unwrap();
         let new_content = "NEW LINE\n";
 
-        let report = compute_preview_report(
-            temp_file.path(),
-            start,
-            end,
-            new_content,
-        ).unwrap();
+        let report = compute_preview_report(temp_file.path(), start, end, new_content).unwrap();
 
         // We removed "line 2\nline 3\n" (2 lines) and added "NEW LINE\n" (1 line)
         assert_eq!(report.lines_removed, 2, "Should count 2 lines removed");
@@ -1304,12 +1406,7 @@ mod tests {
         let start = source.find("line 1").unwrap();
         let end = source.len();
 
-        let report = compute_preview_report(
-            temp_file.path(),
-            start,
-            end,
-            "",
-        ).unwrap();
+        let report = compute_preview_report(temp_file.path(), start, end, "").unwrap();
 
         assert_eq!(report.lines_removed, 2, "Should count 2 lines removed");
         assert_eq!(report.lines_added, 0, "Empty content = 0 lines added");
@@ -1323,15 +1420,12 @@ mod tests {
         temp_file.flush().unwrap();
 
         let source = std::fs::read_to_string(temp_file.path()).unwrap();
-        let start = source.len();  // Insert at end
+        let start = source.len(); // Insert at end
         let end = start;
 
-        let report = compute_preview_report(
-            temp_file.path(),
-            start,
-            end,
-            "NEW LINE 1\nNEW LINE 2\n",
-        ).unwrap();
+        let report =
+            compute_preview_report(temp_file.path(), start, end, "NEW LINE 1\nNEW LINE 2\n")
+                .unwrap();
 
         assert_eq!(report.lines_removed, 0, "No lines removed when start==end");
         assert_eq!(report.lines_added, 2, "Should count 2 new lines");
@@ -1367,7 +1461,8 @@ edition = "2021"
 [lib]
 path = "lib.rs"
 "#
-            ).unwrap();
+            )
+            .unwrap();
         }
 
         // Test that apply_patch_with_validation can accept strict and skip parameters

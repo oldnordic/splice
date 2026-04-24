@@ -89,8 +89,8 @@ public class Test {
             workspace_path,
             Language::Java,
             AnalyzerMode::Off,
-            false,  // strict: test mode doesn't need strict validation
-            false,  // skip: still run validation for test
+            false, // strict: test mode doesn't need strict validation
+            false, // skip: still run validation for test
         );
 
         // Should succeed if javac is available
@@ -179,8 +179,8 @@ public class Test {
             workspace_path,
             Language::Java,
             AnalyzerMode::Off,
-            false,  // strict: test mode doesn't need strict validation
-            false,  // skip: still run validation for test
+            false, // strict: test mode doesn't need strict validation
+            false, // skip: still run validation for test
         );
 
         // Should fail on syntax error
@@ -273,8 +273,8 @@ public class Calculator {
             workspace_path,
             Language::Java,
             AnalyzerMode::Off,
-            false,  // strict: test mode doesn't need strict validation
-            false,  // skip: still run validation for test
+            false, // strict: test mode doesn't need strict validation
+            false, // skip: still run validation for test
         );
 
         // Should succeed if javac is available

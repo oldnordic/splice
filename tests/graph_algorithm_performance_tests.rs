@@ -158,7 +158,11 @@ fn test_reachable_1k_symbols_under_1s() {
     );
     let elapsed = start.elapsed();
 
-    assert!(result.is_ok(), "Reachable should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Reachable should succeed: {:?}",
+        result.err()
+    );
     let reachable = result.unwrap();
 
     assert!(
@@ -168,8 +172,15 @@ fn test_reachable_1k_symbols_under_1s() {
         MAX_TIME_MS
     );
 
-    println!("reachable: {}ms (found {} symbols)", elapsed.as_millis(), reachable.len());
-    assert!(!reachable.is_empty(), "Should find at least some reachable symbols");
+    println!(
+        "reachable: {}ms (found {} symbols)",
+        elapsed.as_millis(),
+        reachable.len()
+    );
+    assert!(
+        !reachable.is_empty(),
+        "Should find at least some reachable symbols"
+    );
 }
 
 #[test]
@@ -188,7 +199,11 @@ fn test_reverse_reachable_1k_symbols_under_1s() {
     );
     let elapsed = start.elapsed();
 
-    assert!(result.is_ok(), "Reverse reachable should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Reverse reachable should succeed: {:?}",
+        result.err()
+    );
 
     assert!(
         elapsed.as_millis() < MAX_TIME_MS,
@@ -230,16 +245,13 @@ fn test_cycles_1k_symbols_under_1s() {
             for symbol_fact in symbols {
                 if let Some(name) = symbol_fact.name {
                     let key = (file_meta.path.clone(), name.clone());
-                    if let Ok(calls) = integration.inner_mut().calls_from_symbol(&file_meta.path, &name)
+                    if let Ok(calls) = integration
+                        .inner_mut()
+                        .calls_from_symbol(&file_meta.path, &name)
                     {
                         let callees: std::collections::HashSet<(String, String)> = calls
                             .into_iter()
-                            .map(|c| {
-                                (
-                                    c.file_path.to_string_lossy().to_string(),
-                                    c.callee.clone(),
-                                )
-                            })
+                            .map(|c| (c.file_path.to_string_lossy().to_string(), c.callee.clone()))
                             .collect();
                         call_graph.insert(key, callees);
                     }
@@ -261,7 +273,11 @@ fn test_cycles_1k_symbols_under_1s() {
         MAX_TIME_MS
     );
 
-    println!("cycles: {}ms (found {} cycles)", elapsed.as_millis(), cycles.len());
+    println!(
+        "cycles: {}ms (found {} cycles)",
+        elapsed.as_millis(),
+        cycles.len()
+    );
 }
 
 /// Tarjan's strongly connected components algorithm.
@@ -379,16 +395,13 @@ fn test_condense_1k_symbols_under_1s() {
             for symbol_fact in symbols {
                 if let Some(name) = symbol_fact.name {
                     let key = (file_meta.path.clone(), name.clone());
-                    if let Ok(calls) = integration.inner_mut().calls_from_symbol(&file_meta.path, &name)
+                    if let Ok(calls) = integration
+                        .inner_mut()
+                        .calls_from_symbol(&file_meta.path, &name)
                     {
                         let callees: std::collections::HashSet<(String, String)> = calls
                             .into_iter()
-                            .map(|c| {
-                                (
-                                    c.file_path.to_string_lossy().to_string(),
-                                    c.callee.clone(),
-                                )
-                            })
+                            .map(|c| (c.file_path.to_string_lossy().to_string(), c.callee.clone()))
                             .collect();
                         call_graph.insert(key, callees);
                     }
@@ -457,7 +470,11 @@ fn test_slice_forward_1k_symbols_under_1s() {
     );
     let elapsed = start.elapsed();
 
-    assert!(result.is_ok(), "Forward slice should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Forward slice should succeed: {:?}",
+        result.err()
+    );
 
     assert!(
         elapsed.as_millis() < MAX_TIME_MS,
@@ -467,7 +484,11 @@ fn test_slice_forward_1k_symbols_under_1s() {
     );
 
     let sliced = result.unwrap();
-    println!("slice (forward): {}ms (found {} symbols)", elapsed.as_millis(), sliced.len());
+    println!(
+        "slice (forward): {}ms (found {} symbols)",
+        elapsed.as_millis(),
+        sliced.len()
+    );
 }
 
 #[test]
@@ -486,7 +507,11 @@ fn test_slice_backward_1k_symbols_under_1s() {
     );
     let elapsed = start.elapsed();
 
-    assert!(result.is_ok(), "Backward slice should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Backward slice should succeed: {:?}",
+        result.err()
+    );
 
     assert!(
         elapsed.as_millis() < MAX_TIME_MS,
@@ -496,5 +521,9 @@ fn test_slice_backward_1k_symbols_under_1s() {
     );
 
     let sliced = result.unwrap();
-    println!("slice (backward): {}ms (found {} symbols)", elapsed.as_millis(), sliced.len());
+    println!(
+        "slice (backward): {}ms (found {} symbols)",
+        elapsed.as_millis(),
+        sliced.len()
+    );
 }

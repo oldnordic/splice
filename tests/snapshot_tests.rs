@@ -6,7 +6,7 @@
 //! Run with:
 //!   cargo test --features native-v3 snapshot
 
-use splice::proof::{GraphSnapshot, SnapshotStorage, compare_snapshots};
+use splice::proof::{compare_snapshots, GraphSnapshot, SnapshotStorage};
 use splice::CodeGraph;
 use std::collections::HashMap;
 use std::fs;
@@ -23,7 +23,10 @@ fn test_snapshot_storage_creation() {
     let base_dir = storage.base_dir();
 
     assert!(base_dir.exists(), "Snapshots directory should exist");
-    assert!(base_dir.ends_with(".splice/snapshots"), "Should use correct path");
+    assert!(
+        base_dir.ends_with(".splice/snapshots"),
+        "Should use correct path"
+    );
 }
 
 #[test]
@@ -50,7 +53,10 @@ fn test_save_and_load_snapshot() {
         .save_snapshot("test_operation", &db_path.as_path(), snapshot.clone())
         .expect("Failed to save snapshot");
 
-    assert!(metadata.snapshot_path.exists(), "Snapshot file should exist");
+    assert!(
+        metadata.snapshot_path.exists(),
+        "Snapshot file should exist"
+    );
     assert_eq!(metadata.operation, "test_operation");
 
     // Load the snapshot back
@@ -82,7 +88,11 @@ fn test_list_snapshots() {
 
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         storage
-            .save_snapshot(&format!("list_test_{}", i), temp_dir.path().join("test.db").as_path(), snapshot)
+            .save_snapshot(
+                &format!("list_test_{}", i),
+                temp_dir.path().join("test.db").as_path(),
+                snapshot,
+            )
             .expect("Failed to save snapshot");
     }
 
@@ -103,7 +113,10 @@ fn test_cleanup_old_snapshots() {
     let storage = SnapshotStorage::new().expect("Failed to create SnapshotStorage");
 
     // Get initial snapshot count
-    let initial_count = storage.list_snapshots().expect("Failed to list snapshots").len();
+    let initial_count = storage
+        .list_snapshots()
+        .expect("Failed to list snapshots")
+        .len();
 
     // Create 3 new snapshots with unique operation names
     let unique_id = chrono::Utc::now().timestamp();
@@ -123,7 +136,11 @@ fn test_cleanup_old_snapshots() {
 
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         storage
-            .save_snapshot(&format!("cleanup_{}_{}", unique_id, i), temp_dir.path().join("test.db").as_path(), snapshot)
+            .save_snapshot(
+                &format!("cleanup_{}_{}", unique_id, i),
+                temp_dir.path().join("test.db").as_path(),
+                snapshot,
+            )
             .expect("Failed to save snapshot");
     }
 
@@ -137,7 +154,10 @@ fn test_cleanup_old_snapshots() {
     assert!(deleted.len() >= 2, "Should delete at least 2 old snapshots");
 
     let remaining = storage.list_snapshots().expect("Failed to list snapshots");
-    assert!(remaining.len() <= keep_count, "Should have at most keep_count snapshots remaining");
+    assert!(
+        remaining.len() <= keep_count,
+        "Should have at most keep_count snapshots remaining"
+    );
 }
 
 #[test]
@@ -161,7 +181,11 @@ fn test_get_latest_snapshot() {
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     storage
-        .save_snapshot("latest_test_unique", temp_dir.path().join("test.db").as_path(), snapshot)
+        .save_snapshot(
+            "latest_test_unique",
+            temp_dir.path().join("test.db").as_path(),
+            snapshot,
+        )
         .expect("Failed to save snapshot");
 
     let latest = storage
@@ -241,7 +265,8 @@ fn test_restore_fails_for_sqlite_backend() {
     let sqlite_path = temp_dir.path().join("sqlite.db");
     {
         let mut file = fs::File::create(&sqlite_path).expect("Failed to create file");
-        file.write_all(b"SQLite format 3\0").expect("Failed to write header");
+        file.write_all(b"SQLite format 3\0")
+            .expect("Failed to write header");
     }
 
     let snapshot_path = temp_dir.path().join("snapshot.json");

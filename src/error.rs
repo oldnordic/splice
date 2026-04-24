@@ -338,10 +338,12 @@ impl From<crate::batch::BatchError> for SpliceError {
                 path: path.clone(),
                 reason: err.to_string(),
             },
-            crate::batch::BatchError::ParseError { ref path, .. } => SpliceError::InvalidBatchSpec {
-                path: path.clone(),
-                reason: err.to_string(),
-            },
+            crate::batch::BatchError::ParseError { ref path, .. } => {
+                SpliceError::InvalidBatchSpec {
+                    path: path.clone(),
+                    reason: err.to_string(),
+                }
+            }
             _ => SpliceError::Other(err.to_string()),
         }
     }

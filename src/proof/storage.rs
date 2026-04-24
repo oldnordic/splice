@@ -115,10 +115,8 @@ impl SnapshotStorage {
         };
 
         // Serialize snapshot to JSON
-        let json = serde_json::to_string_pretty(&snapshot).map_err(|e| SpliceError::Other(format!(
-            "Failed to serialize snapshot: {}",
-            e
-        )))?;
+        let json = serde_json::to_string_pretty(&snapshot)
+            .map_err(|e| SpliceError::Other(format!("Failed to serialize snapshot: {}", e)))?;
 
         // Write to file
         fs::write(&snapshot_path, json).map_err(|e| SpliceError::Io {
@@ -156,11 +154,9 @@ impl SnapshotStorage {
             source: e,
         })?;
 
-        serde_json::from_str(&json).map_err(|e| SpliceError::Other(format!(
-            "Snapshot corrupted: {} - {}",
-            path.display(),
-            e
-        )))
+        serde_json::from_str(&json).map_err(|e| {
+            SpliceError::Other(format!("Snapshot corrupted: {} - {}", path.display(), e))
+        })
     }
 
     /// List all snapshots in the storage directory.
@@ -196,9 +192,7 @@ impl SnapshotStorage {
             match self.load_snapshot(&path) {
                 Ok(snapshot) => {
                     // Parse operation and timestamp from filename
-                    let filename = path.file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("");
+                    let filename = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
 
                     let (operation, _) = filename.split_once('-').unwrap_or((filename, ""));
 
@@ -326,9 +320,7 @@ impl SnapshotStorage {
                 let snapshot = self.load_snapshot(&path)?;
 
                 // Parse operation and timestamp from filename
-                let filename = path.file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("");
+                let filename = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
 
                 let (operation, _) = filename.split_once('-').unwrap_or((filename, ""));
 
@@ -454,9 +446,7 @@ impl SnapshotStorage {
             }
 
             // Check if filename matches
-            let filename = path.file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("");
+            let filename = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
 
             // Match exact filename or timestamp portion
             if filename == normalized_id || filename.ends_with(&format!("-{}", normalized_id)) {
@@ -493,17 +483,14 @@ impl SnapshotStorage {
     /// - If backup creation fails
     /// - If database creation or restoration fails
     #[cfg(feature = "native-v3")]
-    pub fn restore_from_snapshot(
-        db_path: &Path,
-        snapshot_path: &Path,
-    ) -> Result<RestoreResult> {
+    pub fn restore_from_snapshot(db_path: &Path, snapshot_path: &Path) -> Result<RestoreResult> {
         use crate::graph::CodeGraph;
         use sqlitegraph::{EdgeSpec, GraphConfig, NodeSpec};
         use std::io::Read;
 
         // Step 1: Detect backend format
         let backend = CodeGraph::detect_backend(db_path)?;
-        if backend == crate::graph::Backend::SQLite {
+        if backend == crate::graph::BackendType::SQLite {
             return Err(SpliceError::Other(
                 "Database restore is only supported for native-v3 backend databases. \
                  SQLite databases cannot be restored from snapshots."
@@ -537,8 +524,9 @@ impl SnapshotStorage {
 
         // Step 5: Create new native-v3 database
         let cfg = GraphConfig::native();
-        let mut backend = sqlitegraph::open_graph(&temp_db_path, &cfg)
-            .map_err(|e| SpliceError::Other(format!("Failed to create native-v3 database: {}", e)))?;
+        let mut backend = sqlitegraph::open_graph(&temp_db_path, &cfg).map_err(|e| {
+            SpliceError::Other(format!("Failed to create native-v3 database: {}", e))
+        })?;
 
         // Step 6: Insert all symbols from snapshot, tracking snapshot ID → node ID mapping
         use std::collections::HashMap;
@@ -618,10 +606,7 @@ impl SnapshotStorage {
     ///
     /// Build with: `cargo build --features native-v3 --no-default-features`
     #[cfg(not(feature = "native-v3"))]
-    pub fn restore_from_snapshot(
-        _db_path: &Path,
-        _snapshot_path: &Path,
-    ) -> Result<RestoreResult> {
+    pub fn restore_from_snapshot(_db_path: &Path, _snapshot_path: &Path) -> Result<RestoreResult> {
         Err(SpliceError::Other(
             "Database restore requires the native-v3 feature. \
              Build with: cargo build --features native-v3 --no-default-features"
@@ -698,7 +683,11 @@ mod tests {
             };
 
             storage
-                .save_snapshot(&format!("test_{}", i), Path::new(".codemcp/codegraph.db"), snapshot)
+                .save_snapshot(
+                    &format!("test_{}", i),
+                    Path::new(".codemcp/codegraph.db"),
+                    snapshot,
+                )
                 .unwrap();
         }
 
@@ -715,7 +704,7 @@ mod tests {
     #[test]
     fn test_cleanup_old_snapshots() {
         let storage = SnapshotStorage::new().unwrap();
-        
+
         // Clean up any existing snapshots first to ensure test isolation
         let existing = storage.list_snapshots().unwrap();
         for snapshot in existing {
@@ -738,7 +727,11 @@ mod tests {
             };
 
             storage
-                .save_snapshot(&format!("cleanup_{}", i), Path::new(".codemcp/codegraph.db"), snapshot)
+                .save_snapshot(
+                    &format!("cleanup_{}", i),
+                    Path::new(".codemcp/codegraph.db"),
+                    snapshot,
+                )
                 .unwrap();
         }
 
@@ -769,7 +762,11 @@ mod tests {
         };
 
         storage
-            .save_snapshot("latest_test_unique", Path::new(".codemcp/codegraph.db"), snapshot)
+            .save_snapshot(
+                "latest_test_unique",
+                Path::new(".codemcp/codegraph.db"),
+                snapshot,
+            )
             .unwrap();
 
         // Should have a latest snapshot now (and it should be ours)

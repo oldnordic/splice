@@ -3,6 +3,82 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-04-13
+
+### Added
+
+**File Creation Command**
+Added `splice create` command for creating new Rust files with validation, enabling safer automated code generation.
+
+**Core Features:**
+- **rust-analyzer Integration** - Validates Rust code before writing to disk
+- **Atomic File Operations** - Either file exists with correct content, or not at all (no partial writes)
+- **Validate-Only Mode** - Check code validity without creating files (`--validate-only`)
+- **Module Declaration Insertion** - Automatically add `mod name;` to parent modules (`--with-mod`)
+- **Overwrite Protection** - Prevents accidental file overwrites
+- **Automatic Directory Creation** - Creates parent directories as needed
+- **Multiple Output Formats** - Support for human, json, and pretty output
+
+**New Modules:**
+- `src/code_validator.rs` (301 lines) - Rust code validation using rust-analyzer
+- `src/write.rs` (179 lines) - Atomic file writing utilities
+- `src/create.rs` (331 lines) - File creation logic with validation
+- `src/commands.rs` (179 lines) - Command handlers for create operation
+- `src/cli/tests.rs` (89 lines) - CLI integration tests
+
+**Usage Examples:**
+```bash
+# Create a new file with validation
+echo 'pub fn hello() -> String { "Hello".to_string() }' | splice create --file src/hello.rs
+
+# Validate without writing
+echo 'pub fn test() -> i32 { 42 }' | splice create --file src/test.rs --validate-only
+
+# Create with module declaration
+echo 'pub fn handler() -> i32 { 200 }' | splice create --file src/api/handler.rs --with-mod
+
+# JSON output
+echo 'pub fn test() -> i32 { 42 }' | splice create --file test.rs --output json
+```
+
+**Benefits:**
+- LLMs can validate code before writing (no build-test-fail cycles)
+- Atomic operations prevent file corruption
+- Immediate feedback from rust-analyzer
+- Graceful degradation (works without rust-analyzer installed)
+
+**Testing:**
+- Added 32 new tests (all passing)
+- Total test suite: 491 tests passing (32 new + 459 existing)
+- 100% test coverage on new code
+
+### Changed
+
+**Database Path Updates**
+Updated default database paths from `.codemcp/codegraph.db` to `.magellan/magellan.db` for consistency with Magellan/Mirage toolchain.
+
+**Command Dependencies**
+- splice now integrates with Magellan (code indexing)
+- splice now integrates with Mirage (CFG analysis)
+- Uses shared `.magellan/magellan.db` database
+
+## [2.5.5] - 2026-03-19
+
+### Fixed
+
+**Patch Command SQLite Backend Fix**
+Fixed two critical issues that prevented the `splice patch` command from working with SQLite backend:
+
+1. **Missing `kind` Property in Symbol Data** (`graph/sqlite_impl.rs`)
+   - `store_symbol()` and `store_symbol_with_file_and_language()` now include `"kind": kind` in the data JSON
+   - Previously `kind` was only stored in the SQL-level `node.kind` field, but `resolve_symbol_in_file()` looked for it in `node.data`
+   - This caused "Missing kind property" error when patching any symbol
+
+2. **Cargo Check Timeout** (`patch/mod.rs`)
+   - `gate_cargo_check()` now uses `thread::spawn()` with `recv_timeout(120s)` instead of blocking indefinitely
+   - Prevents `splice patch` from hanging when cargo check takes too long on large projects
+   - Returns clear error message: "cargo check timed out after 120 seconds"
+
 ## [2.5.4] - 2026-02-27
 
 ### Fixed

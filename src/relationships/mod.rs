@@ -196,8 +196,10 @@ pub fn get_callers(
     }
 
     // Verify node exists - use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
-    let _node = graph
+    let backend = graph
         .inner()
+        .map_err(|_| Relationships::error("BACKEND_UNAVAILABLE"))?;
+    let _node = backend
         .get_node(SnapshotId(0), symbol_node_id.as_i64())
         .map_err(|_| Relationships::error("NODE_NOT_FOUND"))?;
 
@@ -262,8 +264,10 @@ pub fn get_callees(
     }
 
     // Verify node exists - use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
-    let _node = graph
+    let backend = graph
         .inner()
+        .map_err(|_| Relationships::error("BACKEND_UNAVAILABLE"))?;
+    let _node = backend
         .get_node(SnapshotId(0), symbol_node_id.as_i64())
         .map_err(|_| Relationships::error("NODE_NOT_FOUND"))?;
 
@@ -312,8 +316,10 @@ fn fetch_neighbor_ids(
     let mut ids = Vec::new();
     for edge_type in edge_types {
         // Use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
-        let neighbors = graph
+        let backend = graph
             .inner()
+            .map_err(|_| Relationships::error("BACKEND_UNAVAILABLE"))?;
+        let neighbors = backend
             .neighbors(
                 SnapshotId(0),
                 symbol_node_id.as_i64(),
@@ -337,7 +343,11 @@ fn relationship_from_call_node(
     rel_type: &str,
 ) -> Result<Option<Relationship>, Relationships> {
     // Use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
-    let node = match graph.inner().get_node(SnapshotId(0), call_node_id) {
+    let backend = match graph.inner() {
+        Ok(b) => b,
+        Err(_) => return Ok(None),
+    };
+    let node = match backend.get_node(SnapshotId(0), call_node_id) {
         Ok(value) => value,
         Err(_) => return Ok(None),
     };
@@ -374,7 +384,11 @@ fn relationship_from_symbol_node(
     rel_type: &str,
 ) -> Result<Option<Relationship>, Relationships> {
     // Use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
-    let node = match graph.inner().get_node(SnapshotId(0), symbol_node_id) {
+    let backend = match graph.inner() {
+        Ok(b) => b,
+        Err(_) => return Ok(None),
+    };
+    let node = match backend.get_node(SnapshotId(0), symbol_node_id) {
         Ok(value) => value,
         Err(_) => return Ok(None),
     };

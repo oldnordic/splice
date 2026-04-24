@@ -10,13 +10,13 @@
 //!
 //! Test fixtures are located in tests/rename_integration_test_data/
 
+use magellan::references::ReferenceFact;
 use splice::graph::rename::{
     apply_replacements_in_file, create_rename_backup, generate_colored_preview,
     generate_preview_diff, group_references_by_file, simulate_replacements,
     simulate_replacements_content, RenameBackupManifest, RenameTransaction,
 };
 use splice::graph::MagellanIntegration;
-use magellan::references::ReferenceFact;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -39,11 +39,7 @@ mod test_helpers {
     }
 
     /// Create a ReferenceFact for testing
-    pub fn create_reference(
-        file_path: &str,
-        byte_start: usize,
-        byte_end: usize,
-    ) -> ReferenceFact {
+    pub fn create_reference(file_path: &str, byte_start: usize, byte_end: usize) -> ReferenceFact {
         ReferenceFact {
             file_path: PathBuf::from(file_path),
             referenced_symbol: "old_name".to_string(),
@@ -111,7 +107,8 @@ pub fn main() {
     core::process_data();
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let utils_rs = project_path.join("rust_project/src/utils.rs");
         fs::write(
@@ -124,7 +121,8 @@ pub fn another_util() {
     helper_function();
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let core_rs = project_path.join("rust_project/src/core.rs");
         fs::write(
@@ -135,7 +133,8 @@ pub fn process_data() {
     helper_function();
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Create Python project with cross-file references
         let py_main = project_path.join("python_project/main.py");
@@ -152,7 +151,8 @@ def main():
 if __name__ == "__main__":
     main()
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let py_utils = project_path.join("python_project/utils.py");
         fs::write(
@@ -163,7 +163,8 @@ if __name__ == "__main__":
 def another_util():
     helper_function()
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let py_core = project_path.join("python_project/core.py");
         fs::write(
@@ -173,7 +174,8 @@ def another_util():
 def process_data():
     helper_function()
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Create C project with cross-file references
         let c_main = project_path.join("c_project/main.c");
@@ -190,7 +192,8 @@ int main() {
     return 0;
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let c_utils = project_path.join("c_project/utils.c");
         fs::write(
@@ -206,7 +209,8 @@ void another_util() {
     helper_function();
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let c_utils_h = project_path.join("c_project/utils.h");
         fs::write(
@@ -219,7 +223,8 @@ void another_util();
 
 #endif
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let c_core = project_path.join("c_project/core.c");
         fs::write(
@@ -231,7 +236,8 @@ void process_data() {
     helper_function();
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Create C++ project with cross-file references
         let cpp_main = project_path.join("cpp_project/main.cpp");
@@ -248,7 +254,8 @@ int main() {
     return 0;
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let cpp_utils = project_path.join("cpp_project/utils.cpp");
         fs::write(
@@ -264,7 +271,8 @@ void another_util() {
     helper_function();
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let cpp_utils_hpp = project_path.join("cpp_project/utils.hpp");
         fs::write(
@@ -277,7 +285,8 @@ void another_util();
 
 #endif
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let cpp_core = project_path.join("cpp_project/core.cpp");
         fs::write(
@@ -289,7 +298,8 @@ void process_data() {
     helper_function();
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Create Java project with cross-file references
         let java_main = project_path.join("java_project/Main.java");
@@ -303,7 +313,8 @@ void process_data() {
     }
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let java_utils = project_path.join("java_project/Utils.java");
         fs::write(
@@ -318,7 +329,8 @@ void process_data() {
     }
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let java_core = project_path.join("java_project/Core.java");
         fs::write(
@@ -329,7 +341,8 @@ void process_data() {
     }
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Create JavaScript project with cross-file references
         let js_main = project_path.join("javascript_project/main.js");
@@ -346,7 +359,8 @@ function main() {
 
 main();
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let js_utils = project_path.join("javascript_project/utils.js");
         fs::write(
@@ -359,7 +373,8 @@ export function anotherUtil() {
     helperFunction();
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let js_core = project_path.join("javascript_project/core.js");
         fs::write(
@@ -370,7 +385,8 @@ export function processData() {
     helperFunction();
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Create TypeScript project with cross-file references
         let ts_main = project_path.join("typescript_project/main.ts");
@@ -387,7 +403,8 @@ function main(): void {
 
 main();
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let ts_utils = project_path.join("typescript_project/utils.ts");
         fs::write(
@@ -400,7 +417,8 @@ export function anotherUtil(): void {
     helperFunction();
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let ts_core = project_path.join("typescript_project/core.ts");
         fs::write(
@@ -411,7 +429,8 @@ export function processData(): void {
     helperFunction();
 }
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         temp_dir
     }
@@ -451,11 +470,22 @@ fn test_rename_rust_cross_file() {
     // Verify we found the expected occurrences
     // lib.rs: "utils::helper_function()" - the word boundary check finds the whole thing as one word
     // because "helper_function" is treated as a single identifier
-    assert!(lib_spans.len() >= 1, "Should find at least 1 occurrence in lib.rs");
-    assert_eq!(utils_spans.len(), 2, "Should find 2 occurrences in utils.rs (definition + call)");
+    assert!(
+        lib_spans.len() >= 1,
+        "Should find at least 1 occurrence in lib.rs"
+    );
+    assert_eq!(
+        utils_spans.len(),
+        2,
+        "Should find 2 occurrences in utils.rs (definition + call)"
+    );
     // core.rs: "use crate::utils::helper_function;" has 1 occurrence
     // But it's preceded by "utils::" so our word boundary check might count it differently
-    assert_eq!(core_spans.len(), 2, "Should find 2 occurrences in core.rs (use statement + call)");
+    assert_eq!(
+        core_spans.len(),
+        2,
+        "Should find 2 occurrences in core.rs (use statement + call)"
+    );
 
     // Create ReferenceFact entries for all files
     let mut refs = Vec::new();
@@ -511,13 +541,31 @@ fn test_rename_rust_cross_file() {
     let new_utils_content = fs::read_to_string(&utils_rs).unwrap();
     let new_core_content = fs::read_to_string(&core_rs).unwrap();
 
-    assert!(new_lib_content.contains("new_helper_name"), "lib.rs should contain new_helper_name");
-    assert!(new_utils_content.contains("new_helper_name"), "utils.rs should contain new_helper_name");
-    assert!(new_core_content.contains("new_helper_name"), "core.rs should contain new_helper_name");
+    assert!(
+        new_lib_content.contains("new_helper_name"),
+        "lib.rs should contain new_helper_name"
+    );
+    assert!(
+        new_utils_content.contains("new_helper_name"),
+        "utils.rs should contain new_helper_name"
+    );
+    assert!(
+        new_core_content.contains("new_helper_name"),
+        "core.rs should contain new_helper_name"
+    );
 
-    assert!(!new_lib_content.contains("helper_function"), "lib.rs should not contain helper_function");
-    assert!(!new_utils_content.contains("helper_function"), "utils.rs should not contain helper_function");
-    assert!(!new_core_content.contains("helper_function"), "core.rs should not contain helper_function");
+    assert!(
+        !new_lib_content.contains("helper_function"),
+        "lib.rs should not contain helper_function"
+    );
+    assert!(
+        !new_utils_content.contains("helper_function"),
+        "utils.rs should not contain helper_function"
+    );
+    assert!(
+        !new_core_content.contains("helper_function"),
+        "core.rs should not contain helper_function"
+    );
 }
 
 // ============================================================================
@@ -543,9 +591,21 @@ fn test_rename_python_cross_file() {
     let core_spans = test_helpers::find_symbol_spans(&core_content, "helper_function");
 
     // Verify we found the expected occurrences
-    assert_eq!(main_spans.len(), 2, "Should find 2 occurrences in main.py (import + call)");
-    assert_eq!(utils_spans.len(), 2, "Should find 2 occurrences in utils.py");
-    assert_eq!(core_spans.len(), 2, "Should find 2 occurrences in core.py (import + call)");
+    assert_eq!(
+        main_spans.len(),
+        2,
+        "Should find 2 occurrences in main.py (import + call)"
+    );
+    assert_eq!(
+        utils_spans.len(),
+        2,
+        "Should find 2 occurrences in utils.py"
+    );
+    assert_eq!(
+        core_spans.len(),
+        2,
+        "Should find 2 occurrences in core.py (import + call)"
+    );
 
     // Create ReferenceFact entries for all files
     let mut refs = Vec::new();
@@ -601,9 +661,18 @@ fn test_rename_python_cross_file() {
     let new_utils_content = fs::read_to_string(&utils_py).unwrap();
     let new_core_content = fs::read_to_string(&core_py).unwrap();
 
-    assert!(new_main_content.contains("new_helper_name"), "main.py should contain new_helper_name");
-    assert!(new_utils_content.contains("new_helper_name"), "utils.py should contain new_helper_name");
-    assert!(new_core_content.contains("new_helper_name"), "core.py should contain new_helper_name");
+    assert!(
+        new_main_content.contains("new_helper_name"),
+        "main.py should contain new_helper_name"
+    );
+    assert!(
+        new_utils_content.contains("new_helper_name"),
+        "utils.py should contain new_helper_name"
+    );
+    assert!(
+        new_core_content.contains("new_helper_name"),
+        "core.py should contain new_helper_name"
+    );
 }
 
 // ============================================================================
@@ -634,7 +703,11 @@ fn test_rename_c_cross_file() {
     // Verify we found occurrences
     assert_eq!(main_spans.len(), 1, "Should find 1 occurrence in main.c");
     assert_eq!(utils_spans.len(), 2, "Should find 2 occurrences in utils.c");
-    assert_eq!(utils_h_spans.len(), 1, "Should find 1 occurrence in utils.h");
+    assert_eq!(
+        utils_h_spans.len(),
+        1,
+        "Should find 1 occurrence in utils.h"
+    );
     assert_eq!(core_spans.len(), 1, "Should find 1 occurrence in core.c");
 
     // Create ReferenceFact entries for all files
@@ -738,8 +811,16 @@ fn test_rename_cpp_cross_file() {
 
     // Verify we found occurrences
     assert_eq!(main_spans.len(), 1, "Should find 1 occurrence in main.cpp");
-    assert_eq!(utils_spans.len(), 2, "Should find 2 occurrences in utils.cpp");
-    assert_eq!(utils_hpp_spans.len(), 1, "Should find 1 occurrence in utils.hpp");
+    assert_eq!(
+        utils_spans.len(),
+        2,
+        "Should find 2 occurrences in utils.cpp"
+    );
+    assert_eq!(
+        utils_hpp_spans.len(),
+        1,
+        "Should find 1 occurrence in utils.hpp"
+    );
     assert_eq!(core_spans.len(), 1, "Should find 1 occurrence in core.cpp");
 
     // Create ReferenceFact entries for all files
@@ -840,7 +921,11 @@ fn test_rename_java_cross_file() {
 
     // Verify we found the expected occurrences
     assert_eq!(main_spans.len(), 1, "Should find 1 occurrence in Main.java");
-    assert_eq!(utils_spans.len(), 2, "Should find 2 occurrences in Utils.java");
+    assert_eq!(
+        utils_spans.len(),
+        2,
+        "Should find 2 occurrences in Utils.java"
+    );
     assert_eq!(core_spans.len(), 1, "Should find 1 occurrence in Core.java");
 
     // Create ReferenceFact entries for all files
@@ -930,9 +1015,21 @@ fn test_rename_javascript_cross_file() {
     let core_spans = test_helpers::find_symbol_spans(&core_content, "helperFunction");
 
     // Verify we found the expected occurrences
-    assert_eq!(main_spans.len(), 2, "Should find 2 occurrences in main.js (import + call)");
-    assert_eq!(utils_spans.len(), 2, "Should find 2 occurrences in utils.js");
-    assert_eq!(core_spans.len(), 2, "Should find 2 occurrences in core.js (import + call)");
+    assert_eq!(
+        main_spans.len(),
+        2,
+        "Should find 2 occurrences in main.js (import + call)"
+    );
+    assert_eq!(
+        utils_spans.len(),
+        2,
+        "Should find 2 occurrences in utils.js"
+    );
+    assert_eq!(
+        core_spans.len(),
+        2,
+        "Should find 2 occurrences in core.js (import + call)"
+    );
 
     // Create ReferenceFact entries for all files
     let mut refs = Vec::new();
@@ -1021,9 +1118,21 @@ fn test_rename_typescript_cross_file() {
     let core_spans = test_helpers::find_symbol_spans(&core_content, "helperFunction");
 
     // Verify we found the expected occurrences
-    assert_eq!(main_spans.len(), 2, "Should find 2 occurrences in main.ts (import + call)");
-    assert_eq!(utils_spans.len(), 2, "Should find 2 occurrences in utils.ts");
-    assert_eq!(core_spans.len(), 2, "Should find 2 occurrences in core.ts (import + call)");
+    assert_eq!(
+        main_spans.len(),
+        2,
+        "Should find 2 occurrences in main.ts (import + call)"
+    );
+    assert_eq!(
+        utils_spans.len(),
+        2,
+        "Should find 2 occurrences in utils.ts"
+    );
+    assert_eq!(
+        core_spans.len(),
+        2,
+        "Should find 2 occurrences in core.ts (import + call)"
+    );
 
     // Create ReferenceFact entries for all files
     let mut refs = Vec::new();
@@ -1220,7 +1329,10 @@ fn test_rename_utf8_boundary_handling() {
 
     // Verify UTF-8 characters are preserved
     let result = fs::read_to_string(&test_file).unwrap();
-    assert!(result.contains("café字符"), "UTF-8 characters should be preserved");
+    assert!(
+        result.contains("café字符"),
+        "UTF-8 characters should be preserved"
+    );
     assert!(result.contains("new_name"));
     assert!(!result.contains("old_name"));
 }
@@ -1286,12 +1398,8 @@ fn test_rename_backup_created() {
     let file2 = test_helpers::create_test_file(&temp_dir, "src/lib.rs", "fn bar() {}\n");
 
     // Create backup
-    let backup_dir = create_rename_backup(
-        project_path,
-        "test_symbol",
-        &[file1.clone(), file2.clone()],
-    )
-    .unwrap();
+    let backup_dir =
+        create_rename_backup(project_path, "test_symbol", &[file1.clone(), file2.clone()]).unwrap();
 
     // Verify backup directory created
     assert!(backup_dir.exists());
@@ -1472,7 +1580,10 @@ fn test_rename_byte_accuracy_no_false_positives() {
     assert!(result.contains("fn baz()"), "Should rename foo to baz");
     assert!(result.contains("baz();"), "Should rename foo call");
     assert!(result.contains("foo_bar"), "Should NOT rename foo_bar");
-    assert!(!result.contains("fn foo()"), "Should not have original foo()");
+    assert!(
+        !result.contains("fn foo()"),
+        "Should not have original foo()"
+    );
 }
 
 #[test]
@@ -1528,7 +1639,10 @@ fn test_rename_byte_accuracy_substring() {
         result.contains("bar_baz"),
         "Should NOT rename bar_baz identifier"
     );
-    assert!(!result.contains("fn bar()"), "Should not have original bar()");
+    assert!(
+        !result.contains("fn bar()"),
+        "Should not have original bar()"
+    );
 }
 
 // ============================================================================
@@ -1541,10 +1655,8 @@ fn test_rename_preview_multi_file_no_changes() {
     let project_path = temp_dir.path();
 
     // Create multiple test files
-    let file1 =
-        test_helpers::create_test_file(&temp_dir, "src/a.rs", "pub fn old_name() {}\n");
-    let file2 =
-        test_helpers::create_test_file(&temp_dir, "src/b.rs", "pub fn old_name() {}\n");
+    let file1 = test_helpers::create_test_file(&temp_dir, "src/a.rs", "pub fn old_name() {}\n");
+    let file2 = test_helpers::create_test_file(&temp_dir, "src/b.rs", "pub fn old_name() {}\n");
 
     // Get original content and mtime for both files
     let original_content1 = fs::read_to_string(&file1).unwrap();
@@ -1566,11 +1678,9 @@ fn test_rename_preview_multi_file_no_changes() {
 
     // Simulate replacements (preview mode)
     let _modified1 =
-        simulate_replacements_content(&original_content1, &refs1, "old_name", "new_name")
-            .unwrap();
+        simulate_replacements_content(&original_content1, &refs1, "old_name", "new_name").unwrap();
     let _modified2 =
-        simulate_replacements_content(&original_content2, &refs2, "old_name", "new_name")
-            .unwrap();
+        simulate_replacements_content(&original_content2, &refs2, "old_name", "new_name").unwrap();
 
     // Verify no changes to actual files
     let current_content1 = fs::read_to_string(&file1).unwrap();

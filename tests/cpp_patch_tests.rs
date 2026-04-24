@@ -90,8 +90,8 @@ int greet(const char* name) {
             workspace_path,
             Language::Cpp,
             AnalyzerMode::Off,
-            false,  // strict: test mode doesn't need strict validation
-            false,  // skip: still run validation for test
+            false, // strict: test mode doesn't need strict validation
+            false, // skip: still run validation for test
         );
 
         // Should succeed if g++ is available
@@ -183,8 +183,8 @@ int valid_function() {
             workspace_path,
             Language::Cpp,
             AnalyzerMode::Off,
-            false,  // strict: test mode doesn't need strict validation
-            false,  // skip: still run validation for test
+            false, // strict: test mode doesn't need strict validation
+            false, // skip: still run validation for test
         );
 
         // Should fail on syntax error
@@ -261,8 +261,8 @@ int get_number(void) {
             workspace_path,
             Language::C,
             AnalyzerMode::Off,
-            false,  // strict: test mode doesn't need strict validation
-            false,  // skip: still run validation for test
+            false, // strict: test mode doesn't need strict validation
+            false, // skip: still run validation for test
         );
 
         // Should succeed if gcc is available

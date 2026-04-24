@@ -210,7 +210,8 @@ pub fn resolve_symbol(
         file_path.ok_or_else(|| SpliceError::Other("Symbol node missing file_path".to_string()))?;
 
     // Get node data from graph - use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
-    let node = graph.inner().get_node(SnapshotId(0), node_id.as_i64())?;
+    let backend = graph.inner()?;
+    let node = backend.get_node(SnapshotId(0), node_id.as_i64())?;
 
     // Extract span data
     let byte_start = node
@@ -242,25 +243,25 @@ pub fn resolve_symbol(
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
-    // Retrieve line/col from graph (stored by ingest modules)
+    // Retrieve line/col from graph (Magellan uses start_line/end_line, not line_start/line_end)
     let line_start = node
         .data
-        .get("line_start")
+        .get("start_line")
         .and_then(|v| v.as_u64())
         .unwrap_or(0) as usize;
     let line_end = node
         .data
-        .get("line_end")
+        .get("end_line")
         .and_then(|v| v.as_u64())
         .unwrap_or(0) as usize;
     let col_start = node
         .data
-        .get("col_start")
+        .get("start_col")
         .and_then(|v| v.as_u64())
         .unwrap_or(0) as usize;
     let col_end = node
         .data
-        .get("col_end")
+        .get("end_col")
         .and_then(|v| v.as_u64())
         .unwrap_or(0) as usize;
 
@@ -319,7 +320,8 @@ fn resolve_symbol_in_file(
     };
 
     // Get node data from graph - use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
-    let node = graph.inner().get_node(SnapshotId(0), node_id.as_i64())?;
+    let backend = graph.inner()?;
+    let node = backend.get_node(SnapshotId(0), node_id.as_i64())?;
 
     // Extract span data
     let byte_start = node
@@ -369,12 +371,9 @@ fn resolve_symbol_in_file(
         }
     }
 
-    // Get file path from node
-    let node_file_path = node
-        .data
-        .get("file_path")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| SpliceError::Other("Missing file_path property".to_string()))?
+    // Get file path from node (in Magellan, file_path is in node.file_path, not node.data)
+    let node_file_path = node.file_path.as_deref()
+        .ok_or_else(|| SpliceError::Other("Missing file_path in node".to_string()))?
         .to_string();
 
     // Retrieve line/col from graph (stored by ingest modules)

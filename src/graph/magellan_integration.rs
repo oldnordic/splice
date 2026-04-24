@@ -1,17 +1,27 @@
-//! Magellan integration layer.
+//! Magellan integration layer with backend split (Batch 1).
 //!
-//! This module provides integration with Magellan v0.5.0 for:
+//! This module provides integration with Magellan for:
 //! - Multi-language code indexing
 //! - Label-based symbol queries
 //! - Code chunk retrieval (no file re-reading)
+//!
+//! # Backend Split
+//! - SQLite backend: `magellan::CodeGraph` for `.db` files  
+//! - Geometric backend: `magellan::graph::geometric_backend::GeometricBackend` for `.geo` files
 
 use crate::error::{Result, SpliceError};
 use magellan::{CodeGraph as MagellanGraph, SymbolKind, SymbolQueryResult};
 use std::path::{Path, PathBuf};
 
+/// Backend type identifier.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntegrationBackend {
+    Sqlite,
+    #[cfg(feature = "geometric")]
+    Geometric,
+}
+
 /// Parse a normalized symbol kind string into SymbolKind enum.
-///
-/// Maps user-facing kind strings (fn, struct, method, etc.) to SymbolKind variants.
 fn parse_symbol_kind(kind: &str) -> SymbolKind {
     match kind {
         "fn" => SymbolKind::Function,
@@ -30,29 +40,104 @@ fn parse_symbol_kind(kind: &str) -> SymbolKind {
     }
 }
 
-/// Wrapper around Magellan's CodeGraph with Splice-specific extensions.
+/// Wrapper around Magellan's backends with Splice-specific extensions.
 pub struct MagellanIntegration {
     inner: MagellanGraph,
+    #[cfg(feature = "geometric")]
+    geo_inner: Option<magellan::graph::geometric_backend::GeometricBackend>,
     db_path: PathBuf,
+    backend: IntegrationBackend,
 }
 
 impl MagellanIntegration {
+    /// Check if a path is a geometric database.
+    fn is_geometric_db(path: &Path) -> bool {
+        path.extension().map_or(false, |ext| ext == "geo")
+    }
+
+    /// Get the backend type.
+    pub fn backend_type(&self) -> IntegrationBackend {
+        self.backend
+    }
+
+    /// Check if using geometric backend.
+    pub fn is_geometric(&self) -> bool {
+        #[cfg(feature = "geometric")]
+        return matches!(self.backend, IntegrationBackend::Geometric);
+        #[cfg(not(feature = "geometric"))]
+        return false;
+    }
+
     /// Open or create a Magellan code graph at the given path.
+    ///
+    /// Batch 1: Detects backend type from file extension:
+    /// - `.db` → SQLite backend
+    /// - `.geo` → Geometric backend (requires geometric feature)
     pub fn open(db_path: &Path) -> Result<Self> {
+        #[cfg(feature = "geometric")]
+        if Self::is_geometric_db(db_path) {
+            return Self::open_geometric(db_path);
+        }
+        Self::open_sqlite(db_path)
+    }
+
+    /// Open SQLite backend.
+    fn open_sqlite(db_path: &Path) -> Result<Self> {
         let db_path_str = db_path
             .to_str()
             .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", db_path)))?;
 
-        // Convert anyhow::Error to SpliceError::Magellan for proper error mapping
         let inner = MagellanGraph::open(db_path_str).map_err(|e| SpliceError::Magellan {
-            context: format!("Failed to open Magellan graph at {}", db_path_str),
+            context: format!("Failed to open Magellan SQLite graph at {}", db_path_str),
             source: e,
         })?;
 
         Ok(Self {
             inner,
+            #[cfg(feature = "geometric")]
+            geo_inner: None,
             db_path: db_path.to_path_buf(),
+            backend: IntegrationBackend::Sqlite,
         })
+    }
+
+    /// Open Geometric backend.
+    #[cfg(feature = "geometric")]
+    fn open_geometric(db_path: &Path) -> Result<Self> {
+        use magellan::graph::geometric_backend::GeometricBackend;
+
+        let geo = GeometricBackend::open(db_path).map_err(|e| SpliceError::Magellan {
+            context: format!("Failed to open Geometric backend at {:?}", db_path),
+            source: e,
+        })?;
+
+        // Create a dummy in-memory SQLite connection for methods that require it
+        // This is a transitional approach for Batch 1
+        let inner = MagellanGraph::open(":memory:").map_err(|e| SpliceError::Magellan {
+            context: "Failed to create in-memory SQLite for geometric backend".to_string(),
+            source: e,
+        })?;
+
+        Ok(Self {
+            inner,
+            geo_inner: Some(geo),
+            db_path: db_path.to_path_buf(),
+            backend: IntegrationBackend::Geometric,
+        })
+    }
+
+    /// Access the underlying GeometricBackend (if using Geometric).
+    #[cfg(feature = "geometric")]
+    pub fn geo_inner(&self) -> Option<&magellan::graph::geometric_backend::GeometricBackend> {
+        self.geo_inner.as_ref()
+    }
+
+    /// Access the underlying GeometricBackend mutably (if using Geometric).
+    #[cfg(feature = "geometric")]
+    pub fn geo_inner_mut(
+        &mut self,
+    ) -> Option<&mut magellan::graph::geometric_backend::GeometricBackend> {
+        self.geo_inner.as_mut()
     }
 
     /// Index a file using Magellan's parsers.
@@ -170,6 +255,15 @@ impl MagellanIntegration {
     ///
     /// Returns counts of all entity types in the graph database.
     pub fn get_statistics(&self) -> Result<DatabaseStats> {
+        match self.backend {
+            IntegrationBackend::Sqlite => self.get_statistics_sqlite(),
+            #[cfg(feature = "geometric")]
+            IntegrationBackend::Geometric => self.get_statistics_geometric(),
+        }
+    }
+
+    /// SQLite implementation of get_statistics.
+    fn get_statistics_sqlite(&self) -> Result<DatabaseStats> {
         let files = self
             .inner
             .count_files()
@@ -197,6 +291,23 @@ impl MagellanIntegration {
             calls,
             code_chunks,
         })
+    }
+
+    /// Geometric backend implementation of get_statistics.
+    #[cfg(feature = "geometric")]
+    fn get_statistics_geometric(&self) -> Result<DatabaseStats> {
+        if let Some(ref geo) = self.geo_inner {
+            let stats = geo.get_geometric_stats();
+            Ok(DatabaseStats {
+                files: stats.file_count,
+                symbols: stats.symbol_count,
+                references: 0, // Not tracked separately in geometric backend
+                calls: 0,      // Not tracked separately in geometric backend
+                code_chunks: stats.cfg_block_count,
+            })
+        } else {
+            Err(SpliceError::Other("Geometric backend not initialized".to_string()))
+        }
     }
 
     /// Count Call nodes by querying the graph database directly.
@@ -275,6 +386,8 @@ impl MagellanIntegration {
                 kind: fact.kind_normalized,
                 byte_start: fact.byte_start,
                 byte_end: fact.byte_end,
+            start_line: None,
+            end_line: None,
             };
 
             let (callers, callees) = if with_callers || with_callees {
@@ -329,6 +442,8 @@ impl MagellanIntegration {
                             kind: caller_fact.kind_normalized,
                             byte_start: caller_fact.byte_start,
                             byte_end: caller_fact.byte_end,
+            start_line: None,
+            end_line: None,
                         });
                     }
                 }
@@ -355,6 +470,8 @@ impl MagellanIntegration {
                             kind: callee_fact.kind_normalized,
                             byte_start: callee_fact.byte_start,
                             byte_end: callee_fact.byte_end,
+            start_line: None,
+            end_line: None,
                         });
                     }
                 }
@@ -376,7 +493,18 @@ impl MagellanIntegration {
     /// # Performance
     /// This requires O(N) file queries where N = number of indexed files.
     /// Magellan has no global symbol name index.
+    ///
+    /// Batch 1: Backend-neutral implementation.
     pub fn find_symbol_by_name(&mut self, name: &str, ambiguous: bool) -> Result<Vec<SymbolInfo>> {
+        match self.backend {
+            IntegrationBackend::Sqlite => self.find_symbol_by_name_sqlite(name, ambiguous),
+            #[cfg(feature = "geometric")]
+            IntegrationBackend::Geometric => self.find_symbol_by_name_geometric(name, ambiguous),
+        }
+    }
+
+    /// SQLite implementation of find_symbol_by_name.
+    fn find_symbol_by_name_sqlite(&mut self, name: &str, ambiguous: bool) -> Result<Vec<SymbolInfo>> {
         let mut results = Vec::new();
 
         // Get all indexed files
@@ -396,6 +524,8 @@ impl MagellanIntegration {
                         kind: fact.kind_normalized,
                         byte_start: fact.byte_start,
                         byte_end: fact.byte_end,
+                        start_line: Some(fact.start_line),
+                        end_line: Some(fact.end_line),
                     };
                     results.push(symbol);
 
@@ -408,6 +538,105 @@ impl MagellanIntegration {
         }
 
         Ok(results)
+    }
+
+    /// Geometric backend implementation of find_symbol_by_name.
+    #[cfg(feature = "geometric")]
+    fn find_symbol_by_name_geometric(&self, name: &str, ambiguous: bool) -> Result<Vec<SymbolInfo>> {
+        if let Some(ref geo) = self.geo_inner {
+            let matches = geo.find_symbols_by_name_info(name);
+            let results: Vec<SymbolInfo> = matches
+                .into_iter()
+                .map(|info| SymbolInfo {
+                    entity_id: info.id as i64,
+                    name: info.name,
+                    file_path: info.file_path,
+                    kind: format!("{:?}", info.kind),
+                    byte_start: info.byte_start as usize,
+                    byte_end: info.byte_end as usize,
+                    start_line: info.start_line.map(|l| l as usize),
+                    end_line: info.end_line.map(|l| l as usize),
+                })
+                .collect();
+            
+            if !ambiguous && !results.is_empty() {
+                Ok(results.into_iter().take(1).collect())
+            } else {
+                Ok(results)
+            }
+        } else {
+            Err(SpliceError::Other("Geometric backend not initialized".to_string()))
+        }
+    }
+
+    /// Find symbol by file path and name.
+    ///
+    /// Batch 1: Backend-neutral symbol lookup.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to the file containing the symbol
+    /// * `name` - Symbol name to search for
+    ///
+    /// # Returns
+    /// Some(SymbolInfo) if found, None if not found.
+    pub fn find_symbol_by_path_and_name(
+        &mut self,
+        file_path: &Path,
+        name: &str,
+    ) -> Result<Option<SymbolInfo>> {
+        match self.backend {
+            IntegrationBackend::Sqlite => {
+                let path_str = file_path
+                    .to_str()
+                    .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
+                let matches = self
+                    .inner
+                    .symbol_extents(path_str, name)
+                    .map_err(|e| SpliceError::Other(format!("Failed to find symbol: {}", e)))?;
+                
+                if let Some((entity_id, fact)) = matches.first() {
+                    Ok(Some(SymbolInfo {
+                        entity_id: *entity_id,
+                        name: fact.name.clone().unwrap_or_else(|| name.to_string()),
+                        file_path: fact.file_path.to_string_lossy().to_string(),
+                        kind: fact.kind_normalized.clone(),
+                        byte_start: fact.byte_start,
+                        byte_end: fact.byte_end,
+            start_line: None,
+            end_line: None,
+                    }))
+                } else {
+                    Ok(None)
+                }
+            }
+            #[cfg(feature = "geometric")]
+            IntegrationBackend::Geometric => {
+                if let Some(ref geo) = self.geo_inner {
+                    let path_str = file_path
+                        .to_str()
+                        .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
+                    
+                    // Use geometric backend's method to find symbol by name and path
+                    if let Some(id) = geo.find_symbol_id_by_name_and_path(name, path_str) {
+                        if let Some(info) = geo.find_symbol_by_id_info(id) {
+                            return Ok(Some(SymbolInfo {
+                                entity_id: id as i64,
+                                name: info.name,
+                                file_path: info.file_path,
+                                kind: format!("{:?}", info.kind),
+                                byte_start: info.byte_start as usize,
+                                byte_end: info.byte_end as usize,
+            start_line: None,
+            end_line: None,
+                            }));
+                        }
+                    }
+                    Ok(None)
+                } else {
+                    Err(SpliceError::Other("Geometric backend not initialized".to_string()))
+                }
+            }
+        }
     }
 
     /// Find symbol by 16-char SHA-256 or 32-char BLAKE3 symbol ID.
@@ -429,6 +658,15 @@ impl MagellanIntegration {
     /// - V2: BLAKE3(name:path:byte_start)[0..16] -> 32 hex chars
     /// We regenerate IDs during iteration to find matches, trying V2 first.
     pub fn find_symbol_by_id(&mut self, symbol_id: &str) -> Result<Option<SymbolInfo>> {
+        match self.backend {
+            IntegrationBackend::Sqlite => self.find_symbol_by_id_sqlite(symbol_id),
+            #[cfg(feature = "geometric")]
+            IntegrationBackend::Geometric => self.find_symbol_by_id_geo(symbol_id),
+        }
+    }
+
+    /// Find symbol by ID (SQLite implementation).
+    fn find_symbol_by_id_sqlite(&mut self, symbol_id: &str) -> Result<Option<SymbolInfo>> {
         use crate::symbol_id::{generate_v1, generate_v2};
         use rusqlite::Connection;
 
@@ -487,6 +725,15 @@ impl MagellanIntegration {
                     .unwrap_or("Unknown")
                     .to_string();
 
+                let start_line = data
+                    .get("start_line")
+                    .and_then(|v| v.as_u64())
+                    .map(|l| l as usize);
+                let end_line = data
+                    .get("end_line")
+                    .and_then(|v| v.as_u64())
+                    .map(|l| l as usize);
+
                 return Ok(Some(SymbolInfo {
                     entity_id,
                     name,
@@ -494,6 +741,8 @@ impl MagellanIntegration {
                     kind,
                     byte_start,
                     byte_end,
+                    start_line,
+                    end_line,
                 }));
             }
 
@@ -515,6 +764,15 @@ impl MagellanIntegration {
                     .unwrap_or("Unknown")
                     .to_string();
 
+                let start_line = data
+                    .get("start_line")
+                    .and_then(|v| v.as_u64())
+                    .map(|l| l as usize);
+                let end_line = data
+                    .get("end_line")
+                    .and_then(|v| v.as_u64())
+                    .map(|l| l as usize);
+
                 return Ok(Some(SymbolInfo {
                     entity_id,
                     name,
@@ -522,11 +780,46 @@ impl MagellanIntegration {
                     kind,
                     byte_start,
                     byte_end,
+                    start_line,
+                    end_line,
                 }));
             }
         }
 
         Ok(None)
+    }
+
+    /// Find symbol by ID (Geometric implementation).
+    #[cfg(feature = "geometric")]
+    fn find_symbol_by_id_geo(&mut self, symbol_id: &str) -> Result<Option<SymbolInfo>> {
+        if let Some(ref geo) = self.geo_inner {
+            // Parse symbol_id as u64 for geometric backend
+            let id = symbol_id.parse::<u64>().map_err(|_| {
+                SpliceError::Other(format!(
+                    "Invalid symbol ID for geometric backend: {}. Expected u64.",
+                    symbol_id
+                ))
+            })?;
+
+            if let Some(info) = geo.find_symbol_by_id_info(id) {
+                Ok(Some(SymbolInfo {
+                    entity_id: info.id as i64,
+                    name: info.name,
+                    file_path: info.file_path,
+                    kind: format!("{:?}", info.kind),
+                    byte_start: info.byte_start as usize,
+                    byte_end: info.byte_end as usize,
+            start_line: None,
+            end_line: None,
+                }))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Err(SpliceError::Other(
+                "Geometric backend not initialized".to_string(),
+            ))
+        }
     }
 
     /// Get call relationships for a symbol.
@@ -571,6 +864,8 @@ impl MagellanIntegration {
             kind: fact.kind_normalized.clone(),
             byte_start: fact.byte_start,
             byte_end: fact.byte_end,
+            start_line: None,
+            end_line: None,
         };
 
         let (callers, callees) = match direction {
@@ -639,6 +934,8 @@ impl MagellanIntegration {
                     kind: symbol_fact.kind_normalized.clone(),
                     byte_start: symbol_fact.byte_start,
                     byte_end: symbol_fact.byte_end,
+            start_line: None,
+            end_line: None,
                 };
 
                 let call_site = CallSite {
@@ -660,43 +957,94 @@ impl MagellanIntegration {
 
     /// List all indexed files, with optional symbol counts.
     ///
-    /// # Arguments
-    /// * `with_symbol_counts` - If true, include symbol count per file
-    ///
-    /// # Returns
-    /// Vector of file metadata for all indexed files.
+    /// Batch 2: Supports both SQLite and Geometric backends.
     pub fn list_indexed_files(&mut self, with_symbol_counts: bool) -> Result<Vec<FileMetadata>> {
-        let file_nodes = self
-            .inner
-            .all_file_nodes()
-            .map_err(|e| SpliceError::Other(format!("Failed to get file nodes: {}", e)))?;
+        match self.backend {
+            IntegrationBackend::Sqlite => {
+                let file_nodes = self
+                    .inner
+                    .all_file_nodes()
+                    .map_err(|e| SpliceError::Other(format!("Failed to get file nodes: {}", e)))?;
 
-        file_nodes
-            .into_iter()
-            .map(|(path, node)| {
-                let symbol_count = if with_symbol_counts {
-                    Some(self.count_symbols_in_file(&path)?)
+                file_nodes
+                    .into_iter()
+                    .map(|(path, node)| {
+                        let symbol_count = if with_symbol_counts {
+                            Some(self.count_symbols_in_file(&path)?)
+                        } else {
+                            None
+                        };
+
+                        Ok(FileMetadata {
+                            path,
+                            hash: node.hash,
+                            last_indexed_at: node.last_indexed_at,
+                            last_modified: node.last_modified,
+                            symbol_count,
+                        })
+                    })
+                    .collect()
+            }
+            #[cfg(feature = "geometric")]
+            IntegrationBackend::Geometric => {
+                if let Some(ref geo) = self.geo_inner {
+                    let files = geo.get_all_files();
+                    files
+                        .into_iter()
+                        .map(|(path, hash, last_indexed)| {
+                            let symbol_count = if with_symbol_counts {
+                                let symbols = geo.symbols_in_file(&path).map_err(|e| {
+                                    SpliceError::Other(format!(
+                                        "Failed to count symbols in {}: {}",
+                                        path, e
+                                    ))
+                                })?;
+                                Some(symbols.len())
+                            } else {
+                                None
+                            };
+
+                            Ok(FileMetadata {
+                                path,
+                                hash: hash.unwrap_or_default(),
+                                last_indexed_at: last_indexed,
+                                last_modified: 0, // Not stored in geometric backend
+                                symbol_count,
+                            })
+                        })
+                        .collect()
                 } else {
-                    None
-                };
-
-                Ok(FileMetadata {
-                    path,
-                    hash: node.hash,
-                    last_indexed_at: node.last_indexed_at,
-                    last_modified: node.last_modified,
-                    symbol_count,
-                })
-            })
-            .collect()
+                    Err(SpliceError::Other(
+                        "Geometric backend not initialized".to_string(),
+                    ))
+                }
+            }
+        }
     }
 
     /// Count symbols for a specific file.
     fn count_symbols_in_file(&mut self, path: &str) -> Result<usize> {
-        let symbols = self.inner.symbols_in_file(path).map_err(|e| {
-            SpliceError::Other(format!("Failed to count symbols in {}: {}", path, e))
-        })?;
-        Ok(symbols.len())
+        match self.backend {
+            IntegrationBackend::Sqlite => {
+                let symbols = self.inner.symbols_in_file(path).map_err(|e| {
+                    SpliceError::Other(format!("Failed to count symbols in {}: {}", path, e))
+                })?;
+                Ok(symbols.len())
+            }
+            #[cfg(feature = "geometric")]
+            IntegrationBackend::Geometric => {
+                if let Some(ref geo) = self.geo_inner {
+                    let symbols = geo.symbols_in_file(path).map_err(|e| {
+                        SpliceError::Other(format!("Failed to count symbols in {}: {}", path, e))
+                    })?;
+                    Ok(symbols.len())
+                } else {
+                    Err(SpliceError::Other(
+                        "Geometric backend not initialized".to_string(),
+                    ))
+                }
+            }
+        }
     }
 
     /// Sort references for safe in-order replacement.
@@ -836,7 +1184,25 @@ impl MagellanIntegration {
     ///
     /// # Returns
     /// Vec<ReachableSymbol> with depth and path information
+    ///
+    /// Batch 2: Supports both SQLite and Geometric backends.
     pub fn reachable_symbols(
+        &mut self,
+        file_path: &Path,
+        name: &str,
+        max_depth: usize,
+    ) -> Result<Vec<ReachableSymbol>> {
+        match self.backend {
+            IntegrationBackend::Sqlite => self.reachable_symbols_sqlite(file_path, name, max_depth),
+            #[cfg(feature = "geometric")]
+            IntegrationBackend::Geometric => {
+                self.reachable_symbols_geometric(file_path, name, max_depth)
+            }
+        }
+    }
+
+    /// SQLite implementation of reachable_symbols.
+    fn reachable_symbols_sqlite(
         &mut self,
         file_path: &Path,
         name: &str,
@@ -889,6 +1255,8 @@ impl MagellanIntegration {
                             kind: fact.kind_normalized.clone(),
                             byte_start: fact.byte_start,
                             byte_end: fact.byte_end,
+            start_line: None,
+            end_line: None,
                         },
                         depth,
                         path: path.clone(),
@@ -925,6 +1293,85 @@ impl MagellanIntegration {
         Ok(result)
     }
 
+    /// Geometric backend implementation of reachable_symbols.
+    #[cfg(feature = "geometric")]
+    fn reachable_symbols_geometric(
+        &mut self,
+        file_path: &Path,
+        name: &str,
+        max_depth: usize,
+    ) -> Result<Vec<ReachableSymbol>> {
+        let geo = self
+            .geo_inner
+            .as_ref()
+            .ok_or_else(|| SpliceError::Other("Geometric backend not initialized".to_string()))?;
+
+        let path_str = file_path
+            .to_str()
+            .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
+
+        // Find the symbol ID by name and path
+        let symbol_id = geo
+            .find_symbol_id_by_name_and_path(name, path_str)
+            .ok_or_else(|| {
+                SpliceError::Other(format!(
+                    "Symbol '{}' not found in file '{}'",
+                    name, path_str
+                ))
+            })?;
+
+        // Use BFS traversal
+        let mut result = Vec::new();
+        let mut visited = std::collections::HashSet::new();
+        let mut queue = std::collections::VecDeque::new();
+
+        // Start with the target symbol
+        visited.insert(symbol_id);
+        queue.push_back((symbol_id, 0, vec![name.to_string()]));
+
+        while let Some((current_id, depth, path)) = queue.pop_front() {
+            if depth > max_depth {
+                continue;
+            }
+
+            // Get symbol info
+            if let Some(info) = geo.find_symbol_by_id_info(current_id) {
+                // Skip the root symbol itself (depth 0)
+                if depth > 0 {
+                    let symbol = ReachableSymbol {
+                        symbol: SymbolInfo {
+                            entity_id: current_id as i64,
+                            name: info.name.clone(),
+                            file_path: info.file_path.clone(),
+                            kind: format!("{:?}", info.kind),
+                            byte_start: info.byte_start as usize,
+                            byte_end: info.byte_end as usize,
+            start_line: None,
+            end_line: None,
+                        },
+                        depth,
+                        path: path.clone(),
+                    };
+                    result.push(symbol);
+                }
+
+                // Continue traversal if not at max depth
+                if depth < max_depth {
+                    let callees = geo.get_callees(current_id);
+                    for callee_id in callees {
+                        if visited.insert(callee_id) {
+                            let mut new_path = path.clone();
+                            new_path.push(info.name.clone());
+                            queue.push_back((callee_id, depth + 1, new_path));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
     /// Get reverse reachability (callers) to a symbol.
     ///
     /// # Arguments
@@ -934,7 +1381,27 @@ impl MagellanIntegration {
     ///
     /// # Returns
     /// Vec<ReachableSymbol> with depth and path information
+    ///
+    /// Batch 2: Supports both SQLite and Geometric backends.
     pub fn reverse_reachable_symbols(
+        &mut self,
+        file_path: &Path,
+        name: &str,
+        max_depth: usize,
+    ) -> Result<Vec<ReachableSymbol>> {
+        match self.backend {
+            IntegrationBackend::Sqlite => {
+                self.reverse_reachable_symbols_sqlite(file_path, name, max_depth)
+            }
+            #[cfg(feature = "geometric")]
+            IntegrationBackend::Geometric => {
+                self.reverse_reachable_symbols_geometric(file_path, name, max_depth)
+            }
+        }
+    }
+
+    /// SQLite implementation of reverse_reachable_symbols.
+    fn reverse_reachable_symbols_sqlite(
         &mut self,
         file_path: &Path,
         name: &str,
@@ -984,6 +1451,8 @@ impl MagellanIntegration {
                             kind: fact.kind_normalized.clone(),
                             byte_start: fact.byte_start,
                             byte_end: fact.byte_end,
+            start_line: None,
+            end_line: None,
                         },
                         depth,
                         path: path.clone(),
@@ -1019,6 +1488,85 @@ impl MagellanIntegration {
         Ok(result)
     }
 
+    /// Geometric backend implementation of reverse_reachable_symbols.
+    #[cfg(feature = "geometric")]
+    fn reverse_reachable_symbols_geometric(
+        &mut self,
+        file_path: &Path,
+        name: &str,
+        max_depth: usize,
+    ) -> Result<Vec<ReachableSymbol>> {
+        let geo = self
+            .geo_inner
+            .as_ref()
+            .ok_or_else(|| SpliceError::Other("Geometric backend not initialized".to_string()))?;
+
+        let path_str = file_path
+            .to_str()
+            .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
+
+        // Find the symbol ID by name and path
+        let symbol_id = geo
+            .find_symbol_id_by_name_and_path(name, path_str)
+            .ok_or_else(|| {
+                SpliceError::Other(format!(
+                    "Symbol '{}' not found in file '{}'",
+                    name, path_str
+                ))
+            })?;
+
+        // Use BFS traversal with callers
+        let mut result = Vec::new();
+        let mut visited = std::collections::HashSet::new();
+        let mut queue = std::collections::VecDeque::new();
+
+        // Start with the target symbol
+        visited.insert(symbol_id);
+        queue.push_back((symbol_id, 0, vec![name.to_string()]));
+
+        while let Some((current_id, depth, path)) = queue.pop_front() {
+            if depth > max_depth {
+                continue;
+            }
+
+            // Get symbol info
+            if let Some(info) = geo.find_symbol_by_id_info(current_id) {
+                // Skip the root symbol itself (depth 0)
+                if depth > 0 {
+                    let symbol = ReachableSymbol {
+                        symbol: SymbolInfo {
+                            entity_id: current_id as i64,
+                            name: info.name.clone(),
+                            file_path: info.file_path.clone(),
+                            kind: format!("{:?}", info.kind),
+                            byte_start: info.byte_start as usize,
+                            byte_end: info.byte_end as usize,
+            start_line: None,
+            end_line: None,
+                        },
+                        depth,
+                        path: path.clone(),
+                    };
+                    result.push(symbol);
+                }
+
+                // Continue traversal if not at max depth
+                if depth < max_depth {
+                    let callers = geo.get_callers(current_id);
+                    for caller_id in callers {
+                        if visited.insert(caller_id) {
+                            let mut new_path = path.clone();
+                            new_path.push(info.name.clone());
+                            queue.push_back((caller_id, depth + 1, new_path));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
     /// Detect all cycles in the call graph.
     ///
     /// Uses Tarjan's SCC algorithm to find strongly connected components
@@ -1029,7 +1577,18 @@ impl MagellanIntegration {
     ///
     /// # Returns
     /// Vec<CycleInfo> describing detected cycles
+    ///
+    /// Batch 2: Supports both SQLite and Geometric backends.
     pub fn detect_cycles(&mut self, max_cycles: usize) -> Result<Vec<CycleInfo>> {
+        match self.backend {
+            IntegrationBackend::Sqlite => self.detect_cycles_sqlite(max_cycles),
+            #[cfg(feature = "geometric")]
+            IntegrationBackend::Geometric => self.detect_cycles_geometric(max_cycles),
+        }
+    }
+
+    /// SQLite implementation of detect_cycles.
+    fn detect_cycles_sqlite(&mut self, max_cycles: usize) -> Result<Vec<CycleInfo>> {
         use std::collections::{HashMap, HashSet};
 
         // Build call graph: symbol -> set of callees
@@ -1091,6 +1650,59 @@ impl MagellanIntegration {
 
             if is_cycle {
                 cycles.push(self.scc_to_cycle_info(scc, index, is_self_loop)?);
+            }
+        }
+
+        Ok(cycles)
+    }
+
+    /// Geometric backend implementation of detect_cycles.
+    #[cfg(feature = "geometric")]
+    fn detect_cycles_geometric(&mut self, max_cycles: usize) -> Result<Vec<CycleInfo>> {
+        let geo = self
+            .geo_inner
+            .as_ref()
+            .ok_or_else(|| SpliceError::Other("Geometric backend not initialized".to_string()))?;
+
+        // Use geometric backend's cycle detection
+        let cycles_ids = geo.find_call_graph_cycles();
+
+        let mut cycles = Vec::new();
+        for (index, cycle_ids) in cycles_ids.iter().enumerate() {
+            if cycles.len() >= max_cycles {
+                break;
+            }
+
+            let is_self_loop = cycle_ids.len() == 1;
+            let mut members = Vec::new();
+
+            for &id in cycle_ids {
+                if let Some(info) = geo.find_symbol_by_id_info(id) {
+                    members.push(SymbolInfo {
+                        entity_id: id as i64,
+                        name: info.name,
+                        file_path: info.file_path,
+                        kind: format!("{:?}", info.kind),
+                        byte_start: info.byte_start as usize,
+                        byte_end: info.byte_end as usize,
+            start_line: None,
+            end_line: None,
+                    });
+                }
+            }
+
+            if !members.is_empty() {
+                // Sort for representative selection
+                members.sort_by(|a, b| a.name.cmp(&b.name));
+                let representative = members[0].clone();
+
+                cycles.push(CycleInfo {
+                    id: format!("cycle-{}", index),
+                    size: cycle_ids.len(),
+                    members,
+                    representative,
+                    is_self_loop,
+                });
             }
         }
 
@@ -1269,6 +1881,8 @@ impl MagellanIntegration {
                         kind: fact.kind_normalized.clone(),
                         byte_start: fact.byte_start,
                         byte_end: fact.byte_end,
+            start_line: None,
+            end_line: None,
                     });
                 }
             }
@@ -1302,7 +1916,27 @@ impl MagellanIntegration {
     ///
     /// # Returns
     /// Vec<DeadSymbol> of unreachable symbols
+    ///
+    /// Batch 2: Supports both SQLite and Geometric backends.
     pub fn dead_symbols(
+        &mut self,
+        entry_file: &Path,
+        entry_symbol: &str,
+        exclude_public: bool,
+    ) -> Result<Vec<DeadSymbol>> {
+        match self.backend {
+            IntegrationBackend::Sqlite => {
+                self.dead_symbols_sqlite(entry_file, entry_symbol, exclude_public)
+            }
+            #[cfg(feature = "geometric")]
+            IntegrationBackend::Geometric => {
+                self.dead_symbols_geometric(entry_file, entry_symbol, exclude_public)
+            }
+        }
+    }
+
+    /// SQLite implementation of dead_symbols.
+    fn dead_symbols_sqlite(
         &mut self,
         entry_file: &Path,
         entry_symbol: &str,
@@ -1379,6 +2013,70 @@ impl MagellanIntegration {
                         kind: fact.kind_normalized,
                         byte_start: fact.byte_start,
                         byte_end: fact.byte_end,
+            start_line: None,
+            end_line: None,
+                    },
+                    reason: "Not reachable from entry point".to_string(),
+                };
+                dead_symbols.push(dead);
+            }
+        }
+
+        Ok(dead_symbols)
+    }
+
+    /// Geometric backend implementation of dead_symbols.
+    #[cfg(feature = "geometric")]
+    fn dead_symbols_geometric(
+        &mut self,
+        entry_file: &Path,
+        entry_symbol: &str,
+        _exclude_public: bool,
+    ) -> Result<Vec<DeadSymbol>> {
+        let geo = self
+            .geo_inner
+            .as_ref()
+            .ok_or_else(|| SpliceError::Other("Geometric backend not initialized".to_string()))?;
+
+        let entry_path_str = entry_file.to_str().ok_or_else(|| {
+            SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", entry_file))
+        })?;
+
+        // Find the entry symbol ID
+        let entry_id = geo
+            .find_symbol_id_by_name_and_path(entry_symbol, entry_path_str)
+            .ok_or_else(|| {
+                SpliceError::Other(format!(
+                    "Entry symbol '{}' not found in file '{}'",
+                    entry_symbol, entry_path_str
+                ))
+            })?;
+
+        // Get all reachable symbols from the entry point
+        let reachable_ids: std::collections::HashSet<u64> =
+            geo.reachable_from(entry_id).into_iter().collect();
+
+        // Get all symbols in the database
+        let all_symbols = geo
+            .get_all_symbols()
+            .map_err(|e| SpliceError::Other(format!("Failed to get all symbols: {}", e)))?;
+
+        // Collect unreachable symbols
+        let mut dead_symbols = Vec::new();
+        for info in all_symbols {
+            if !reachable_ids.contains(&(info.id as u64)) {
+                // Note: exclude_public is not implemented for geometric backend
+                // as SymbolInfo doesn't have visibility information
+                let dead = DeadSymbol {
+                    symbol: SymbolInfo {
+                        entity_id: info.id as i64,
+                        name: info.name,
+                        file_path: info.file_path,
+                        kind: format!("{:?}", info.kind),
+                        byte_start: info.byte_start as usize,
+                        byte_end: info.byte_end as usize,
+            start_line: None,
+            end_line: None,
                     },
                     reason: "Not reachable from entry point".to_string(),
                 };
@@ -1450,6 +2148,8 @@ impl MagellanIntegration {
                 kind: target_fact.kind_normalized.clone(),
                 byte_start: target_fact.byte_start,
                 byte_end: target_fact.byte_end,
+            start_line: None,
+            end_line: None,
             },
             distance: 0,
             is_target: true,
@@ -1490,6 +2190,8 @@ impl MagellanIntegration {
                             kind: fact.kind_normalized.clone(),
                             byte_start: fact.byte_start,
                             byte_end: fact.byte_end,
+            start_line: None,
+            end_line: None,
                         },
                         distance: dist,
                         is_target: false,
@@ -1583,6 +2285,8 @@ impl MagellanIntegration {
                 kind: target_fact.kind_normalized.clone(),
                 byte_start: target_fact.byte_start,
                 byte_end: target_fact.byte_end,
+            start_line: None,
+            end_line: None,
             },
             distance: 0,
             is_target: true,
@@ -1623,6 +2327,8 @@ impl MagellanIntegration {
                             kind: fact.kind_normalized.clone(),
                             byte_start: fact.byte_start,
                             byte_end: fact.byte_end,
+            start_line: None,
+            end_line: None,
                         },
                         distance: dist,
                         is_target: false,
@@ -1802,6 +2508,8 @@ impl MagellanIntegration {
                                     kind: fact.kind_normalized.clone(),
                                     byte_start: fact.byte_start,
                                     byte_end: fact.byte_end,
+            start_line: None,
+            end_line: None,
                                 }
                             } else {
                                 // Fallback if no facts found
@@ -1812,6 +2520,8 @@ impl MagellanIntegration {
                                     kind: "Unknown".to_string(),
                                     byte_start: 0,
                                     byte_end: 0,
+            start_line: None,
+            end_line: None,
                                 }
                             }
                         }
@@ -1824,6 +2534,8 @@ impl MagellanIntegration {
                                 kind: "Unknown".to_string(),
                                 byte_start: 0,
                                 byte_end: 0,
+            start_line: None,
+            end_line: None,
                             }
                         }
                     }
@@ -1836,6 +2548,8 @@ impl MagellanIntegration {
                         kind: "Unknown".to_string(),
                         byte_start: 0,
                         byte_end: 0,
+            start_line: None,
+            end_line: None,
                     }
                 };
 
@@ -1896,26 +2610,38 @@ impl MagellanIntegration {
         use crate::cli::ReachabilityDirection;
 
         // Parse symbol_id as "file_path:symbol_name" format
-        let (file_path, symbol_name) = symbol_id
-            .split_once(':')
-            .ok_or_else(|| SpliceError::Other(format!("Invalid symbol_id format: '{}'. Expected 'file_path:symbol_name'", symbol_id)))?;
+        let (file_path, symbol_name) = symbol_id.split_once(':').ok_or_else(|| {
+            SpliceError::Other(format!(
+                "Invalid symbol_id format: '{}'. Expected 'file_path:symbol_name'",
+                symbol_id
+            ))
+        })?;
 
         let file_path_obj = Path::new(file_path);
 
         // Collect reachable symbols based on direction
         let (forward_symbols, reverse_symbols) = match direction {
             ReachabilityDirection::Forward => {
-                let symbols = self.reachable_symbols(file_path_obj, symbol_name, config.max_depth.unwrap_or(10))?;
+                let symbols = self.reachable_symbols(
+                    file_path_obj,
+                    symbol_name,
+                    config.max_depth.unwrap_or(10),
+                )?;
                 (symbols, Vec::new())
             }
             ReachabilityDirection::Reverse => {
-                let symbols = self.reverse_reachable_symbols(file_path_obj, symbol_name, config.max_depth.unwrap_or(10))?;
+                let symbols = self.reverse_reachable_symbols(
+                    file_path_obj,
+                    symbol_name,
+                    config.max_depth.unwrap_or(10),
+                )?;
                 (Vec::new(), symbols)
             }
             ReachabilityDirection::Both => {
                 let max_depth = config.max_depth.unwrap_or(10);
                 let forward = self.reachable_symbols(file_path_obj, symbol_name, max_depth)?;
-                let reverse = self.reverse_reachable_symbols(file_path_obj, symbol_name, max_depth)?;
+                let reverse =
+                    self.reverse_reachable_symbols(file_path_obj, symbol_name, max_depth)?;
                 (forward, reverse)
             }
         };
@@ -1931,18 +2657,31 @@ impl MagellanIntegration {
 
         // Add root node
         let root_label = if config.show_symbol_kinds {
-            format!("{} ({})", symbol_name, _get_root_kind(self, file_path, symbol_name))
+            format!(
+                "{} ({})",
+                symbol_name,
+                _get_root_kind(self, file_path, symbol_name)
+            )
         } else {
             symbol_name.to_string()
         };
 
-        let root_attrs = if config.highlight_symbol.as_ref().map_or(false, |h| *h == symbol_name) {
+        let root_attrs = if config
+            .highlight_symbol
+            .as_ref()
+            .map_or(false, |h| *h == symbol_name)
+        {
             " [style=filled, fillcolor=lightblue]"
         } else {
             ""
         };
 
-        dot.push_str(&format!("  \"{}\"{} [label=\"{}\"];\n", _sanitize_id(symbol_id), root_attrs, _escape_label(&root_label)));
+        dot.push_str(&format!(
+            "  \"{}\"{} [label=\"{}\"];\n",
+            _sanitize_id(symbol_id),
+            root_attrs,
+            _escape_label(&root_label)
+        ));
         nodes.insert(symbol_id.to_string());
 
         // Add forward edges (callees)
@@ -1956,18 +2695,31 @@ impl MagellanIntegration {
 
             // Add node if not already added
             if nodes.insert(caller_id.clone()) {
-                let attrs = if config.highlight_symbol.as_ref().map_or(false, |h| *h == reachable.symbol.name) {
+                let attrs = if config
+                    .highlight_symbol
+                    .as_ref()
+                    .map_or(false, |h| *h == reachable.symbol.name)
+                {
                     " [style=filled, fillcolor=lightblue]"
                 } else {
                     ""
                 };
-                dot.push_str(&format!("  \"{}\"{} [label=\"{}\"];\n", _sanitize_id(&caller_id), attrs, _escape_label(&label)));
+                dot.push_str(&format!(
+                    "  \"{}\"{} [label=\"{}\"];\n",
+                    _sanitize_id(&caller_id),
+                    attrs,
+                    _escape_label(&label)
+                ));
             }
 
             // Add edge: root -> callee
             let edge = (symbol_id.to_string(), caller_id.clone());
             if edges.insert(edge) {
-                dot.push_str(&format!("  \"{}\" -> \"{}\";\n", _sanitize_id(symbol_id), _sanitize_id(&caller_id)));
+                dot.push_str(&format!(
+                    "  \"{}\" -> \"{}\";\n",
+                    _sanitize_id(symbol_id),
+                    _sanitize_id(&caller_id)
+                ));
             }
 
             // Add edges along the path
@@ -1980,7 +2732,11 @@ impl MagellanIntegration {
                 let to = format!("{}:{}", reachable.symbol.file_path, reachable.path[i]);
                 let edge = (from.clone(), to.clone());
                 if edges.insert(edge) {
-                    dot.push_str(&format!("  \"{}\" -> \"{}\";\n", _sanitize_id(&from), _sanitize_id(&to)));
+                    dot.push_str(&format!(
+                        "  \"{}\" -> \"{}\";\n",
+                        _sanitize_id(&from),
+                        _sanitize_id(&to)
+                    ));
                 }
             }
         }
@@ -1995,18 +2751,31 @@ impl MagellanIntegration {
             };
 
             if nodes.insert(caller_id.clone()) {
-                let attrs = if config.highlight_symbol.as_ref().map_or(false, |h| *h == reachable.symbol.name) {
+                let attrs = if config
+                    .highlight_symbol
+                    .as_ref()
+                    .map_or(false, |h| *h == reachable.symbol.name)
+                {
                     " [style=filled, fillcolor=lightblue]"
                 } else {
                     ""
                 };
-                dot.push_str(&format!("  \"{}\"{} [label=\"{}\"];\n", _sanitize_id(&caller_id), attrs, _escape_label(&label)));
+                dot.push_str(&format!(
+                    "  \"{}\"{} [label=\"{}\"];\n",
+                    _sanitize_id(&caller_id),
+                    attrs,
+                    _escape_label(&label)
+                ));
             }
 
             // Add edge: caller -> root
             let edge = (caller_id.clone(), symbol_id.to_string());
             if edges.insert(edge) {
-                dot.push_str(&format!("  \"{}\" -> \"{}\";\n", _sanitize_id(&caller_id), _sanitize_id(symbol_id)));
+                dot.push_str(&format!(
+                    "  \"{}\" -> \"{}\";\n",
+                    _sanitize_id(&caller_id),
+                    _sanitize_id(symbol_id)
+                ));
             }
 
             // Add edges along the path
@@ -2019,7 +2788,11 @@ impl MagellanIntegration {
                 };
                 let edge = (from.clone(), to.clone());
                 if edges.insert(edge) {
-                    dot.push_str(&format!("  \"{}\" -> \"{}\";\n", _sanitize_id(&from), _sanitize_id(&to)));
+                    dot.push_str(&format!(
+                        "  \"{}\" -> \"{}\";\n",
+                        _sanitize_id(&from),
+                        _sanitize_id(&to)
+                    ));
                 }
             }
         }
@@ -2067,18 +2840,31 @@ impl MagellanIntegration {
 
         // Add root node
         let root_label = if config.show_symbol_kinds {
-            format!("{} ({})", symbol_name, _get_root_kind(self, path_str, symbol_name))
+            format!(
+                "{} ({})",
+                symbol_name,
+                _get_root_kind(self, path_str, symbol_name)
+            )
         } else {
             symbol_name.to_string()
         };
 
-        let root_attrs = if config.highlight_symbol.as_ref().map_or(false, |h| *h == symbol_name) {
+        let root_attrs = if config
+            .highlight_symbol
+            .as_ref()
+            .map_or(false, |h| *h == symbol_name)
+        {
             " [style=filled, fillcolor=lightblue]"
         } else {
             ""
         };
 
-        dot.push_str(&format!("  \"{}\"{} [label=\"{}\"];\n", _sanitize_id(&symbol_id), root_attrs, _escape_label(&root_label)));
+        dot.push_str(&format!(
+            "  \"{}\"{} [label=\"{}\"];\n",
+            _sanitize_id(&symbol_id),
+            root_attrs,
+            _escape_label(&root_label)
+        ));
 
         // Add caller nodes and edges
         for call in &callers {
@@ -2091,14 +2877,27 @@ impl MagellanIntegration {
                 call.caller.clone()
             };
 
-            let attrs = if config.highlight_symbol.as_ref().map_or(false, |h| *h == call.caller) {
+            let attrs = if config
+                .highlight_symbol
+                .as_ref()
+                .map_or(false, |h| *h == call.caller)
+            {
                 " [style=filled, fillcolor=lightblue]"
             } else {
                 ""
             };
 
-            dot.push_str(&format!("  \"{}\"{} [label=\"{}\"];\n", _sanitize_id(&caller_id), attrs, _escape_label(&label)));
-            dot.push_str(&format!("  \"{}\" -> \"{}\";\n", _sanitize_id(&caller_id), _sanitize_id(&symbol_id)));
+            dot.push_str(&format!(
+                "  \"{}\"{} [label=\"{}\"];\n",
+                _sanitize_id(&caller_id),
+                attrs,
+                _escape_label(&label)
+            ));
+            dot.push_str(&format!(
+                "  \"{}\" -> \"{}\";\n",
+                _sanitize_id(&caller_id),
+                _sanitize_id(&symbol_id)
+            ));
         }
 
         // Add callee nodes and edges
@@ -2111,14 +2910,27 @@ impl MagellanIntegration {
                 call.callee.clone()
             };
 
-            let attrs = if config.highlight_symbol.as_ref().map_or(false, |h| *h == call.callee) {
+            let attrs = if config
+                .highlight_symbol
+                .as_ref()
+                .map_or(false, |h| *h == call.callee)
+            {
                 " [style=filled, fillcolor=lightblue]"
             } else {
                 ""
             };
 
-            dot.push_str(&format!("  \"{}\"{} [label=\"{}\"];\n", _sanitize_id(&callee_id), attrs, _escape_label(&label)));
-            dot.push_str(&format!("  \"{}\" -> \"{}\";\n", _sanitize_id(&symbol_id), _sanitize_id(&callee_id)));
+            dot.push_str(&format!(
+                "  \"{}\"{} [label=\"{}\"];\n",
+                _sanitize_id(&callee_id),
+                attrs,
+                _escape_label(&label)
+            ));
+            dot.push_str(&format!(
+                "  \"{}\" -> \"{}\";\n",
+                _sanitize_id(&symbol_id),
+                _sanitize_id(&callee_id)
+            ));
         }
 
         dot.push_str("}\n");
@@ -2162,6 +2974,10 @@ pub struct SymbolInfo {
     pub byte_start: usize,
     /// Byte offset where the symbol ends.
     pub byte_end: usize,
+    /// Line number where the symbol starts (1-indexed).
+    pub start_line: Option<usize>,
+    /// Line number where the symbol ends (1-indexed).
+    pub end_line: Option<usize>,
 }
 
 /// Symbol with optional call relationship context.
@@ -2361,6 +3177,8 @@ impl From<SymbolQueryResult> for SymbolInfo {
             kind: result.kind,
             byte_start: result.byte_start,
             byte_end: result.byte_end,
+            start_line: None,
+            end_line: None,
         }
     }
 }
@@ -2433,7 +3251,11 @@ pub struct DatabaseStats {
 }
 
 /// Helper to get the kind of a root symbol for DOT labels.
-fn _get_root_kind(integration: &mut MagellanIntegration, file_path: &str, symbol_name: &str) -> String {
+fn _get_root_kind(
+    integration: &mut MagellanIntegration,
+    file_path: &str,
+    symbol_name: &str,
+) -> String {
     integration
         .inner
         .symbol_extents(file_path, symbol_name)
@@ -2443,7 +3265,11 @@ fn _get_root_kind(integration: &mut MagellanIntegration, file_path: &str, symbol
 }
 
 /// Helper to get the kind of a symbol for DOT labels.
-fn _get_symbol_kind(integration: &mut MagellanIntegration, file_path: &str, symbol_name: &str) -> String {
+fn _get_symbol_kind(
+    integration: &mut MagellanIntegration,
+    file_path: &str,
+    symbol_name: &str,
+) -> String {
     integration
         .inner
         .symbol_extents(file_path, symbol_name)

@@ -3,15 +3,13 @@
 use crate::error::{Result, SpliceError};
 use crate::graph::MagellanIntegration;
 use crate::proof::data_structures::{
-    RefactoringProof, GraphSnapshot, ProofMetadata, SymbolInfo, GraphStats,
+    GraphSnapshot, GraphStats, ProofMetadata, RefactoringProof, SymbolInfo,
 };
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 /// Generate a graph snapshot from the current database state.
-pub fn generate_snapshot(
-    db_path: &Path,
-) -> Result<GraphSnapshot> {
+pub fn generate_snapshot(db_path: &Path) -> Result<GraphSnapshot> {
     let mut integration = MagellanIntegration::open(db_path)?;
     let mut symbols: HashMap<String, SymbolInfo> = HashMap::new();
     let mut edges: HashMap<String, Vec<String>> = HashMap::new();
@@ -23,7 +21,8 @@ pub fn generate_snapshot(
     let mut id_counter = 0u64;
 
     // Get all file nodes from the database
-    let file_nodes = integration.inner_mut()
+    let file_nodes = integration
+        .inner_mut()
         .all_file_nodes()
         .map_err(|e| SpliceError::Other(format!("Failed to get file nodes: {}", e)))?;
 
@@ -32,9 +31,15 @@ pub fn generate_snapshot(
         let file_path_str = file_path.clone();
 
         // Get all symbols in this file
-        let symbols_in_file = integration.inner_mut()
+        let symbols_in_file = integration
+            .inner_mut()
             .symbols_in_file(file_path)
-            .map_err(|e| SpliceError::Other(format!("Failed to get symbols for {}: {}", file_path_str, e)))?;
+            .map_err(|e| {
+                SpliceError::Other(format!(
+                    "Failed to get symbols for {}: {}",
+                    file_path_str, e
+                ))
+            })?;
 
         for symbol_fact in symbols_in_file {
             // Skip symbols without names (e.g., anonymous items)
@@ -54,10 +59,12 @@ pub fn generate_snapshot(
             name_to_id.insert((file_path_str.clone(), name.clone()), id.clone());
 
             // Get caller and callee information
-            let callers = integration.inner_mut()
+            let callers = integration
+                .inner_mut()
                 .callers_of_symbol(&file_path_str, &name)
                 .unwrap_or_default();
-            let callees = integration.inner_mut()
+            let callees = integration
+                .inner_mut()
                 .calls_from_symbol(&file_path_str, &name)
                 .unwrap_or_default();
 
@@ -88,9 +95,15 @@ pub fn generate_snapshot(
     for file_path in file_nodes.keys() {
         let file_path_str = file_path.clone();
 
-        let symbols_in_file = integration.inner_mut()
+        let symbols_in_file = integration
+            .inner_mut()
             .symbols_in_file(file_path)
-            .map_err(|e| SpliceError::Other(format!("Failed to get symbols for {}: {}", file_path_str, e)))?;
+            .map_err(|e| {
+                SpliceError::Other(format!(
+                    "Failed to get symbols for {}: {}",
+                    file_path_str, e
+                ))
+            })?;
 
         for symbol_fact in symbols_in_file {
             let name: String = match &symbol_fact.name {
@@ -106,11 +119,13 @@ pub fn generate_snapshot(
             };
 
             // Get callees and resolve their IDs
-            let callees = integration.inner_mut()
+            let callees = integration
+                .inner_mut()
                 .calls_from_symbol(&file_path_str, &name)
                 .unwrap_or_default();
 
-            let callee_ids: Vec<String> = callees.iter()
+            let callee_ids: Vec<String> = callees
+                .iter()
                 .filter_map(|c| {
                     let callee_path_str = c.file_path.to_string_lossy().to_string();
                     let callee_key = (callee_path_str, c.callee.clone());
@@ -130,13 +145,18 @@ pub fn generate_snapshot(
     // Compute maximum cyclomatic complexity
     // For a call graph, complexity of a symbol = fan_out + 1 (McCabe's metric)
     // We take the maximum across all symbols
-    let max_complexity = symbols.values()
+    let max_complexity = symbols
+        .values()
         .map(|s| s.fan_out + 1)
         .max()
         .filter(|&x| x > 1) // Only meaningful if there's at least one edge
         .or_else(|| {
             // If no edges, complexity is 1 (trivial case) or 0 (empty graph)
-            if total_symbols > 0 { Some(1) } else { Some(0) }
+            if total_symbols > 0 {
+                Some(1)
+            } else {
+                Some(0)
+            }
         });
 
     let stats = GraphStats {
@@ -168,17 +188,17 @@ fn is_public_symbol(name: &str, kind: &str) -> bool {
         }
         "struct" | "interface" | "class" | "trait" | "enum" => {
             // Types are typically public if they don't start with lowercase
-            name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false)
+            name.chars()
+                .next()
+                .map(|c| c.is_uppercase())
+                .unwrap_or(false)
         }
         _ => true,
     }
 }
 
 /// Create proof metadata for an operation.
-pub fn create_metadata(
-    operation: &str,
-    db_path: &Path,
-) -> ProofMetadata {
+pub fn create_metadata(operation: &str, db_path: &Path) -> ProofMetadata {
     ProofMetadata {
         operation: operation.to_string(),
         user: std::env::var("USER").ok(),
@@ -207,18 +227,15 @@ fn get_git_commit() -> Result<String> {
 }
 
 /// Write a proof to a JSON file.
-pub fn write_proof(
-    proof: &RefactoringProof,
-    output_dir: &Path,
-) -> Result<PathBuf> {
+pub fn write_proof(proof: &RefactoringProof, output_dir: &Path) -> Result<PathBuf> {
     use std::fs;
 
     fs::create_dir_all(output_dir)
         .map_err(|e| SpliceError::Other(format!("Failed to create proof dir: {}", e)))?;
 
-    let filename = format!("{}-{}.json",
-        proof.metadata.operation,
-        proof.metadata.timestamp
+    let filename = format!(
+        "{}-{}.json",
+        proof.metadata.operation, proof.metadata.timestamp
     );
     let path = output_dir.join(&filename);
 

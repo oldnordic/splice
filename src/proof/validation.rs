@@ -49,10 +49,7 @@ pub fn validate_invariants(
 /// For a correct refactoring, each symbol should maintain the same
 /// number of incoming and outgoing references, only the target names
 /// should change.
-fn check_reference_counts(
-    before: &GraphSnapshot,
-    after: &GraphSnapshot,
-) -> InvariantCheck {
+fn check_reference_counts(before: &GraphSnapshot, after: &GraphSnapshot) -> InvariantCheck {
     let invariant_name = "Reference Counts Preserved";
     let mut violations = Vec::new();
 
@@ -161,10 +158,7 @@ fn check_orphaned_symbols(after: &GraphSnapshot) -> InvariantCheck {
 /// Symbol IDs should remain stable across refactoring - no new IDs
 /// should be generated, only names should change. This ensures that
 /// the refactoring was a pure renaming operation.
-fn check_symbol_id_stability(
-    before: &GraphSnapshot,
-    after: &GraphSnapshot,
-) -> InvariantCheck {
+fn check_symbol_id_stability(before: &GraphSnapshot, after: &GraphSnapshot) -> InvariantCheck {
     let invariant_name = "Symbol IDs Stable";
     let mut violations = Vec::new();
 
@@ -218,10 +212,7 @@ fn check_symbol_id_stability(
 /// Public API entry points should not be lost during refactoring.
 /// This ensures that external code depending on these symbols
 /// will not break.
-fn check_entry_points(
-    before: &GraphSnapshot,
-    after: &GraphSnapshot,
-) -> InvariantCheck {
+fn check_entry_points(before: &GraphSnapshot, after: &GraphSnapshot) -> InvariantCheck {
     let invariant_name = "Entry Points Preserved";
     let mut violations = Vec::new();
 
@@ -286,7 +277,7 @@ fn check_entry_points(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::proof::data_structures::{SymbolInfo, GraphStats};
+    use crate::proof::data_structures::{GraphStats, SymbolInfo};
     use std::path::PathBuf;
 
     fn create_test_snapshot() -> GraphSnapshot {
@@ -319,7 +310,10 @@ mod tests {
         );
 
         let mut edges = HashMap::new();
-        edges.insert("0000000000000001".to_string(), vec!["0000000000000002".to_string()]);
+        edges.insert(
+            "0000000000000001".to_string(),
+            vec!["0000000000000002".to_string()],
+        );
         edges.insert("0000000000000002".to_string(), vec![]);
 
         GraphSnapshot {
@@ -382,7 +376,10 @@ mod tests {
         assert!(!check.passed);
         // Should have at least one warning about orphaned symbols
         assert!(
-            check.violations.iter().any(|v| v.subject == "helper" || v.subject == "main"),
+            check
+                .violations
+                .iter()
+                .any(|v| v.subject == "helper" || v.subject == "main"),
             "Expected violation for orphaned symbols"
         );
     }

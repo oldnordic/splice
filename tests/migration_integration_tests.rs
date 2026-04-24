@@ -28,9 +28,9 @@
 //! 2. Implement direct entity-by-entity migration (not snapshot-based)
 //! 3. Make SQLite backend export in native-v3 compatible format
 
-use splice::CodeGraph;
 use splice::graph::Backend;
 use splice::symbol::Language;
+use splice::CodeGraph;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -52,8 +52,8 @@ fn create_populated_sqlite_db(dir: &PathBuf) -> PathBuf {
 
     // Create SQLite database explicitly using sqlitegraph
     let sqlite_cfg = sqlitegraph::GraphConfig::sqlite();
-    let _backend = sqlitegraph::open_graph(&db_path, &sqlite_cfg)
-        .expect("Failed to create SQLite backend");
+    let _backend =
+        sqlitegraph::open_graph(&db_path, &sqlite_cfg).expect("Failed to create SQLite backend");
 
     // Verify it's SQLite
     assert_eq!(
@@ -154,14 +154,20 @@ fn test_migration_incompatibility_documented() {
     let result = graph.migrate_to_native_v3(&source_path, &dest_path, None, false);
 
     // Migration should fail
-    assert!(result.is_err(), "Migration should fail due to snapshot format incompatibility");
+    assert!(
+        result.is_err(),
+        "Migration should fail due to snapshot format incompatibility"
+    );
 
     let err = result.unwrap_err();
     let err_msg = format!("{:?}", err);
 
     // Verify the error is about snapshot export/import
     assert!(
-        err_msg.contains("Snapshot") || err_msg.contains("snapshot") || err_msg.contains("export") || err_msg.contains("manifest"),
+        err_msg.contains("Snapshot")
+            || err_msg.contains("snapshot")
+            || err_msg.contains("export")
+            || err_msg.contains("manifest"),
         "Error should mention snapshot/export/manifest issue, got: {}",
         err_msg
     );
@@ -208,12 +214,19 @@ fn test_migration_full_workflow() {
     assert!(result.is_ok(), "Migration should succeed");
 
     let report = result.unwrap();
-    assert!(report.verification_passed, "Migration should pass verification");
+    assert!(
+        report.verification_passed,
+        "Migration should pass verification"
+    );
     assert!(dest_path.exists(), "Destination database should exist");
 
     // Step 4: Verify destination is native-v3
     let dest_backend = CodeGraph::detect_backend(&dest_path).expect("Detection failed");
-    assert_eq!(Backend::NativeV3, dest_backend, "Destination should be NativeV3");
+    assert_eq!(
+        Backend::NativeV3,
+        dest_backend,
+        "Destination should be NativeV3"
+    );
 
     // Progress should have been reported
     let steps = progress_steps.lock().unwrap();
@@ -304,7 +317,10 @@ fn test_migration_destination_exists_error() {
     // Migration should fail because destination exists
     let result = graph.migrate_to_native_v3(&source_path, &dest_path, None, false);
 
-    assert!(result.is_err(), "Migration should fail when destination exists");
+    assert!(
+        result.is_err(),
+        "Migration should fail when destination exists"
+    );
 
     let err = result.unwrap_err();
     let err_msg = format!("{}", err);
@@ -335,7 +351,10 @@ fn test_migration_verification() {
         report.verification_passed,
         "Migration should pass verification"
     );
-    assert!(report.verification_error.is_none(), "No verification errors");
+    assert!(
+        report.verification_error.is_none(),
+        "No verification errors"
+    );
 
     // Verify migration integrity directly
     let verification_result = CodeGraph::verify_migration(&source_path, &dest_path);
@@ -428,15 +447,24 @@ fn test_migration_report_contents() {
     let report = result.unwrap();
 
     // Verify report fields
-    assert_eq!(report.destination, dest_path, "Destination path should match");
+    assert_eq!(
+        report.destination, dest_path,
+        "Destination path should match"
+    );
     assert!(report.verification_passed, "Verification should pass");
-    assert!(report.verification_error.is_none(), "No verification errors");
+    assert!(
+        report.verification_error.is_none(),
+        "No verification errors"
+    );
 
     // Verify metadata contains useful information
-    assert!(!report.snapshot_metadata.is_empty(), "Snapshot metadata should not be empty");
     assert!(
-        report.snapshot_metadata.contains("entity_count") ||
-            report.snapshot_metadata.contains("edge_count"),
+        !report.snapshot_metadata.is_empty(),
+        "Snapshot metadata should not be empty"
+    );
+    assert!(
+        report.snapshot_metadata.contains("entity_count")
+            || report.snapshot_metadata.contains("edge_count"),
         "Snapshot metadata should contain counts"
     );
 }
@@ -513,5 +541,8 @@ fn test_migration_large_symbol_count() {
 
     let report = result.unwrap();
     assert!(report.verification_passed, "Verification should pass");
-    assert!(report.nodes_migrated >= 100, "Should migrate at least 100 nodes");
+    assert!(
+        report.nodes_migrated >= 100,
+        "Should migrate at least 100 nodes"
+    );
 }

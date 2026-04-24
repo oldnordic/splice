@@ -12,27 +12,21 @@ pub mod storage;
 pub mod validation;
 
 pub use checksums::{
-    compute_snapshot_hash, compute_proof_checksums,
-    validate_proof_checksums, validate_proof_file,
+    compute_proof_checksums, compute_snapshot_hash, validate_proof_checksums, validate_proof_file,
 };
 
 pub use data_structures::{
-    RefactoringProof, GraphSnapshot, ProofMetadata, InvariantCheck,
-    InvariantViolation, ViolationSeverity, ProofChecksums,
-    SymbolInfo, GraphStats,
+    GraphSnapshot, GraphStats, InvariantCheck, InvariantViolation, ProofChecksums, ProofMetadata,
+    RefactoringProof, SymbolInfo, ViolationSeverity,
 };
 
-pub use generation::{
-    generate_snapshot, create_metadata, write_proof,
-};
+pub use generation::{create_metadata, generate_snapshot, write_proof};
 
-pub use storage::{SnapshotStorage, SnapshotMetadata, RestoreResult};
+pub use storage::{RestoreResult, SnapshotMetadata, SnapshotStorage};
 
 pub use validation::validate_invariants;
 
-pub use comparison::{
-    compare_snapshots, SnapshotDiff, SymbolDiff, EdgeDiff, ChangeType,
-};
+pub use comparison::{compare_snapshots, ChangeType, EdgeDiff, SnapshotDiff, SymbolDiff};
 
 use crate::error::Result;
 use std::path::Path;
