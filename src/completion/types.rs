@@ -38,6 +38,10 @@ pub struct CompletionSuggestion {
     pub usage_count: usize,
     /// When this was last used (Unix timestamp)
     pub last_used: Option<i64>,
+    /// Source file path (if cross-file import)
+    pub source_file: Option<String>,
+    /// Import statement that makes this available (e.g., "use crate::action::calculate")
+    pub via_import: Option<String>,
 }
 
 /// Source of suggestion
