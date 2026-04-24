@@ -2,12 +2,10 @@
 //!
 //! Queries Magellan database for Import entities and resolves them to target files.
 
-use crate::graph::MagellanIntegration;
 use anyhow::Result;
 use rusqlite::Connection;
 use serde_json::Value as JsonValue;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 /// Import entity from database
 #[derive(Debug, Clone)]
