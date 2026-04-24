@@ -14,14 +14,21 @@ pub struct CompletionEngine {
     magellan: Arc<MagellanIntegration>,
     db_path: PathBuf,
     ranker: SuggestionRanker,
+    /// Cached symbol count to avoid repeated queries
+    symbol_count: usize,
 }
 
 impl CompletionEngine {
     pub fn new(magellan: Arc<MagellanIntegration>, db_path: &Path) -> Self {
+        // Cache symbol count during initialization to avoid repeated queries
+        let symbol_count = Self::get_symbol_count_once(db_path)
+            .unwrap_or(0);
+
         Self {
             magellan,
             db_path: db_path.to_path_buf(),
             ranker: SuggestionRanker::new(),
+            symbol_count,
         }
     }
 
@@ -56,7 +63,7 @@ impl CompletionEngine {
             suggestions,
             metadata: CompletionMetadata {
                 query_time_ms: elapsed.as_millis() as u64,
-                total_symbols_indexed: self.get_symbol_count()?,
+                total_symbols_indexed: self.symbol_count,
                 database_version: 10, // Magellan v10+
                 database_queries: 1,
             },
@@ -71,27 +78,61 @@ impl CompletionEngine {
 
         // Query visible symbols
         for symbol in &context.visible_symbols {
+            // Distinguish local symbols from imported symbols
+            let (source, source_file, via_import) = if symbol.path == context.file_path.to_string_lossy() {
+                // Local symbol (defined in current file)
+                (
+                    SuggestionSource::Database,
+                    None,
+                    None
+                )
+            } else {
+                // Imported symbol (defined in another file)
+                // Convert path to use statement format
+                // e.g., "/home/feanor/Projects/splice/src/patch/engine.rs" -> "use crate::patch::engine"
+                let import_path = if symbol.path.contains("/src/") {
+                    // Extract path relative to src/
+                    let src_relative = symbol.path.split("/src/").nth(1)
+                        .unwrap_or(&symbol.path);
+                    let module_path = src_relative
+                        .trim_end_matches(".rs")
+                        .replace("/", "::");
+
+                    format!("use crate::{}", module_path)
+                } else {
+                    // Fallback for non-standard paths
+                    format!("use {}", symbol.path)
+                };
+
+                (
+                    SuggestionSource::Imported,
+                    Some(symbol.path.clone()),
+                    Some(import_path)
+                )
+            };
+
             suggestions.push(CompletionSuggestion {
                 label: symbol.name.clone(),
                 insert_text: symbol.name.clone(),
                 detail: format!("{:?}", symbol.kind),
                 kind: symbol.kind.clone(),
                 score: 0.5, // Will be ranked
-                source: SuggestionSource::Database,
+                source,
                 grounded_in: vec![symbol.id.clone()],
                 usage_count: 1,
                 last_used: None,
-                source_file: None,  // Will be filled later for imports
-                via_import: None,    // Will be filled later for imports
+                source_file,
+                via_import,
             });
         }
 
         Ok(suggestions)
     }
 
-    fn get_symbol_count(&self) -> anyhow::Result<usize> {
+    /// Get symbol count once (called during initialization)
+    fn get_symbol_count_once(db_path: &Path) -> anyhow::Result<usize> {
         let query = "SELECT COUNT(*) FROM graph_entities";
-        let conn = Connection::open(&self.db_path)?;
+        let conn = Connection::open(db_path)?;
         let mut stmt = conn.prepare(query)?;
         let count: usize = stmt.query_row([], |row| row.get(0))?;
         Ok(count)

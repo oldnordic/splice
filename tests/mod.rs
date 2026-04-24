@@ -4,6 +4,8 @@ mod backend_compatibility_tests;
 mod backend_specific_tests;
 mod cli_output_tests;
 mod compiler_error_tests;
+mod completion_bench;
+mod completion_integration;
 mod cross_language_tests;
 mod e2e_refactor_tests;
 mod magellan_integration_tests;
