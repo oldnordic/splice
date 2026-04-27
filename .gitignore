@@ -18,25 +18,31 @@ Thumbs.db
 # Splice specific
 .splice_graph.db
 .splice_graph.checkpoint*
+.magellan/
 *.db
 *.db-shm
 *.db-wal
+*.rmeta
 codemcp/
 codemcp
 .codemcp/
 .fastembed_cache/
 .mcp.json
-CLAUDE.md
 .splice/
+.remember/
 
 # Local agent configs
+.claude/
 AGENTS.md
+CLAUDE.md
 
 # Local test artifacts
 .tmp-broken-pipe-*/
 validate_integration.sh
 test_splice_magellan_integration.sh
 *_integration.sh
+2026-*-this-session-is-being-continued-from-a-previous-c.txt
+2026-*-*.txt
 
 # Backup files
 *.backup-*
@@ -49,15 +55,51 @@ backup-*
 *.checkpoint*
 *.tmp
 *.temp
+*.lcov
 
-# Internal markdown docs (keep only the public set below)
-*.md
-!README.md
-!CHANGELOG.md
-!MANUAL.md
-!docs/NATIVE-V2-FEATURES.md
-!docs/NATIVE-V2-MIGRATION.md
-!docs/NATIVE-V2-FIX.md
+# Internal markdown docs
+FILE_CREATION_COMPLETE.md
+FILE_CREATION_PROGRESS.md
+LLM_WORKFLOW_GUIDE.md
+SPLICE_MIRAGE_INTEGRATION_PLAN.md
+SUMMARY_PHASE_*.md
+TOOL_INTEGRATION_DEMO.md
+TOOL_INTEGRATION_SUMMARY.md
+TOOL_USEFULNESS_ASSESSMENT.md
+
+docs/ADR_*.md
+docs/ARCH_DECISION_*.md
+docs/BATCH_PATCH_SPEC.md
+docs/BUG_ANALYSIS.md
+docs/CLEANUP_ANALYSIS.md
+docs/CLI_PATTERNS.md
+docs/CODE_QUALITY_ISSUES.md
+docs/CONTEXT_REVIEW_*.md
+docs/CROSS_FILE_RESOLUTION.md
+docs/DECISIONS.md
+docs/DIAGNOSTICS_HUMAN_LLM.md
+docs/DIAGNOSTICS_OUTPUT.md
+docs/LANGUAGE_DETECTION_PLAN.md
+docs/LLM_NATIVE_TOOLING_IDEAS.md
+docs/llm-workflow-magellan-splice.md
+docs/MAGELLAN_DB_SCHEMA_CROSSCHECK.md
+docs/MAGELLAN_INTEGRATION_PLAN.md
+docs/MULTI_LANGUAGE_PLAN.md
+docs/MULTI_LANGUAGE_ROADMAP.md
+docs/PHILOSOPHY.md
+docs/PLAN_*.md
+docs/PREVIEW_FLAG.md
+docs/PR.md
+docs/PR_*.md
+docs/SPLICE_BROKEN_PIPE_2026-01-13.md
+docs/SQLITEGRAPH_1.2.7_MIGRATION.md
+docs/STACK_EVOLUTION_MAP.md
+docs/TODO*.md
+docs/TYPESCRIPT_IMPLEMENTATION_PLAN.md
+docs/UNIFIED_JSON_SCHEMA_GAPS.md
+docs/VALIDATION_IMPLEMENTATION_PLAN.md
+docs/superpowers/
+docs/workflow-improvement-suggestions.md
 
 # Planning folder
 .planning/

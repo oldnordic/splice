@@ -4,13 +4,35 @@
 //! They use the real ./code.geo database built from the Splice source code.
 //!
 //! CRITICAL: These tests require:
-//! 1. ./code.geo to exist (built by: magellan watch --root ./src --db ./code.geo --scan-initial)
+//! 1. SPLICE_GEO_TEST_DB to point to a valid .geo database
 //! 2. --features geometric to be enabled
 
 #![cfg(feature = "geometric")]
 
 use splice::graph::CodeGraph;
-use std::path::Path;
+use std::path::PathBuf;
+
+fn geo_test_db() -> Option<PathBuf> {
+    let path = match std::env::var_os("SPLICE_GEO_TEST_DB") {
+        Some(path) => PathBuf::from(path),
+        None => {
+            eprintln!(
+                "SKIP: SPLICE_GEO_TEST_DB is not set. Build a .geo database and set this env var to run real geometric workflow tests."
+            );
+            return None;
+        }
+    };
+
+    if !path.exists() {
+        eprintln!(
+            "SKIP: SPLICE_GEO_TEST_DB does not exist: {}",
+            path.display()
+        );
+        return None;
+    }
+
+    Some(path)
+}
 
 /// PHASE 3.1: Verify Splice can open .geo backend
 ///
@@ -18,16 +40,12 @@ use std::path::Path;
 /// Expected: CodeGraph::open() succeeds on .geo file without sqlitegraph errors
 #[test]
 fn splice_can_open_geo_backend() {
-    let geo_path = Path::new("./code.geo");
-
-    // Skip if no code.geo (test should be run from project root after indexing)
-    if !geo_path.exists() {
-        eprintln!("SKIP: ./code.geo not found. Run: magellan watch --root ./src --db ./code.geo --scan-initial");
+    let Some(geo_path) = geo_test_db() else {
         return;
-    }
+    };
 
     // This should NOT fail with sqlitegraph "unsupported database type" error
-    let result = CodeGraph::open(geo_path);
+    let result = CodeGraph::open(&geo_path);
     assert!(
         result.is_ok(),
         "CodeGraph::open() should succeed on .geo file, got: {:?}",
@@ -38,8 +56,8 @@ fn splice_can_open_geo_backend() {
 
     // Verify geometric backend is active
     assert!(
-        graph.geometric().is_some(),
-        "geometric() should return Some when using .geo backend"
+        graph.geometric().is_ok(),
+        "geometric() should return Ok when using .geo backend"
     );
 
     // Verify sqlitegraph backend is NOT active
@@ -55,14 +73,11 @@ fn splice_can_open_geo_backend() {
 /// Expected: find_symbol_in_file returns valid NodeId for real symbol
 #[test]
 fn splice_can_resolve_real_symbol_from_geo() {
-    let geo_path = Path::new("./code.geo");
-
-    if !geo_path.exists() {
-        eprintln!("SKIP: ./code.geo not found");
+    let Some(geo_path) = geo_test_db() else {
         return;
-    }
+    };
 
-    let mut graph = CodeGraph::open(geo_path).expect("Should open .geo file");
+    let graph = CodeGraph::open(&geo_path).expect("Should open .geo file");
 
     // Try to find a known real symbol from src/graph/mod.rs
     // Using absolute path as indexed by magellan
@@ -89,14 +104,11 @@ fn splice_can_resolve_real_symbol_from_geo() {
 /// Expected: get_span returns valid (byte_start, byte_end) for real symbol
 #[test]
 fn splice_can_get_real_span_from_geo() {
-    let geo_path = Path::new("./code.geo");
-
-    if !geo_path.exists() {
-        eprintln!("SKIP: ./code.geo not found");
+    let Some(geo_path) = geo_test_db() else {
         return;
-    }
+    };
 
-    let mut graph = CodeGraph::open(geo_path).expect("Should open .geo file");
+    let graph = CodeGraph::open(&geo_path).expect("Should open .geo file");
 
     let file_path = "/home/feanor/Projects/splice/src/graph/mod.rs";
     let symbol_name = "get_span";
@@ -141,14 +153,11 @@ fn splice_can_get_real_span_from_geo() {
 /// Expected: find_symbol_in_file handles ambiguous names appropriately
 #[test]
 fn splice_geo_ambiguity_handling_is_explicit() {
-    let geo_path = Path::new("./code.geo");
-
-    if !geo_path.exists() {
-        eprintln!("SKIP: ./code.geo not found");
+    let Some(geo_path) = geo_test_db() else {
         return;
-    }
+    };
 
-    let mut graph = CodeGraph::open(geo_path).expect("Should open .geo file");
+    let graph = CodeGraph::open(&geo_path).expect("Should open .geo file");
 
     // "open" is highly ambiguous - appears in many files
     // The method should still return a result (first match or specific logic)
@@ -175,14 +184,11 @@ fn splice_geo_ambiguity_handling_is_explicit() {
 /// Expected: Can retrieve source content using span from geometric backend
 #[test]
 fn splice_span_safe_edit_workflow_works_on_geo() {
-    let geo_path = Path::new("./code.geo");
-
-    if !geo_path.exists() {
-        eprintln!("SKIP: ./code.geo not found");
+    let Some(geo_path) = geo_test_db() else {
         return;
-    }
+    };
 
-    let mut graph = CodeGraph::open(geo_path).expect("Should open .geo file");
+    let graph = CodeGraph::open(&geo_path).expect("Should open .geo file");
 
     let file_path = "/home/feanor/Projects/splice/src/graph/mod.rs";
     let symbol_name = "get_span";
@@ -198,7 +204,7 @@ fn splice_span_safe_edit_workflow_works_on_geo() {
     // Step 3: Use geometric backend to get code chunk (span-safe retrieval)
     let magellan = graph.geometric().expect("Should have geometric backend");
 
-    let chunk_result = magellan.get_code_chunk(Path::new(file_path), byte_start, byte_end);
+    let chunk_result = magellan.get_code_chunk_by_span(file_path, byte_start, byte_end);
 
     assert!(
         chunk_result.is_ok(),
@@ -234,11 +240,10 @@ fn splice_span_safe_edit_workflow_works_on_geo() {
 /// Expected: .db files still work after geometric refactoring
 #[test]
 fn sqlite_backend_still_works() {
-    use std::io::Write;
     use tempfile::NamedTempFile;
 
     // Create a temporary .db file using Splice's sqlitegraph backend
-    let mut temp_file = NamedTempFile::new().expect("Should create temp file");
+    let temp_file = NamedTempFile::new().expect("Should create temp file");
     let db_path = temp_file.path().to_path_buf();
     drop(temp_file);
 
@@ -259,8 +264,8 @@ fn sqlite_backend_still_works() {
 
     #[cfg(feature = "geometric")]
     assert!(
-        graph.geometric().is_none(),
-        "geometric() should return None for .db files"
+        graph.geometric().is_err(),
+        "geometric() should return Err for .db files"
     );
 
     // Cleanup

@@ -176,10 +176,7 @@ fn splice_sqlite_backend_still_works_for_batch1() {
     match integration {
         Ok(integ) => {
             assert!(!integ.is_geometric(), "Should be SQLite backend");
-            assert!(
-                integ.geo_inner().is_none(),
-                "Should not have geo_inner for SQLite"
-            );
+            // geo_inner is not available on MagellanIntegration
         }
         Err(e) => {
             let err_str = format!("{}", e);

@@ -37,7 +37,7 @@ pub fn caller() {
 
 ```bash
 # Ingest codebase
-splice ingest --root ./src --db .codemcp/codegraph.db
+splice ingest --root ./src --db .magellan/splice.db
 
 # Find symbol
 splice find --name "helper_function" --path "src/utils.rs"
@@ -117,7 +117,7 @@ def another_function():
 
 ```bash
 # Ingest the project
-splice ingest --root . --db .codemcp/codegraph.db
+splice ingest --root . --db .magellan/splice.db
 
 # Find the symbol
 splice find --name "process_data" --path "utils.py"
@@ -293,7 +293,7 @@ displayTotal(total);
 
 ```bash
 # Ingest TypeScript files
-splice ingest --root ./src --db .codemcp/codegraph.db
+splice ingest --root ./src --db .magellan/splice.db
 
 # Find and rename
 splice find --name "calculateTotal" --path "src/utils.ts"
@@ -332,7 +332,7 @@ public class Main {
 ### Rename
 
 ```bash
-splice ingest --root . --db .codemcp/codegraph.db
+splice ingest --root . --db .magellan/splice.db
 splice find --name "Calculator" --path "Calculator.java"
 splice rename \
   --symbol <id> \
@@ -357,7 +357,7 @@ jobs:
       - name: Install Splice
         run: cargo install splice
       - name: Ingest codebase
-        run: splice ingest --root ./src --db .codemcp/codegraph.db
+        run: splice ingest --root ./src --db .magellan/splice.db
       - name: Preview rename
         run: |
           splice rename \
@@ -375,13 +375,13 @@ jobs:
 
 ```bash
 # List all symbols in a file
-splice query --db .codemcp/codegraph.db --file src/lib.rs
+splice query --db .magellan/splice.db --file src/lib.rs
 
 # Find specific symbol by name
 splice find --name "my_function" --path "src/lib.rs"
 
 # Get references to understand impact
-splice refs --symbol <id> --db .codemcp/codegraph.db
+splice refs --symbol <id> --db .magellan/splice.db
 ```
 
 ### Impact Analysis Before Rename
@@ -392,10 +392,10 @@ splice reachable \
   --symbol my_function \
   --path src/lib.rs \
   --max-depth 3 \
-  --db .codemcp/codegraph.db
+  --db .magellan/splice.db
 
 # Check for circular dependencies
-splice cycles --db .codemcp/codegraph.db
+splice cycles --db .magellan/splice.db
 ```
 
 ### Rollback After Failed Rename
@@ -436,7 +436,7 @@ splice reachable \
   --symbol api_function \
   --path src/api.rs \
   --max-depth 10 \
-  --db .codemcp/codegraph.db
+  --db .magellan/splice.db
 
 # If impact is large, consider phased approach
 ```

@@ -12,7 +12,6 @@ This document provides API reference for both Splice's v2.0 structured output ty
 - [Execution Logging API](#execution-logging-api)
 - [Validation Hooks API](#validation-hooks-api)
 - [SQLite Backend API](#sqlite-backend-api)
-- [Native V2 Backend API](#native-v2-backend-api)
 - [Graph Algorithms API](#graph-algorithms-api)
 - [HNSW Vector Search API](#hnsw-vector-search-api)
 - [Introspection API](#introspection-api)
@@ -759,54 +758,6 @@ pub struct GraphEdge {
 
 ---
 
-## Native V2 Backend API
-
-### Core Types
-
-```rust
-use sqlitegraph::{GraphConfig, open_graph, NodeSpec, EdgeSpec};
-
-// Configuration
-let config = GraphConfig::native();
-let config = GraphConfig::native()
-    .with_buffer_size(128 * 1024 * 1024)
-    .with_parallel_recovery(8);
-
-// Open graph
-let graph = open_graph("path/to/graph.db", &config)?;
-
-// Node
-pub struct NodeSpec {
-    pub kind: String,
-    pub name: String,
-    pub file_path: Option<String>,
-    pub data: serde_json::Value,
-}
-
-// Edge
-pub struct EdgeSpec {
-    pub from: u64,
-    pub to: u64,
-    pub edge_type: String,
-    pub data: serde_json::Value,
-}
-```
-
-### Main Methods
-
-| Method | Description |
-|--------|-------------|
-| `open_graph(path, config)` | Open Native V2 graph |
-| `insert_node(spec)` | Insert new node |
-| `get_node(id)` | Retrieve node by ID |
-| `update_node(&spec)` | Update existing node |
-| `delete_node(id)` | Delete node |
-| `insert_edge(spec)` | Insert new edge |
-| `neighbors(query)` | Get neighbors with query options |
-| `snapshot()` | Create MVCC snapshot |
-
----
-
 ## Graph Algorithms API
 
 ### Available Algorithms
@@ -976,11 +927,6 @@ match HnswConfig::builder().build() {
 # SQLite backend only
 sqlitegraph = "1.0"
 
-# Native V2 backend
-sqlitegraph = { version = "1.0", features = ["native-v2"] }
-
-# V2 I/O tracing (development)
-sqlitegraph = { version = "1.0", features = ["trace_v2_io"] }
 ```
 
 ---

@@ -3,7 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/splice)](https://crates.io/crates/splice)
 [![Documentation](https://docs.rs/splice/badge.svg)](https://docs.rs/splice)
 
-**Version:** 2.5.4
+**Version:** 2.6.0
 
 Span-safe refactoring kernel for 7 languages. Byte-accurate code editing with graph algorithm analysis.
 
@@ -24,6 +24,11 @@ Span-safe refactoring kernel for 7 languages. Byte-accurate code editing with gr
 - **Graph algorithms** — Reachability, dead-code, cycles, condense, slice
 - **Impact analysis** — Blast zone detection before editing
 - **Proof-based refactoring** — Machine-checkable behavioral equivalence
+- **Code completion** — Grounded, import-aware suggestions using Magellan database
+  - Cross-file symbol resolution via import tracking (4,440+ imports)
+  - Distinguishes local vs imported symbols with source tracking
+  - Token filtering and enhanced ranking for imported symbols
+  - Performance: <10ms query time on 8,600+ symbols
 - **7 languages** — Rust, Python, C, C++, Java, JavaScript, TypeScript
 
 ## Quick Start
@@ -33,16 +38,19 @@ Span-safe refactoring kernel for 7 languages. Byte-accurate code editing with gr
 cargo install splice
 
 # Requires Magellan database (create first)
-magellan watch --root ./src --db code.v3
+magellan watch --root ./src --db .magellan/splice.db
 
 # Check status
-splice status --db code.v3
+splice status --db .magellan/splice.db
 
 # Find reachable code from main
-splice reachable --symbol main --path src/main.rs --db code.v3
+splice reachable --symbol main --path src/main.rs --db .magellan/splice.db
 
 # Cross-file rename
-splice rename --symbol old_name --to new_name --path src/lib.rs --db code.v3
+splice rename --symbol old_name --to new_name --path src/lib.rs --db .magellan/splice.db
+
+# Code completion (import-aware)
+splice complete --file src/lib.rs --line 27 --column 8 --db .magellan/splice.db --max-results 10
 ```
 
 ## Installation
@@ -51,31 +59,27 @@ splice rename --symbol old_name --to new_name --path src/lib.rs --db code.v3
 cargo install splice
 ```
 
-Or build from source with Native-V3 backend:
 
 ```bash
-# Native-V3 backend (recommended - fastest)
-cargo install splice --features native-v3 --no-default-features
 ```
 
 ## Backends
 
 | Feature | Description | File | Best For |
 |---------|-------------|------|----------|
-| `native-v3` | **High-performance binary backend** | `.v3` | Production (recommended) |
 | (default) | SQLite backend | `.db` | Compatibility |
-
-Both backends provide identical refactoring capabilities.
+| `geometric` | Geometric analysis backend | `.geo` | Spatial/CFG analysis experiments |
 
 ## Requirements
 
-- **[Magellan](https://github.com/oldnordic/magellan)** 2.4.3+ — Required for code graph
+- **[Magellan](https://github.com/oldnordic/magellan)** 3.1.6+ — Required for code graph
 - **[sqlitegraph](https://crates.io/crates/sqlitegraph)** 2.0.3+ — Included automatically
 
 ## Documentation
 
 - **[MANUAL.md](MANUAL.md)** — Complete command reference and examples
 - **[CHANGELOG.md](CHANGELOG.md)** — Version history
+- **[docs/completion.md](docs/completion.md)** — Code completion feature documentation
 
 ## What splice Does NOT Do
 

@@ -190,9 +190,9 @@ pub fn apply_patch_with_validation(
     // Step 0.5: Check CFG complexity if Mirage available (non-blocking)
     // This uses Mirage's 4D spatial coordinates to assess function complexity
     if let Some(function_name) = extract_function_name_from_patch(new_content) {
-        if let Ok(complexity) = crate::cfg_analysis::check_function_complexity(
-            &db_path, &function_name, file_path
-        ) {
+        if let Ok(complexity) =
+            crate::cfg_analysis::check_function_complexity(&db_path, &function_name, file_path)
+        {
             match complexity.risk_level {
                 crate::cfg_analysis::RiskLevel::VeryHigh => {
                     log::warn!(
@@ -774,7 +774,7 @@ fn gate_cargo_check(workspace_dir: &Path) -> Result<()> {
     // Spawn cargo check in a separate thread to allow timeout
     let workspace_path = workspace_dir.to_path_buf();
     let (tx, rx) = std::sync::mpsc::channel();
-    
+
     thread::spawn(move || {
         let output = Command::new("cargo")
             .arg("check")
@@ -788,7 +788,7 @@ fn gate_cargo_check(workspace_dir: &Path) -> Result<()> {
         Ok(result) => result?,
         Err(_) => {
             return Err(SpliceError::Other(
-                "cargo check timed out after 120 seconds".to_string()
+                "cargo check timed out after 120 seconds".to_string(),
             ));
         }
     };
@@ -1360,9 +1360,12 @@ fn extract_function_name_from_patch(patch_content: &str) -> Option<String> {
     use regex::Regex;
 
     // Lazy-init regex to avoid compiling on every call
-    let fn_regex = Regex::new(r"(?m)^(?:pub\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+(\w+)\s*\(").ok()?;
+    let fn_regex =
+        Regex::new(r"(?m)^(?:pub\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+(\w+)\s*\(").ok()?;
 
-    fn_regex.captures(patch_content).map(|caps| caps[1].to_string())
+    fn_regex
+        .captures(patch_content)
+        .map(|caps| caps[1].to_string())
 }
 
 #[cfg(test)]

@@ -1,10 +1,9 @@
-//! Snapshot and restore tests (native-v3 backend only).
+//! Snapshot and restore tests.
 //!
-//! These tests verify the snapshot capture, storage, and restore functionality.
-//! Restore operations are only available with the native-v3 feature.
+//! Restore operations are disabled.
 //!
 //! Run with:
-//!   cargo test --features native-v3 snapshot
+//!   cargo test snapshot
 
 use splice::proof::{compare_snapshots, GraphSnapshot, SnapshotStorage};
 use splice::CodeGraph;
@@ -197,17 +196,16 @@ fn test_get_latest_snapshot() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Snapshot restore tests (native-v3 only)
+// Snapshot restore tests (disabled)
 ///////////////////////////////////////////////////////////////////////////////
 
-#[cfg(feature = "native-v3")]
 #[test]
-fn test_restore_from_snapshot_file() {
+fn test_restore_from_snapshot_disabled() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let db_path = temp_dir.path().join("restore_test.db");
     let _ = fs::remove_file(&db_path);
 
-    // Create a native-v3 database
+    // Create a database
     {
         let _graph = CodeGraph::open(&db_path).expect("Failed to create graph");
     }
@@ -247,16 +245,19 @@ fn test_restore_from_snapshot_file() {
         .save_snapshot("restore_test", &db_path.as_path(), snapshot)
         .expect("Failed to save snapshot");
 
-    // Note: Full restore test is complex as it requires proper ID mapping
-    // This test verifies the API exists and compiles with native-v3
+    // Restore is disabled
     let result = CodeGraph::restore_from_snapshot(&db_path, &snapshot_path);
+    assert!(result.is_err(), "Restore should be disabled");
 
-    // Result may be Ok or Err depending on implementation details
-    // We're primarily testing that the method exists and is callable
-    let _ = result;
+    let err = result.unwrap_err();
+    let err_msg = format!("{}", err);
+    assert!(
+        err_msg.contains("disabled"),
+        "Error should mention restore is disabled, got: {}",
+        err_msg
+    );
 }
 
-#[cfg(feature = "native-v3")]
 #[test]
 fn test_restore_fails_for_sqlite_backend() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -278,8 +279,8 @@ fn test_restore_fails_for_sqlite_backend() {
     let err = result.unwrap_err();
     let err_msg = format!("{}", err);
     assert!(
-        err_msg.contains("native-v3") || err_msg.contains("SQLite"),
-        "Error should mention native-v3 requirement or SQLite incompatibility"
+        err_msg.contains("disabled"),
+        "Error should mention restore is disabled"
     );
 }
 

@@ -1,34 +1,36 @@
-use crate::completion::types::{
-    CompletionRequest, CompletionResponse, CompletionSuggestion,
-    SuggestionSource, CompletionMetadata,
-};
 use crate::completion::context::CompletionContext;
 use crate::completion::ranking::SuggestionRanker;
+use crate::completion::types::{
+    CompletionMetadata, CompletionRequest, CompletionResponse, CompletionSuggestion,
+    SuggestionSource,
+};
 use crate::graph::MagellanIntegration;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::time::Instant;
 use rusqlite::Connection;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 pub struct CompletionEngine {
     magellan: Arc<MagellanIntegration>,
-    db_path: PathBuf,
     ranker: SuggestionRanker,
     /// Cached symbol count to avoid repeated queries
     symbol_count: usize,
+    context_cache: Mutex<HashMap<CompletionCacheKey, CompletionContext>>,
 }
+
+type CompletionCacheKey = (PathBuf, usize, usize);
 
 impl CompletionEngine {
     pub fn new(magellan: Arc<MagellanIntegration>, db_path: &Path) -> Self {
         // Cache symbol count during initialization to avoid repeated queries
-        let symbol_count = Self::get_symbol_count_once(db_path)
-            .unwrap_or(0);
+        let symbol_count = Self::get_symbol_count_once(db_path).unwrap_or(0);
 
         Self {
             magellan,
-            db_path: db_path.to_path_buf(),
             ranker: SuggestionRanker::new(),
             symbol_count,
+            context_cache: Mutex::new(HashMap::new()),
         }
     }
 
@@ -39,13 +41,23 @@ impl CompletionEngine {
     ) -> anyhow::Result<CompletionResponse> {
         let start = Instant::now();
 
-        // Analyze context
-        let context = CompletionContext::analyze(
-            &request.file_path,
-            request.line,
-            request.column,
-            &self.magellan,
-        )?;
+        let cache_key = (request.file_path.clone(), request.line, request.column);
+        let cached_context = { self.context_cache.lock().unwrap().get(&cache_key).cloned() };
+        let context = if let Some(context) = cached_context {
+            context
+        } else {
+            let context = CompletionContext::analyze(
+                &request.file_path,
+                request.line,
+                request.column,
+                &self.magellan,
+            )?;
+            self.context_cache
+                .lock()
+                .unwrap()
+                .insert(cache_key, context.clone());
+            context
+        };
 
         // Get suggestions from database
         let mut suggestions = self.get_database_suggestions(&context)?;
@@ -79,24 +91,19 @@ impl CompletionEngine {
         // Query visible symbols
         for symbol in &context.visible_symbols {
             // Distinguish local symbols from imported symbols
-            let (source, source_file, via_import) = if symbol.path == context.file_path.to_string_lossy() {
+            let (source, source_file, via_import) = if symbol.path
+                == context.file_path.to_string_lossy()
+            {
                 // Local symbol (defined in current file)
-                (
-                    SuggestionSource::Database,
-                    None,
-                    None
-                )
+                (SuggestionSource::Database, None, None)
             } else {
                 // Imported symbol (defined in another file)
                 // Convert path to use statement format
                 // e.g., "/home/feanor/Projects/splice/src/patch/engine.rs" -> "use crate::patch::engine"
                 let import_path = if symbol.path.contains("/src/") {
                     // Extract path relative to src/
-                    let src_relative = symbol.path.split("/src/").nth(1)
-                        .unwrap_or(&symbol.path);
-                    let module_path = src_relative
-                        .trim_end_matches(".rs")
-                        .replace("/", "::");
+                    let src_relative = symbol.path.split("/src/").nth(1).unwrap_or(&symbol.path);
+                    let module_path = src_relative.trim_end_matches(".rs").replace("/", "::");
 
                     format!("use crate::{}", module_path)
                 } else {
@@ -107,7 +114,7 @@ impl CompletionEngine {
                 (
                     SuggestionSource::Imported,
                     Some(symbol.path.clone()),
-                    Some(import_path)
+                    Some(import_path),
                 )
             };
 

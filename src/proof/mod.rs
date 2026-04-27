@@ -52,7 +52,7 @@ use std::path::Path;
 /// use std::path::Path;
 ///
 /// # fn main() -> splice::error::Result<()> {
-/// let db_path = Path::new(".codemcp/codegraph.db");
+/// let db_path = Path::new(".magellan/splice.db");
 ///
 /// // Capture before state
 /// let before = generate_snapshot(db_path)?;

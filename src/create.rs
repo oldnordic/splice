@@ -54,10 +54,7 @@ pub fn create_file_with_validation(
                 "Code validation failed with {} error(s). Use --validate-only to see errors.",
                 validation.errors.len()
             ),
-            source: std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "validation failed",
-            ),
+            source: std::io::Error::new(std::io::ErrorKind::InvalidData, "validation failed"),
         });
     }
 
@@ -129,7 +126,10 @@ fn add_module_declaration(file_path: &Path, workspace_dir: &Path) -> Result<()> 
     } else {
         // Check for {dirname}.rs
         if let Some(dir_name) = parent_dir.file_name().and_then(|n| n.to_str()) {
-            parent_dir.parent().unwrap().join(format!("{}.rs", dir_name))
+            parent_dir
+                .parent()
+                .unwrap()
+                .join(format!("{}.rs", dir_name))
         } else {
             // Fallback to lib.rs (if in src/)
             if parent_dir.ends_with("src") {
@@ -209,24 +209,16 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("invalid.rs");
 
-        // Note: Since rust-analyzer isn't available in tests, this won't reject
-        // But the test ensures the function doesn't crash
         let code = r#"
         pub fn invalid() {
             let x: NonExistentType = 5;
         }
         "#;
 
-        let result = create_file_with_validation(
-            &file_path,
-            code,
-            temp_dir.path(),
-            false,
-        );
+        let result = create_file_with_validation(&file_path, code, temp_dir.path(), false);
 
-        // With rust-analyzer unavailable, this should succeed
-        // (graceful degradation)
-        assert!(result.is_ok());
+        assert!(result.is_err());
+        assert!(!file_path.exists());
     }
 
     #[test]
@@ -261,12 +253,7 @@ mod tests {
         pub fn new() -> i32 { 42 }
         "#;
 
-        let result = create_file_with_validation(
-            &file_path,
-            code,
-            temp_dir.path(),
-            false,
-        );
+        let result = create_file_with_validation(&file_path, code, temp_dir.path(), false);
 
         assert!(result.is_err()); // Should fail
 
@@ -284,12 +271,7 @@ mod tests {
         pub fn nested() -> i32 { 42 }
         "#;
 
-        let result = create_file_with_validation(
-            &nested_path,
-            code,
-            temp_dir.path(),
-            false,
-        );
+        let result = create_file_with_validation(&nested_path, code, temp_dir.path(), false);
 
         assert!(result.is_ok());
         assert!(nested_path.exists());
@@ -303,12 +285,7 @@ mod tests {
 
         let code = "";
 
-        let result = create_file_with_validation(
-            &file_path,
-            code,
-            temp_dir.path(),
-            false,
-        );
+        let result = create_file_with_validation(&file_path, code, temp_dir.path(), false);
 
         assert!(result.is_ok());
         assert!(file_path.exists());

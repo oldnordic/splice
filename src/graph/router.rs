@@ -14,8 +14,6 @@ use std::path::Path;
 pub enum BackendType {
     /// SQLite-based backend
     SQLite,
-    /// Native V3 binary backend
-    NativeV3,
     /// Geometric spatial backend
     Geometric,
 }
@@ -24,7 +22,6 @@ impl std::fmt::Display for BackendType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BackendType::SQLite => write!(f, "sqlite"),
-            BackendType::NativeV3 => write!(f, "native-v3"),
             BackendType::Geometric => write!(f, "geometric"),
         }
     }
@@ -35,7 +32,6 @@ impl std::fmt::Display for BackendType {
 /// This is the primary type used by Splice workflows. It automatically
 /// detects the backend type from the file extension and routes to:
 /// - `CodeGraphSqlite` for `.db` files
-/// - `CodeGraphSqlite` (native-v3 mode) for `.v3` files  
 /// - `CodeGraphGeo` for `.geo` files
 ///
 /// # Example
@@ -47,7 +43,7 @@ impl std::fmt::Display for BackendType {
 /// let graph = CodeGraph::open(Path::new("code.geo")).unwrap();
 /// ```
 pub enum CodeGraph {
-    /// SQLite or Native-V3 backend
+    /// SQLite backend
     Sqlite(super::sqlite_impl::CodeGraphSqlite),
     /// Geometric backend
     #[cfg(feature = "geometric")]
@@ -59,7 +55,6 @@ impl CodeGraph {
     ///
     /// Automatically detects backend type from file extension:
     /// - `.db` → SQLite backend
-    /// - `.v3` → Native-V3 backend
     /// - `.geo` → Geometric backend (requires geometric feature)
     pub fn open(path: &Path) -> Result<Self> {
         // Handle empty files
@@ -102,11 +97,6 @@ impl CodeGraph {
             ));
         }
 
-        // Check for SQLite vs Native-V3
-        if path.extension().map_or(false, |e| e == "v3") {
-            return Ok(BackendType::NativeV3);
-        }
-
         // Check file header for SQLite
         if path.exists() {
             use std::io::Read;
@@ -116,7 +106,7 @@ impl CodeGraph {
             if bytes_read >= 16 && header.starts_with(b"SQLite format 3\0") {
                 return Ok(BackendType::SQLite);
             }
-            // Check for native-v3 magic
+            // Check for geometric magic
             if header.starts_with(b"GEODB\0\0\0") {
                 #[cfg(feature = "geometric")]
                 return Ok(BackendType::Geometric);
@@ -243,8 +233,7 @@ impl CodeGraph {
             CodeGraph::Sqlite(sqlite) => Ok(sqlite.inner()),
             #[cfg(feature = "geometric")]
             CodeGraph::Geo(_) => Err(SpliceError::Other(
-                "SQLite/Native-V3 backend not available. Use geometric() for .geo files"
-                    .to_string(),
+                "SQLite backend not available. Use geometric() for .geo files".to_string(),
             )),
         }
     }
@@ -257,8 +246,7 @@ impl CodeGraph {
             CodeGraph::Sqlite(sqlite) => Ok(sqlite.inner_mut()),
             #[cfg(feature = "geometric")]
             CodeGraph::Geo(_) => Err(SpliceError::Other(
-                "SQLite/Native-V3 backend not available. Use geometric_mut() for .geo files"
-                    .to_string(),
+                "SQLite backend not available. Use geometric_mut() for .geo files".to_string(),
             )),
         }
     }
@@ -305,7 +293,7 @@ impl CodeGraph {
         match self {
             CodeGraph::Geo(geo) => Ok(geo.inner()),
             _ => Err(SpliceError::Other(
-                "Geometric backend not available. Use inner() for .db/.v3 files".to_string(),
+                "Geometric backend not available. Use inner() for .db files".to_string(),
             )),
         }
     }
@@ -318,38 +306,19 @@ impl CodeGraph {
         match self {
             CodeGraph::Geo(geo) => Ok(geo.inner_mut()),
             _ => Err(SpliceError::Other(
-                "Geometric backend not available. Use inner_mut() for .db/.v3 files".to_string(),
+                "Geometric backend not available. Use inner_mut() for .db files".to_string(),
             )),
         }
     }
 
-    /// Migrate this database to native-v3 format.
-    ///
-    /// Only available for SQLite backend. Geometric backend cannot be migrated.
-    ///
-    /// NOTE: This is currently a stub. Full migration implementation is a TODO.
-    pub fn migrate_to_native_v3(
-        &self,
-        _source_path: &Path,
-        _dest_path: &Path,
-        _progress: Option<&dyn Fn(&str)>,
-        _verify: bool,
-    ) -> Result<super::MigrationReport> {
-        match self {
-            CodeGraph::Sqlite(_sqlite) => {
-                // TODO: Implement migration from SQLite to native-v3
-                // This requires porting the migration logic from the old mod.rs
-                Err(SpliceError::Other(
-                    "Migration to native-v3 is not yet implemented in the new backend structure. \
-                     This is a known gap."
-                        .to_string(),
-                ))
-            }
-            #[cfg(feature = "geometric")]
-            CodeGraph::Geo(_) => Err(SpliceError::Other(
-                "Migration from geometric backend is not supported".to_string(),
-            )),
-        }
+    /// Restore from snapshot is disabled.
+    pub fn restore_from_snapshot(
+        _db_path: &Path,
+        _snapshot_path: &Path,
+    ) -> Result<crate::proof::storage::RestoreResult> {
+        Err(SpliceError::Other(
+            "Database snapshot restore is disabled.".to_string(),
+        ))
     }
 }
 
@@ -366,6 +335,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "geometric")]
     fn test_detect_backend_geometric() {
         let path = Path::new("test.geo");
         let backend = CodeGraph::detect_backend(path).unwrap();
@@ -376,7 +346,9 @@ mod tests {
     fn test_is_geometric_db() {
         assert!(CodeGraph::is_geometric_db(Path::new("code.geo")));
         assert!(!CodeGraph::is_geometric_db(Path::new("code.db")));
-        assert!(!CodeGraph::is_geometric_db(Path::new("code.v3")));
+        assert!(!CodeGraph::is_geometric_db(Path::new(
+            ".magellan/splice.db"
+        )));
     }
 
     #[test]

@@ -14,7 +14,7 @@ splice reachable \
   --symbol process_data \
   --path src/processor.rs \
   --max-depth 5 \
-  --db .codemcp/codegraph.db
+  --db .magellan/splice.db
 ```
 
 ### Output
@@ -49,7 +49,7 @@ splice reachable \
   --symbol process_data \
   --path src/processor.rs \
   --output json \
-  --db .codemcp/codegraph.db
+  --db .magellan/splice.db
 ```
 
 ```json
@@ -87,7 +87,7 @@ Find unused functions after feature removal.
 splice dead-code \
   --entry main \
   --path src/main.rs \
-  --db .codemcp/codegraph.db
+  --db .magellan/splice.db
 ```
 
 ### Output
@@ -106,7 +106,7 @@ Run with --include-public to include public symbols
 
 ```bash
 # Review each symbol before deleting
-splice refs --symbol <id> --db .codemcp/codegraph.db
+splice refs --symbol <id> --db .magellan/splice.db
 
 # Delete unused symbols (after verification)
 splice delete --symbol old_feature_a --file src/legacy.rs
@@ -120,7 +120,7 @@ splice dead-code \
   --entry main \
   --path src/main.rs \
   --include-public \
-  --db .codemcp/codegraph.db
+  --db .magellan/splice.db
 ```
 
 ## Example 3: Detecting Circular Dependencies
@@ -131,7 +131,7 @@ Investigate build slowness caused by cyclic dependencies.
 
 ```bash
 # Find all cycles
-splice cycles --db .codemcp/codegraph.db
+splice cycles --db .magellan/splice.db
 ```
 
 ### Output
@@ -148,12 +148,12 @@ Found 3 cycles:
 ```bash
 # Show cycle members
 splice cycles \
-  --db .codemcp/codegraph.db \
+  --db .magellan/splice.db \
   --show-members
 
 # Inspect a specific cycle
 splice find --name "a_calls_b" --path "src/a.rs"
-splice refs --symbol <id> --db .codemcp/codegraph.db --direction out
+splice refs --symbol <id> --db .magellan/splice.db --direction out
 ```
 
 ### Solutions
@@ -173,7 +173,7 @@ Understand high-level architecture without getting lost in details.
 ```bash
 # Condensed graph analysis
 splice condense \
-  --db .codemcp/codegraph.db \
+  --db .magellan/splice.db \
   --show-levels \
   --show-members
 ```
@@ -231,7 +231,7 @@ splice slice \
   --target <id> \
   --direction forward \
   --max-distance 10 \
-  --db .codemcp/codegraph.db
+  --db .magellan/splice.db
 ```
 
 ### Output
@@ -265,7 +265,7 @@ splice slice \
   --target <id> \
   --direction forward \
   --output json \
-  --db .codemcp/codegraph.db > affected_functions.json
+  --db .magellan/splice.db > affected_functions.json
 
 # Use with jq to extract test targets
 jq '.affected_symbols[].name' affected_functions.json
@@ -283,7 +283,7 @@ splice slice \
   --target <id> \
   --direction backward \
   --max-distance 10 \
-  --db .codemcp/codegraph.db
+  --db .magellan/splice.db
 ```
 
 ### Output
@@ -321,13 +321,13 @@ Analyze dead code for a library with multiple entry points.
 splice dead-code \
   --entry main \
   --path src/main.rs \
-  --db .codemcp/codegraph.db
+  --db .magellan/splice.db
 
 # Dead code from test entry
 splice dead-code \
   --entry test_main \
   --path tests/integration.rs \
-  --db .codemcp/codegraph.db
+  --db .magellan/splice.db
 
 # Compare results to find truly unused code
 ```
@@ -343,7 +343,7 @@ Check if a specific function is part of a cycle.
 splice cycles \
   --symbol recursive_function \
   --path src/recursive.rs \
-  --db .codemcp/codegraph.db
+  --db .magellan/splice.db
 ```
 
 ### Output
@@ -366,7 +366,7 @@ splice reachable \
   --path src/api.rs \
   --direction backward \
   --max-depth 10 \
-  --db .codemcp/codegraph.db
+  --db .magellan/splice.db
 ```
 
 ### Use Cases
@@ -384,7 +384,7 @@ Verify that your code follows layered architecture.
 ```bash
 # Check condensation for layer violations
 splice condense \
-  --db .codemcp/codegraph.db \
+  --db .magellan/splice.db \
   --show-levels
 ```
 
@@ -416,19 +416,19 @@ splice reachable \
   --symbol function_to_change \
   --path src/lib.rs \
   --max-depth 10 \
-  --db .codemcp/codegraph.db
+  --db .magellan/splice.db
 
 # 2. Check for cycles that might complicate refactoring
-splice cycles --db .codemcp/codegraph.db
+splice cycles --db .magellan/splice.db
 
 # 3. Identify dead code that could be removed
 splice dead-code \
   --entry main \
   --path src/main.rs \
-  --db .codemcp/codegraph.db
+  --db .magellan/splice.db
 
 # 4. Understand architectural layers
-splice condense --show-levels --db .codemcp/codegraph.db
+splice condense --show-levels --db .magellan/splice.db
 ```
 
 ### During Refactoring
@@ -453,10 +453,10 @@ splice rename \
 
 ```bash
 # 1. Verify no new cycles introduced
-splice cycles --db .codemcp/codegraph.db
+splice cycles --db .magellan/splice.db
 
 # 2. Verify architectural integrity
-splice condense --show-levels --db .codemcp/codegraph.db
+splice condense --show-levels --db .magellan/splice.db
 
 # 3. Validate proof
 splice validate-proof --proof .splice/proofs/rename-<timestamp>.json
@@ -474,7 +474,7 @@ splice reachable \
   --symbol main \
   --path src/main.rs \
   --max-depth 3 \
-  --db .codemcp/codegraph.db
+  --db .magellan/splice.db
 ```
 
 ### JSON Output for Automation
@@ -487,7 +487,7 @@ splice reachable \
   --symbol main \
   --path src/main.rs \
   --output json \
-  --db .codemcp/codegraph.db | jq '.levels[] | .symbols[] | .name'
+  --db .magellan/splice.db | jq '.levels[] | .symbols[] | .name'
 ```
 
 ## See Also

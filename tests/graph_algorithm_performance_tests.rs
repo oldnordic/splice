@@ -35,10 +35,10 @@ mod test_data {
     /// - Realistic call graph patterns (small world network)
     pub fn generate_large_test_graph(temp_dir: &TempDir) -> PathBuf {
         let project_path = temp_dir.path().to_path_buf();
-        let db_path = project_path.join(".codemcp/codegraph.db");
+        let db_path = project_path.join(".magellan/splice.db");
 
-        // Create .codemcp directory
-        fs::create_dir_all(project_path.join(".codemcp")).unwrap();
+        // Create .magellan directory
+        fs::create_dir_all(project_path.join(".magellan")).unwrap();
 
         // Generate test files
         generate_rust_project(&project_path, TARGET_SYMBOL_COUNT);
@@ -116,7 +116,7 @@ path = "src/lib.rs"
 
     /// Ingest the generated project into the code graph.
     fn ingest_project(project_path: &PathBuf) {
-        let db_path = project_path.join(".codemcp/codegraph.db");
+        let db_path = project_path.join(".magellan/splice.db");
         let src_path = project_path.join("src");
 
         // Open the integration and index all files

@@ -321,14 +321,14 @@ fn main() -> ExitCode {
                         "Validation complete (file not created)".to_string()
                     } else {
                         format!("File created: {}", file.display())
-                    }
+                    },
                 )),
                 Err(e) => {
                     eprintln!("Failed to create file: {}", e);
                     std::process::exit(1);
                 }
             }
-        },
+        }
 
         splice::cli::Commands::Plan {
             file,
@@ -513,13 +513,6 @@ fn main() -> ExitCode {
             dry_run,
         } => execute_migrate_db(&db_path, backup, dry_run, json_output),
 
-        splice::cli::Commands::Migrate {
-            source,
-            dest,
-            progress,
-            skip_verify,
-        } => execute_migrate(&source, &dest, progress, skip_verify, json_output),
-
         splice::cli::Commands::Rename {
             symbol,
             name,
@@ -643,6 +636,14 @@ fn main() -> ExitCode {
             continue_on_error,
             rollback,
         } => execute_batch(&spec, db, dry_run, continue_on_error, rollback, json_output),
+
+        splice::cli::Commands::Complete {
+            file,
+            line,
+            column,
+            max_results,
+            db,
+        } => execute_complete(&file, line, column, max_results, &db, json_output),
 
         splice::cli::Commands::Snapshots(subcommand) => execute_snapshots(subcommand, json_output),
     };
@@ -2822,12 +2823,12 @@ fn execute_query(
         return Ok(splice::cli::CliSuccessPayload::message_only(message));
     }
 
-    // If --list was requested but backend is native-v3, provide helpful error
     #[cfg(not(feature = "sqlite"))]
     if list {
         return Err(splice::SpliceError::Other(
-            "The --list flag requires SQLite backend. Native-v2 backend does not support label queries. \
-             Use default SQLite backend: `cargo build` (no --features flag)".to_string()
+            "The --list flag requires SQLite backend. \
+             Use default SQLite backend: `cargo build` (no --features flag)"
+                .to_string(),
         ));
     }
 
@@ -2870,12 +2871,12 @@ fn execute_query(
         ));
     }
 
-    // If --count was requested but backend is native-v3, provide helpful error
     #[cfg(not(feature = "sqlite"))]
     if count {
         return Err(splice::SpliceError::Other(
-            "The --count flag requires SQLite backend. Native-v2 backend does not support label queries. \
-             Use default SQLite backend: `cargo build` (no --features flag)".to_string()
+            "The --count flag requires SQLite backend. \
+             Use default SQLite backend: `cargo build` (no --features flag)"
+                .to_string(),
         ));
     }
 
@@ -2883,7 +2884,7 @@ fn execute_query(
     // All label query modes require SQLite backend
     #[cfg(not(feature = "sqlite"))]
     return Err(splice::SpliceError::Other(
-        "Label queries require SQLite backend. Native-v2 backend does not support label queries. \
+        "Label queries require SQLite backend. \
          Use default SQLite backend: `cargo build` (no --features flag)"
             .to_string(),
     ));
@@ -4066,19 +4067,6 @@ fn execute_status(
         }
     }
 
-    // Check for native-v3 database without native-v3 feature
-    let detected_backend = splice::graph::CodeGraph::detect_backend(db_path)?;
-    if detected_backend == splice::graph::BackendType::NativeV3 {
-        #[cfg(not(feature = "native-v3"))]
-        {
-            return Err(splice::SpliceError::Other(
-                "Cannot open native-v3 database without native-v3 feature. \
-                 Build with: cargo build --features native-v3 --no-default-features"
-                    .to_string(),
-            ));
-        }
-    }
-
     let integration = MagellanIntegration::open(db_path)?;
     let stats = integration.get_statistics()?;
 
@@ -4177,10 +4165,7 @@ fn execute_find(
             .iter()
             .map(|s| {
                 let line = s.start_line.unwrap_or(s.byte_start);
-                format!(
-                    "{} :: {} at {}:{}",
-                    s.kind, s.name, s.file_path, line
-                )
+                format!("{} :: {} at {}:{}", s.kind, s.name, s.file_path, line)
             })
             .collect();
         let message = format!("Found {} symbol(s):\n{}", count, lines.join("\n"));
@@ -4599,84 +4584,6 @@ fn execute_migrate_db(
             "Migration failed: {}",
             e
         ))),
-    }
-}
-
-/// Execute migrate command: convert SQLite database to native-v3.
-fn execute_migrate(
-    source: &Path,
-    dest: &Path,
-    show_progress: bool,
-    skip_verify: bool,
-    json_output: bool,
-) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
-    // Open source database
-    let code_graph = splice::graph::CodeGraph::open(source).map_err(|e| {
-        splice::SpliceError::Other(format!("Failed to open source database: {}", e))
-    })?;
-
-    // Verify source is SQLite
-    let detected_backend = splice::graph::CodeGraph::detect_backend(source)?;
-    if detected_backend != splice::graph::BackendType::SQLite {
-        return Err(splice::SpliceError::Other(format!(
-            "Source database is not SQLite format (detected: {}). \
-             Migration is only supported from SQLite to native-v3.",
-            detected_backend
-        )));
-    }
-
-    // Warn if skipping verification
-    if skip_verify {
-        eprintln!("Warning: Skipping verification (--skip-verify flag set)");
-        eprintln!("  The destination database will not be verified after migration.");
-    }
-
-    // Progress callback
-    let progress_cb: Option<&dyn Fn(&str)> = if show_progress {
-        Some(&|step: &str| {
-            eprintln!("  {}", step);
-        })
-    } else {
-        None
-    };
-
-    // Perform migration with verification
-    let verify = !skip_verify;
-    let report = code_graph.migrate_to_native_v3(source, dest, progress_cb, verify)?;
-
-    // Determine verification status for display
-    let verification_display = if verify {
-        "passed".to_string()
-    } else if skip_verify {
-        "skipped".to_string()
-    } else {
-        "unknown".to_string()
-    };
-
-    // Output results
-    if json_output {
-        let output = json!({
-            "status": "success",
-            "source": source.to_string_lossy(),
-            "destination": dest.to_string_lossy(),
-            "nodes_migrated": report.nodes_migrated,
-            "edges_migrated": report.edges_migrated,
-            "metadata": report.snapshot_metadata,
-            "verification": verification_display,
-        });
-        Ok(splice::cli::CliSuccessPayload::with_data(
-            format!("Migrated to {}", dest.display()),
-            output,
-        ))
-    } else {
-        Ok(splice::cli::CliSuccessPayload::message_only(format!(
-            "Migration complete!\n  Source:       {}\n  Destination:  {}\n  Nodes:        {}\n  Edges:        {}\n  Verification: {}",
-            source.display(),
-            dest.display(),
-            report.nodes_migrated,
-            report.edges_migrated,
-            verification_display
-        )))
     }
 }
 
@@ -5629,7 +5536,9 @@ fn execute_slice(
     let target_symbol_info = match integration.find_symbol_by_path_and_name(path, target)? {
         Some(info) => info,
         None => {
-            return Err(splice::SpliceError::Other("Target symbol not found".to_string()));
+            return Err(splice::SpliceError::Other(
+                "Target symbol not found".to_string(),
+            ));
         }
     };
 
@@ -6082,6 +5991,111 @@ fn execute_batch(
         data: Some(serde_json::Value::Object(payload)),
         already_emitted: false,
         has_pending_changes: dry_run,
+    })
+}
+
+/// Execute code completion command.
+fn execute_complete(
+    file: &Path,
+    line: usize,
+    column: usize,
+    max_results: usize,
+    db: &Path,
+    json_output: bool,
+) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use splice::completion::engine::CompletionEngine;
+    use splice::completion::types::CompletionRequest;
+    use splice::graph::MagellanIntegration;
+    use std::sync::Arc;
+
+    let db_path = if db.is_absolute() {
+        db.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map_err(|e| {
+                splice::SpliceError::Other(format!("Failed to get current directory: {}", e))
+            })?
+            .join(db)
+    };
+
+    let db_path = db_path.canonicalize().map_err(|e| {
+        splice::SpliceError::Other(format!(
+            "Failed to resolve database path {}: {}",
+            db_path.display(),
+            e
+        ))
+    })?;
+
+    // Convert file path to absolute path (database stores absolute paths)
+    let file_path = if file.is_absolute() {
+        file.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .unwrap()
+            .join(file)
+            .canonicalize()
+            .map_err(|e| {
+                splice::SpliceError::Other(format!("Failed to resolve file path: {}", e))
+            })?
+    };
+
+    // Open Magellan database
+    let magellan = Arc::new(MagellanIntegration::open(&db_path)?);
+
+    // Create completion engine
+    let engine = CompletionEngine::new(magellan.clone(), &db_path);
+
+    // Create completion request
+    let request = CompletionRequest {
+        file_path,
+        line,
+        column,
+        max_results: Some(max_results),
+    };
+
+    // Execute completion
+    let response = engine
+        .complete_at_cursor(request)
+        .map_err(|e| splice::SpliceError::Other(format!("Completion failed: {}", e)))?;
+
+    // Output results
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&response).unwrap());
+    } else {
+        println!(
+            "Grounded Completions ({} suggestions):",
+            response.suggestions.len()
+        );
+        println!();
+
+        for (i, suggestion) in response.suggestions.iter().enumerate() {
+            println!("{}. {}", i + 1, suggestion.label);
+            println!("   Detail: {}", suggestion.detail);
+            println!("   Score: {:.2}", suggestion.score);
+            println!("   Source: {:?}", suggestion.source);
+            println!("   Grounded in: {:?}", suggestion.grounded_in);
+            if suggestion.usage_count > 1 {
+                println!("   Used {} times", suggestion.usage_count);
+            }
+            println!();
+        }
+
+        println!("Metadata:");
+        println!("  Query time: {} ms", response.metadata.query_time_ms);
+        println!(
+            "  Total symbols: {}",
+            response.metadata.total_symbols_indexed
+        );
+        println!("  Database version: {}", response.metadata.database_version);
+        println!("  Database queries: {}", response.metadata.database_queries);
+    }
+
+    Ok(splice::cli::CliSuccessPayload {
+        status: "ok",
+        message: format!("Generated {} completions", response.suggestions.len()),
+        data: None,
+        already_emitted: true,
+        has_pending_changes: false,
     })
 }
 

@@ -251,6 +251,11 @@ impl MagellanIntegration {
         &mut self.inner
     }
 
+    /// Get the database file path for direct database access.
+    pub fn db_path(&self) -> &Path {
+        &self.db_path
+    }
+
     /// Get comprehensive database statistics.
     ///
     /// Returns counts of all entity types in the graph database.
@@ -306,7 +311,9 @@ impl MagellanIntegration {
                 code_chunks: stats.cfg_block_count,
             })
         } else {
-            Err(SpliceError::Other("Geometric backend not initialized".to_string()))
+            Err(SpliceError::Other(
+                "Geometric backend not initialized".to_string(),
+            ))
         }
     }
 
@@ -386,8 +393,8 @@ impl MagellanIntegration {
                 kind: fact.kind_normalized,
                 byte_start: fact.byte_start,
                 byte_end: fact.byte_end,
-            start_line: None,
-            end_line: None,
+                start_line: None,
+                end_line: None,
             };
 
             let (callers, callees) = if with_callers || with_callees {
@@ -442,8 +449,8 @@ impl MagellanIntegration {
                             kind: caller_fact.kind_normalized,
                             byte_start: caller_fact.byte_start,
                             byte_end: caller_fact.byte_end,
-            start_line: None,
-            end_line: None,
+                            start_line: None,
+                            end_line: None,
                         });
                     }
                 }
@@ -470,8 +477,8 @@ impl MagellanIntegration {
                             kind: callee_fact.kind_normalized,
                             byte_start: callee_fact.byte_start,
                             byte_end: callee_fact.byte_end,
-            start_line: None,
-            end_line: None,
+                            start_line: None,
+                            end_line: None,
                         });
                     }
                 }
@@ -504,7 +511,11 @@ impl MagellanIntegration {
     }
 
     /// SQLite implementation of find_symbol_by_name.
-    fn find_symbol_by_name_sqlite(&mut self, name: &str, ambiguous: bool) -> Result<Vec<SymbolInfo>> {
+    fn find_symbol_by_name_sqlite(
+        &mut self,
+        name: &str,
+        ambiguous: bool,
+    ) -> Result<Vec<SymbolInfo>> {
         let mut results = Vec::new();
 
         // Get all indexed files
@@ -542,7 +553,11 @@ impl MagellanIntegration {
 
     /// Geometric backend implementation of find_symbol_by_name.
     #[cfg(feature = "geometric")]
-    fn find_symbol_by_name_geometric(&self, name: &str, ambiguous: bool) -> Result<Vec<SymbolInfo>> {
+    fn find_symbol_by_name_geometric(
+        &self,
+        name: &str,
+        ambiguous: bool,
+    ) -> Result<Vec<SymbolInfo>> {
         if let Some(ref geo) = self.geo_inner {
             let matches = geo.find_symbols_by_name_info(name);
             let results: Vec<SymbolInfo> = matches
@@ -554,18 +569,20 @@ impl MagellanIntegration {
                     kind: format!("{:?}", info.kind),
                     byte_start: info.byte_start as usize,
                     byte_end: info.byte_end as usize,
-                    start_line: info.start_line.map(|l| l as usize),
-                    end_line: info.end_line.map(|l| l as usize),
+                    start_line: Some(info.start_line as usize),
+                    end_line: Some(info.end_line as usize),
                 })
                 .collect();
-            
+
             if !ambiguous && !results.is_empty() {
                 Ok(results.into_iter().take(1).collect())
             } else {
                 Ok(results)
             }
         } else {
-            Err(SpliceError::Other("Geometric backend not initialized".to_string()))
+            Err(SpliceError::Other(
+                "Geometric backend not initialized".to_string(),
+            ))
         }
     }
 
@@ -586,14 +603,14 @@ impl MagellanIntegration {
     ) -> Result<Option<SymbolInfo>> {
         match self.backend {
             IntegrationBackend::Sqlite => {
-                let path_str = file_path
-                    .to_str()
-                    .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
+                let path_str = file_path.to_str().ok_or_else(|| {
+                    SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path))
+                })?;
                 let matches = self
                     .inner
                     .symbol_extents(path_str, name)
                     .map_err(|e| SpliceError::Other(format!("Failed to find symbol: {}", e)))?;
-                
+
                 if let Some((entity_id, fact)) = matches.first() {
                     Ok(Some(SymbolInfo {
                         entity_id: *entity_id,
@@ -602,8 +619,8 @@ impl MagellanIntegration {
                         kind: fact.kind_normalized.clone(),
                         byte_start: fact.byte_start,
                         byte_end: fact.byte_end,
-            start_line: None,
-            end_line: None,
+                        start_line: None,
+                        end_line: None,
                     }))
                 } else {
                     Ok(None)
@@ -612,10 +629,10 @@ impl MagellanIntegration {
             #[cfg(feature = "geometric")]
             IntegrationBackend::Geometric => {
                 if let Some(ref geo) = self.geo_inner {
-                    let path_str = file_path
-                        .to_str()
-                        .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
-                    
+                    let path_str = file_path.to_str().ok_or_else(|| {
+                        SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path))
+                    })?;
+
                     // Use geometric backend's method to find symbol by name and path
                     if let Some(id) = geo.find_symbol_id_by_name_and_path(name, path_str) {
                         if let Some(info) = geo.find_symbol_by_id_info(id) {
@@ -626,14 +643,16 @@ impl MagellanIntegration {
                                 kind: format!("{:?}", info.kind),
                                 byte_start: info.byte_start as usize,
                                 byte_end: info.byte_end as usize,
-            start_line: None,
-            end_line: None,
+                                start_line: None,
+                                end_line: None,
                             }));
                         }
                     }
                     Ok(None)
                 } else {
-                    Err(SpliceError::Other("Geometric backend not initialized".to_string()))
+                    Err(SpliceError::Other(
+                        "Geometric backend not initialized".to_string(),
+                    ))
                 }
             }
         }
@@ -809,8 +828,8 @@ impl MagellanIntegration {
                     kind: format!("{:?}", info.kind),
                     byte_start: info.byte_start as usize,
                     byte_end: info.byte_end as usize,
-            start_line: None,
-            end_line: None,
+                    start_line: None,
+                    end_line: None,
                 }))
             } else {
                 Ok(None)
@@ -934,8 +953,8 @@ impl MagellanIntegration {
                     kind: symbol_fact.kind_normalized.clone(),
                     byte_start: symbol_fact.byte_start,
                     byte_end: symbol_fact.byte_end,
-            start_line: None,
-            end_line: None,
+                    start_line: None,
+                    end_line: None,
                 };
 
                 let call_site = CallSite {
@@ -1255,8 +1274,8 @@ impl MagellanIntegration {
                             kind: fact.kind_normalized.clone(),
                             byte_start: fact.byte_start,
                             byte_end: fact.byte_end,
-            start_line: None,
-            end_line: None,
+                            start_line: None,
+                            end_line: None,
                         },
                         depth,
                         path: path.clone(),
@@ -1346,8 +1365,8 @@ impl MagellanIntegration {
                             kind: format!("{:?}", info.kind),
                             byte_start: info.byte_start as usize,
                             byte_end: info.byte_end as usize,
-            start_line: None,
-            end_line: None,
+                            start_line: None,
+                            end_line: None,
                         },
                         depth,
                         path: path.clone(),
@@ -1451,8 +1470,8 @@ impl MagellanIntegration {
                             kind: fact.kind_normalized.clone(),
                             byte_start: fact.byte_start,
                             byte_end: fact.byte_end,
-            start_line: None,
-            end_line: None,
+                            start_line: None,
+                            end_line: None,
                         },
                         depth,
                         path: path.clone(),
@@ -1541,8 +1560,8 @@ impl MagellanIntegration {
                             kind: format!("{:?}", info.kind),
                             byte_start: info.byte_start as usize,
                             byte_end: info.byte_end as usize,
-            start_line: None,
-            end_line: None,
+                            start_line: None,
+                            end_line: None,
                         },
                         depth,
                         path: path.clone(),
@@ -1685,8 +1704,8 @@ impl MagellanIntegration {
                         kind: format!("{:?}", info.kind),
                         byte_start: info.byte_start as usize,
                         byte_end: info.byte_end as usize,
-            start_line: None,
-            end_line: None,
+                        start_line: None,
+                        end_line: None,
                     });
                 }
             }
@@ -1881,8 +1900,8 @@ impl MagellanIntegration {
                         kind: fact.kind_normalized.clone(),
                         byte_start: fact.byte_start,
                         byte_end: fact.byte_end,
-            start_line: None,
-            end_line: None,
+                        start_line: None,
+                        end_line: None,
                     });
                 }
             }
@@ -2013,8 +2032,8 @@ impl MagellanIntegration {
                         kind: fact.kind_normalized,
                         byte_start: fact.byte_start,
                         byte_end: fact.byte_end,
-            start_line: None,
-            end_line: None,
+                        start_line: None,
+                        end_line: None,
                     },
                     reason: "Not reachable from entry point".to_string(),
                 };
@@ -2075,8 +2094,8 @@ impl MagellanIntegration {
                         kind: format!("{:?}", info.kind),
                         byte_start: info.byte_start as usize,
                         byte_end: info.byte_end as usize,
-            start_line: None,
-            end_line: None,
+                        start_line: None,
+                        end_line: None,
                     },
                     reason: "Not reachable from entry point".to_string(),
                 };
@@ -2148,8 +2167,8 @@ impl MagellanIntegration {
                 kind: target_fact.kind_normalized.clone(),
                 byte_start: target_fact.byte_start,
                 byte_end: target_fact.byte_end,
-            start_line: None,
-            end_line: None,
+                start_line: None,
+                end_line: None,
             },
             distance: 0,
             is_target: true,
@@ -2190,8 +2209,8 @@ impl MagellanIntegration {
                             kind: fact.kind_normalized.clone(),
                             byte_start: fact.byte_start,
                             byte_end: fact.byte_end,
-            start_line: None,
-            end_line: None,
+                            start_line: None,
+                            end_line: None,
                         },
                         distance: dist,
                         is_target: false,
@@ -2285,8 +2304,8 @@ impl MagellanIntegration {
                 kind: target_fact.kind_normalized.clone(),
                 byte_start: target_fact.byte_start,
                 byte_end: target_fact.byte_end,
-            start_line: None,
-            end_line: None,
+                start_line: None,
+                end_line: None,
             },
             distance: 0,
             is_target: true,
@@ -2327,8 +2346,8 @@ impl MagellanIntegration {
                             kind: fact.kind_normalized.clone(),
                             byte_start: fact.byte_start,
                             byte_end: fact.byte_end,
-            start_line: None,
-            end_line: None,
+                            start_line: None,
+                            end_line: None,
                         },
                         distance: dist,
                         is_target: false,
@@ -2508,8 +2527,8 @@ impl MagellanIntegration {
                                     kind: fact.kind_normalized.clone(),
                                     byte_start: fact.byte_start,
                                     byte_end: fact.byte_end,
-            start_line: None,
-            end_line: None,
+                                    start_line: None,
+                                    end_line: None,
                                 }
                             } else {
                                 // Fallback if no facts found
@@ -2520,8 +2539,8 @@ impl MagellanIntegration {
                                     kind: "Unknown".to_string(),
                                     byte_start: 0,
                                     byte_end: 0,
-            start_line: None,
-            end_line: None,
+                                    start_line: None,
+                                    end_line: None,
                                 }
                             }
                         }
@@ -2534,8 +2553,8 @@ impl MagellanIntegration {
                                 kind: "Unknown".to_string(),
                                 byte_start: 0,
                                 byte_end: 0,
-            start_line: None,
-            end_line: None,
+                                start_line: None,
+                                end_line: None,
                             }
                         }
                     }
@@ -2548,8 +2567,8 @@ impl MagellanIntegration {
                         kind: "Unknown".to_string(),
                         byte_start: 0,
                         byte_end: 0,
-            start_line: None,
-            end_line: None,
+                        start_line: None,
+                        end_line: None,
                     }
                 };
 

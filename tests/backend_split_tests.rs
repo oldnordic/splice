@@ -2,7 +2,7 @@
 //!
 //! These tests verify that:
 //! 1. SQLite backend works independently
-//! 2. Geometric backend works independently  
+//! 2. Geometric backend works independently
 //! 3. Both backends implement the same interface
 //! 4. Router correctly dispatches to appropriate backend
 
@@ -65,8 +65,7 @@ fn test_router_dispatches_to_sqlite_for_db() {
     assert!(graph.as_sqlite().is_some());
 
     // Should NOT have geometric access
-    assert!(graph.geometric().is_err());
-    assert!(graph.as_geo().is_none());
+    assert!(!graph.is_geometric());
 }
 
 /// Test 3: Router dispatches to Geometric for .geo files
@@ -193,10 +192,6 @@ fn test_backend_detection() {
     // Geometric
     let detected = splice::graph::CodeGraph::detect_backend(Path::new("test.geo")).unwrap();
     assert!(matches!(detected, splice::graph::BackendType::Geometric));
-
-    // Native V3
-    let detected = splice::graph::CodeGraph::detect_backend(Path::new("test.v3")).unwrap();
-    assert!(matches!(detected, splice::graph::BackendType::NativeV3));
 }
 
 /// Test 7: is_geometric_db helper works
@@ -209,7 +204,7 @@ fn test_is_geometric_db_helper() {
         "code.db"
     )));
     assert!(!splice::graph::CodeGraph::is_geometric_db(Path::new(
-        "code.v3"
+        ".magellan/splice.db"
     )));
 }
 

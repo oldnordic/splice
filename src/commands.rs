@@ -58,27 +58,26 @@ pub fn cmd_create(
                     } else {
                         println!("❌ Code validation failed");
                         for error in &validation.errors {
-                            println!(
-                                "  Error at line {}: {}",
-                                error.line, error.message
-                            );
+                            println!("  Error at line {}: {}", error.line, error.message);
                         }
                     }
                 }
                 OutputFormat::Json => {
-                    let json = serde_json::to_string_pretty(&validation)
-                        .map_err(|e| crate::error::SpliceError::IoContext {
+                    let json = serde_json::to_string_pretty(&validation).map_err(|e| {
+                        crate::error::SpliceError::IoContext {
                             context: "Failed to serialize JSON".to_string(),
                             source: std::io::Error::new(std::io::ErrorKind::InvalidData, e),
-                        })?;
+                        }
+                    })?;
                     println!("{}", json);
                 }
                 OutputFormat::Pretty => {
-                    let json = serde_json::to_string_pretty(&validation)
-                        .map_err(|e| crate::error::SpliceError::IoContext {
+                    let json = serde_json::to_string_pretty(&validation).map_err(|e| {
+                        crate::error::SpliceError::IoContext {
                             context: "Failed to serialize JSON".to_string(),
                             source: std::io::Error::new(std::io::ErrorKind::InvalidData, e),
-                        })?;
+                        }
+                    })?;
                     println!("{}", json);
                 }
             }

@@ -35,10 +35,12 @@ pub fn write_atomic(file_path: &Path, content: &[u8], label: &str) -> Result<()>
             source: e,
         })?;
 
-        temp_file.write_all(content).map_err(|e| SpliceError::IoContext {
-            context: format!("Failed to write to temp file: {}", temp_path.display()),
-            source: e,
-        })?;
+        temp_file
+            .write_all(content)
+            .map_err(|e| SpliceError::IoContext {
+                context: format!("Failed to write to temp file: {}", temp_path.display()),
+                source: e,
+            })?;
 
         temp_file.flush().map_err(|e| SpliceError::IoContext {
             context: format!("Failed to flush temp file: {}", temp_path.display()),
@@ -46,10 +48,7 @@ pub fn write_atomic(file_path: &Path, content: &[u8], label: &str) -> Result<()>
         })?;
 
         temp_file.sync_all().map_err(|e| SpliceError::IoContext {
-            context: format!(
-                "Failed to sync temp file to disk: {}",
-                temp_path.display()
-            ),
+            context: format!("Failed to sync temp file to disk: {}", temp_path.display()),
             source: e,
         })?;
     } // temp_file closed here
@@ -134,12 +133,7 @@ mod tests {
         let entries = fs::read_dir(temp_dir.path()).unwrap();
         let tmp_files: Vec<_> = entries
             .filter_map(|entry| entry.ok())
-            .filter(|entry| {
-                entry
-                    .file_name()
-                    .to_string_lossy()
-                    .contains(".tmp")
-            })
+            .filter(|entry| entry.file_name().to_string_lossy().contains(".tmp"))
             .collect();
 
         assert_eq!(

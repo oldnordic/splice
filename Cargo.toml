@@ -1,6 +1,6 @@
 [package]
 name = "splice"
-version = "2.5.5"
+version = "2.6.0"
 edition = "2021"
 description = "Span-safe refactoring kernel for 7 languages with Magellan code graph integration"
 license = "GPL-3.0-or-later"
@@ -27,22 +27,20 @@ default = ["unix", "sqlite"]
 unix = ["libc"]
 windows = []
 
-# Backend selection - mutually exclusive, SQLite is default
+# Backend selection - SQLite is default
 sqlite = ["magellan/sqlite-backend", "sqlitegraph/sqlite-backend"]
-# native-v3 disabled - use only sqlite-backend to avoid format conflicts
-# native-v3 = ["magellan/native-v3", "sqlitegraph/native-v3"]
 # Geometric backend for spatial indexing and CFG analysis
 geometric = ["magellan/geometric-backend"]
 
-# Migration testing feature - enables BOTH backends for migration tests
-migration = ["magellan/sqlite-backend", "magellan/native-v3", "sqlitegraph/sqlite-backend", "sqlitegraph/native-v3"]
+# Migration testing feature for SQLite-only migration checks
+migration = ["magellan/sqlite-backend", "sqlitegraph/sqlite-backend"]
 
 [dependencies]
 # Platform-specific APIs
 libc = { version = "0.2", optional = true }
 
 # Magellan for code indexing and label queries
-magellan = { version = "3.0", path = "/home/feanor/Projects/magellan", default-features = false, optional = true }
+magellan = { version = "3.1.6", path = "/home/feanor/Projects/magellan", default-features = false, optional = true }
 # SQLiteGraph re-exported from Magellan, also keep for direct access
 sqlitegraph = { version = "2.0", path = "/home/feanor/Projects/sqlitegraph/sqlitegraph-core", default-features = false }
 

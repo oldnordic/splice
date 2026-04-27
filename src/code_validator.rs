@@ -183,8 +183,8 @@ impl CodeValidator {
 
         // Use rustc for validation (compile to metadata, shows errors)
         cmd.arg("--emit=metadata")
-           .arg("--crate-type=lib")
-           .arg(file_path.to_str().unwrap());
+            .arg("--crate-type=lib")
+            .arg(file_path.to_str().unwrap());
 
         // Execute
         let output = match cmd.output() {
@@ -236,7 +236,8 @@ impl CodeValidator {
                     errors.push(diag);
                 }
             } else if line.contains("warning:") {
-                if let Some(diag) = Self::parse_rustc_diagnostic(line, DiagnosticSeverity::Warning) {
+                if let Some(diag) = Self::parse_rustc_diagnostic(line, DiagnosticSeverity::Warning)
+                {
                     warnings.push(diag);
                 }
             }
@@ -379,7 +380,11 @@ mod tests {
         // Note: If rust-analyzer is not available, validation passes by default
         // This is the intended graceful degradation behavior
         // The test just ensures the function doesn't crash and returns a result
-        assert!(validation.rust_analyzer_ok || !validation.errors.is_empty() || validation.errors.is_empty());
+        assert!(
+            validation.rust_analyzer_ok
+                || !validation.errors.is_empty()
+                || validation.errors.is_empty()
+        );
         // If rust-analyzer is available, should detect errors
         // If not available, returns ok (graceful degradation)
     }

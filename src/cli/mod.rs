@@ -492,7 +492,7 @@ pub enum Commands {
         #[arg(short, long)]
         db: std::path::PathBuf,
 
-        /// Detect and report the backend format (sqlite or native-v3)
+        /// Detect and report the backend format (sqlite only)
         #[arg(long, default_value = "false")]
         detect_backend: bool,
     },
@@ -595,26 +595,6 @@ pub enum Commands {
         /// Check migration status without migrating
         #[arg(long)]
         dry_run: bool,
-    },
-
-    /// Migrate a database from SQLite to native-v3 format
-    #[command(display_order = 109)]
-    Migrate {
-        /// Path to the source database (SQLite format)
-        #[arg(short = 's', long, value_name = "PATH")]
-        source: std::path::PathBuf,
-
-        /// Path to the destination database (will be created in native-v3 format)
-        #[arg(short = 'd', long, value_name = "PATH")]
-        dest: std::path::PathBuf,
-
-        /// Show progress during migration
-        #[arg(long, default_value = "true")]
-        progress: bool,
-
-        /// Skip post-migration verification (faster, but less safe)
-        #[arg(long)]
-        skip_verify: bool,
     },
 
     /// Rename a symbol across all files using byte-accurate references
@@ -880,8 +860,32 @@ pub enum Commands {
         workspace: std::path::PathBuf,
     },
 
+    /// Get grounded code completions using Magellan database
+    #[command(display_order = 119)]
+    Complete {
+        /// Path to the source file
+        #[arg(short, long)]
+        file: std::path::PathBuf,
+
+        /// Line number (1-based)
+        #[arg(short, long)]
+        line: usize,
+
+        /// Column number (1-based)
+        #[arg(short, long)]
+        column: usize,
+
+        /// Maximum number of suggestions
+        #[arg(short, long, default_value = "10")]
+        max_results: usize,
+
+        /// Path to Magellan database
+        #[arg(short, long, default_value = ".magellan/splice.db")]
+        db: std::path::PathBuf,
+    },
+
     /// Manage code graph snapshots
-    #[command(display_order = 118, subcommand)]
+    #[command(display_order = 120, subcommand)]
     Snapshots(SnapshotsCommands),
 }
 

@@ -17,7 +17,7 @@ fn test_reachable_command_basic() {
         "--path",
         "src/main.rs",
         "--db",
-        ".codemcp/codegraph.db",
+        ".magellan/splice.db",
         "--max-depth",
         "5",
     ];
@@ -35,7 +35,7 @@ fn test_reachable_command_basic() {
             } => {
                 assert_eq!(symbol, "main");
                 assert_eq!(path, PathBuf::from("src/main.rs"));
-                assert_eq!(db, PathBuf::from(".codemcp/codegraph.db"));
+                assert_eq!(db, PathBuf::from(".magellan/splice.db"));
                 assert_eq!(max_depth, 5);
                 assert_eq!(direction, ReachabilityDirection::Forward);
                 assert_eq!(output, OutputFormat::Human);
@@ -106,7 +106,7 @@ fn test_dead_code_command_basic() {
         "--path",
         "src/main.rs",
         "--db",
-        ".codemcp/codegraph.db",
+        ".magellan/splice.db",
         "--exclude-public",
     ];
 
@@ -122,7 +122,7 @@ fn test_dead_code_command_basic() {
             } => {
                 assert_eq!(entry, "main");
                 assert_eq!(path, PathBuf::from("src/main.rs"));
-                assert_eq!(db, PathBuf::from(".codemcp/codegraph.db"));
+                assert_eq!(db, PathBuf::from(".magellan/splice.db"));
                 assert!(exclude_public);
                 assert!(group_by_file); // default is true
                 assert_eq!(output, OutputFormat::Human);
@@ -163,7 +163,7 @@ fn test_cycles_command_basic() {
         "splice",
         "cycles",
         "--db",
-        ".codemcp/codegraph.db",
+        ".magellan/splice.db",
         "--max-cycles",
         "50",
     ];
@@ -178,7 +178,7 @@ fn test_cycles_command_basic() {
                 show_members,
                 output,
             } => {
-                assert_eq!(db, PathBuf::from(".codemcp/codegraph.db"));
+                assert_eq!(db, PathBuf::from(".magellan/splice.db"));
                 assert_eq!(max_cycles, 50);
                 assert!(show_members); // default is true
                 assert!(symbol.is_none());
@@ -197,7 +197,7 @@ fn test_cycles_with_symbol() {
         "splice",
         "cycles",
         "--db",
-        ".codemcp/codegraph.db",
+        ".magellan/splice.db",
         "--symbol",
         "process",
         "--path",
@@ -241,7 +241,7 @@ fn test_condense_command_basic() {
         "splice",
         "condense",
         "--db",
-        ".codemcp/codegraph.db",
+        ".magellan/splice.db",
         "--show-levels",
     ];
 
@@ -253,7 +253,7 @@ fn test_condense_command_basic() {
                 show_levels,
                 output,
             } => {
-                assert_eq!(db, PathBuf::from(".codemcp/codegraph.db"));
+                assert_eq!(db, PathBuf::from(".magellan/splice.db"));
                 assert!(show_members); // default is true
                 assert!(show_levels);
                 assert_eq!(output, OutputFormat::Human);
@@ -305,7 +305,7 @@ fn test_slice_command_forward() {
         "--path",
         "src/main.rs",
         "--db",
-        ".codemcp/codegraph.db",
+        ".magellan/splice.db",
         "--direction",
         "forward",
         "--max-depth",
@@ -324,7 +324,7 @@ fn test_slice_command_forward() {
             } => {
                 assert_eq!(target, "main");
                 assert_eq!(path, PathBuf::from("src/main.rs"));
-                assert_eq!(db, PathBuf::from(".codemcp/codegraph.db"));
+                assert_eq!(db, PathBuf::from(".magellan/splice.db"));
                 assert_eq!(direction, SliceDirection::Forward);
                 assert_eq!(max_depth, Some(3));
                 assert_eq!(output, OutputFormat::Human);
@@ -345,7 +345,7 @@ fn test_slice_command_backward() {
         "--path",
         "src/main.rs",
         "--db",
-        ".codemcp/codegraph.db",
+        ".magellan/splice.db",
         "--direction",
         "backward",
     ];

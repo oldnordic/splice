@@ -49,8 +49,13 @@ fn goodbye() {
                 .store_symbol(
                     &symbol.name,
                     symbol.kind.as_str(),
+                    splice::symbol::Language::Rust,
                     symbol.byte_start,
                     symbol.byte_end,
+                    symbol.line_start,
+                    symbol.line_end,
+                    symbol.col_start,
+                    symbol.col_end,
                 )
                 .expect("Failed to store symbol");
             node_ids.push(node_id);
@@ -88,8 +93,13 @@ fn goodbye() {
         // Open graph
         let code_graph = CodeGraph::open(graph_path).expect("Failed to open graph database");
 
-        // Try to resolve a symbol that doesn't exist
-        let result = code_graph.resolve_symbol("nonexistent_function");
+        // Try to resolve a symbol that doesn't exist using the free function
+        let result = splice::resolve::resolve_symbol(
+            &code_graph,
+            None,
+            Some("function"),
+            "nonexistent_function",
+        );
 
         // Should return an error
         assert!(result.is_err(), "Expected error for nonexistent symbol");

@@ -145,18 +145,9 @@ impl BatchTransaction {
 
     /// Perform rollback from a snapshot.
     fn perform_rollback(&self, snapshot_path: &Path) -> Result<()> {
-        // Verify backend is native-v3 (restore only works with native-v3)
-        let backend = CodeGraph::detect_backend(&self.db_path)?;
-        if backend != crate::graph::BackendType::NativeV3 {
-            return Err(SpliceError::Other(format!(
-                "Rollback requires native-v3 backend, detected: {}",
-                backend
-            )));
-        }
-
-        // Perform restore
+        // Snapshot restore for database rollback is disabled.
         eprintln!("Rolling back from snapshot: {}", snapshot_path.display());
-        let _result = SnapshotStorage::restore_from_snapshot(&self.db_path, snapshot_path)?;
+        SnapshotStorage::restore_from_snapshot(&self.db_path, snapshot_path)?;
 
         Ok(())
     }

@@ -14,7 +14,10 @@ use std::time::Instant;
 fn benchmark_completion_performance() {
     let db_path = PathBuf::from(".magellan/splice.db");
     if !db_path.exists() {
-        eprintln!("Skipping benchmark: database not found at {}", db_path.display());
+        eprintln!(
+            "Skipping benchmark: database not found at {}",
+            db_path.display()
+        );
         return;
     }
 
@@ -70,7 +73,10 @@ fn benchmark_completion_performance() {
             println!("Max results: {:?}", request.max_results);
             println!("\n=== Sample Results (First Iteration) ===");
             println!("Suggestions: {}", response.suggestions.len());
-            println!("Total symbols indexed: {}", response.metadata.total_symbols_indexed);
+            println!(
+                "Total symbols indexed: {}",
+                response.metadata.total_symbols_indexed
+            );
             println!("Database version: {}", response.metadata.database_version);
             println!("Database queries: {}", response.metadata.database_queries);
         }
@@ -80,8 +86,14 @@ fn benchmark_completion_performance() {
     let avg_ms = total_elapsed.as_millis() as f64 / iterations as f64;
 
     // Calculate statistics
-    let min_ms = individual_times.iter().cloned().fold(f64::INFINITY, f64::min);
-    let max_ms = individual_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    let min_ms = individual_times
+        .iter()
+        .cloned()
+        .fold(f64::INFINITY, f64::min);
+    let max_ms = individual_times
+        .iter()
+        .cloned()
+        .fold(f64::NEG_INFINITY, f64::max);
 
     // Sort for median calculation
     let mut sorted_times = individual_times.clone();
@@ -106,10 +118,16 @@ fn benchmark_completion_performance() {
     if avg_ms < 10.0 {
         println!("✓ PASSED: Average time {:.2}ms < 10ms target", avg_ms);
     } else if avg_ms < 20.0 {
-        println!("⚠ ACCEPTABLE: Average time {:.2}ms < 20ms (above 10ms target)", avg_ms);
+        println!(
+            "⚠ ACCEPTABLE: Average time {:.2}ms < 20ms (above 10ms target)",
+            avg_ms
+        );
         println!("  Consider optimization if this is a hot path");
     } else {
-        println!("✗ FAILED: Average time {:.2}ms exceeds 20ms threshold", avg_ms);
+        println!(
+            "✗ FAILED: Average time {:.2}ms exceeds 20ms threshold",
+            avg_ms
+        );
         println!("  Performance optimization required");
     }
 

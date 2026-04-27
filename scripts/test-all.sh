@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# test-all.sh - Run full test suite against both SQLite and native-v2 backends.
+# test-all.sh - Run full test suite against SQLite and geometric backends.
 #
-# This script tests splice with both backend configurations to ensure
+# This script tests splice with supported backend configurations to ensure
 # compatibility and correctness across all supported backends.
 #
-# Usage: ./scripts/test-all.sh [--quick] [--backend sqlite|native-v2]
+# Usage: ./scripts/test-all.sh [--quick] [--backend sqlite|geometric]
 #   --quick: Skip long-running tests (cargo test --skip)
 #   --backend: Test only the specified backend
 
@@ -18,7 +18,7 @@ readonly NC='\033[0m' # No Color
 
 # Test configuration
 BACKEND_SQLITE="sqlite"
-BACKEND_NATIVE_V2="native-v2"
+BACKEND_GEOMETRIC="geometric"
 QUICK_MODE=false
 SELECTED_BACKEND=""
 
@@ -34,11 +34,11 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -h|--help)
-      echo "Usage: $0 [--quick] [--backend sqlite|native-v2]"
+      echo "Usage: $0 [--quick] [--backend sqlite|geometric]"
       echo ""
       echo "Options:"
       echo "  --quick           Skip long-running tests"
-      echo "  --backend BACKEND Test only sqlite or native-v2 backend"
+      echo "  --backend BACKEND Test only sqlite or geometric backend"
       echo "  -h, --help        Show this help message"
       exit 0
       ;;
@@ -62,8 +62,8 @@ test_backend() {
   if [[ "$backend" == "$BACKEND_SQLITE" ]]; then
     # SQLite is default, no features needed
     features=""
-  elif [[ "$backend" == "$BACKEND_NATIVE_V2" ]]; then
-    features="--features native-v2 --no-default-features"
+  elif [[ "$backend" == "$BACKEND_GEOMETRIC" ]]; then
+    features="--features geometric"
   else
     echo -e "${RED}Unknown backend: $backend${NC}"
     return 1
@@ -97,10 +97,10 @@ main() {
   if [[ -n "$SELECTED_BACKEND" ]]; then
     backends_to_test=("$SELECTED_BACKEND")
   else
-    backends_to_test=("$BACKEND_SQLITE" "$BACKEND_NATIVE_V2")
+    backends_to_test=("$BACKEND_SQLITE" "$BACKEND_GEOMETRIC")
   fi
 
-  header "Splice Dual-Backend Test Suite"
+  header "Splice Backend Test Suite"
   echo "Testing ${#backends_to_test[@]} backend(s): ${backends_to_test[*]}"
   [[ "$QUICK_MODE" == true ]] && echo "Quick mode enabled (skipping long-running tests)"
 

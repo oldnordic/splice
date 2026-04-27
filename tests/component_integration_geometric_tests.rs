@@ -5,6 +5,7 @@
 //! - CLI layer ↔ Splice library
 //! - End-to-end workflows with GeometricDB
 
+use splice::graph::BackendType;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -14,7 +15,6 @@ use std::process::Command;
 #[test]
 #[cfg(feature = "geometric")]
 fn test_component_geometric_detection_workflow() {
-    use splice::graph::Backend;
     use splice::graph::CodeGraph;
 
     let temp_dir = tempfile::TempDir::new().unwrap();
@@ -29,7 +29,7 @@ fn test_component_geometric_detection_workflow() {
 
     assert_eq!(
         backend,
-        Backend::Geometric,
+        BackendType::Geometric,
         "Layer 3b: Should detect Geometric backend"
     );
 
@@ -89,38 +89,28 @@ fn test_component_status_backend_detection() {
     let backend = CodeGraph::detect_backend(&nonexistent).unwrap();
     assert_eq!(
         backend.to_string(),
-        "unknown",
-        "Layer 3c: Non-existent should be Unknown"
+        "sqlite",
+        "Layer 3c: Non-existent should default to SQLite"
     );
 }
 
-/// Test that Backend enum variants are stable across the API boundary
+/// Test that BackendType enum variants are stable across the API boundary
 ///
 /// Layer 3: API stability test
 #[test]
 fn test_component_backend_api_stability() {
-    use splice::graph::Backend;
+    use splice::graph::BackendType;
 
     // Layer 3a: All variants can be constructed and compared
-    let sqlite = Backend::SQLite;
-    let native_v3 = Backend::NativeV3;
-    let unknown = Backend::Unknown;
-
-    assert_ne!(sqlite, native_v3);
-    assert_ne!(native_v3, unknown);
-    assert_ne!(sqlite, unknown);
+    let sqlite = BackendType::SQLite;
 
     // Layer 3b: Clone trait works
     let _sqlite_clone = sqlite.clone();
-    let _native_clone = native_v3.clone();
-    let _unknown_clone = unknown.clone();
 
     // Layer 3c: Copy trait works (implied by Clone for simple enums)
-    let _sqlite_copy: Backend = sqlite;
-    let _native_copy: Backend = native_v3;
+    let _sqlite_copy: BackendType = sqlite;
     // Originals are still usable due to Copy
     let _ = sqlite;
-    let _ = native_v3;
 
     // Layer 3d: Debug trait works
     let sqlite_debug = format!("{:?}", sqlite);
@@ -131,17 +121,13 @@ fn test_component_backend_api_stability() {
 
     // Layer 3e: Display trait works
     assert_eq!(format!("{}", sqlite), "sqlite");
-    assert_eq!(format!("{}", native_v3), "native-v3");
-    assert_eq!(format!("{}", unknown), "unknown");
 
     // Layer 3f: Geometric variant (when enabled)
     #[cfg(feature = "geometric")]
     {
-        let geometric = Backend::Geometric;
+        let geometric = BackendType::Geometric;
         assert_eq!(format!("{}", geometric), "geometric");
         assert_ne!(geometric, sqlite);
-        assert_ne!(geometric, native_v3);
-        assert_ne!(geometric, unknown);
     }
 }
 
@@ -155,17 +141,9 @@ fn test_component_error_handling() {
     // Layer 3a: detect_backend returns Result, not panic
     let result = CodeGraph::detect_backend(Path::new("/nonexistent/path/file.geo"));
     assert!(result.is_ok(), "Layer 3a: Should return Ok, not panic");
-    assert_eq!(result.unwrap().to_string(), "unknown");
+    assert_eq!(result.unwrap().to_string(), "sqlite");
 
-    // Layer 3b: is_sqlite_db handles errors gracefully
-    let result = CodeGraph::is_sqlite_db(Path::new("/nonexistent/path/file.db"));
-    assert!(
-        result.is_ok(),
-        "Layer 3b: Should handle non-existent file gracefully"
-    );
-    assert_eq!(result.unwrap(), false);
-
-    // Layer 3c: is_geometric_db doesn't panic on any path
+    // Layer 3b: is_geometric_db doesn't panic on any path
     let paths = vec![
         "/nonexistent/path/file.geo",
         "",
@@ -188,7 +166,6 @@ fn test_component_error_handling() {
 /// Layer 3: Validation that goes beyond binary pass/fail
 #[test]
 fn test_component_partial_ok_validation() {
-    use splice::graph::Backend;
     use splice::graph::CodeGraph;
 
     let temp_dir = tempfile::TempDir::new().unwrap();
@@ -211,7 +188,7 @@ fn test_component_partial_ok_validation() {
     // Layer 3b: Sub-components validated (Layer 2)
     // Each detection should return a valid Backend variant
     assert!(
-        matches!(sqlite_backend, Backend::SQLite),
+        matches!(sqlite_backend, BackendType::SQLite),
         "Layer 3b: SQLite detection should return SQLite variant"
     );
 

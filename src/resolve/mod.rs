@@ -25,7 +25,7 @@
 //! use splice::resolve::resolve_symbol;
 //! use splice::graph::CodeGraph;
 //!
-//! let graph = CodeGraph::open(std::path::Path::new("codegraph.db"))?;
+//! let graph = CodeGraph::open(std::path::Path::new("splice.db"))?;
 //! let symbol = resolve_symbol(
 //!     &graph,
 //!     Some(std::path::Path::new("src/main.rs")),  // file context
@@ -41,7 +41,7 @@
 //! use splice::graph::CodeGraph;
 //!
 //! // Returns helpful suggestions if symbol name is misspelled
-//! let graph = CodeGraph::open(".codemcp/codegraph.db").unwrap();
+//! let graph = CodeGraph::open(".magellan/splice.db").unwrap();
 //! match find_symbol_or_suggest(&graph, "my_functoin", None) {
 //!     Ok(id) => println!("Found: {:?}", id),
 //!     Err(e) => eprintln!("{}", e), // "Did you mean: my_function?"
@@ -127,7 +127,7 @@ pub struct ResolvedSpan {
 /// use splice::graph::CodeGraph;
 /// use std::path::Path;
 ///
-/// let graph = CodeGraph::open(Path::new("codegraph.db"))?;
+/// let graph = CodeGraph::open(Path::new("splice.db"))?;
 ///
 /// // Resolve with file context
 /// let symbol = resolve_symbol(&graph, Some(Path::new("src/main.rs")), None, "main")?;
@@ -372,7 +372,9 @@ fn resolve_symbol_in_file(
     }
 
     // Get file path from node (in Magellan, file_path is in node.file_path, not node.data)
-    let node_file_path = node.file_path.as_deref()
+    let node_file_path = node
+        .file_path
+        .as_deref()
         .ok_or_else(|| SpliceError::Other("Missing file_path in node".to_string()))?
         .to_string();
 
@@ -490,7 +492,7 @@ pub fn resolve_symbol_with_rust_kind(
 /// use splice::resolve::find_symbol_or_suggest;
 /// use splice::graph::CodeGraph;
 ///
-/// let graph = CodeGraph::open(std::path::Path::new("codegraph.db"))?;
+/// let graph = CodeGraph::open(std::path::Path::new("splice.db"))?;
 ///
 /// // Will suggest "my_function" if "my_functoin" is not found
 /// match find_symbol_or_suggest(&graph, "my_functoin", None) {

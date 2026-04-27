@@ -1,14 +1,13 @@
 //! Code graph integration layer with split backend support.
 //!
 //! This module provides a typed interface to code graph databases,
-//! supporting three backends:
+//! supporting two backends:
 //! - SQLite (.db files) - Traditional sqlitegraph backend
-//! - Native-V3 (.v3 files) - High-performance binary backend  
 //! - Geometric (.geo files) - Spatial indexing and CFG analysis
 //!
 //! The architecture uses clean separation:
 //! - `backend.rs` - Minimal shared trait (`CodeIntelBackend`)
-//! - `sqlite_impl.rs` - SQLite/V3 implementation (`CodeGraphSqlite`)
+//! - `sqlite_impl.rs` - SQLite implementation (`CodeGraphSqlite`)
 //! - `geo_impl.rs` - Geometric implementation (`CodeGraphGeo`)
 //! - `router.rs` - Public enum that dispatches to appropriate backend
 
@@ -40,7 +39,6 @@ pub use magellan_integration::MagellanIntegration;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Backend {
     SQLite,
-    NativeV3,
     #[cfg(feature = "geometric")]
     Geometric,
     Unknown,
@@ -51,29 +49,11 @@ impl std::fmt::Display for Backend {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Backend::SQLite => write!(f, "sqlite"),
-            Backend::NativeV3 => write!(f, "native-v3"),
             #[cfg(feature = "geometric")]
             Backend::Geometric => write!(f, "geometric"),
             Backend::Unknown => write!(f, "unknown"),
         }
     }
-}
-
-/// Migration result reporting statistics from a migration operation.
-#[derive(Debug, Clone)]
-pub struct MigrationReport {
-    /// Number of nodes migrated
-    pub nodes_migrated: usize,
-    /// Number of edges migrated
-    pub edges_migrated: usize,
-    /// Snapshot metadata from export
-    pub snapshot_metadata: String,
-    /// Path to the migrated database
-    pub destination: std::path::PathBuf,
-    /// Whether post-migration verification passed
-    pub verification_passed: bool,
-    /// Verification error message (if verification failed)
-    pub verification_error: Option<String>,
 }
 
 #[cfg(test)]
@@ -90,6 +70,7 @@ mod backend_detection_tests {
     }
 
     #[test]
+    #[cfg(feature = "geometric")]
     fn test_detect_backend_geometric() {
         let geo_path = std::path::Path::new("test.geo");
         let detected = CodeGraph::detect_backend(geo_path).unwrap();
@@ -108,7 +89,9 @@ mod backend_detection_tests {
     fn test_is_geometric_db_helper() {
         assert!(CodeGraph::is_geometric_db(std::path::Path::new("code.geo")));
         assert!(!CodeGraph::is_geometric_db(std::path::Path::new("code.db")));
-        assert!(!CodeGraph::is_geometric_db(std::path::Path::new("code.v3")));
+        assert!(!CodeGraph::is_geometric_db(std::path::Path::new(
+            ".magellan/splice.db"
+        )));
     }
 
     #[test]
@@ -127,12 +110,5 @@ mod backend_detection_tests {
         let mut s = String::new();
         write!(&mut s, "{}", BackendType::Geometric).unwrap();
         assert_eq!(s, "geometric");
-    }
-
-    #[test]
-    fn test_detect_backend_v3_extension() {
-        let path = std::path::Path::new("test.v3");
-        let detected = CodeGraph::detect_backend(path).unwrap();
-        assert!(matches!(detected, BackendType::NativeV3));
     }
 }

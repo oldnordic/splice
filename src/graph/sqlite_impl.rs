@@ -1,7 +1,7 @@
-//! SQLite/V3 backend implementation.
+//! SQLite backend implementation.
 //!
 //! This module provides the CodeIntelBackend trait implementation
-//! for SQLite and Native-V3 databases via sqlitegraph.
+//! for SQLite databases via sqlitegraph.
 
 use super::router::BackendType;
 use crate::error::{Result, SpliceError};
@@ -10,7 +10,7 @@ use sqlitegraph::{GraphBackend, NodeId, NodeSpec, SnapshotId};
 use std::collections::HashMap;
 use std::path::Path;
 
-/// SQLite/V3 code graph implementation.
+/// SQLite code graph implementation.
 ///
 /// Wraps sqlitegraph's GraphBackend and provides the CodeIntelBackend
 /// trait implementation for Splice workflows.
@@ -23,8 +23,6 @@ pub struct CodeGraphSqlite {
     file_cache: HashMap<String, NodeId>,
     /// Database path
     db_path: std::path::PathBuf,
-    /// Whether this is native-v3 format
-    is_native_v3: bool,
 }
 
 impl CodeGraphSqlite {
@@ -42,14 +40,7 @@ impl CodeGraphSqlite {
             }
         }
 
-        // Detect if this should be native-v3
-        let is_native_v3 = Self::is_native_v3_db(path)?;
-
-        let config = if is_native_v3 || path.extension().map_or(false, |e| e == "v3") {
-            sqlitegraph::GraphConfig::native()
-        } else {
-            sqlitegraph::GraphConfig::sqlite()
-        };
+        let config = sqlitegraph::GraphConfig::sqlite();
 
         let backend = sqlitegraph::open_graph(path, &config).map_err(|e| {
             SpliceError::Other(format!("Failed to open SQLite graph at {:?}: {}", path, e))
@@ -60,30 +51,7 @@ impl CodeGraphSqlite {
             symbol_cache: HashMap::new(),
             file_cache: HashMap::new(),
             db_path: path.to_path_buf(),
-            is_native_v3,
         })
-    }
-
-    /// Check if a file is a native-v3 database.
-    fn is_native_v3_db(path: &Path) -> Result<bool> {
-        if !path.exists() {
-            return Ok(path.extension().map_or(false, |e| e == "v3"));
-        }
-
-        let mut file = std::fs::File::open(path)?;
-        let mut header = [0u8; 16];
-        use std::io::Read;
-        let bytes_read = file.read(&mut header)?;
-
-        if bytes_read < 16 {
-            return Ok(false);
-        }
-
-        // Native-v3 magic: "GEODB\0\0\0" or specific V3 marker
-        // V3 files start with "SQLite format 3\0" for compatibility
-        // But have native-v3 marker in meta table
-        Ok(header.starts_with(b"SQLite format 3\0")
-            && path.extension().map_or(false, |e| e == "v3"))
     }
 
     /// Access the underlying sqlitegraph backend.
@@ -99,11 +67,6 @@ impl CodeGraphSqlite {
     /// Get the database path.
     pub fn db_path(&self) -> &Path {
         &self.db_path
-    }
-
-    /// Check if this is a native-v3 database.
-    pub fn is_native_v3(&self) -> bool {
-        self.is_native_v3
     }
 
     /// Store a file node in the graph.
@@ -350,11 +313,7 @@ impl CodeGraphSqlite {
     }
 
     pub fn backend_type(&self) -> BackendType {
-        if self.is_native_v3 {
-            BackendType::NativeV3
-        } else {
-            BackendType::SQLite
-        }
+        BackendType::SQLite
     }
 }
 
@@ -369,7 +328,6 @@ mod tests {
         let path = temp_file.path();
 
         let graph = CodeGraphSqlite::open(path).unwrap();
-        assert!(!graph.is_native_v3());
         assert!(matches!(graph.backend_type(), BackendType::SQLite));
     }
 

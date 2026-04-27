@@ -1017,6 +1017,16 @@ mod tests {
 fn run_cargo_check(workspace_dir: &Path) -> Result<std::process::Output> {
     use std::process::Command;
 
+    if !workspace_dir.join("Cargo.toml").exists() {
+        return Err(crate::error::SpliceError::IoContext {
+            context: format!(
+                "Cannot run cargo check outside a Rust package: {}",
+                workspace_dir.display()
+            ),
+            source: std::io::Error::new(std::io::ErrorKind::NotFound, "Cargo.toml not found"),
+        });
+    }
+
     let output = Command::new("cargo")
         .args(["check", "--quiet"])
         .current_dir(workspace_dir)

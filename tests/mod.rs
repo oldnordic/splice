@@ -9,7 +9,6 @@ mod completion_integration;
 mod cross_language_tests;
 mod e2e_refactor_tests;
 mod magellan_integration_tests;
-mod migration_integration_tests;
 mod rich_span_tests;
 mod snapshot_tests;
 

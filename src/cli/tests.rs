@@ -14,13 +14,7 @@ mod tests {
 
     #[test]
     fn test_create_command_file_argument() {
-        let args = Cli::try_parse_from([
-            "splice",
-            "create",
-            "--file",
-            "src/test.rs",
-        ])
-        .unwrap();
+        let args = Cli::try_parse_from(["splice", "create", "--file", "src/test.rs"]).unwrap();
 
         // Should have Create subcommand with file path
         match args.command {
@@ -33,14 +27,9 @@ mod tests {
 
     #[test]
     fn test_create_command_validate_only_flag() {
-        let args = Cli::try_parse_from([
-            "splice",
-            "create",
-            "--file",
-            "test.rs",
-            "--validate-only",
-        ])
-        .unwrap();
+        let args =
+            Cli::try_parse_from(["splice", "create", "--file", "test.rs", "--validate-only"])
+                .unwrap();
 
         match args.command {
             Commands::Create { validate_only, .. } => {
@@ -129,6 +118,42 @@ mod tests {
                 assert_eq!(workspace, PathBuf::from("/custom/workspace"));
             }
             _ => panic!("Expected Create command"),
+        }
+    }
+
+    #[test]
+    fn test_complete_command_accepts_db_path() {
+        let args = Cli::try_parse_from([
+            "splice",
+            "complete",
+            "--file",
+            "src/lib.rs",
+            "--line",
+            "10",
+            "--column",
+            "5",
+            "--max-results",
+            "7",
+            "--db",
+            ".magellan/splice.db",
+        ])
+        .unwrap();
+
+        match args.command {
+            Commands::Complete {
+                file,
+                line,
+                column,
+                max_results,
+                db,
+            } => {
+                assert_eq!(file, PathBuf::from("src/lib.rs"));
+                assert_eq!(line, 10);
+                assert_eq!(column, 5);
+                assert_eq!(max_results, 7);
+                assert_eq!(db, PathBuf::from(".magellan/splice.db"));
+            }
+            other => panic!("expected Complete command, got {other:?}"),
         }
     }
 }

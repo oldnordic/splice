@@ -7,26 +7,16 @@
 // env_logger is used by src/main.rs (binary), not this library
 #![expect(unused_crate_dependencies)]
 
-// Compile-time guard: prevent enabling both backends simultaneously
-#[cfg(all(feature = "sqlite", feature = "native-v3"))]
-compile_error!(
-    "Features 'sqlite' and 'native-v3' are mutually exclusive. \
-     Enable only one backend feature. Remove one of: \
-     --features sqlite \
-     --features native-v3 \
-     \
-     Default is SQLite, so use `cargo build` with no features, or \
-     `cargo build --features native-v3` for the native-v3 backend."
-);
-
 pub mod action;
-pub mod checksum;
+pub mod batch;
 pub mod cfg_analysis;
+pub mod checksum;
 pub mod cli;
 pub mod code_validator;
 pub mod commands;
-pub mod create;
+pub mod completion;
 pub mod context;
+pub mod create;
 pub mod diff;
 pub mod error;
 pub mod error_codes;
@@ -37,10 +27,9 @@ pub mod graph;
 pub mod hints;
 pub mod ingest;
 pub mod output;
-pub mod batch;
 pub mod patch;
-pub mod platform;
 pub mod plan;
+pub mod platform;
 pub mod proof;
 pub mod relationships;
 pub mod resolve;
@@ -96,8 +85,10 @@ pub use relationships::{Relationship, RelationshipCache, Relationships};
 pub use expand::{expand_symbol, expand_symbol_with_level, ExpansionLevel, SymbolExpander};
 
 /// Re-export batch operations for convenience.
-pub use batch::{BatchSpec, BatchOperation, BatchExecutor, BatchResult, BatchTransaction,
-                RollbackMode, TransactionResult, ExecutionMode};
+pub use batch::{
+    BatchExecutor, BatchOperation, BatchResult, BatchSpec, BatchTransaction, ExecutionMode,
+    RollbackMode, TransactionResult,
+};
 
 // ============================================================================
 // Graph Algorithm Response Types (Phase 30)
@@ -142,10 +133,9 @@ pub use cli::{ReachabilityDirection, SliceDirection};
 
 /// Re-export proof types for convenience.
 pub use proof::{
-    RefactoringProof, GraphSnapshot, ProofMetadata, InvariantCheck,
-    InvariantViolation, ViolationSeverity, ProofChecksums,
-    SymbolInfo as ProofSymbolInfo, GraphStats,
-    SnapshotStorage, SnapshotMetadata, RestoreResult,
+    GraphSnapshot, GraphStats, InvariantCheck, InvariantViolation, ProofChecksums, ProofMetadata,
+    RefactoringProof, RestoreResult, SnapshotMetadata, SnapshotStorage,
+    SymbolInfo as ProofSymbolInfo, ViolationSeverity,
 };
 
 /// Splice version.

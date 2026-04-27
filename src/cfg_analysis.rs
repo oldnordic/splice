@@ -52,7 +52,8 @@ impl ComplexityAnalysis {
         }
 
         // Moderate complexity
-        if self.max_dominator_depth > 3 || self.max_branch_distance > 5 || self.max_loop_nesting > 1 {
+        if self.max_dominator_depth > 3 || self.max_branch_distance > 5 || self.max_loop_nesting > 1
+        {
             return RiskLevel::Medium;
         }
 
@@ -114,20 +115,11 @@ pub fn check_function_complexity(
 
     // Extract 4D coordinates from blocks
     let blocks = mirage_data.data.blocks;
-    let max_branch_distance = blocks.iter()
-        .map(|b| b.coord_z)
-        .max()
-        .unwrap_or(0);
+    let max_branch_distance = blocks.iter().map(|b| b.coord_z).max().unwrap_or(0);
 
-    let max_dominator_depth = blocks.iter()
-        .map(|b| b.coord_x)
-        .max()
-        .unwrap_or(0);
+    let max_dominator_depth = blocks.iter().map(|b| b.coord_x).max().unwrap_or(0);
 
-    let max_loop_nesting = blocks.iter()
-        .map(|b| b.coord_y)
-        .max()
-        .unwrap_or(0);
+    let max_loop_nesting = blocks.iter().map(|b| b.coord_y).max().unwrap_or(0);
 
     let total_blocks = blocks.len();
 

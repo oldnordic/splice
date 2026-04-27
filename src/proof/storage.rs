@@ -457,15 +457,7 @@ impl SnapshotStorage {
         Ok(None)
     }
 
-    /// Restore a database from a snapshot file (native-v3 only).
-    ///
-    /// This operation:
-    /// 1. Detects the backend format of the existing database
-    /// 2. Returns an error if the backend is SQLite (only native-v3 supports restore)
-    /// 3. Creates a backup of the existing database file
-    /// 4. Loads the snapshot from disk
-    /// 5. Creates a new native-v3 database with the snapshot content
-    /// 6. Replaces the original database with the restored one
+    /// Restore a database from a snapshot file.
     ///
     /// # Arguments
     ///
@@ -478,139 +470,10 @@ impl SnapshotStorage {
     ///
     /// # Errors
     ///
-    /// - If database backend is SQLite (restore only supported for native-v3)
     /// - If snapshot file doesn't exist or is corrupted
-    /// - If backup creation fails
-    /// - If database creation or restoration fails
-    #[cfg(feature = "native-v3")]
-    pub fn restore_from_snapshot(db_path: &Path, snapshot_path: &Path) -> Result<RestoreResult> {
-        use crate::graph::CodeGraph;
-        use sqlitegraph::{EdgeSpec, GraphConfig, NodeSpec};
-        use std::io::Read;
-
-        // Step 1: Detect backend format
-        let backend = CodeGraph::detect_backend(db_path)?;
-        if backend == crate::graph::BackendType::SQLite {
-            return Err(SpliceError::Other(
-                "Database restore is only supported for native-v3 backend databases. \
-                 SQLite databases cannot be restored from snapshots."
-                    .to_string(),
-            ));
-        }
-
-        // Step 2: Create backup
-        let backup_path = db_path.with_extension("db.backup");
-        fs::copy(db_path, &backup_path).map_err(|e| SpliceError::Io {
-            path: backup_path.clone(),
-            source: e,
-        })?;
-
-        // Step 3: Load snapshot from disk
-        let storage = SnapshotStorage::new()?;
-        let snapshot = storage.load_snapshot(snapshot_path)?;
-
-        let symbols_count = snapshot.symbols.len();
-
-        // Step 4: Create temp database for restoration
-        let temp_db_path = db_path.with_extension("db.tmp");
-
-        // Remove temp file if it exists
-        if temp_db_path.exists() {
-            fs::remove_file(&temp_db_path).map_err(|e| SpliceError::Io {
-                path: temp_db_path.clone(),
-                source: e,
-            })?;
-        }
-
-        // Step 5: Create new native-v3 database
-        let cfg = GraphConfig::native();
-        let mut backend = sqlitegraph::open_graph(&temp_db_path, &cfg).map_err(|e| {
-            SpliceError::Other(format!("Failed to create native-v3 database: {}", e))
-        })?;
-
-        // Step 6: Insert all symbols from snapshot, tracking snapshot ID → node ID mapping
-        use std::collections::HashMap;
-        let mut snapshot_id_to_node_id: HashMap<String, i64> = HashMap::new();
-
-        for (snapshot_id, symbol_info) in &snapshot.symbols {
-            let node_spec = NodeSpec {
-                kind: symbol_info.kind.clone(),
-                name: symbol_info.name.clone(),
-                file_path: Some(symbol_info.file_path.clone()),
-                data: serde_json::json!({
-                    "kind": symbol_info.kind,
-                    "byte_start": symbol_info.byte_span.0,
-                    "byte_end": symbol_info.byte_span.1,
-                    "file_path": symbol_info.file_path,
-                    "fan_in": symbol_info.fan_in,
-                    "fan_out": symbol_info.fan_out,
-                }),
-            };
-            let node_id = backend.insert_node(node_spec).map_err(|e| {
-                SpliceError::Other(format!("Failed to insert symbol {}: {}", symbol_info.id, e))
-            })?;
-            snapshot_id_to_node_id.insert(snapshot_id.clone(), node_id);
-        }
-
-        // Step 7: Insert all edges from snapshot using the ID mapping
-        let edge_type = crate::graph::schema::EDGE_CALLS;
-        let mut edges_inserted = 0usize;
-
-        for (caller_snapshot_id, callee_snapshot_ids) in &snapshot.edges {
-            // Skip if caller ID not in mapping (shouldn't happen with valid snapshots)
-            let Some(&caller_node_id) = snapshot_id_to_node_id.get(caller_snapshot_id) else {
-                continue;
-            };
-
-            for callee_snapshot_id in callee_snapshot_ids {
-                // Skip if callee ID not in mapping
-                let Some(&callee_node_id) = snapshot_id_to_node_id.get(callee_snapshot_id) else {
-                    continue;
-                };
-
-                let edge_spec = sqlitegraph::EdgeSpec {
-                    from: caller_node_id,
-                    to: callee_node_id,
-                    edge_type: edge_type.to_string(),
-                    data: serde_json::json!({}),
-                };
-
-                backend.insert_edge(edge_spec).map_err(|e| {
-                    SpliceError::Other(format!(
-                        "Failed to insert edge {} -> {}: {}",
-                        caller_snapshot_id, callee_snapshot_id, e
-                    ))
-                })?;
-                edges_inserted += 1;
-            }
-        }
-
-        // Step 8: Replace original database with restored one
-        fs::remove_file(db_path).map_err(|e| SpliceError::Io {
-            path: db_path.to_path_buf(),
-            source: e,
-        })?;
-        fs::rename(&temp_db_path, db_path).map_err(|e| SpliceError::Io {
-            path: temp_db_path.clone(),
-            source: e,
-        })?;
-
-        Ok(RestoreResult {
-            backup_path,
-            symbols_restored: symbols_count,
-            edges_restored: edges_inserted,
-        })
-    }
-
-    /// Database restore is not available without the native-v3 feature.
-    ///
-    /// Build with: `cargo build --features native-v3 --no-default-features`
-    #[cfg(not(feature = "native-v3"))]
     pub fn restore_from_snapshot(_db_path: &Path, _snapshot_path: &Path) -> Result<RestoreResult> {
         Err(SpliceError::Other(
-            "Database restore requires the native-v3 feature. \
-             Build with: cargo build --features native-v3 --no-default-features"
-                .to_string(),
+            "Database snapshot restore is disabled.".to_string(),
         ))
     }
 }
@@ -652,7 +515,7 @@ mod tests {
 
         // Save snapshot
         let metadata = storage
-            .save_snapshot("test", Path::new(".codemcp/codegraph.db"), snapshot.clone())
+            .save_snapshot("test", Path::new(".magellan/splice.db"), snapshot.clone())
             .unwrap();
 
         assert!(metadata.snapshot_path.exists());
@@ -685,7 +548,7 @@ mod tests {
             storage
                 .save_snapshot(
                     &format!("test_{}", i),
-                    Path::new(".codemcp/codegraph.db"),
+                    Path::new(".magellan/splice.db"),
                     snapshot,
                 )
                 .unwrap();
@@ -729,7 +592,7 @@ mod tests {
             storage
                 .save_snapshot(
                     &format!("cleanup_{}", i),
-                    Path::new(".codemcp/codegraph.db"),
+                    Path::new(".magellan/splice.db"),
                     snapshot,
                 )
                 .unwrap();
@@ -764,7 +627,7 @@ mod tests {
         storage
             .save_snapshot(
                 "latest_test_unique",
-                Path::new(".codemcp/codegraph.db"),
+                Path::new(".magellan/splice.db"),
                 snapshot,
             )
             .unwrap();

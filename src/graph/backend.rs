@@ -2,7 +2,7 @@
 //!
 //! This module defines shared types used by both SQLite and Geometric backends.
 //! The actual backend implementations are in:
-//! - `sqlite_impl.rs` - SQLite/V3 implementation
+//! - `sqlite_impl.rs` - SQLite implementation
 //! - `geo_impl.rs` - Geometric implementation
 //! - `router.rs` - Public CodeGraph enum that dispatches to backends
 

@@ -57,7 +57,7 @@ splice patch --file <PATH> --symbol <NAME> --with <FILE> [OPTIONS]
 - `--create-backup`: Create backup before patching
 - `--operation-id <ID>`: Custom operation ID for auditing
 - `--snapshot-before`: Capture graph snapshot before patching (requires --db)
-- `--db <PATH>`: Path to codegraph.db (default: .codemcp/codegraph.db)
+- `--db <PATH>`: Path to codegraph.db (default: .magellan/splice.db)
 
 **Preview JSON Output:**
 ```json
@@ -94,7 +94,7 @@ splice rename --symbol <id> --file <path> --to <new_name> [OPTIONS]
 - `--to <new_name>`: New name for the symbol
 
 **Optional Arguments:**
-- `--db <path>`: Path to codegraph.db (default: `.codemcp/codegraph.db`)
+- `--db <path>`: Path to codegraph.db (default: `.magellan/splice.db`)
 - `--preview`: Show changes without applying (no file modifications)
 - `--proof`: Generate refactoring proof for audit trail
 - `--snapshot-before`: Capture graph snapshot before renaming (requires --db)
@@ -119,7 +119,7 @@ splice reachable --symbol <name> --path <file> [OPTIONS]
 - `--path <file>`: File path for disambiguation
 
 **Optional Arguments:**
-- `--db <path>`: Path to codegraph.db (default: `.codemcp/codegraph.db`)
+- `--db <path>`: Path to codegraph.db (default: `.magellan/splice.db`)
 - `--direction <forward|backward>`: Traversal direction (default: forward)
 - `--max-depth <n>`: Maximum traversal depth (default: 10)
 - `--output <format>`: Output format (human, json, pretty)
@@ -157,6 +157,69 @@ splice cycles [OPTIONS]
 - `--max-cycles <n>`: Maximum cycles to display (default: 100)
 - `--show-members`: Show all cycle members
 - `--output <format>`: Output format (human, json, pretty)
+
+### splice complete
+
+Provide grounded, import-aware code completions using the Magellan database.
+
+```bash
+splice complete --file <PATH> --line <LINE> --column <COLUMN> [OPTIONS]
+```
+
+**Required Arguments:**
+- `--file <PATH>`: Path to source file
+- `--line <LINE>`: Cursor line number (1-based)
+- `--column <COLUMN>`: Cursor column number (1-based)
+
+**Optional Arguments:**
+- `--max-results <n>`: Maximum suggestions to return (default: 10)
+- `--db <path>`: Path to Magellan database (default: .magellan/splice.db)
+- `--output <format>`: Output format (human, json, pretty)
+
+**Behavior:**
+1. Queries Magellan database for visible symbols (local + imported)
+2. Analyzes cursor position to extract partial token being typed
+3. Filters suggestions by token prefix/contains match
+4. Ranks suggestions using multiple signals (frequency, proximity, kind, text match, import proximity)
+5. Returns grounded suggestions with database IDs proving symbol existence
+
+**Features:**
+- **Import-Aware**: Suggests symbols from imported modules across files
+- **Grounded**: Every suggestion includes database IDs (no LLM hallucinations)
+- **Token Filtering**: Shows only symbols matching what you're typing
+- **Source Tracking**: Distinguishes local (Database) vs imported (Imported) symbols
+- **Performance**: <10ms query time on 8,600+ symbols
+
+**Output Fields (JSON format):**
+- `label`: Suggested symbol name
+- `source`: "Database" (local) or "Imported" (cross-file)
+- `source_file`: Absolute path to defining file
+- `via_import`: Import statement (e.g., "use crate::completion::types")
+- `grounded_in`: Database IDs proving symbol exists
+- `score`: Relevance score (0.0-1.0)
+- `kind`: Symbol kind (Function, Struct, etc.)
+- `metadata.query_time_ms`: Query execution time
+
+**Examples:**
+
+```bash
+# Basic completion
+splice complete --file src/lib.rs --line 27 --column 8 --db .magellan/splice.db --max-results 10
+
+# JSON output with metadata
+splice complete --file src/main.rs --line 100 --column 10 --db .magellan/splice.db --max-results 5 --output json
+
+# Import-aware completion (70% from imports)
+splice complete --file src/completion/engine.rs --line 30 --column 8 --db .magellan/splice.db
+```
+
+**Performance:**
+- Average: 7.84ms
+- Median: 7ms
+- 95th percentile: 8ms
+- Database: 8,600+ symbols, 4,440+ imports
+
+**See Also:** [docs/completion.md](docs/completion.md) for detailed documentation
 
 ### splice condense
 
@@ -362,7 +425,7 @@ splice batch --spec <FILE> [OPTIONS]
 - `--spec <FILE>`: Path to YAML specification file
 
 **Optional Arguments:**
-- `--db <PATH>`: Path to codegraph.db (default: .codemcp/codegraph.db)
+- `--db <PATH>`: Path to codegraph.db (default: .magellan/splice.db)
 - `--dry-run`: Preview changes without applying
 - `--continue-on-error`: Continue after failures (default: stop on error)
 - `--rollback <MODE>`: Rollback mode (on-failure, never, always)
@@ -389,7 +452,6 @@ operations:
 ```
 
 **Rollback Modes:**
-- `on-failure`: Automatic rollback if any operation fails (native-v2 only)
 - `never`: No rollback (default)
 - `always`: Always rollback after execution (for testing)
 
@@ -436,91 +498,26 @@ splice status --db <FILE>
 - `--db <FILE>`: Path to codegraph.db
 
 **Optional Arguments:**
-- `--detect-backend`: Show which backend the database uses (sqlite or native-v2)
 
 **Backend Detection:**
 
 The `--detect-backend` flag reports which backend format a database file uses:
 
 - `sqlite`: SQLite format 3 database (default backend)
-- `native-v2`: Native KV format database
 - `unknown`: File doesn't exist or format unrecognized
 
 **Examples:**
 
 ```bash
 # Show database statistics with backend detection
-splice status --db .codemcp/codegraph.db --detect-backend
+splice status --db .magellan/splice.db --detect-backend
 
 # Output:
-# Database: .codemcp/codegraph.db
+# Database: .magellan/splice.db
 # Backend: sqlite
 # Symbols: 1,234
 # Files: 42
 ```
-
-### splice migrate
-
-Migrate a database from SQLite to native-v2 format.
-
-```bash
-splice migrate --source <PATH> --dest <PATH> [OPTIONS]
-```
-
-**Required Arguments:**
-- `--source <PATH>`: Path to source database (SQLite format)
-- `--dest <PATH>`: Path to destination database (native-v2 format)
-
-**Optional Arguments:**
-- `--progress`: Show progress during migration (default: true)
-- `--skip-verify`: Skip verification after migration (not recommended)
-- `--json`: Output JSON format instead of human-readable
-
-**Migration Workflow:**
-
-1. **Check current backend:**
-   ```bash
-   splice status --db .codemcp/codegraph.db --detect-backend
-   ```
-
-2. **Build splice with native-v2 feature:**
-   ```bash
-   cargo build --release --features native-v2 --no-default-features
-   ```
-
-3. **Run migration:**
-   ```bash
-   splice migrate --source .codemcp/codegraph.db --dest .codemcp/codegraph-native.db
-   ```
-
-4. **Verify migration:**
-   ```bash
-   splice status --db .codemcp/codegraph-native.db --detect-backend
-   ```
-
-5. **Update tooling to use new database:**
-   ```bash
-   # Use the new database path with splice commands
-   splice reachable --symbol main --db .codemcp/codegraph-native.db
-   ```
-
-**Migration Report:**
-
-The migration command reports:
-- `nodes_migrated`: Number of symbols/entities migrated
-- `edges_migrated`: Number of relationships migrated
-- `snapshot_metadata`: Information about the migration snapshot
-
-**Important Notes:**
-
-- Migration requires native-v2 feature enabled at build time
-- Source database must be SQLite format
-- Migration creates a new database (does not modify source)
-- Verify migration before replacing your original database
-
-**See Also:**
-- [Migration Guide](../docs/NATIVE-V2-MIGRATION.md) — Detailed migration documentation
-- [Which Backend Should I Use?](../README.md#which-backend-should-i-use) — Backend selection guidance
 
 ### splice find
 
@@ -556,32 +553,22 @@ splice export --db <FILE> --format FORMAT --file <PATH>
 
 ---
 
-## Native-V2 Features
 
-The following features require the native-v2 backend (build with `--features native-v2`):
 
 - **Snapshots**: `--snapshot-before` flag captures graph state for rollback
 - **Verify**: Compare snapshots to detect changes
 - **Batch**: Multi-file operations with automatic rollback
 - **Impact Graph**: DOT visualization of refactoring impact
 
-See [Native-V2 Features](docs/NATIVE-V2-FEATURES.md) for detailed examples.
 
-**Building with Native-V2:**
 
 ```bash
-# Install with native-v2 backend
-cargo install splice --features native-v2 --no-default-features
 
-# Build from source (native-v2 backend)
-cargo build --release --features native-v2 --no-default-features
 ```
 
-**Native-V2 Advantages:**
 
 - **Performance**: 2-100x faster for large codebases (100K+ LOC)
 - **File Size**: ~70% smaller database files
-- **Snapshot System**: Native snapshot/restore for rollback workflows
 - **Batch Operations**: Transaction-safe multi-file refactors
 
 ---
@@ -648,7 +635,6 @@ cargo build --release --features native-v2 --no-default-features
 | Rename (cross-file) | 100-500ms | Depends on reference count |
 | Delete (with cleanup) | 100-400ms | Cross-file removal |
 | Graph algorithms | 10-60ms | For 1K symbols |
-| Snapshot (native-v2) | 50-150ms | Full graph serialization |
 
 **See [docs/PERFORMANCE.md](docs/PERFORMANCE.md)** for detailed benchmarks and optimization strategies.
 
@@ -659,7 +645,6 @@ cargo build --release --features native-v2 --no-default-features
 1. **Always use `--preview`** before applying changes
 2. **Check impact** with `reachable` or `refs` before refactoring
 3. **Generate proofs** with `--proof` for audit trail
-4. **Use snapshots** for rollback capability (native-v2)
 
 ### For Interactive Use
 
@@ -691,7 +676,6 @@ cargo build --release --features native-v2 --no-default-features
 | SPL-E060 | Backup creation failed | Check disk space |
 | SPL-E070 | Backup restoration failed | Verify backup manifest |
 | SPL-E080 | Snapshot failed | Check disk space |
-| SPL-E090 | Native-V2 required | Rebuild with native-v2 |
 | SPL-E091 | Magellan error | Check Magelliand installation |
 | SPL-E100 | Batch operation failed | Check --continue-on-error |
 
@@ -710,8 +694,6 @@ GPL-3.0-only. See [LICENSE.md](../LICENSE.md).
 - **[docs/PERFORMANCE.md](docs/PERFORMANCE.md)** — Benchmarks and optimization strategies
 - **[docs/BEST_PRACTICES.md](docs/BEST_PRACTICES.md)** — Recommended workflows and patterns
 - **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** — Common issues and solutions
-- **[docs/NATIVE-V2-MIGRATION.md](docs/NATIVE-V2-MIGRATION.md)** — Backend migration guide
-- **[docs/NATIVE-V2-FEATURES.md](docs/NATIVE-V2-FEATURES.md)** — Native-v2 feature overview
 - **[docs/examples/rename_examples.md](docs/examples/rename_examples.md)** — Cross-file rename examples
 - **[docs/examples/graph_algorithm_examples.md](docs/examples/graph_algorithm_examples.md)** — Graph algorithm usage
 - **[docs/examples/proof_examples.md](docs/examples/proof_examples.md)** — Proof-based refactoring

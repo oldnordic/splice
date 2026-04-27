@@ -122,12 +122,6 @@ fn test_backend_detection_edge_cases() {
         "Layer 2e: .db should not be geometric"
     );
 
-    let v3_path = Path::new("/some/path/code.v3");
-    assert!(
-        !CodeGraph::is_geometric_db(v3_path),
-        "Layer 2e: .v3 should not be geometric"
-    );
-
     let no_ext = Path::new("/some/path/code");
     assert!(
         !CodeGraph::is_geometric_db(no_ext),
@@ -135,35 +129,31 @@ fn test_backend_detection_edge_cases() {
     );
 }
 
-/// Test Backend enum serialization in integration context
+/// Test BackendType enum serialization in integration context
 ///
-/// Layer 2: Backend should serialize correctly for CLI output
+/// Layer 2: BackendType should serialize correctly for CLI output
 #[test]
 fn test_backend_display_integration() {
-    use splice::graph::Backend;
+    use splice::graph::BackendType;
 
     // Layer 2a: All backends display correctly
-    assert_eq!(format!("{}", Backend::SQLite), "sqlite");
-    assert_eq!(format!("{}", Backend::NativeV3), "native-v3");
-    assert_eq!(format!("{}", Backend::Unknown), "unknown");
+    assert_eq!(format!("{}", BackendType::SQLite), "sqlite");
 
     // Layer 2b: Geometric backend display (when feature enabled)
     #[cfg(feature = "geometric")]
-    assert_eq!(format!("{}", Backend::Geometric), "geometric");
+    assert_eq!(format!("{}", BackendType::Geometric), "geometric");
 
     // Layer 2c: Display values are stable for CLI parsing
     // These values should not change without updating CLI documentation
-    let backends = vec!["sqlite", "native-v3", "unknown"];
+    let backends = vec!["sqlite"];
     for expected in backends {
-        let backend: Result<Backend, _> = match expected {
-            "sqlite" => Ok(Backend::SQLite),
-            "native-v3" => Ok(Backend::NativeV3),
-            "unknown" => Ok(Backend::Unknown),
+        let backend: Result<BackendType, _> = match expected {
+            "sqlite" => Ok(BackendType::SQLite),
             _ => Err("unknown variant"),
         };
         assert!(
             backend.is_ok(),
-            "Layer 2c: Backend {} should be valid",
+            "Layer 2c: BackendType {} should be valid",
             expected
         );
     }
