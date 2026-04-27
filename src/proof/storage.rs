@@ -488,16 +488,24 @@ impl Default for SnapshotStorage {
 mod tests {
     use super::*;
     use std::collections::HashMap;
+    use tempfile::TempDir;
+
+    fn test_storage() -> (TempDir, SnapshotStorage) {
+        let temp_dir = TempDir::new().unwrap();
+        let base_dir = temp_dir.path().join(".splice/snapshots");
+        fs::create_dir_all(&base_dir).unwrap();
+        (temp_dir, SnapshotStorage { base_dir })
+    }
 
     #[test]
     fn test_snapshot_storage_creation() {
-        let storage = SnapshotStorage::new().unwrap();
+        let (_temp_dir, storage) = test_storage();
         assert!(storage.base_dir().exists());
     }
 
     #[test]
     fn test_save_and_load_snapshot() {
-        let storage = SnapshotStorage::new().unwrap();
+        let (_temp_dir, storage) = test_storage();
 
         // Create a test snapshot
         let snapshot = GraphSnapshot {
@@ -528,7 +536,7 @@ mod tests {
 
     #[test]
     fn test_list_snapshots() {
-        let storage = SnapshotStorage::new().unwrap();
+        let (_temp_dir, storage) = test_storage();
 
         // Create test snapshots
         for i in 0..3 {
@@ -566,13 +574,7 @@ mod tests {
 
     #[test]
     fn test_cleanup_old_snapshots() {
-        let storage = SnapshotStorage::new().unwrap();
-
-        // Clean up any existing snapshots first to ensure test isolation
-        let existing = storage.list_snapshots().unwrap();
-        for snapshot in existing {
-            let _ = fs::remove_file(&snapshot.snapshot_path);
-        }
+        let (_temp_dir, storage) = test_storage();
 
         // Create test snapshots
         for i in 0..5 {
@@ -607,7 +609,7 @@ mod tests {
 
     #[test]
     fn test_get_latest_snapshot() {
-        let storage = SnapshotStorage::new().unwrap();
+        let (_temp_dir, storage) = test_storage();
 
         // Create a snapshot with a future timestamp to ensure it's the latest
         let future_timestamp = chrono::Utc::now().timestamp() + 1000;

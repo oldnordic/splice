@@ -188,7 +188,7 @@ splice complete --file <PATH> --line <LINE> --column <COLUMN> [OPTIONS]
 - **Grounded**: Every suggestion includes database IDs (no LLM hallucinations)
 - **Token Filtering**: Shows only symbols matching what you're typing
 - **Source Tracking**: Distinguishes local (Database) vs imported (Imported) symbols
-- **Performance**: <10ms query time on 8,600+ symbols
+- **Performance**: low-millisecond internal query time on indexed project databases
 
 **Output Fields (JSON format):**
 - `label`: Suggested symbol name
@@ -209,15 +209,14 @@ splice complete --file src/lib.rs --line 27 --column 8 --db .magellan/splice.db 
 # JSON output with metadata
 splice complete --file src/main.rs --line 100 --column 10 --db .magellan/splice.db --max-results 5 --output json
 
-# Import-aware completion (70% from imports)
+# Import-aware completion
 splice complete --file src/completion/engine.rs --line 30 --column 8 --db .magellan/splice.db
 ```
 
 **Performance:**
-- Average: 7.84ms
-- Median: 7ms
-- 95th percentile: 8ms
-- Database: 8,600+ symbols, 4,440+ imports
+- Current Splice database smoke test: 3-13ms internal completion query time
+- CLI wall time is typically around 0.30s because each command starts a new process and opens the database
+- Test database: 15,266 indexed graph entities reported by completion metadata
 
 **See Also:** [docs/completion.md](docs/completion.md) for detailed documentation
 
@@ -622,8 +621,8 @@ splice export --db <FILE> --format FORMAT --file <PATH>
 
 ## Requirements
 
-- **[Magellan](https://github.com/oldnordic/magellan)** 2.1.0+ — Required for code graph operations
-- **[sqlitegraph](https://crates.io/crates/sqlitegraph)** 1.4.2+ — Included automatically
+- **[Magellan](https://github.com/oldnordic/magellan)** 3.1.7+ — Required for code graph operations
+- **[sqlitegraph](https://crates.io/crates/sqlitegraph)** 2.0.3+ — Included automatically
 
 ---
 
@@ -634,9 +633,7 @@ splice export --db <FILE> --format FORMAT --file <PATH>
 | Patch (single file) | 50-200ms | Parse + validate + compiler |
 | Rename (cross-file) | 100-500ms | Depends on reference count |
 | Delete (with cleanup) | 100-400ms | Cross-file removal |
-| Graph algorithms | 10-60ms | For 1K symbols |
-
-**See [docs/PERFORMANCE.md](docs/PERFORMANCE.md)** for detailed benchmarks and optimization strategies.
+| Graph algorithms | 10-60ms | Depends on database size and traversal depth |
 
 ## Best Practices
 
@@ -648,19 +645,17 @@ splice export --db <FILE> --format FORMAT --file <PATH>
 
 ### For Interactive Use
 
-1. **Use `--preview --json`** to see exact changes
+1. **Use `--preview --output json`** to see exact changes
 2. **Create backups** with `--create-backup` for critical operations
 3. **Run tests** after each operation to verify correctness
 4. **Use batch operations** for multiple related changes
 
 ### For Scripting
 
-1. **Use `--json` output** for programmatic consumption
+1. **Use `--output json`** for programmatic consumption
 2. **Parse operation_id** for tracking and undo capability
 3. **Validate proofs** after operations for verification
 4. **Use snapshots** for before/after comparison
-
-**See [docs/BEST_PRACTICES.md](docs/BEST_PRACTICES.md)** for detailed workflows and patterns.
 
 ## Error Codes
 
@@ -676,10 +671,8 @@ splice export --db <FILE> --format FORMAT --file <PATH>
 | SPL-E060 | Backup creation failed | Check disk space |
 | SPL-E070 | Backup restoration failed | Verify backup manifest |
 | SPL-E080 | Snapshot failed | Check disk space |
-| SPL-E091 | Magellan error | Check Magelliand installation |
+| SPL-E091 | Magellan error | Check Magellan installation |
 | SPL-E100 | Batch operation failed | Check --continue-on-error |
-
-**See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** for detailed error recovery procedures.
 
 ---
 
@@ -691,9 +684,10 @@ GPL-3.0-only. See [LICENSE.md](../LICENSE.md).
 
 - **[README.md](README.md)** — Quick start and overview
 - **[CHANGELOG.md](CHANGELOG.md)** — Version history
-- **[docs/PERFORMANCE.md](docs/PERFORMANCE.md)** — Benchmarks and optimization strategies
-- **[docs/BEST_PRACTICES.md](docs/BEST_PRACTICES.md)** — Recommended workflows and patterns
-- **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** — Common issues and solutions
+- **[docs/completion.md](docs/completion.md)** — Code completion behavior and examples
+- **[docs/API.md](docs/API.md)** — API and structured output reference
+- **[docs/SCHEMA_REFERENCE.md](docs/SCHEMA_REFERENCE.md)** — Database/schema reference
+- **[docs/JSON_EXPORT_FORMAT.md](docs/JSON_EXPORT_FORMAT.md)** — JSON export format
 - **[docs/examples/rename_examples.md](docs/examples/rename_examples.md)** — Cross-file rename examples
 - **[docs/examples/graph_algorithm_examples.md](docs/examples/graph_algorithm_examples.md)** — Graph algorithm usage
 - **[docs/examples/proof_examples.md](docs/examples/proof_examples.md)** — Proof-based refactoring

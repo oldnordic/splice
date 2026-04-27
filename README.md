@@ -3,7 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/splice)](https://crates.io/crates/splice)
 [![Documentation](https://docs.rs/splice/badge.svg)](https://docs.rs/splice)
 
-**Version:** 2.6.0
+**Version:** 2.6.1
 
 Span-safe refactoring kernel for 7 languages. Byte-accurate code editing with graph algorithm analysis.
 
@@ -25,10 +25,10 @@ Span-safe refactoring kernel for 7 languages. Byte-accurate code editing with gr
 - **Impact analysis** — Blast zone detection before editing
 - **Proof-based refactoring** — Machine-checkable behavioral equivalence
 - **Code completion** — Grounded, import-aware suggestions using Magellan database
-  - Cross-file symbol resolution via import tracking (4,440+ imports)
+  - Cross-file symbol resolution via import tracking
   - Distinguishes local vs imported symbols with source tracking
   - Token filtering and enhanced ranking for imported symbols
-  - Performance: <10ms query time on 8,600+ symbols
+  - Performance: low-millisecond internal query time on indexed project databases
 - **7 languages** — Rust, Python, C, C++, Java, JavaScript, TypeScript
 
 ## Quick Start
@@ -59,10 +59,6 @@ splice complete --file src/lib.rs --line 27 --column 8 --db .magellan/splice.db 
 cargo install splice
 ```
 
-
-```bash
-```
-
 ## Backends
 
 | Feature | Description | File | Best For |
@@ -72,7 +68,7 @@ cargo install splice
 
 ## Requirements
 
-- **[Magellan](https://github.com/oldnordic/magellan)** 3.1.6+ — Required for code graph
+- **[Magellan](https://github.com/oldnordic/magellan)** 3.1.7+ — Required for code graph
 - **[sqlitegraph](https://crates.io/crates/sqlitegraph)** 2.0.3+ — Included automatically
 
 ## Documentation

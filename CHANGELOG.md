@@ -3,6 +3,13 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.1] - 2026-04-27
+
+### Changed
+- Updated Magellan dependency to `3.1.7`.
+- Updated sqlitegraph dependency to use the published crate instead of a local path.
+- Sanitized public documentation to avoid local benchmark overclaims and stale command flags.
+
 ## [2.6.0] - 2026-04-24
 
 ### Added
@@ -11,11 +18,11 @@ Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Added grounded code completion that suggests symbols from imported modules across files, using Magellan database for zero-hallucination completions.
 
 **Core Features:**
-- **Cross-File Symbol Resolution** - Queries Magellan's 4,440+ Import entities to resolve imported symbols
+- **Cross-File Symbol Resolution** - Queries Magellan Import entities to resolve imported symbols
 - **Source Tracking** - Distinguishes local (`Database`) vs imported (`Imported`) symbols
 - **Enhanced Ranking** - Import proximity signal boosts relevance of imported symbols (15% weight)
 - **Token Filtering** - Filters suggestions based on partial token being typed
-- **Performance Optimized** - Average query time: 7.84ms (<10ms target, 40% improvement from baseline)
+- **Performance Optimized** - Current smoke tests show 3-13ms internal completion query time on the Splice database
 
 **New Modules:**
 - `src/completion/mod.rs` (7 files) - Complete import-aware completion system
@@ -31,17 +38,17 @@ Added grounded code completion that suggests symbols from imported modules acros
 - `docs/completion.md` (9.8KB) - Comprehensive user and developer documentation
   - Quick start guide with CLI examples
   - Architecture overview with database schema
-  - Performance benchmarks (2-5ms on 8,600+ symbols)
+  - Performance benchmarks and CLI examples
   - Integration examples (CLI, editor, LSP)
   - Troubleshooting guide
 
 **Testing:**
 - `tests/completion_integration.rs` - Integration tests validating import-aware completion
-  - 70% of suggestions from imported symbols (cross-file resolution working)
+  - Imported symbol suggestions validate cross-file resolution
   - Token filtering validated at different cursor positions
 - `tests/completion_bench.rs` - Performance benchmark (100 iterations)
-  - Average: 7.84ms, Median: 7ms, 95th percentile: 8ms
-  - Optimized from 13.33ms → 7.84ms via symbol count caching
+  - Internal query time validated in low milliseconds
+  - Symbol count caching avoids repeated `COUNT(*)` queries
 
 **Usage Examples:**
 ```bash
@@ -49,7 +56,7 @@ Added grounded code completion that suggests symbols from imported modules acros
 splice complete --file src/completion/engine.rs --line 30 --column 8 --max-results 10
 
 # JSON output with metadata
-splice complete --file src/lib.rs --line 27 --column 8 --max-results 5 --json
+splice complete --file src/lib.rs --line 27 --column 8 --max-results 5 --output json
 
 # Output includes:
 # - source: "Imported" (cross-file) or "Database" (same file)
@@ -61,17 +68,17 @@ splice complete --file src/lib.rs --line 27 --column 8 --max-results 5 --json
 **Benefits:**
 - LLMs can provide grounded completions (no hallucinations)
 - Suggests symbols from any imported module
-- Fast performance (<10ms) suitable for real-time use
+- Fast internal query performance suitable for interactive tooling
 - Every suggestion includes database IDs for verification
 
 **Performance Optimization:**
 - Cached symbol count in `CompletionEngine` (avoids repeated `COUNT(*)` queries)
-- Reduced from 13.33ms → 7.84ms (40% improvement)
+- Avoids repeated symbol count queries during completion
 - Single database query per completion request
 - Graceful degradation if import resolution fails
 
 **Database Integration:**
-- Uses Magellan `graph_entities` table (kind='Import', 4,440 entities)
+- Uses Magellan `graph_entities` table for imports and symbols
 - Uses Magellan `graph_edges` table (edge_type='IMPORTS')
 - Parses JSON `data` field for import metadata
 - Resolves cross-file symbol relationships

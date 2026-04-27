@@ -153,32 +153,55 @@ impl ModulePathIndex {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rusqlite::params;
+    use tempfile::TempDir;
 
     #[test]
     fn test_build_index() {
-        // This test will be implemented once we have a test database setup
-        // For now, we just verify the code compiles
-        let db_path = PathBuf::from(".magellan/splice.db");
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("splice.db");
+        let module_file = temp_dir.path().join("src/completion/types.rs");
 
-        if !db_path.exists() {
-            return; // Skip test if database not available
-        }
+        std::fs::create_dir_all(module_file.parent().unwrap()).unwrap();
+        std::fs::write(&module_file, "pub struct CompletionRequest;\n").unwrap();
+
+        let conn = Connection::open(&db_path).unwrap();
+        conn.execute(
+            "CREATE TABLE graph_entities (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                data TEXT NOT NULL
+            )",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO graph_entities (id, name, kind, file_path, data)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                1_i64,
+                "CompletionRequest",
+                "Symbol",
+                module_file.to_string_lossy().as_ref(),
+                r#"{"display_fqn":"splice::completion::types::CompletionRequest"}"#
+            ],
+        )
+        .unwrap();
+        drop(conn);
 
         let result = ModulePathIndex::build(&db_path);
         assert!(result.is_ok(), "Failed to build index: {:?}", result.err());
 
         let index = result.unwrap();
-        println!("Indexed {} modules", index.len());
+        assert_eq!(index.len(), 1);
 
-        // Should have indexed some modules from the codebase
-        if !index.is_empty() {
-            // Try to resolve a known module path
-            // This will depend on what's actually in the database
-            if let Some(file_path) = index.resolve("splice::completion::types") {
-                println!("Resolved module to: {}", file_path.display());
-                assert!(file_path.exists(), "File path should exist");
-            }
-        }
+        let resolved = index
+            .resolve("splice::completion::types")
+            .expect("module path should resolve");
+        assert_eq!(resolved, &module_file);
+        assert!(resolved.exists(), "File path should exist");
     }
 
     #[test]
