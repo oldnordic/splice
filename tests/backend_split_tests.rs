@@ -189,9 +189,12 @@ fn test_backend_detection() {
     let detected = splice::graph::CodeGraph::detect_backend(sqlite_file.path()).unwrap();
     assert!(matches!(detected, splice::graph::BackendType::SQLite));
 
-    // Geometric
-    let detected = splice::graph::CodeGraph::detect_backend(Path::new("test.geo")).unwrap();
-    assert!(matches!(detected, splice::graph::BackendType::Geometric));
+    // Geometric (only when feature is enabled)
+    #[cfg(feature = "geometric")]
+    {
+        let detected = splice::graph::CodeGraph::detect_backend(Path::new("test.geo")).unwrap();
+        assert!(matches!(detected, splice::graph::BackendType::Geometric));
+    }
 }
 
 /// Test 7: is_geometric_db helper works
