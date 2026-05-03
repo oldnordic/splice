@@ -354,7 +354,7 @@ echo 'pub fn test() -> i32 { 42 }' | \
 - rust-analyzer unavailable: Graceful degradation (assumes OK)
 
 **Use Cases:**
-- LLM code generation is not supported — validate code manually before writing
+- AI-generated code is not supported — validate code manually before writing
 - Interactive file creation with validation
 - Batch file creation from templates
 - Automated code generation pipelines
