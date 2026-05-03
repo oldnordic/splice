@@ -607,7 +607,7 @@ This release delivers a unified CLI interface where Splice provides both Magella
 
 **Documentation**
 - Comprehensive Magellan integration guide (docs/magellan_integration.md — 1030 lines)
-- LLM usage patterns and workflow examples
+- Editor/agent usage patterns and workflow examples
 - Performance benchmarks and characteristics
 
 ### Changed
@@ -617,7 +617,7 @@ This release delivers a unified CLI interface where Splice provides both Magella
 - Added `anyhow = "1.0"` for error chain preservation
 
 **Test Coverage**
-- 21 new integration tests covering commands, formats, errors, LLM workflows, and performance
+- 21 new integration tests covering commands, formats, errors, agent workflows, and performance
 - All query commands validated end-to-end
 - Export format validation tests for JSON, JSONL, CSV
 
@@ -657,9 +657,9 @@ This release addresses 67 issues identified in comprehensive bug analysis, impro
 
 ## [2.2.0] - 2026-01-23
 
-### Unified JSON & LLM Optimization
+### Unified JSON & Editor Optimization
 
-This release introduces unified JSON schema across all LLM tools with rich span extensions optimized for AI agent consumption and human-friendly CLI improvements.
+This release introduces unified JSON schema across all code intelligence tools with rich span extensions optimized for agent consumption and human-friendly CLI improvements.
 
 ### Added
 
