@@ -185,7 +185,7 @@ splice complete --file <PATH> --line <LINE> --column <COLUMN> [OPTIONS]
 
 **Features:**
 - **Import-Aware**: Suggests symbols from imported modules across files
-- **Grounded**: Every suggestion includes database IDs (no LLM hallucinations)
+- **Grounded**: Every suggestion includes database IDs (no hallucinations)
 - **Token Filtering**: Shows only symbols matching what you're typing
 - **Source Tracking**: Distinguishes local (Database) vs imported (Imported) symbols
 - **Performance**: low-millisecond internal query time on indexed project databases
@@ -284,7 +284,7 @@ splice apply-files --glob <GLOB> --find <PATTERN> --replace <REPLACEMENT>
 
 ### splice create
 
-Create a new file with validation, enabling safer code generation and LLM integration.
+Create a new file with validation, enabling safer code generation and editor integration.
 
 ```bash
 cat <<'EOF' | splice create --file <PATH> [OPTIONS]
@@ -354,7 +354,7 @@ echo 'pub fn test() -> i32 { 42 }' | \
 - rust-analyzer unavailable: Graceful degradation (assumes OK)
 
 **Use Cases:**
-- LLM code generation (validate before writing)
+- LLM code generation is not supported — validate code manually before writing
 - Interactive file creation with validation
 - Batch file creation from templates
 - Automated code generation pipelines
@@ -637,7 +637,7 @@ splice export --db <FILE> --format FORMAT --file <PATH>
 
 ## Best Practices
 
-### For LLM Integration
+### For Editor Integration
 
 1. **Always use `--preview`** before applying changes
 2. **Check impact** with `reachable` or `refs` before refactoring

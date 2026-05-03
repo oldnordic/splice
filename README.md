@@ -14,7 +14,7 @@ Span-safe refactoring kernel for 7 languages. Byte-accurate code editing with gr
 **splice edits code with graph-aware safety.** Built for:
 
 - **Developers** — Cross-file rename, safe refactoring with rollback
-- **AI Assistants** — Byte-accurate edits with proof-based verification
+- **Grounded Assistants** — Byte-accurate edits with proof-based verification
 - **Tooling** — Scriptable transformations with AST validation
 
 ## Features
