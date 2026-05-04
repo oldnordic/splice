@@ -26,6 +26,11 @@ use std::path::Path;
 use std::time::Instant;
 use tempfile::TempDir;
 
+/// CI shared runners are ~3x slower than local dev machines.
+fn ci_multiplier() -> u64 {
+    if std::env::var("CI").is_ok() { 3 } else { 1 }
+}
+
 /// Helper to create a test code graph with a specified number of symbols.
 ///
 /// Generates function definitions with call relationships and imports/exports.
@@ -402,7 +407,7 @@ mod tests {
 
         // Performance assertion: small graph should be very fast
         assert!(
-            duration.as_millis() < 10,
+            duration.as_millis() < 10 * ci_multiplier(),
             "get_callers on small graph took {}ms, expected < 10ms",
             duration.as_millis()
         );
@@ -433,7 +438,7 @@ mod tests {
 
         // Performance assertion: large graph should complete in reasonable time
         assert!(
-            duration.as_millis() < 100,
+            duration.as_millis() < 100 * ci_multiplier(),
             "get_callers on large graph took {}ms, expected < 100ms",
             duration.as_millis()
         );
@@ -464,7 +469,7 @@ mod tests {
 
         // Performance assertion
         assert!(
-            duration.as_millis() < 100,
+            duration.as_millis() < 100 * ci_multiplier(),
             "get_callees on large graph took {}ms, expected < 100ms",
             duration.as_millis()
         );
@@ -521,7 +526,7 @@ mod tests {
 
         // Performance assertion
         assert!(
-            duration.as_millis() < 50,
+            duration.as_millis() < 50 * ci_multiplier(),
             "imports/exports query took {}ms, expected < 50ms",
             duration.as_millis()
         );
@@ -657,7 +662,7 @@ mod tests {
 
         // Should complete quickly (no infinite loop)
         assert!(
-            duration.as_millis() < 100,
+            duration.as_millis() < 100 * ci_multiplier(),
             "Deep chain query took {}ms, expected < 100ms",
             duration.as_millis()
         );

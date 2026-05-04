@@ -19,7 +19,11 @@ use std::path::PathBuf;
 use std::time::Instant;
 use tempfile::TempDir;
 
-const MAX_TIME_MS: u128 = 1000; // 1 second max per algorithm
+/// CI shared runners are ~3x slower than local dev machines.
+fn max_time_ms() -> u128 {
+    if std::env::var("CI").is_ok() { 3000 } else { 1000 }
+}
+
 const TARGET_SYMBOL_COUNT: usize = 1_000; // Reduced for faster test execution while still meaningful
 
 /// Module for generating test data for performance tests.
@@ -166,10 +170,10 @@ fn test_reachable_1k_symbols_under_1s() {
     let reachable = result.unwrap();
 
     assert!(
-        elapsed.as_millis() < MAX_TIME_MS,
+        elapsed.as_millis() < max_time_ms(),
         "Reachable took {}ms, expected <{}ms",
         elapsed.as_millis(),
-        MAX_TIME_MS
+        max_time_ms()
     );
 
     println!(
@@ -206,10 +210,10 @@ fn test_reverse_reachable_1k_symbols_under_1s() {
     );
 
     assert!(
-        elapsed.as_millis() < MAX_TIME_MS,
+        elapsed.as_millis() < max_time_ms(),
         "Reverse reachable took {}ms, expected <{}ms",
         elapsed.as_millis(),
-        MAX_TIME_MS
+        max_time_ms()
     );
 
     let callers = result.unwrap();
@@ -267,10 +271,10 @@ fn test_cycles_1k_symbols_under_1s() {
     let elapsed = start.elapsed();
 
     assert!(
-        elapsed.as_millis() < MAX_TIME_MS,
+        elapsed.as_millis() < max_time_ms(),
         "Cycle detection took {}ms, expected <{}ms",
         elapsed.as_millis(),
-        MAX_TIME_MS
+        max_time_ms()
     );
 
     println!(
@@ -440,10 +444,10 @@ fn test_condense_1k_symbols_under_1s() {
     let elapsed = start.elapsed();
 
     assert!(
-        elapsed.as_millis() < MAX_TIME_MS,
+        elapsed.as_millis() < max_time_ms(),
         "Graph condensation took {}ms, expected <{}ms",
         elapsed.as_millis(),
-        MAX_TIME_MS
+        max_time_ms()
     );
 
     println!(
@@ -477,10 +481,10 @@ fn test_slice_forward_1k_symbols_under_1s() {
     );
 
     assert!(
-        elapsed.as_millis() < MAX_TIME_MS,
+        elapsed.as_millis() < max_time_ms(),
         "Forward slice took {}ms, expected <{}ms",
         elapsed.as_millis(),
-        MAX_TIME_MS
+        max_time_ms()
     );
 
     let sliced = result.unwrap();
@@ -514,10 +518,10 @@ fn test_slice_backward_1k_symbols_under_1s() {
     );
 
     assert!(
-        elapsed.as_millis() < MAX_TIME_MS,
+        elapsed.as_millis() < max_time_ms(),
         "Backward slice took {}ms, expected <{}ms",
         elapsed.as_millis(),
-        MAX_TIME_MS
+        max_time_ms()
     );
 
     let sliced = result.unwrap();

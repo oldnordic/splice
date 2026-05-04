@@ -26,6 +26,11 @@ use std::path::Path;
 use std::time::Instant;
 use tempfile::TempDir;
 
+/// CI shared runners are ~3x slower than local dev machines.
+fn ci_multiplier() -> u64 {
+    if std::env::var("CI").is_ok() { 3 } else { 1 }
+}
+
 /// Create a large Rust file with repeated function definitions.
 ///
 /// Each function pair is approximately 100-110 bytes, so num_functions * 100 ≈ file size.
@@ -103,11 +108,13 @@ fn test_context_extraction_32kb_file() {
     assert!(!ctx.selected.is_empty(), "Should have selected context");
     assert!(!ctx.after.is_empty(), "Should have context after");
 
-    // Verify performance: < 100ms
+    // Verify performance: < 100ms (300ms on CI)
+    let max_ms = 100 * ci_multiplier();
     assert!(
-        duration.as_millis() < 100,
-        "Context extraction on 32KB file took {}ms, expected < 100ms",
-        duration.as_millis()
+        duration.as_millis() < max_ms,
+        "Context extraction on 32KB file took {}ms, expected < {}ms",
+        duration.as_millis(),
+        max_ms
     );
 
     println!(
@@ -151,11 +158,13 @@ fn test_context_extraction_64kb_file() {
     assert!(!ctx.selected.is_empty(), "Should have selected context");
     assert!(!ctx.after.is_empty(), "Should have context after");
 
-    // Verify performance: < 200ms
+    // Verify performance: < 200ms (600ms on CI)
+    let max_ms = 200 * ci_multiplier();
     assert!(
-        duration.as_millis() < 200,
-        "Context extraction on 64KB file took {}ms, expected < 200ms",
-        duration.as_millis()
+        duration.as_millis() < max_ms,
+        "Context extraction on 64KB file took {}ms, expected < {}ms",
+        duration.as_millis(),
+        max_ms
     );
 
     println!(
@@ -199,11 +208,13 @@ fn test_context_extraction_128kb_file() {
     assert!(!ctx.selected.is_empty(), "Should have selected context");
     assert!(!ctx.after.is_empty(), "Should have context after");
 
-    // Verify performance: < 400ms
+    // Verify performance: < 400ms (1200ms on CI)
+    let max_ms = 400 * ci_multiplier();
     assert!(
-        duration.as_millis() < 400,
-        "Context extraction on 128KB file took {}ms, expected < 400ms",
-        duration.as_millis()
+        duration.as_millis() < max_ms,
+        "Context extraction on 128KB file took {}ms, expected < {}ms",
+        duration.as_millis(),
+        max_ms
     );
 
     println!(
@@ -258,11 +269,13 @@ fn test_context_extraction_with_expansion_64kb() {
         "Should have selected content from expanded span"
     );
 
-    // Verify performance: < 300ms (expansion + context)
+    // Verify performance: < 300ms (expansion + context, 900ms on CI)
+    let max_ms = 300 * ci_multiplier();
     assert!(
-        duration.as_millis() < 300,
-        "Expansion + context extraction on 64KB file took {}ms, expected < 300ms",
-        duration.as_millis()
+        duration.as_millis() < max_ms,
+        "Expansion + context extraction on 64KB file took {}ms, expected < {}ms",
+        duration.as_millis(),
+        max_ms
     );
 
     println!(
@@ -315,11 +328,13 @@ fn test_asymmetric_context_extraction_64kb() {
     );
     assert!(!ctx.selected.is_empty(), "Should have selected content");
 
-    // Verify performance: < 150ms
+    // Verify performance: < 150ms (450ms on CI)
+    let max_ms = 150 * ci_multiplier();
     assert!(
-        duration.as_millis() < 150,
-        "Asymmetric context extraction on 64KB file took {}ms, expected < 150ms",
-        duration.as_millis()
+        duration.as_millis() < max_ms,
+        "Asymmetric context extraction on 64KB file took {}ms, expected < {}ms",
+        duration.as_millis(),
+        max_ms
     );
 
     println!(
@@ -376,16 +391,19 @@ fn test_context_extraction_at_file_boundaries() {
         "At file end, after context should be minimal"
     );
 
-    // Both should be fast (< 50ms)
+    // Both should be fast (< 50ms, 150ms on CI)
+    let max_ms = 50 * ci_multiplier();
     assert!(
-        duration_start.as_millis() < 50,
-        "Context extraction at file start took {}ms, expected < 50ms",
-        duration_start.as_millis()
+        duration_start.as_millis() < max_ms,
+        "Context extraction at file start took {}ms, expected < {}ms",
+        duration_start.as_millis(),
+        max_ms
     );
     assert!(
-        duration_end.as_millis() < 50,
-        "Context extraction at file end took {}ms, expected < 50ms",
-        duration_end.as_millis()
+        duration_end.as_millis() < max_ms,
+        "Context extraction at file end took {}ms, expected < {}ms",
+        duration_end.as_millis(),
+        max_ms
     );
 
     println!(
@@ -409,11 +427,14 @@ fn test_context_extraction_at_file_boundaries() {
 fn test_context_extraction_linear_scaling() {
     let dir = TempDir::new().unwrap();
 
+    // CI shared runners are ~3x slower than local dev machines.
+    let ci_multiplier = if std::env::var("CI").is_ok() { 3 } else { 1 };
+
     // Create files of different sizes and measure performance
     let test_cases = vec![
-        (100, 50),  // 100 functions, max 50ms
-        (200, 100), // 200 functions, max 100ms
-        (400, 200), // 400 functions, max 200ms
+        (100, 50 * ci_multiplier),  // 100 functions, max 50ms
+        (200, 100 * ci_multiplier), // 200 functions, max 100ms
+        (400, 200 * ci_multiplier), // 400 functions, max 200ms
     ];
 
     let mut timings = Vec::new();
@@ -491,11 +512,13 @@ fn test_context_extraction_zero_context_large_file() {
     assert_eq!(ctx.after.len(), 0, "Should have no context after");
     assert!(!ctx.selected.is_empty(), "Should have selected content");
 
-    // Should still be very fast with no context
+    // Should still be very fast with no context (< 50ms, 150ms on CI)
+    let max_ms = 50 * ci_multiplier();
     assert!(
-        duration.as_millis() < 50,
-        "Zero-context extraction took {}ms, expected < 50ms",
-        duration.as_millis()
+        duration.as_millis() < max_ms,
+        "Zero-context extraction took {}ms, expected < {}ms",
+        duration.as_millis(),
+        max_ms
     );
 }
 
@@ -527,11 +550,13 @@ fn test_context_extraction_large_context_window() {
         ctx.after.len()
     );
 
-    // Even with large context window, should be reasonably fast
+    // Even with large context window, should be reasonably fast (< 200ms, 600ms on CI)
+    let max_ms = 200 * ci_multiplier();
     assert!(
-        duration.as_millis() < 200,
-        "Large context window extraction took {}ms, expected < 200ms",
-        duration.as_millis()
+        duration.as_millis() < max_ms,
+        "Large context window extraction took {}ms, expected < {}ms",
+        duration.as_millis(),
+        max_ms
     );
 
     println!(

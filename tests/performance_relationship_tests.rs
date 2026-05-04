@@ -29,6 +29,11 @@ use std::io::Write;
 use std::time::Instant;
 use tempfile::TempDir;
 
+/// CI shared runners are ~3x slower than local dev machines.
+fn ci_multiplier() -> u64 {
+    if std::env::var("CI").is_ok() { 3 } else { 1 }
+}
+
 /// Helper to create a test code graph with a specified number of symbols.
 ///
 /// Reuses the TestGraphBuilder pattern from existing relationship_performance.rs
@@ -208,7 +213,7 @@ fn test_get_callers_small_graph_performance() {
 
     // Small graph should be very fast: < 10ms
     assert!(
-        duration.as_millis() < 10,
+        duration.as_millis() < 10 * ci_multiplier(),
         "get_callers on 50-symbol graph took {}ms, expected < 10ms",
         duration.as_millis()
     );
@@ -237,7 +242,7 @@ fn test_get_callers_large_graph_performance() {
 
     // Large graph should complete in < 100ms
     assert!(
-        duration.as_millis() < 100,
+        duration.as_millis() < 100 * ci_multiplier(),
         "get_callers on 1000-symbol graph took {}ms, expected < 100ms",
         duration.as_millis()
     );
@@ -269,7 +274,7 @@ fn test_get_callees_large_graph_performance() {
 
     // Verify performance: < 100ms
     assert!(
-        duration.as_millis() < 100,
+        duration.as_millis() < 100 * ci_multiplier(),
         "get_callees on 1000-symbol graph took {}ms, expected < 100ms",
         duration.as_millis()
     );
@@ -302,7 +307,7 @@ fn test_get_imports_large_graph_performance() {
 
     // Verify performance: < 100ms
     assert!(
-        duration.as_millis() < 100,
+        duration.as_millis() < 100 * ci_multiplier(),
         "get_imports on 1000-symbol graph took {}ms, expected < 100ms",
         duration.as_millis()
     );
@@ -335,7 +340,7 @@ fn test_get_exports_large_graph_performance() {
 
     // Verify performance: < 100ms
     assert!(
-        duration.as_millis() < 100,
+        duration.as_millis() < 100 * ci_multiplier(),
         "get_exports on 1000-symbol graph took {}ms, expected < 100ms",
         duration.as_millis()
     );
@@ -377,7 +382,7 @@ fn test_all_relationship_types_large_graph() {
 
     // Total time for all four queries should still be < 200ms
     assert!(
-        duration.as_millis() < 200,
+        duration.as_millis() < 200 * ci_multiplier(),
         "All relationship queries on 1000-symbol graph took {}ms, expected < 200ms",
         duration.as_millis()
     );
@@ -456,7 +461,7 @@ fn test_relationship_queries_medium_graph() {
 
     // Medium graph should be faster: < 50ms
     assert!(
-        duration.as_millis() < 50,
+        duration.as_millis() < 50 * ci_multiplier(),
         "get_callers on 200-symbol graph took {}ms, expected < 50ms",
         duration.as_millis()
     );
@@ -537,7 +542,7 @@ fn test_multiple_symbols_large_graph() {
 
     // Querying 3 symbols should still be fast
     assert!(
-        duration.as_millis() < 100,
+        duration.as_millis() < 100 * ci_multiplier(),
         "Querying 3 symbols on 1000-symbol graph took {}ms, expected < 100ms",
         duration.as_millis()
     );
