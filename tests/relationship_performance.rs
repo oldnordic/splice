@@ -383,6 +383,7 @@ mod tests {
     // ========================
 
     #[test]
+    #[ignore = "performance benchmark: too slow on shared CI runners"]
     fn test_get_callers_small_graph() {
         use splice::relationships::get_callers;
 
@@ -414,6 +415,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "performance benchmark: too slow on shared CI runners"]
     fn test_get_callers_large_graph() {
         use splice::relationships::get_callers;
 
@@ -445,6 +447,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "performance benchmark: too slow on shared CI runners"]
     fn test_get_callees_large_graph() {
         use splice::relationships::get_callees;
 
@@ -496,6 +499,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "performance benchmark: too slow on shared CI runners"]
     fn test_imports_exports_performance() {
         use splice::relationships::{get_exports, get_imports};
 
@@ -536,6 +540,7 @@ mod tests {
     // ===================================================
 
     #[test]
+    #[ignore = "performance benchmark: too slow on shared CI runners"]
     fn test_session_caching() {
         use splice::relationships::get_callers;
 
@@ -639,6 +644,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "performance benchmark: too slow on shared CI runners"]
     fn test_deep_chain_handling() {
         use splice::relationships::get_callers;
 

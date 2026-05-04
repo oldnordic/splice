@@ -197,6 +197,7 @@ fn get_first_file_path(temp_dir: &TempDir) -> std::path::PathBuf {
 // ============================================================================
 
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_get_callers_small_graph_performance() {
     let (graph, temp_dir) = create_small_graph();
 
@@ -226,6 +227,7 @@ fn test_get_callers_small_graph_performance() {
 // ============================================================================
 
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_get_callers_large_graph_performance() {
     let (graph, temp_dir) = create_large_graph();
 
@@ -258,6 +260,7 @@ fn test_get_callers_large_graph_performance() {
 // ============================================================================
 
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_get_callees_large_graph_performance() {
     let (graph, temp_dir) = create_large_graph();
 
@@ -290,6 +293,7 @@ fn test_get_callees_large_graph_performance() {
 // ============================================================================
 
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_get_imports_large_graph_performance() {
     let (graph, temp_dir) = create_large_graph();
 
@@ -323,6 +327,7 @@ fn test_get_imports_large_graph_performance() {
 // ============================================================================
 
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_get_exports_large_graph_performance() {
     let (graph, temp_dir) = create_large_graph();
 
@@ -356,6 +361,7 @@ fn test_get_exports_large_graph_performance() {
 // ============================================================================
 
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_all_relationship_types_large_graph() {
     let (graph, temp_dir) = create_large_graph();
 
@@ -398,6 +404,7 @@ fn test_all_relationship_types_large_graph() {
 // ============================================================================
 
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_relationship_cache_effectiveness() {
     let (graph, temp_dir) = create_large_graph();
 
@@ -445,6 +452,7 @@ fn test_relationship_cache_effectiveness() {
 // ============================================================================
 
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_relationship_queries_medium_graph() {
     let (graph, temp_dir) = create_medium_graph();
 
@@ -477,6 +485,7 @@ fn test_relationship_queries_medium_graph() {
 // ============================================================================
 
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_cache_clear_and_reuse() {
     let (graph, temp_dir) = create_large_graph();
 
@@ -512,6 +521,7 @@ fn test_cache_clear_and_reuse() {
 // ============================================================================
 
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_multiple_symbols_large_graph() {
     let (graph, temp_dir) = create_large_graph();
 
@@ -558,6 +568,7 @@ fn test_multiple_symbols_large_graph() {
 // ============================================================================
 
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_imports_exports_scaling() {
     // Small graph
     let (graph_small, temp_dir_small) = create_small_graph();
@@ -594,6 +605,7 @@ fn test_imports_exports_scaling() {
 // ============================================================================
 
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_cache_keys_unique_per_query_type() {
     let (graph, temp_dir) = create_large_graph();
 

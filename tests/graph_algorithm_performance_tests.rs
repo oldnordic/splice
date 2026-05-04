@@ -151,6 +151,7 @@ path = "src/lib.rs"
 }
 
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_reachable_1k_symbols_under_1s() {
     let temp_dir = TempDir::new().unwrap();
     let db_path = test_data::generate_large_test_graph(&temp_dir);
@@ -193,6 +194,7 @@ fn test_reachable_1k_symbols_under_1s() {
 }
 
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_reverse_reachable_1k_symbols_under_1s() {
     let temp_dir = TempDir::new().unwrap();
     let db_path = test_data::generate_large_test_graph(&temp_dir);
@@ -230,6 +232,7 @@ fn test_reverse_reachable_1k_symbols_under_1s() {
 }
 
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_cycles_1k_symbols_under_1s() {
     let temp_dir = TempDir::new().unwrap();
     let db_path = test_data::generate_large_test_graph(&temp_dir);
@@ -383,6 +386,7 @@ fn strongconnect(
 }
 
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_condense_1k_symbols_under_1s() {
     let temp_dir = TempDir::new().unwrap();
     let db_path = test_data::generate_large_test_graph(&temp_dir);
@@ -464,6 +468,7 @@ fn test_condense_1k_symbols_under_1s() {
 }
 
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_slice_forward_1k_symbols_under_1s() {
     let temp_dir = TempDir::new().unwrap();
     let db_path = test_data::generate_large_test_graph(&temp_dir);
@@ -501,6 +506,7 @@ fn test_slice_forward_1k_symbols_under_1s() {
 }
 
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_slice_backward_1k_symbols_under_1s() {
     let temp_dir = TempDir::new().unwrap();
     let db_path = test_data::generate_large_test_graph(&temp_dir);

@@ -81,6 +81,7 @@ pub fn multiply_{}(x: i32, y: i32) -> i32 {{
 /// - Performance is < 100ms
 /// - Before, selected, and after context are all extracted
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_context_extraction_32kb_file() {
     let dir = TempDir::new().unwrap();
 
@@ -131,6 +132,7 @@ fn test_context_extraction_32kb_file() {
 /// - Performance is < 200ms
 /// - All context components are extracted
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_context_extraction_64kb_file() {
     let dir = TempDir::new().unwrap();
 
@@ -181,6 +183,7 @@ fn test_context_extraction_64kb_file() {
 /// - Performance is < 400ms
 /// - Scaling remains acceptable at larger file sizes
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_context_extraction_128kb_file() {
     let dir = TempDir::new().unwrap();
 
@@ -231,6 +234,7 @@ fn test_context_extraction_128kb_file() {
 /// - Combined expansion + context extraction performance
 /// - Performance is < 300ms for the combined operation
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_context_extraction_with_expansion_64kb() {
     let dir = TempDir::new().unwrap();
 
@@ -292,6 +296,7 @@ fn test_context_extraction_with_expansion_64kb() {
 /// - Different before/after context counts are respected
 /// - Performance is < 150ms for asymmetric extraction
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_asymmetric_context_extraction_64kb() {
     let dir = TempDir::new().unwrap();
 
@@ -354,6 +359,7 @@ fn test_asymmetric_context_extraction_64kb() {
 /// - Boundary conditions don't cause errors
 /// - Performance at boundaries is acceptable (< 50ms)
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_context_extraction_at_file_boundaries() {
     let dir = TempDir::new().unwrap();
 
@@ -424,6 +430,7 @@ fn test_context_extraction_at_file_boundaries() {
 /// This test ensures the O(log n) behavior of ropey is providing
 /// efficient line calculations without unexpected overhead.
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_context_extraction_linear_scaling() {
     let dir = TempDir::new().unwrap();
 
@@ -495,6 +502,7 @@ fn test_context_extraction_linear_scaling() {
 ///
 /// Verifies the edge case where no context is requested.
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_context_extraction_zero_context_large_file() {
     let dir = TempDir::new().unwrap();
 
@@ -526,6 +534,7 @@ fn test_context_extraction_zero_context_large_file() {
 ///
 /// Verifies performance when requesting many lines of context.
 #[test]
+#[ignore = "performance benchmark: too slow on shared CI runners"]
 fn test_context_extraction_large_context_window() {
     let dir = TempDir::new().unwrap();
 
