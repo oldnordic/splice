@@ -46,6 +46,11 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: splice-ci
+
       - name: cargo check
         run: cargo check --all-targets
 

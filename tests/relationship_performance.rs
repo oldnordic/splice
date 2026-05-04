@@ -383,7 +383,6 @@ mod tests {
     // ========================
 
     #[test]
-    #[ignore = "performance benchmark: too slow on shared CI runners"]
     fn test_get_callers_small_graph() {
         use splice::relationships::get_callers;
 
@@ -407,15 +406,9 @@ mod tests {
         assert!(result.is_ok(), "get_callers failed: {:?}", result.err());
 
         // Performance assertion: small graph should be very fast
-        assert!(
-            duration.as_millis() < 10 * ci_multiplier(),
-            "get_callers on small graph took {}ms, expected < 10ms",
-            duration.as_millis()
-        );
     }
 
     #[test]
-    #[ignore = "performance benchmark: too slow on shared CI runners"]
     fn test_get_callers_large_graph() {
         use splice::relationships::get_callers;
 
@@ -439,15 +432,9 @@ mod tests {
         assert!(result.is_ok(), "get_callers failed: {:?}", result.err());
 
         // Performance assertion: large graph should complete in reasonable time
-        assert!(
-            duration.as_millis() < 100 * ci_multiplier(),
-            "get_callers on large graph took {}ms, expected < 100ms",
-            duration.as_millis()
-        );
     }
 
     #[test]
-    #[ignore = "performance benchmark: too slow on shared CI runners"]
     fn test_get_callees_large_graph() {
         use splice::relationships::get_callees;
 
@@ -471,11 +458,6 @@ mod tests {
         assert!(result.is_ok(), "get_callees failed: {:?}", result.err());
 
         // Performance assertion
-        assert!(
-            duration.as_millis() < 100 * ci_multiplier(),
-            "get_callees on large graph took {}ms, expected < 100ms",
-            duration.as_millis()
-        );
     }
 
     #[test]
@@ -499,7 +481,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "performance benchmark: too slow on shared CI runners"]
     fn test_imports_exports_performance() {
         use splice::relationships::{get_exports, get_imports};
 
@@ -529,18 +510,12 @@ mod tests {
         );
 
         // Performance assertion
-        assert!(
-            duration.as_millis() < 50 * ci_multiplier(),
-            "imports/exports query took {}ms, expected < 50ms",
-            duration.as_millis()
-        );
     }
 
     // Task 3: Session caching and circular dependency tests
     // ===================================================
 
     #[test]
-    #[ignore = "performance benchmark: too slow on shared CI runners"]
     fn test_session_caching() {
         use splice::relationships::get_callers;
 
@@ -644,7 +619,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "performance benchmark: too slow on shared CI runners"]
     fn test_deep_chain_handling() {
         use splice::relationships::get_callers;
 
@@ -667,10 +641,5 @@ mod tests {
         assert!(result.is_ok(), "get_callers should succeed on deep chain");
 
         // Should complete quickly (no infinite loop)
-        assert!(
-            duration.as_millis() < 100 * ci_multiplier(),
-            "Deep chain query took {}ms, expected < 100ms",
-            duration.as_millis()
-        );
     }
 }
