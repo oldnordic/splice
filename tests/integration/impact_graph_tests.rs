@@ -104,6 +104,7 @@ fn test_patch_command_has_impact_graph_flag() {
         symbol: Some("test_fn".to_string()),
         kind: None,
         analyzer: None,
+        analyzer_binary: None,
         with_: Some(PathBuf::from("/tmp/patch_content.rs")),
         language: None,
         batch: None,

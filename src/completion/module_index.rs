@@ -17,10 +17,11 @@ use std::path::PathBuf;
 ///
 /// # Example
 ///
-/// ```rust
+/// ```no_run
 /// use splice::completion::module_index::ModulePathIndex;
+/// use std::path::PathBuf;
 ///
-/// let index = ModulePathIndex::build(&db_path)?;
+/// let index = ModulePathIndex::build(&PathBuf::from(".magellan/splice.db")).unwrap();
 /// if let Some(file_path) = index.resolve("splice::completion::types") {
 ///     println!("Module found at: {}", file_path.display());
 /// }
@@ -49,8 +50,10 @@ impl ModulePathIndex {
     ///
     /// # Example
     ///
-    /// ```rust
-    /// let index = ModulePathIndex::build(&PathBuf::from(".magellan/splice.db"))?;
+    /// ```no_run
+    /// use splice::completion::module_index::ModulePathIndex;
+    /// use std::path::PathBuf;
+    /// let index = ModulePathIndex::build(&PathBuf::from(".magellan/splice.db")).unwrap();
     /// ```
     pub fn build(db_path: &PathBuf) -> Result<Self> {
         let conn = Connection::open(db_path)?;
@@ -114,8 +117,10 @@ impl ModulePathIndex {
     ///
     /// # Example
     ///
-    /// ```rust
-    /// let index = ModulePathIndex::build(&db_path)?;
+    /// ```no_run
+    /// use splice::completion::module_index::ModulePathIndex;
+    /// use std::path::PathBuf;
+    /// let index = ModulePathIndex::build(&PathBuf::from(".magellan/splice.db")).unwrap();
     ///
     /// if let Some(file_path) = index.resolve("splice::completion::types") {
     ///     println!("Found module at: {}", file_path.display());
@@ -134,8 +139,10 @@ impl ModulePathIndex {
     ///
     /// # Example
     ///
-    /// ```rust
-    /// let index = ModulePathIndex::build(&db_path)?;
+    /// ```no_run
+    /// use splice::completion::module_index::ModulePathIndex;
+    /// use std::path::PathBuf;
+    /// let index = ModulePathIndex::build(&PathBuf::from(".magellan/splice.db")).unwrap();
     /// println!("Indexed {} modules", index.len());
     /// ```
     pub fn len(&self) -> usize {

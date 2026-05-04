@@ -93,6 +93,10 @@ pub enum Commands {
         #[arg(long, value_name = "MODE")]
         analyzer: Option<AnalyzerMode>,
 
+        /// Path to rust-analyzer binary (used with --analyzer path).
+        #[arg(long, value_name = "PATH")]
+        analyzer_binary: Option<std::path::PathBuf>,
+
         /// Optional language (auto-detect from extension by default).
         #[arg(long, value_name = "LANG")]
         language: Option<Language>,
@@ -156,6 +160,10 @@ pub enum Commands {
         /// Optional validation mode (off, os, path).
         #[arg(long, value_name = "MODE")]
         analyzer: Option<AnalyzerMode>,
+
+        /// Path to rust-analyzer binary (used with --analyzer path).
+        #[arg(long, value_name = "PATH")]
+        analyzer_binary: Option<std::path::PathBuf>,
 
         /// Path to file containing replacement content.
         #[arg(
@@ -308,6 +316,11 @@ pub enum Commands {
         /// Examples: rust, python, fn, struct, class, method, etc.
         #[arg(short, long)]
         label: Vec<String>,
+
+        /// Filter results by file path (optional).
+        /// Can be a glob pattern: "src/main.rs", "src/**/*.rs", etc.
+        #[arg(long)]
+        file: Option<String>,
 
         /// Number of context lines after the match.
         #[arg(short = 'A', long, value_name = "N", default_value = "0")]
@@ -838,6 +851,14 @@ pub enum Commands {
         /// Rollback mode: auto, never, always
         #[arg(long, value_enum, default_value_t = CliRollbackMode::Auto)]
         rollback: CliRollbackMode,
+
+        /// Optional validation mode (off, os, path).
+        #[arg(long, value_name = "MODE")]
+        analyzer: Option<AnalyzerMode>,
+
+        /// Path to rust-analyzer binary (used with --analyzer path).
+        #[arg(long, value_name = "PATH")]
+        analyzer_binary: Option<std::path::PathBuf>,
     },
 
     /// Create a new file with validation

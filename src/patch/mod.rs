@@ -273,7 +273,7 @@ pub fn apply_patch_with_validation(
     write_atomic(file_path, &patched_bytes, "patch")?;
 
     // Step 7: Run validation gates
-    match run_validation_gates(file_path, workspace_dir, language, analyzer_mode) {
+    match run_validation_gates(file_path, workspace_dir, language, analyzer_mode.clone()) {
         Ok(_) => {}
         Err(e) => {
             log::warn!("Validation failed, rolling back patch: {:?}", e);
@@ -294,7 +294,8 @@ pub fn apply_patch_with_validation(
     let after_hash = compute_hash(&refreshed_bytes);
 
     // Step 9: Run post-verification to confirm expected changes
-    let mut post_verify = verify::verify_after_patch(file_path, workspace_dir, &before_hash)?;
+    let mut post_verify =
+        verify::verify_after_patch(file_path, workspace_dir, &before_hash, analyzer_mode)?;
 
     // Step 9.1: Verify localized change (no unintended modifications)
     let localized = verify::verify_localized_change(file_path, &replaced, (start, end));

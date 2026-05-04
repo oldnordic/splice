@@ -56,7 +56,28 @@ use crate::error::{Result, SpliceError};
 use crate::graph::CodeGraph;
 use serde::Serialize;
 use sqlitegraph::{NodeId, SnapshotId};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+/// Normalize a user-provided path for database lookup.
+///
+/// Magellan stores canonical absolute paths for existing files.
+/// This helper converts relative paths to absolute so lookups succeed.
+/// Normalize a path for consistent graph database lookups.
+///
+/// Tries `std::fs::canonicalize` first (for existing files), then falls back to
+/// making the path absolute relative to the current directory. This ensures
+/// that symbols stored and looked up in the graph use the same path format.
+pub fn normalize_lookup_path(path: &Path) -> PathBuf {
+    // Try canonicalize first (works for existing files, resolves symlinks)
+    if let Ok(canonical) = std::fs::canonicalize(path) {
+        canonical
+    } else {
+        // Fallback for non-existent paths: make absolute relative to current dir
+        std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join(path)
+    }
+}
 
 /// A resolved symbol with complete location information.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -161,9 +182,10 @@ pub fn resolve_symbol(
         name.to_string()
     };
 
-    // For file-specific resolution, use the cache directly
+    // For file-specific resolution, normalize path then use cache directly
     if let Some(file_path) = file {
-        return resolve_symbol_in_file(graph, file_path, kind, name, &match_id);
+        let normalized = normalize_lookup_path(file_path);
+        return resolve_symbol_in_file(graph, &normalized, kind, name, &match_id);
     }
 
     // Name-only resolution: check for ambiguity
@@ -508,7 +530,8 @@ pub fn find_symbol_or_suggest(
 ) -> Result<NodeId> {
     // Try to find the symbol in the specified file
     if let Some(file_path) = file {
-        if let Some(file_str) = file_path.to_str() {
+        let normalized = normalize_lookup_path(file_path);
+        if let Some(file_str) = normalized.to_str() {
             if let Some(node_id) = graph.find_symbol_in_file(file_str, name) {
                 return Ok(node_id);
             }

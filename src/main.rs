@@ -216,6 +216,7 @@ fn main() -> ExitCode {
             symbol,
             kind,
             analyzer,
+            analyzer_binary,
             language,
             context_after,
             context_before,
@@ -232,6 +233,7 @@ fn main() -> ExitCode {
             &symbol,
             kind,
             analyzer,
+            analyzer_binary,
             language,
             context_before,
             context_after,
@@ -253,6 +255,7 @@ fn main() -> ExitCode {
             symbol,
             kind,
             analyzer,
+            analyzer_binary,
             with_: replacement_file,
             language,
             batch,
@@ -272,6 +275,7 @@ fn main() -> ExitCode {
             Some(batch_path) => execute_patch_batch(
                 &batch_path,
                 analyzer,
+                analyzer_binary,
                 language,
                 create_backup,
                 operation_id,
@@ -283,6 +287,7 @@ fn main() -> ExitCode {
                 symbol,
                 kind,
                 analyzer,
+                analyzer_binary,
                 replacement_file,
                 language,
                 context_before,
@@ -368,6 +373,7 @@ fn main() -> ExitCode {
         splice::cli::Commands::Query {
             db,
             label,
+            file,
             context_after,
             context_before,
             context_both,
@@ -380,6 +386,7 @@ fn main() -> ExitCode {
         } => execute_query(
             &db,
             &label,
+            file.as_deref(),
             context_before,
             context_after,
             context_both,
@@ -635,7 +642,18 @@ fn main() -> ExitCode {
             dry_run,
             continue_on_error,
             rollback,
-        } => execute_batch(&spec, db, dry_run, continue_on_error, rollback, json_output),
+            analyzer,
+            analyzer_binary,
+        } => execute_batch(
+            &spec,
+            db,
+            dry_run,
+            continue_on_error,
+            rollback,
+            analyzer,
+            analyzer_binary,
+            json_output,
+        ),
 
         splice::cli::Commands::Complete {
             file,
@@ -728,6 +746,7 @@ fn execute_delete(
     symbol_name: &str,
     kind: Option<splice::cli::SymbolKind>,
     analyzer: Option<splice::cli::AnalyzerMode>,
+    analyzer_binary: Option<std::path::PathBuf>,
     language: Option<splice::cli::Language>,
     context_before: usize,
     context_after: usize,
@@ -840,9 +859,11 @@ fn execute_delete(
         Some(splice::cli::AnalyzerMode::Off) => ValidateAnalyzerMode::Off,
         Some(splice::cli::AnalyzerMode::Os) => ValidateAnalyzerMode::Path,
         Some(splice::cli::AnalyzerMode::Path) => {
-            return Err(splice::SpliceError::Other(
-                "Explicit analyzer path not yet supported".to_string(),
-            ));
+            if let Some(binary) = analyzer_binary {
+                ValidateAnalyzerMode::Explicit(binary.to_string_lossy().to_string())
+            } else {
+                ValidateAnalyzerMode::Path
+            }
         }
         None => ValidateAnalyzerMode::Off,
     };
@@ -982,7 +1003,7 @@ fn execute_delete(
                 "", // Delete = replace with empty
                 workspace_dir,
                 file_lang,
-                analyzer_mode,
+                analyzer_mode.clone(),
                 strict,
                 skip_pre_verify,
             )?;
@@ -1001,7 +1022,7 @@ fn execute_delete(
         "", // Delete = replace with empty
         workspace_dir,
         symbol_lang,
-        analyzer_mode,
+        analyzer_mode.clone(),
         strict,
         skip_pre_verify,
     )?;
@@ -1464,6 +1485,7 @@ fn execute_single_patch(
     symbol_name: Option<String>,
     kind: Option<splice::cli::SymbolKind>,
     analyzer: Option<splice::cli::AnalyzerMode>,
+    analyzer_binary: Option<std::path::PathBuf>,
     replacement_file: Option<PathBuf>,
     language: Option<splice::cli::Language>,
     context_before: usize,
@@ -1491,6 +1513,7 @@ fn execute_single_patch(
         &symbol_name,
         kind,
         analyzer,
+        analyzer_binary,
         &replacement_file,
         language,
         context_before,
@@ -1516,6 +1539,7 @@ fn execute_patch(
     symbol_name: &str,
     kind: Option<splice::cli::SymbolKind>,
     analyzer: Option<splice::cli::AnalyzerMode>,
+    analyzer_binary: Option<std::path::PathBuf>,
     replacement_file: &Path,
     language: Option<splice::cli::Language>,
     context_before: usize,
@@ -1583,6 +1607,12 @@ fn execute_patch(
     // Step 2: Extract symbols using language-aware dispatcher
     let symbols = extract_symbols_with_language(file_path, &source, symbol_lang)?;
 
+    // Normalize path so graph store and lookup use the same absolute path.
+    // resolve_symbol normalizes internally; without this, symbols stored with
+    // a relative path are invisible to an absolute-path lookup.
+    let file_path_buf = splice::resolve::normalize_lookup_path(file_path);
+    let file_path = file_path_buf.as_path();
+
     // Step 3: Use provided db path, or create temp db in file's parent directory
     let graph_db_path = if let Some(db_path) = db {
         db_path
@@ -1603,7 +1633,7 @@ fn execute_patch(
     // Step 4: Store symbols in graph with language metadata and line/col
     for symbol in &symbols {
         code_graph.store_symbol_with_file_and_language(
-            file_path,
+            &file_path,
             symbol.name(),
             symbol.kind(),
             symbol.language(),
@@ -1633,7 +1663,7 @@ fn execute_patch(
     });
 
     // Step 6: Resolve symbol to span
-    let resolved = resolve_symbol(&code_graph, Some(file_path), kind_str, symbol_name)?;
+    let resolved = resolve_symbol(&code_graph, Some(&file_path), kind_str, symbol_name)?;
 
     // Step 7: Read replacement content
     let replacement_content = std::fs::read_to_string(replacement_file)?;
@@ -1642,16 +1672,18 @@ fn execute_patch(
     let workspace_dir = file_path.parent().ok_or_else(|| {
         splice::SpliceError::Other("Cannot determine workspace directory".to_string())
     })?;
-    let workspace_root = find_workspace_root(file_path)?;
+    let workspace_root = find_workspace_root(&file_path)?;
 
     // Step 9: Convert CLI analyzer mode to validate analyzer mode (default to Off)
     let analyzer_mode = match analyzer {
         Some(splice::cli::AnalyzerMode::Off) => ValidateAnalyzerMode::Off,
         Some(splice::cli::AnalyzerMode::Os) => ValidateAnalyzerMode::Path,
         Some(splice::cli::AnalyzerMode::Path) => {
-            return Err(splice::SpliceError::Other(
-                "Explicit analyzer path not yet supported".to_string(),
-            ));
+            if let Some(binary) = analyzer_binary {
+                ValidateAnalyzerMode::Explicit(binary.to_string_lossy().to_string())
+            } else {
+                ValidateAnalyzerMode::Path
+            }
         }
         None => ValidateAnalyzerMode::Off,
     };
@@ -2199,6 +2231,7 @@ fn execute_patch(
 fn execute_patch_batch(
     batch_path: &Path,
     analyzer: Option<splice::cli::AnalyzerMode>,
+    analyzer_binary: Option<std::path::PathBuf>,
     language: Option<splice::cli::Language>,
     create_backup: bool,
     operation_id: Option<String>,
@@ -2242,9 +2275,11 @@ fn execute_patch_batch(
         Some(splice::cli::AnalyzerMode::Off) => ValidateAnalyzerMode::Off,
         Some(splice::cli::AnalyzerMode::Os) => ValidateAnalyzerMode::Path,
         Some(splice::cli::AnalyzerMode::Path) => {
-            return Err(splice::SpliceError::Other(
-                "Explicit analyzer path not yet supported".to_string(),
-            ));
+            if let Some(binary) = analyzer_binary {
+                ValidateAnalyzerMode::Explicit(binary.to_string_lossy().to_string())
+            } else {
+                ValidateAnalyzerMode::Path
+            }
         }
         None => ValidateAnalyzerMode::Off,
     };
@@ -2766,6 +2801,7 @@ fn execute_apply_files(
 fn execute_query(
     db_path: &Path,
     labels: &[String],
+    file_filter: Option<&str>,
     context_before: usize,
     context_after: usize,
     context_both: usize,
@@ -2900,6 +2936,18 @@ fn execute_query(
     let labels_ref: Vec<&str> = labels.iter().map(|s| s.as_str()).collect();
     #[cfg(feature = "sqlite")]
     let mut results = integration.query_by_labels(&labels_ref)?;
+
+    #[cfg(feature = "sqlite")]
+    // Filter by file path if --file flag provided
+    if let Some(file_pattern) = file_filter {
+        results.retain(|r| r.file_path.contains(file_pattern));
+        if results.is_empty() {
+            return Err(splice::SpliceError::Other(format!(
+                "No symbols found with labels {:?} in file pattern '{}'",
+                labels, file_pattern
+            )));
+        }
+    }
 
     #[cfg(feature = "sqlite")]
     // Sort results deterministically by file_path, then byte_start
@@ -5867,6 +5915,8 @@ fn execute_batch(
     dry_run: bool,
     continue_on_error: bool,
     rollback: splice::cli::CliRollbackMode,
+    analyzer: Option<splice::cli::AnalyzerMode>,
+    analyzer_binary: Option<std::path::PathBuf>,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::batch::{parse_batch_spec, BatchExecutor, ExecutionMode, RollbackMode};
@@ -5904,11 +5954,25 @@ fn execute_batch(
         }
     };
 
+    // Convert analyzer CLI flags to validation mode
+    let analyzer_mode = match analyzer {
+        Some(splice::cli::AnalyzerMode::Off) => splice::validate::AnalyzerMode::Off,
+        Some(splice::cli::AnalyzerMode::Os) => splice::validate::AnalyzerMode::Path,
+        Some(splice::cli::AnalyzerMode::Path) => {
+            if let Some(binary) = analyzer_binary {
+                splice::validate::AnalyzerMode::Explicit(binary.to_string_lossy().to_string())
+            } else {
+                splice::validate::AnalyzerMode::Path
+            }
+        }
+        None => splice::validate::AnalyzerMode::Off,
+    };
+
     // Determine if we should use transaction mode
     let use_transaction = rollback_mode != RollbackMode::Never && db_path.is_some();
 
     // Create executor and run with transaction if rollback is enabled
-    let mut executor = BatchExecutor::new(dry_run, db_path.clone());
+    let mut executor = BatchExecutor::new(dry_run, db_path.clone(), analyzer_mode);
 
     let (batch_result, rolled_back, rollback_snapshot) = if use_transaction {
         // Use transaction mode with rollback

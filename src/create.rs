@@ -2,8 +2,8 @@
 //!
 //! Provides functionality for creating new Rust files with rust-analyzer validation.
 
-use crate::code_validator::{CodeValidator, ValidationResult};
 use crate::error::{Result, SpliceError};
+use crate::validate::validate_rust_snippet;
 use crate::write::write_atomic;
 use std::fs;
 use std::path::Path;
@@ -30,7 +30,7 @@ pub fn create_file_with_validation(
     code: &str,
     workspace_dir: &Path,
     validate_only: bool,
-) -> Result<ValidationResult> {
+) -> Result<crate::validate::SnippetValidation> {
     // Step 1: Check if file already exists
     if file_path.exists() {
         return Err(SpliceError::IoContext {
@@ -39,8 +39,8 @@ pub fn create_file_with_validation(
         });
     }
 
-    // Step 2: Validate code with rust-analyzer
-    let validation = CodeValidator::validate_rust_file(file_path, code, workspace_dir)?;
+    // Step 2: Validate code with rustc (standalone snippet, not cargo check)
+    let validation = validate_rust_snippet(code, Some(workspace_dir))?;
 
     // Step 3: If validate-only, return result without writing
     if validate_only {
@@ -48,7 +48,7 @@ pub fn create_file_with_validation(
     }
 
     // Step 4: If validation failed, return error (don't write file)
-    if !validation.rust_analyzer_ok {
+    if !validation.is_valid {
         return Err(SpliceError::IoContext {
             context: format!(
                 "Code validation failed with {} error(s). Use --validate-only to see errors.",
@@ -87,7 +87,7 @@ pub fn create_file_with_module(
     code: &str,
     workspace_dir: &Path,
     add_mod_declaration: bool,
-) -> Result<ValidationResult> {
+) -> Result<crate::validate::SnippetValidation> {
     // First, create the file
     let validation = create_file_with_validation(file_path, code, workspace_dir, false)?;
 

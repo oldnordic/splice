@@ -91,7 +91,7 @@ splice complete --file src/lib.rs --line 27 --column 8 --max-results 5 --output 
 Added `splice create` command for creating new Rust files with validation, enabling safer automated code generation.
 
 **Core Features:**
-- **rust-analyzer Integration** - Validates Rust code before writing to disk
+- **rustc Snippet Validation** - Validates Rust code with `rustc --emit=metadata` before writing to disk
 - **Atomic File Operations** - Either file exists with correct content, or not at all (no partial writes)
 - **Validate-Only Mode** - Check code validity without creating files (`--validate-only`)
 - **Module Declaration Insertion** - Automatically add `mod name;` to parent modules (`--with-mod`)
@@ -100,7 +100,7 @@ Added `splice create` command for creating new Rust files with validation, enabl
 - **Multiple Output Formats** - Support for human, json, and pretty output
 
 **New Modules:**
-- `src/code_validator.rs` (301 lines) - Rust code validation using rust-analyzer
+- `src/validate/mod.rs` — Standalone Rust snippet validation using rustc (for `create` command)
 - `src/write.rs` (179 lines) - Atomic file writing utilities
 - `src/create.rs` (331 lines) - File creation logic with validation
 - `src/commands.rs` (179 lines) - Command handlers for create operation
@@ -124,8 +124,8 @@ echo 'pub fn test() -> i32 { 42 }' | splice create --file test.rs --output json
 **Benefits:**
 - LLMs can validate code before writing (no build-test-fail cycles)
 - Atomic operations prevent file corruption
-- Immediate feedback from rust-analyzer
-- Graceful degradation (works without rust-analyzer installed)
+- Immediate feedback from rustc
+- Graceful degradation (works without rustc installed)
 
 **Testing:**
 - Added 32 new tests (all passing)

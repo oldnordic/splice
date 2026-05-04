@@ -48,7 +48,7 @@ pub fn cmd_create(
             // Output based on format
             match output_format {
                 OutputFormat::Human => {
-                    if validation.rust_analyzer_ok {
+                    if validation.is_valid {
                         println!("✅ Code validation passed");
                         if !validate_only {
                             println!("✅ File created: {}", file_path.display());

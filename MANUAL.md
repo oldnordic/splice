@@ -305,7 +305,7 @@ EOF
 
 **Behavior:**
 1. Reads Rust code from stdin
-2. Validates with rust-analyzer (if available)
+2. Validates with rustc --emit=metadata (catches syntax and basic type errors)
 3. Creates file atomically (if validation passes)
 4. Prevents overwriting existing files
 5. Creates parent directories as needed
@@ -340,18 +340,16 @@ echo 'pub fn test() -> i32 { 42 }' | \
 **Validation Result (JSON):**
 ```json
 {
-  "rust_analyzer_ok": true,
-  "cargo_check_ok": null,
+  "is_valid": true,
   "errors": [],
-  "warnings": [],
-  "writable": true
+  "warnings": []
 }
 ```
 
 **Error Handling:**
 - Validation fails: File NOT created, errors shown
 - File exists: Returns error, preserves original
-- rust-analyzer unavailable: Graceful degradation (assumes OK)
+- rustc unavailable: Graceful degradation (assumes OK)
 
 **Use Cases:**
 - AI-generated code is not supported — validate code manually before writing

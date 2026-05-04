@@ -13,6 +13,22 @@ use crate::error::{Result, SpliceError};
 use magellan::{CodeGraph as MagellanGraph, SymbolKind, SymbolQueryResult};
 use std::path::{Path, PathBuf};
 
+/// Normalize a user-provided path for database lookup.
+///
+/// Magellan stores canonical absolute paths for existing files.
+/// This helper converts relative paths to absolute so lookups succeed.
+fn normalize_lookup_path(path: &Path) -> PathBuf {
+    // Try canonicalize first (works for existing files, resolves symlinks)
+    if let Ok(canonical) = std::fs::canonicalize(path) {
+        canonical
+    } else {
+        // Fallback for non-existent paths: make absolute relative to current dir
+        std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join(path)
+    }
+}
+
 /// Backend type identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IntegrationBackend {
@@ -601,10 +617,11 @@ impl MagellanIntegration {
         file_path: &Path,
         name: &str,
     ) -> Result<Option<SymbolInfo>> {
+        let normalized = normalize_lookup_path(file_path);
         match self.backend {
             IntegrationBackend::Sqlite => {
-                let path_str = file_path.to_str().ok_or_else(|| {
-                    SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path))
+                let path_str = normalized.to_str().ok_or_else(|| {
+                    SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", normalized))
                 })?;
                 let matches = self
                     .inner
@@ -629,8 +646,8 @@ impl MagellanIntegration {
             #[cfg(feature = "geometric")]
             IntegrationBackend::Geometric => {
                 if let Some(ref geo) = self.geo_inner {
-                    let path_str = file_path.to_str().ok_or_else(|| {
-                        SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path))
+                    let path_str = normalized.to_str().ok_or_else(|| {
+                        SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", normalized))
                     })?;
 
                     // Use geometric backend's method to find symbol by name and path
@@ -856,9 +873,10 @@ impl MagellanIntegration {
         name: &str,
         direction: CallDirection,
     ) -> Result<CallRelationships> {
-        let path_str = file_path
-            .to_str()
-            .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", file_path)))?;
+        let normalized = normalize_lookup_path(file_path);
+        let path_str = normalized.to_str().ok_or_else(|| {
+            SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", normalized))
+        })?;
 
         // Get the target symbol info first
         let symbol_facts = self.inner.symbol_extents(path_str, name).map_err(|e| {
@@ -931,6 +949,8 @@ impl MagellanIntegration {
         call_facts: Vec<magellan::references::CallFact>,
     ) -> Result<Vec<CallReference>> {
         let mut references = Vec::new();
+        let mut seen: std::collections::HashSet<(String, String)> =
+            std::collections::HashSet::new();
 
         for fact in call_facts {
             // Resolve the referenced symbol (caller or callee depending on context)
@@ -956,6 +976,11 @@ impl MagellanIntegration {
                     start_line: None,
                     end_line: None,
                 };
+
+                let key = (symbol.name.clone(), symbol.file_path.clone());
+                if !seen.insert(key) {
+                    continue;
+                }
 
                 let call_site = CallSite {
                     file_path: fact.file_path.to_string_lossy().to_string(),
@@ -1211,11 +1236,14 @@ impl MagellanIntegration {
         name: &str,
         max_depth: usize,
     ) -> Result<Vec<ReachableSymbol>> {
+        let normalized = normalize_lookup_path(file_path);
         match self.backend {
-            IntegrationBackend::Sqlite => self.reachable_symbols_sqlite(file_path, name, max_depth),
+            IntegrationBackend::Sqlite => {
+                self.reachable_symbols_sqlite(&normalized, name, max_depth)
+            }
             #[cfg(feature = "geometric")]
             IntegrationBackend::Geometric => {
-                self.reachable_symbols_geometric(file_path, name, max_depth)
+                self.reachable_symbols_geometric(&normalized, name, max_depth)
             }
         }
     }
@@ -1408,13 +1436,14 @@ impl MagellanIntegration {
         name: &str,
         max_depth: usize,
     ) -> Result<Vec<ReachableSymbol>> {
+        let normalized = normalize_lookup_path(file_path);
         match self.backend {
             IntegrationBackend::Sqlite => {
-                self.reverse_reachable_symbols_sqlite(file_path, name, max_depth)
+                self.reverse_reachable_symbols_sqlite(&normalized, name, max_depth)
             }
             #[cfg(feature = "geometric")]
             IntegrationBackend::Geometric => {
-                self.reverse_reachable_symbols_geometric(file_path, name, max_depth)
+                self.reverse_reachable_symbols_geometric(&normalized, name, max_depth)
             }
         }
     }
@@ -1943,13 +1972,14 @@ impl MagellanIntegration {
         entry_symbol: &str,
         exclude_public: bool,
     ) -> Result<Vec<DeadSymbol>> {
+        let normalized = normalize_lookup_path(entry_file);
         match self.backend {
             IntegrationBackend::Sqlite => {
-                self.dead_symbols_sqlite(entry_file, entry_symbol, exclude_public)
+                self.dead_symbols_sqlite(&normalized, entry_symbol, exclude_public)
             }
             #[cfg(feature = "geometric")]
             IntegrationBackend::Geometric => {
-                self.dead_symbols_geometric(entry_file, entry_symbol, exclude_public)
+                self.dead_symbols_geometric(&normalized, entry_symbol, exclude_public)
             }
         }
     }

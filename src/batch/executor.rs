@@ -50,12 +50,22 @@ pub struct BatchExecutor {
     dry_run: bool,
     /// Database path for graph operations
     db_path: Option<PathBuf>,
+    /// Rust-analyzer validation mode
+    analyzer_mode: crate::validate::AnalyzerMode,
 }
 
 impl BatchExecutor {
     /// Create a new batch executor.
-    pub fn new(dry_run: bool, db_path: Option<PathBuf>) -> Self {
-        Self { dry_run, db_path }
+    pub fn new(
+        dry_run: bool,
+        db_path: Option<PathBuf>,
+        analyzer_mode: crate::validate::AnalyzerMode,
+    ) -> Self {
+        Self {
+            dry_run,
+            db_path,
+            analyzer_mode,
+        }
     }
 
     /// Execute a batch specification.
@@ -141,6 +151,7 @@ impl BatchExecutor {
             db_path.clone(),
             rollback_mode,
             true, // Always snapshot before transaction
+            self.analyzer_mode.clone(),
         );
 
         transaction.execute(spec, dry_run)
@@ -198,10 +209,13 @@ impl BatchExecutor {
         // Extract symbols using language-aware dispatcher
         let symbols = crate::ingest::extract_symbols_with_language(&op.file, &source, language)?;
 
+        // Normalize path so graph store and lookup use the same absolute path.
+        let file_path = crate::resolve::normalize_lookup_path(&op.file);
+
         // Store symbols in graph
         for symbol in &symbols {
             code_graph.store_symbol_with_file_and_language(
-                &op.file,
+                &file_path,
                 symbol.name(),
                 symbol.kind(),
                 symbol.language(),
@@ -217,10 +231,10 @@ impl BatchExecutor {
         // Resolve symbol to get span
         let kind_str = op.kind.as_deref();
         let resolved =
-            crate::resolve::resolve_symbol(&code_graph, Some(&op.file), kind_str, &op.symbol)?;
+            crate::resolve::resolve_symbol(&code_graph, Some(&file_path), kind_str, &op.symbol)?;
 
         // Get workspace directory
-        let workspace_dir = op.file.parent().ok_or_else(|| {
+        let workspace_dir = file_path.parent().ok_or_else(|| {
             SpliceError::Other("Cannot determine workspace directory".to_string())
         })?;
 
@@ -231,19 +245,19 @@ impl BatchExecutor {
                 "[PREVIEW] Would patch {}::{} in file: {}",
                 kind_str.unwrap_or("symbol"),
                 op.symbol,
-                op.file.display()
+                file_path.display()
             );
             Ok(())
         } else {
             // Actual patch
             crate::patch::apply_patch_with_validation(
-                &op.file,
+                &file_path,
                 resolved.byte_start,
                 resolved.byte_end,
                 &replacement,
                 workspace_dir,
                 language,
-                crate::validate::AnalyzerMode::Off,
+                self.analyzer_mode.clone(),
                 false, // strict: batch mode uses normal validation
                 false, // skip: still run validation
             )?;
@@ -279,10 +293,13 @@ impl BatchExecutor {
         // Extract symbols using language-aware dispatcher
         let symbols = crate::ingest::extract_symbols_with_language(&op.file, &source, language)?;
 
+        // Normalize path so graph store and lookup use the same absolute path.
+        let file_path = crate::resolve::normalize_lookup_path(&op.file);
+
         // Store symbols in graph
         for symbol in &symbols {
             code_graph.store_symbol_with_file_and_language(
-                &op.file,
+                &file_path,
                 symbol.name(),
                 symbol.kind(),
                 symbol.language(),
@@ -298,10 +315,10 @@ impl BatchExecutor {
         // Resolve symbol to get span
         let kind_str = op.kind.as_deref();
         let resolved =
-            crate::resolve::resolve_symbol(&code_graph, Some(&op.file), kind_str, &op.symbol)?;
+            crate::resolve::resolve_symbol(&code_graph, Some(&file_path), kind_str, &op.symbol)?;
 
         // Delete means replacing with empty string
-        let workspace_dir = op.file.parent().ok_or_else(|| {
+        let workspace_dir = file_path.parent().ok_or_else(|| {
             SpliceError::Other("Cannot determine workspace directory".to_string())
         })?;
 
@@ -310,18 +327,18 @@ impl BatchExecutor {
                 "[PREVIEW] Would delete {}::{} in file: {}",
                 kind_str.unwrap_or("symbol"),
                 op.symbol,
-                op.file.display()
+                file_path.display()
             );
             Ok(())
         } else {
             crate::patch::apply_patch_with_validation(
-                &op.file,
+                &file_path,
                 resolved.byte_start,
                 resolved.byte_end,
                 "", // Empty replacement for delete
                 workspace_dir,
                 language,
-                crate::validate::AnalyzerMode::Off,
+                self.analyzer_mode.clone(),
                 false, // strict: batch mode uses normal validation
                 false, // skip: still run validation
             )?;

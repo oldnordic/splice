@@ -46,6 +46,8 @@ pub struct BatchTransaction {
     rollback_mode: RollbackMode,
     /// Whether to capture snapshot before execution
     snapshot_before: bool,
+    /// Rust-analyzer validation mode
+    analyzer_mode: crate::validate::AnalyzerMode,
 }
 
 impl BatchTransaction {
@@ -55,11 +57,17 @@ impl BatchTransaction {
     /// * `db_path` - Path to the code graph database (required for snapshots)
     /// * `rollback_mode` - When to perform rollback
     /// * `snapshot_before` - Whether to capture snapshot before execution
-    pub fn new(db_path: PathBuf, rollback_mode: RollbackMode, snapshot_before: bool) -> Self {
+    pub fn new(
+        db_path: PathBuf,
+        rollback_mode: RollbackMode,
+        snapshot_before: bool,
+        analyzer_mode: crate::validate::AnalyzerMode,
+    ) -> Self {
         Self {
             db_path,
             rollback_mode,
             snapshot_before,
+            analyzer_mode,
         }
     }
 
@@ -118,7 +126,11 @@ impl BatchTransaction {
     /// Execute a batch spec using the provided executor.
     fn execute_batch(&self, spec: &BatchSpec, dry_run: bool) -> Result<BatchResult> {
         // Create executor with the same dry_run setting
-        let mut executor = BatchExecutor::new(dry_run, Some(self.db_path.clone()));
+        let mut executor = BatchExecutor::new(
+            dry_run,
+            Some(self.db_path.clone()),
+            self.analyzer_mode.clone(),
+        );
         executor.execute(spec)
     }
 

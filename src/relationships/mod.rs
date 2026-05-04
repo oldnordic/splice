@@ -211,11 +211,18 @@ pub fn get_callers(
     )?;
 
     let mut callers = Vec::new();
+    let mut seen: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
     for call_node_id in call_node_ids {
         if let Some(rel) = relationship_from_call_node(graph, call_node_id, "caller")? {
-            callers.push(rel);
+            let key = (rel.name.clone(), rel.file_path.clone());
+            if seen.insert(key) {
+                callers.push(rel);
+            }
         } else if let Some(rel) = relationship_from_symbol_node(graph, call_node_id, "caller")? {
-            callers.push(rel);
+            let key = (rel.name.clone(), rel.file_path.clone());
+            if seen.insert(key) {
+                callers.push(rel);
+            }
         }
     }
 
@@ -279,11 +286,18 @@ pub fn get_callees(
     )?;
 
     let mut callees = Vec::new();
+    let mut seen: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
     for call_node_id in call_node_ids {
         if let Some(rel) = relationship_from_call_node(graph, call_node_id, "callee")? {
-            callees.push(rel);
+            let key = (rel.name.clone(), rel.file_path.clone());
+            if seen.insert(key) {
+                callees.push(rel);
+            }
         } else if let Some(rel) = relationship_from_symbol_node(graph, call_node_id, "callee")? {
-            callees.push(rel);
+            let key = (rel.name.clone(), rel.file_path.clone());
+            if seen.insert(key) {
+                callees.push(rel);
+            }
         }
     }
 

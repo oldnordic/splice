@@ -22,7 +22,7 @@
 //!
 //! # Example
 //!
-//! ```rust
+//! ```no_run
 //! use splice::completion::imports::ImportResolver;
 //! use std::path::PathBuf;
 //!
@@ -30,7 +30,7 @@
 //! let resolver = ImportResolver::new(&db_path);
 //!
 //! let file_path = PathBuf::from("src/main.rs");
-//! let imports = resolver.get_file_imports(&file_path)?;
+//! let imports = resolver.get_file_imports(&file_path).unwrap();
 //!
 //! for import in imports {
 //!     println!("Import: {:?} from {}",
@@ -73,16 +73,18 @@ use std::path::PathBuf;
 /// # Example
 ///
 /// ```rust
+/// use splice::completion::imports::ImportEntity;
+///
 /// // For: use crate::api::{RequestHandler, process_request};
-/// ImportEntity {
-///     id: "12345",
-///     file_path: "/path/to/src/main.rs",
-///     import_kind: "plain_use",
-///     import_path: vec!["crate", "api"],
-///     imported_names: vec!["RequestHandler", "process_request"],
+/// let _entity = ImportEntity {
+///     id: "12345".to_string(),
+///     file_path: "/path/to/src/main.rs".to_string(),
+///     import_kind: "plain_use".to_string(),
+///     import_path: vec!["crate".to_string(), "api".to_string()],
+///     imported_names: vec!["RequestHandler".to_string(), "process_request".to_string()],
 ///     is_glob: false,
 ///     is_reexport: false,
-/// }
+/// };
 /// ```
 #[derive(Debug, Clone)]
 pub struct ImportEntity {
@@ -109,12 +111,12 @@ pub struct ImportEntity {
 ///
 /// # Usage
 ///
-/// ```rust
+/// ```no_run
 /// use splice::completion::imports::ImportResolver;
 /// use std::path::PathBuf;
 ///
 /// let resolver = ImportResolver::new(&PathBuf::from(".magellan/splice.db"));
-/// let imports = resolver.get_file_imports(&PathBuf::from("src/main.rs"))?;
+/// let imports = resolver.get_file_imports(&PathBuf::from("src/main.rs")).unwrap();
 /// ```
 ///
 /// # Database Query
@@ -183,12 +185,12 @@ impl ImportResolver {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// use splice::completion::imports::ImportResolver;
     /// use std::path::PathBuf;
     ///
     /// let resolver = ImportResolver::new(&PathBuf::from(".magellan/splice.db"));
-    /// let imports = resolver.get_file_imports(&PathBuf::from("src/main.rs"))?;
+    /// let imports = resolver.get_file_imports(&PathBuf::from("src/main.rs")).unwrap();
     ///
     /// for import in imports {
     ///     println!("Found import: {:?}", import.imported_names);

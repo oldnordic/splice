@@ -16,6 +16,8 @@ pub enum BackendType {
     SQLite,
     /// Geometric spatial backend
     Geometric,
+    /// Unknown or unsupported backend
+    Unknown,
 }
 
 impl std::fmt::Display for BackendType {
@@ -23,6 +25,7 @@ impl std::fmt::Display for BackendType {
         match self {
             BackendType::SQLite => write!(f, "sqlite"),
             BackendType::Geometric => write!(f, "geometric"),
+            BackendType::Unknown => write!(f, "unknown"),
         }
     }
 }
@@ -92,9 +95,7 @@ impl CodeGraph {
             #[cfg(feature = "geometric")]
             return Ok(BackendType::Geometric);
             #[cfg(not(feature = "geometric"))]
-            return Err(SpliceError::Other(
-                "Geometric backend not compiled in. Build with --features geometric".to_string(),
-            ));
+            return Ok(BackendType::Unknown);
         }
 
         // Check file header for SQLite
@@ -111,9 +112,7 @@ impl CodeGraph {
                 #[cfg(feature = "geometric")]
                 return Ok(BackendType::Geometric);
                 #[cfg(not(feature = "geometric"))]
-                return Err(SpliceError::Other(
-                    "Geometric backend not compiled in".to_string(),
-                ));
+                return Ok(BackendType::Unknown);
             }
         }
 

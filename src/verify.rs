@@ -328,8 +328,9 @@ fn get_disk_space(path: &Path) -> Result<(u64, u64)> {
 /// - File modification time <= database last update time
 pub fn verify_graph_sync(file_path: &Path, db_path: &Path) -> PreVerificationResult {
     // Check 1: Database exists
+    // Patches don't require a graph DB (graph is only needed for query commands).
     if !db_path.exists() {
-        return PreVerificationResult::blocking(
+        return PreVerificationResult::warning(
             "graph_exists",
             format!("Graph database does not exist: {}", db_path.display()),
         );
@@ -482,13 +483,16 @@ pub fn pre_verify_patch(
 /// Post-verification result.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PostVerificationResult {
-    /// Syntax validation passed
+    /// Syntax validation passed (tree-sitter parse)
     pub syntax_ok: bool,
 
-    /// Compiler validation passed
+    /// Compiler validation passed (cargo check / rustc)
+    /// NOTE: This catches semantic errors: type mismatches, borrow checker,
+    /// unresolved references, missing methods, etc.
     pub compiler_ok: bool,
 
-    /// Semantic validation passed (advisory)
+    /// Enhanced LSP diagnostics (rust-analyzer, advisory/non-blocking)
+    /// Currently not implemented. Use compiler_ok for semantic validation.
     pub semantic_ok: bool,
 
     /// Checksums before and after
@@ -567,13 +571,14 @@ pub fn checksum_diff(before_checksum: &str, after_checksum: &str) -> ChecksumDif
 /// - Syntax validation (via tree-sitter if available)
 /// - Compiler validation (via cargo check for Rust)
 /// - Checksum verification (confirm expected changes)
-/// - Semantic checks (reference integrity, type preservation - advisory)
+/// - Semantic checks (rust-analyzer diagnostics - advisory)
 ///
 /// Returns a PostVerificationResult with detailed status.
 pub fn verify_after_patch(
     file_path: &Path,
-    _workspace_root: &Path,
+    workspace_root: &Path,
     expected_before: &str,
+    analyzer_mode: crate::validate::AnalyzerMode,
 ) -> Result<PostVerificationResult> {
     use crate::checksum::checksum_file;
 
@@ -600,13 +605,34 @@ pub fn verify_after_patch(
         }
     }
 
-    // Syntax validation: try to parse with tree-sitter
-    // For now, we assume syntax is ok if we can read the file
-    // A full implementation would use tree-sitter here
-    result.syntax_ok = true;
+    // Syntax validation: parse with tree-sitter
+    use crate::syntax_validator::validate_syntax;
+    match std::fs::read(file_path) {
+        Ok(source) => {
+            result.syntax_ok = match validate_syntax(file_path, &source) {
+                Ok(valid) => {
+                    if !valid {
+                        result.add_error(
+                            "Syntax validation failed: tree-sitter detected parse errors"
+                                .to_string(),
+                        );
+                    }
+                    valid
+                }
+                Err(e) => {
+                    log::warn!("Syntax validation error: {}", e);
+                    false
+                }
+            };
+        }
+        Err(e) => {
+            result.add_error(format!("Failed to read file for syntax validation: {}", e));
+            result.syntax_ok = false;
+        }
+    }
 
     // Compiler validation: run cargo check for Rust projects
-    result.compiler_ok = match run_cargo_check(_workspace_root) {
+    result.compiler_ok = match run_cargo_check(workspace_root) {
         Ok(output) => {
             if output.status.success() {
                 log::info!("Cargo check passed");
@@ -626,10 +652,46 @@ pub fn verify_after_patch(
         }
     };
 
-    // Semantic validation (advisory)
-    // For now, we can't do deep semantic checks without more infrastructure
-    // This is a best-effort check
-    result.semantic_ok = true;
+    // Semantic validation via rust-analyzer (advisory, non-blocking for result)
+    if workspace_root.join("Cargo.toml").exists()
+        && analyzer_mode != crate::validate::AnalyzerMode::Off
+    {
+        match crate::validate::run_rust_analyzer(workspace_root, &analyzer_mode) {
+            Ok(diagnostics) => {
+                let (errors, warnings): (Vec<_>, Vec<_>) = diagnostics
+                    .iter()
+                    .partition(|d| d.level == crate::validate::ErrorLevel::Error);
+
+                for warn in &warnings {
+                    result.add_warning(format!(
+                        "rust-analyzer [{}] at {}:{}: {}",
+                        warn.code.as_deref().unwrap_or("warning"),
+                        warn.file,
+                        warn.line,
+                        warn.message
+                    ));
+                }
+
+                for err in &errors {
+                    result.add_error(format!(
+                        "rust-analyzer [{}] at {}:{}: {}",
+                        err.code.as_deref().unwrap_or("error"),
+                        err.file,
+                        err.line,
+                        err.message
+                    ));
+                }
+
+                result.semantic_ok = errors.is_empty();
+            }
+            Err(e) => {
+                result.add_warning(format!("rust-analyzer unavailable: {}", e));
+                result.semantic_ok = true; // Advisory: don't block if analyzer can't run
+            }
+        }
+    } else {
+        result.semantic_ok = true;
+    }
 
     Ok(result)
 }
@@ -909,7 +971,12 @@ mod tests {
         std::fs::write(&file_path, b"fn test() {}").unwrap();
 
         let before_checksum = "some_checksum";
-        let result = verify_after_patch(&file_path, temp_dir.path(), before_checksum);
+        let result = verify_after_patch(
+            &file_path,
+            temp_dir.path(),
+            before_checksum,
+            crate::validate::AnalyzerMode::Off,
+        );
         assert!(result.is_ok());
         let verify_result = result.unwrap();
         assert!(verify_result.syntax_ok);

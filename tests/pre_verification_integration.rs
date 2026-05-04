@@ -14,15 +14,17 @@ fn create_test_workspace() -> TempDir {
     let temp_dir = TempDir::new().unwrap();
     let workspace = temp_dir.path();
 
+    // Create the test Rust file FIRST so its mtime is older than the DB.
+    // verify_graph_sync checks file_mtime <= db_mtime; if the DB is older,
+    // it fails with "file modified since database update".
+    let test_file = workspace.join("test.rs");
+    let mut file = File::create(&test_file).unwrap();
+    writeln!(file, "fn test_function() {{}}").unwrap();
+
     // Create a dummy codegraph.db (using Splice's convention: .splice_graph.db)
     let db_path = workspace.join(".splice_graph.db");
     let mut db = File::create(&db_path).unwrap();
     writeln!(db, "dummy database").unwrap();
-
-    // Create a test Rust file
-    let test_file = workspace.join("test.rs");
-    let mut file = File::create(&test_file).unwrap();
-    writeln!(file, "fn test_function() {{}}").unwrap();
 
     temp_dir
 }

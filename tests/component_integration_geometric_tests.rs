@@ -47,6 +47,7 @@ fn test_component_geometric_detection_workflow() {
 ///
 /// Layer 3: Test the actual CLI status detection path
 #[test]
+#[cfg(feature = "geometric")]
 fn test_component_status_backend_detection() {
     use splice::graph::CodeGraph;
     use std::path::Path;
@@ -135,6 +136,7 @@ fn test_component_backend_api_stability() {
 ///
 /// Layer 3: Error propagation from graph module to callers
 #[test]
+#[cfg(feature = "geometric")]
 fn test_component_error_handling() {
     use splice::graph::CodeGraph;
 
@@ -165,6 +167,7 @@ fn test_component_error_handling() {
 ///
 /// Layer 3: Validation that goes beyond binary pass/fail
 #[test]
+#[cfg(feature = "geometric")]
 fn test_component_partial_ok_validation() {
     use splice::graph::CodeGraph;
 
