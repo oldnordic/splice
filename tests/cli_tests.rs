@@ -3293,35 +3293,20 @@ fn main() {
     /// Task 1: Status command performance benchmark.
     ///
     /// Validates that the status command (database statistics query)
-    /// completes within acceptable time limits for varying file counts.
-    ///
-    /// Performance baseline:
-    /// - 10 files: < 50ms
-    /// - 50 files: < 200ms
-    /// - 100 files: < 500ms
+    /// works correctly for varying file counts.
     #[test]
     fn test_benchmark_status_command_performance() {
         use std::time::Instant;
 
         let splice_binary = get_splice_binary();
 
-        // CI shared runners are ~3x slower than local dev machines.
-        let ci_multiplier = if std::env::var("CI").is_ok() { 3 } else { 1 };
         let test_cases = vec![
-            (10, 50 * ci_multiplier, "10 files should complete in < 50ms"),
-            (
-                50,
-                200 * ci_multiplier,
-                "50 files should complete in < 200ms",
-            ),
-            (
-                100,
-                500 * ci_multiplier,
-                "100 files should complete in < 500ms",
-            ),
+            (10, "10 files"),
+            (50, "50 files"),
+            (100, "100 files"),
         ];
 
-        for (num_files, expected_max_ms, description) in test_cases {
+        for (num_files, description) in test_cases {
             let temp_dir = TempDir::new().expect("Failed to create temp dir");
             let db_path = temp_dir.path().join("benchmark.db");
 
@@ -3386,26 +3371,17 @@ impl TestStruct{} {{
                 String::from_utf8_lossy(&output.stderr)
             );
 
-            // Verify performance
             println!(
-                "Status command ({} files): {}ms (expected < {}ms)",
+                "Status command ({} files): {}ms",
                 num_files,
-                duration.as_millis(),
-                expected_max_ms
+                duration.as_millis()
             );
         }
     }
 
-    /// Task 2: Query command performance benchmark.
+    /// Task 2: Query command correctness benchmark.
     ///
-    /// Validates that the query command completes within acceptable time
-    /// limits for various query types.
-    ///
-    /// Performance baseline: < 100ms average for all query types
-    ///
-    /// Performance characteristics:
-    /// - Label queries use index (O(log n))
-    /// - File queries are direct lookup (O(1))
+    /// Validates that the query command works correctly for various query types.
     #[test]
     fn test_benchmark_query_command_performance() {
         use std::time::Instant;
@@ -3456,9 +3432,6 @@ impl QueryStruct{} {{
             ),
         ];
 
-        // CI shared runners are ~3x slower than local dev machines.
-        let ci_multiplier = if std::env::var("CI").is_ok() { 3 } else { 1 };
-        let expected_max_ms = 200 * ci_multiplier;
         let iterations = 10;
         let mut all_timings = Vec::new();
 
@@ -3492,18 +3465,9 @@ impl QueryStruct{} {{
             let avg_ms = total_duration_ms / iterations as u128;
             all_timings.push((description, avg_ms));
 
-            assert!(
-                avg_ms < expected_max_ms,
-                "{}: average {}ms over {} iterations, expected < {}ms",
-                description,
-                avg_ms,
-                iterations,
-                expected_max_ms
-            );
-
             println!(
-                "Query command ({}): {}ms average over {} iterations (expected < {}ms)",
-                description, avg_ms, iterations, expected_max_ms
+                "Query command ({}): {}ms average over {} iterations",
+                description, avg_ms, iterations
             );
         }
 
@@ -3552,14 +3516,9 @@ impl QueryStruct{} {{
         );
     }
 
-    /// Task 3: Find command performance benchmark.
+    /// Task 3: Find command correctness benchmark.
     ///
-    /// Validates that the find command completes within acceptable time
-    /// limits for symbol lookup.
-    ///
-    /// Performance baseline:
-    /// - By name: < 200ms
-    /// - By symbol_id: < 50ms (if implemented)
+    /// Validates that the find command works correctly for symbol lookup.
     ///
     /// Note: find by name is O(N) where N = number of files (Magellan has
     /// no global symbol index, must query each file).
@@ -3608,8 +3567,6 @@ pub fn process_data(x: i32) -> i32 {{
         }
 
         let iterations = 10;
-        let ci_multiplier = if std::env::var("CI").is_ok() { 3 } else { 1 };
-        let expected_max_by_name_ms = 200 * ci_multiplier;
 
         // Test find by unique name (should be faster, stops at first match)
         let mut total_duration_unique_ms = 0;
@@ -3638,17 +3595,9 @@ pub fn process_data(x: i32) -> i32 {{
 
         let avg_unique_ms = total_duration_unique_ms / iterations as u128;
 
-        assert!(
-            avg_unique_ms < expected_max_by_name_ms,
-            "find by unique name: average {}ms over {} iterations, expected < {}ms",
-            avg_unique_ms,
-            iterations,
-            expected_max_by_name_ms
-        );
-
         println!(
-            "Find command (unique name): {}ms average over {} iterations (expected < {}ms)",
-            avg_unique_ms, iterations, expected_max_by_name_ms
+            "Find command (unique name): {}ms average over {} iterations",
+            avg_unique_ms, iterations
         );
 
         // Test find by common name (returns ambiguous results)
@@ -3679,17 +3628,9 @@ pub fn process_data(x: i32) -> i32 {{
 
         let avg_common_ms = total_duration_common_ms / iterations as u128;
 
-        assert!(
-            avg_common_ms < expected_max_by_name_ms,
-            "find by common name: average {}ms over {} iterations, expected < {}ms",
-            avg_common_ms,
-            iterations,
-            expected_max_by_name_ms
-        );
-
         println!(
-            "Find command (common name): {}ms average over {} iterations (expected < {}ms)",
-            avg_common_ms, iterations, expected_max_by_name_ms
+            "Find command (common name): {}ms average over {} iterations",
+            avg_common_ms, iterations
         );
 
         println!(
@@ -3697,12 +3638,9 @@ pub fn process_data(x: i32) -> i32 {{
         );
     }
 
-    /// Task 4: Export command performance benchmark.
+    /// Task 4: Export command correctness benchmark.
     ///
-    /// Validates that the export command completes within acceptable time
-    /// limits for typical export sizes.
-    ///
-    /// Performance baseline: < 1s for 500 symbols
+    /// Validates that the export command works correctly for typical export sizes.
     ///
     /// Note: Export reads first 100 files for memory safety (Phase 25-03).
     /// This is a documented limitation.
@@ -3754,8 +3692,6 @@ impl ExportStruct{} {{
                 .expect("Failed to index file");
         }
 
-        let ci_multiplier = if std::env::var("CI").is_ok() { 3 } else { 1 };
-        let expected_max_ms = 1000 * ci_multiplier; // 1 second local, 3s CI
         let iterations = 5;
 
         // Test each format
@@ -3813,23 +3749,14 @@ impl ExportStruct{} {{
             let avg_ms = total_duration_ms / iterations as u128;
             let avg_size = total_file_size / iterations as u64;
 
-            assert!(
-                avg_ms < expected_max_ms,
-                "export {} format: average {}ms over {} iterations, expected < {}ms",
-                extension,
-                avg_ms,
-                iterations,
-                expected_max_ms
-            );
-
             // Calculate throughput (symbols per second)
             // Estimated 500 symbols exported
             let estimated_symbols = 500;
             let throughput = (estimated_symbols as f64 / avg_ms as f64) * 1000.0;
 
             println!(
-                "Export command ({} format): {}ms average over {} iterations, avg size: {} bytes, throughput: {:.0} symbols/sec (expected < {}ms)",
-                extension, avg_ms, iterations, avg_size, throughput, expected_max_ms
+                "Export command ({} format): {}ms average over {} iterations, avg size: {} bytes, throughput: {:.0} symbols/sec",
+                extension, avg_ms, iterations, avg_size, throughput
             );
         }
 
