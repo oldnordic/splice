@@ -778,7 +778,7 @@ fn gate_cargo_check(workspace_dir: &Path) -> Result<()> {
 
     thread::spawn(move || {
         let output = Command::new("cargo")
-            .arg("check")
+            .args(["check", "--color=never"])
             .current_dir(&workspace_path)
             .output();
         let _ = tx.send(output);

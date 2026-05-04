@@ -398,7 +398,7 @@ fn parse_rust_analyzer_diagnostics(output: &str) -> Vec<CompilerError> {
 /// Returns ValidationResult::Pass if no errors, or Fail with error details.
 pub fn validate_with_cargo(project_dir: &Path) -> Result<ValidationResult> {
     let output = Command::new("cargo")
-        .args(["check", "--message-format=short"])
+        .args(["check", "--message-format=short", "--color=never"])
         .current_dir(project_dir)
         .output()?;
 

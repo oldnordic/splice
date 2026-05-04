@@ -1095,7 +1095,7 @@ fn run_cargo_check(workspace_dir: &Path) -> Result<std::process::Output> {
     }
 
     let output = Command::new("cargo")
-        .args(["check", "--quiet"])
+        .args(["check", "--quiet", "--color=never"])
         .current_dir(workspace_dir)
         .output()
         .map_err(|e| crate::error::SpliceError::IoContext {
