@@ -24,6 +24,11 @@ fn max_time_ms() -> u128 {
     if std::env::var("CI").is_ok() { 3000 } else { 1000 }
 }
 
+#[allow(dead_code)]
+fn ci_multiplier() -> u128 {
+    if std::env::var("CI").is_ok() { 3 } else { 1 }
+}
+
 const TARGET_SYMBOL_COUNT: usize = 1_000; // Reduced for faster test execution while still meaningful
 
 /// Module for generating test data for performance tests.
