@@ -3,6 +3,12 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.2] - 2026-05-04
+
+### Changed
+- Updated Magellan dependency to `3.1.9`.
+- Removed local path patch for Magellan; now uses published crate from crates.io.
+
 ## [2.6.1] - 2026-04-27
 
 ### Changed
