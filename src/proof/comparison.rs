@@ -7,7 +7,7 @@ use crate::error::Result;
 use crate::proof::data_structures::{GraphSnapshot, InvariantCheck, SymbolInfo};
 use crate::proof::validation;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 /// Type of change detected between snapshots.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -284,6 +284,7 @@ fn diff_edges(before: &GraphSnapshot, after: &GraphSnapshot) -> (Vec<EdgeDiff>, 
 mod tests {
     use super::*;
     use crate::proof::data_structures::GraphStats;
+    use std::collections::HashMap;
     use std::path::PathBuf;
 
     fn create_test_snapshot(timestamp: i64) -> GraphSnapshot {
