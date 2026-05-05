@@ -10,13 +10,21 @@ use std::sync::Arc;
 
 /// Context around cursor position
 #[derive(Debug, Clone)]
+/// Context around cursor position.
 pub struct CompletionContext {
+    /// Absolute path to the file being edited.
     pub file_path: PathBuf,
+    /// 1-based line number of the cursor.
     pub cursor_line: usize,
+    /// 1-based column number of the cursor.
     pub cursor_col: usize,
+    /// Function enclosing the cursor, if any.
     pub enclosing_function: Option<Symbol>,
+    /// Module enclosing the cursor, if any.
     pub enclosing_module: Option<Symbol>,
+    /// Symbols visible from the cursor position.
     pub visible_symbols: Vec<Symbol>,
+    /// Token currently being typed at the cursor, if any.
     pub current_token: Option<String>,
 }
 

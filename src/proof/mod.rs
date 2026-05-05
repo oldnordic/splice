@@ -6,6 +6,7 @@
 
 pub mod checksums;
 pub mod comparison;
+/// Data structures for proof snapshots and invariants.
 pub mod data_structures;
 pub mod generation;
 pub mod storage;

@@ -18,6 +18,7 @@ pub struct BatchSpec {
     pub mode: ExecutionMode,
 }
 
+/// Metadata for a batch operation specification.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BatchMetadata {
     /// Human-readable description
@@ -185,23 +186,46 @@ fn validate_operation(op: &BatchOperation, idx: usize) -> Result<(), BatchSpecEr
     Ok(())
 }
 
+/// Error type for batch spec parsing and validation failures.
 #[derive(Debug, thiserror::Error)]
 pub enum BatchSpecError {
+    /// IO error reading the spec file.
     #[error("IO error reading {path}: {source}")]
     Io {
+        /// Path to the spec file.
         path: PathBuf,
+        /// Underlying IO error.
         source: std::io::Error,
     },
 
+    /// Failed to parse the spec file.
     #[error("Failed to parse {path}: {reason}")]
-    ParseError { path: PathBuf, reason: String },
+    ParseError {
+        /// Path to the spec file.
+        path: PathBuf,
+        /// Reason for parse failure.
+        reason: String,
+    },
 
+    /// Batch spec contains no operations.
     #[error("Batch spec contains no operations")]
     EmptyOperations,
 
+    /// An operation in the batch is invalid.
     #[error("Operation {index} is invalid: {reason}")]
-    InvalidOperation { index: usize, reason: String },
+    InvalidOperation {
+        /// Index of the invalid operation.
+        index: usize,
+        /// Reason the operation is invalid.
+        reason: String,
+    },
 
+    /// A referenced file does not exist.
     #[error("Operation {index} references non-existent file: {path}")]
-    FileNotFound { index: usize, path: PathBuf },
+    FileNotFound {
+        /// Index of the operation referencing the file.
+        index: usize,
+        /// Path to the missing file.
+        path: PathBuf,
+    },
 }

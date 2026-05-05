@@ -28,6 +28,7 @@ pub mod ingest;
 pub mod output;
 pub mod patch;
 pub mod plan;
+/// Platform detection and feature flags.
 pub mod platform;
 pub mod proof;
 pub mod relationships;

@@ -3,6 +3,14 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.3] - 2026-05-06
+
+### Fixed
+- Eliminated all compiler warnings (102 → 0).
+- Added 85 missing documentation comments across 13 files.
+- Removed 3 dead code items (`is_geometric_db` methods, `build_success_payload`).
+- Fixed 8 unused imports via `cargo fix`.
+
 ## [2.6.2] - 2026-05-04
 
 ### Changed

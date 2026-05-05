@@ -31,8 +31,11 @@ fn normalize_lookup_path(path: &Path) -> PathBuf {
 
 /// Backend type identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Backend type for Magellan integration.
 pub enum IntegrationBackend {
+    /// SQLite database backend.
     Sqlite,
+    /// Geometric spatial backend.
     #[cfg(feature = "geometric")]
     Geometric,
 }
@@ -66,11 +69,6 @@ pub struct MagellanIntegration {
 }
 
 impl MagellanIntegration {
-    /// Check if a path is a geometric database.
-    fn is_geometric_db(path: &Path) -> bool {
-        path.extension().map_or(false, |ext| ext == "geo")
-    }
-
     /// Get the backend type.
     pub fn backend_type(&self) -> IntegrationBackend {
         self.backend
@@ -3144,27 +3142,41 @@ pub struct CondensationGraph {
 
 /// A condensed SCC.
 #[derive(Debug, Clone)]
+/// A condensed strongly connected component.
 pub struct CondensedScc {
+    /// Unique identifier for the SCC.
     pub id: String,
+    /// Number of symbols in the SCC.
     pub size: usize,
+    /// Whether the SCC contains a cycle.
     pub is_cycle: bool,
+    /// Member symbols, if expanded.
     pub members: Option<Vec<SymbolInfo>>,
+    /// Representative symbol for the SCC.
     pub representative: SymbolInfo,
 }
 
 /// Edge between SCCs.
 #[derive(Debug, Clone)]
+/// Edge between two strongly connected components.
 pub struct SccEdge {
+    /// Source SCC identifier.
     pub from: String,
+    /// Target SCC identifier.
     pub to: String,
+    /// Number of edges between the SCCs.
     pub weight: usize,
 }
 
 /// Topological level.
 #[derive(Debug, Clone)]
+/// Topological level in the condensation graph.
 pub struct LevelInfo {
+    /// Level number in topological order.
     pub level: usize,
+    /// SCC identifiers at this level.
     pub scc_ids: Vec<String>,
+    /// Number of SCCs at this level.
     pub count: usize,
 }
 

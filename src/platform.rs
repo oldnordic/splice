@@ -7,12 +7,15 @@
 pub const IS_WINDOWS: bool = true;
 
 #[cfg(not(feature = "windows"))]
+/// Whether the current platform is Windows.
 pub const IS_WINDOWS: bool = false;
 
 #[cfg(feature = "unix")]
+/// Whether the current platform is Unix.
 pub const IS_UNIX: bool = true;
 
 #[cfg(not(feature = "unix"))]
+/// Whether the current platform is Unix.
 pub const IS_UNIX: bool = false;
 
 /// Warn users about Windows limitations on first run

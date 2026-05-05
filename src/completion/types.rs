@@ -3,17 +3,25 @@ use std::path::PathBuf;
 
 /// Request for code completion at cursor position
 #[derive(Debug, Clone, Deserialize)]
+/// Request for code completion at cursor position.
 pub struct CompletionRequest {
+    /// Path to the file being edited.
     pub file_path: PathBuf,
+    /// 1-based line number of the cursor.
     pub line: usize,
+    /// 1-based column number of the cursor.
     pub column: usize,
+    /// Maximum number of suggestions to return.
     pub max_results: Option<usize>,
 }
 
 /// Completion response with grounded suggestions
 #[derive(Debug, Clone, Serialize)]
+/// Response containing completion suggestions.
 pub struct CompletionResponse {
+    /// Ranked list of completion suggestions.
     pub suggestions: Vec<CompletionSuggestion>,
+    /// Metadata about the completion query.
     pub metadata: CompletionMetadata,
 }
 
@@ -61,16 +69,27 @@ pub enum SuggestionSource {
 
 /// Symbol kind enum
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// Kind of symbol in the codebase.
 pub enum SymbolKind {
+    /// Function or method.
     Function,
+    /// Struct definition.
     Struct,
+    /// Enum definition.
     Enum,
+    /// Trait definition.
     Trait,
+    /// Impl block.
     Impl,
+    /// Module.
     Module,
+    /// Local or global variable.
     Variable,
+    /// Constant.
     Constant,
+    /// Type alias.
     TypeAlias,
+    /// Enum constructor.
     Constructor,
 }
 
@@ -89,11 +108,18 @@ pub struct CompletionMetadata {
 
 /// Result of symbol lookup
 #[derive(Debug, Clone)]
+/// A symbol found in the codebase.
 pub struct Symbol {
+    /// Unique identifier for the symbol.
     pub id: String,
+    /// Name of the symbol.
     pub name: String,
+    /// Kind of the symbol.
     pub kind: SymbolKind,
+    /// File path where the symbol is defined.
     pub path: String,
+    /// 1-based line number of the symbol definition.
     pub line: usize,
+    /// 1-based column number of the symbol definition.
     pub column: usize,
 }

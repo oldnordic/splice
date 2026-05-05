@@ -3,12 +3,6 @@
 //! This module provides the CodeIntelBackend trait implementation
 //! for .geo databases using magellan's GeometricBackend directly.
 
-use super::router::BackendType;
-use crate::error::{Result, SpliceError};
-use crate::symbol::Language;
-use sqlitegraph::NodeId;
-use std::collections::HashMap;
-use std::path::Path;
 
 /// Geometric code graph implementation.
 ///

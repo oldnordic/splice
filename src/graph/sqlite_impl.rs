@@ -104,6 +104,7 @@ impl CodeGraphSqlite {
 
 // Inherent methods that match the CodeIntelBackend trait
 impl CodeGraphSqlite {
+    /// Find a symbol by name within a specific file.
     pub fn find_symbol_in_file(&self, file_path: &str, name: &str) -> Option<NodeId> {
         // Check cache first
         let cache_key = format!("{}::{}", file_path, name);
@@ -134,6 +135,7 @@ impl CodeGraphSqlite {
         None
     }
 
+    /// Find all symbols with the given name across all files.
     pub fn find_symbols_by_name(&self, name: &str) -> Vec<(NodeId, Option<String>)> {
         let mut results = Vec::new();
         let snapshot = SnapshotId(0);
@@ -159,6 +161,7 @@ impl CodeGraphSqlite {
         results
     }
 
+    /// Return all unique symbol names in the graph.
     pub fn all_symbol_names(&self) -> Vec<String> {
         use std::collections::HashSet;
         let mut names = HashSet::new();
@@ -187,6 +190,7 @@ impl CodeGraphSqlite {
         names.into_iter().collect()
     }
 
+    /// Get the byte span (start, end) for a node.
     pub fn get_span(&self, node_id: NodeId) -> Result<(usize, usize)> {
         let node = self
             .backend
@@ -210,6 +214,7 @@ impl CodeGraphSqlite {
         Ok((byte_start, byte_end))
     }
 
+    /// Store a symbol node in the graph.
     pub fn store_symbol(
         &mut self,
         name: &str,
@@ -254,6 +259,7 @@ impl CodeGraphSqlite {
         Ok(node_id)
     }
 
+    /// Store a symbol node with associated file and language.
     pub fn store_symbol_with_file_and_language(
         &mut self,
         file_path: &Path,
@@ -312,6 +318,7 @@ impl CodeGraphSqlite {
         Ok(node_id)
     }
 
+    /// Return the backend type identifier.
     pub fn backend_type(&self) -> BackendType {
         BackendType::SQLite
     }

@@ -35,12 +35,16 @@ pub use geo_impl::CodeGraphGeo;
 pub use magellan_integration::MagellanIntegration;
 
 // Legacy: Deprecated Backend enum - use BackendType instead
+/// Legacy backend type identifier.
 #[deprecated(since = "2.6.0", note = "Use BackendType instead")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Backend {
+    /// SQLite database backend.
     SQLite,
+    /// Geometric spatial backend.
     #[cfg(feature = "geometric")]
     Geometric,
+    /// Unknown or unsupported backend.
     Unknown,
 }
 

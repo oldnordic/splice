@@ -35,11 +35,6 @@ pub struct MagellanIntegrationSplit {
 }
 
 impl MagellanIntegrationSplit {
-    /// Check if a path is a geometric database.
-    fn is_geometric_db(path: &Path) -> bool {
-        path.extension().map_or(false, |ext| ext == "geo")
-    }
-
     /// Get the backend type.
     pub fn backend_type(&self) -> IntegrationBackend {
         match &self.backend {

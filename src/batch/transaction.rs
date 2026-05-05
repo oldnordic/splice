@@ -6,7 +6,6 @@
 use crate::batch::executor::BatchExecutor;
 use crate::batch::spec::BatchSpec;
 use crate::error::{Result, SpliceError};
-use crate::graph::CodeGraph;
 use crate::proof::storage::SnapshotStorage;
 use std::path::{Path, PathBuf};
 

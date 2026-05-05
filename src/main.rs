@@ -126,8 +126,8 @@ fn count_lines_in_span(file_path: &Path, start: usize, end: usize) -> usize {
 
 /// Capture a graph snapshot before a refactoring operation.
 fn capture_snapshot(db_path: &Path, operation: &str) -> Result<(), splice::SpliceError> {
-    use splice::proof::data_structures::{ProofMetadata, RefactoringProof};
-    use splice::proof::generation::{create_metadata, generate_snapshot, write_proof};
+    use splice::proof::data_structures::RefactoringProof;
+    use splice::proof::generation::{create_metadata, generate_snapshot};
     use std::fs;
 
     // Generate snapshot from current database state
@@ -5917,7 +5917,7 @@ fn execute_batch(
     rollback: splice::cli::CliRollbackMode,
     analyzer: Option<splice::cli::AnalyzerMode>,
     analyzer_binary: Option<std::path::PathBuf>,
-    json_output: bool,
+    _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::batch::{parse_batch_spec, BatchExecutor, ExecutionMode, RollbackMode};
 
@@ -6702,7 +6702,7 @@ fn require_patch_arg<T>(flag: &str, value: Option<T>) -> Result<T, splice::Splic
     })
 }
 
-fn build_success_payload(
+fn _build_success_payload(
     message: String,
     files: Vec<splice::patch::FilePatchSummary>,
     preview_report: Option<splice::patch::PreviewReport>,

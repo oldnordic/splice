@@ -1,16 +1,23 @@
 use crate::completion::context::CompletionContext;
 use crate::completion::types::{CompletionSuggestion, SuggestionSource, SymbolKind};
 
+/// Ranks completion suggestions by relevance.
 pub struct SuggestionRanker {
     weights: RankingWeights,
 }
 
+/// Weights for ranking factors.
 #[derive(Debug, Clone)]
 pub struct RankingWeights {
+    /// Weight for usage frequency score.
     pub frequency: f32,
+    /// Weight for proximity to cursor score.
     pub proximity: f32,
+    /// Weight for symbol kind match score.
     pub kind_match: f32,
+    /// Weight for text match score.
     pub text_match: f32,
+    /// Weight for import proximity score.
     pub import_proximity: f32,
 }
 
@@ -29,10 +36,12 @@ impl Default for SuggestionRanker {
 }
 
 impl SuggestionRanker {
+    /// Create a ranker with default weights.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Rank suggestions by relevance to the given context.
     pub fn rank_suggestions(
         &self,
         suggestions: Vec<CompletionSuggestion>,

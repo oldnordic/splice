@@ -96,9 +96,16 @@ use std::hash::Hash;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SymbolIdError {
     /// ID is not 16 or 32 characters.
-    InvalidLength { length: usize },
+    /// ID length is not 16 or 32 characters.
+    InvalidLength {
+        /// The actual length of the provided ID.
+        length: usize
+    },
     /// ID contains non-hexadecimal characters.
-    InvalidHex { invalid_char: char },
+    InvalidHex {
+        /// The first non-hexadecimal character encountered.
+        invalid_char: char
+    },
     /// ID contains uppercase letters (must be lowercase).
     InvalidCase,
 }

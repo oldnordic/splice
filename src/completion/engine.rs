@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+/// Engine that provides code completion suggestions grounded in the database.
 pub struct CompletionEngine {
     magellan: Arc<MagellanIntegration>,
     ranker: SuggestionRanker,
@@ -22,6 +23,7 @@ pub struct CompletionEngine {
 type CompletionCacheKey = (PathBuf, usize, usize);
 
 impl CompletionEngine {
+    /// Create a new completion engine with the given Magellan integration and database path.
     pub fn new(magellan: Arc<MagellanIntegration>, db_path: &Path) -> Self {
         // Cache symbol count during initialization to avoid repeated queries
         let symbol_count = Self::get_symbol_count_once(db_path).unwrap_or(0);
