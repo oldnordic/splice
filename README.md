@@ -3,7 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/splice)](https://crates.io/crates/splice)
 [![Documentation](https://docs.rs/splice/badge.svg)](https://docs.rs/splice)
 
-**Version:** 2.6.1
+**Version:** 2.6.4
 
 Span-safe refactoring kernel for 7 languages. Byte-accurate code editing with graph algorithm analysis.
 
@@ -86,4 +86,4 @@ cargo install splice
 
 ## License
 
-GPL-3.0-or-later. See [LICENSE](LICENSE).
+GPL-3.0. See [LICENSE](LICENSE).
