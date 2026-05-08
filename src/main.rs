@@ -4826,11 +4826,43 @@ fn execute_rename(
                 symbol: symbol_info.name.clone(),
             })?;
 
-    if references.is_empty() {
+    // Include the definition *name* site in the rename.
+    // Magellan's byte_start/byte_end covers the full declaration body.
+    // We locate the first occurrence of the symbol name within that span
+    // to produce a name-only offset that won't corrupt the declaration.
+    let decl_content =
+        fs::read(&symbol_info.file_path).map_err(|e| splice::SpliceError::RenameFailed {
+            reason: format!(
+                "Failed to read definition file '{}': {}",
+                symbol_info.file_path, e
+            ),
+            symbol: symbol_info.name.clone(),
+        })?;
+    let decl_slice = &decl_content[symbol_info.byte_start..symbol_info.byte_end];
+    if let Some(name_offset) = decl_slice
+        .windows(symbol_info.name.len())
+        .position(|w| w == symbol_info.name.as_bytes())
+    {
+        let name_byte_start = symbol_info.byte_start + name_offset;
+        let name_byte_end = name_byte_start + symbol_info.name.len();
+        references.push(magellan::references::ReferenceFact {
+            file_path: PathBuf::from(&symbol_info.file_path),
+            referenced_symbol: symbol_info.name.clone(),
+            byte_start: name_byte_start,
+            byte_end: name_byte_end,
+            start_line: symbol_info.start_line.unwrap_or(1),
+            start_col: 0,
+            end_line: symbol_info.end_line.unwrap_or(1),
+            end_col: 0,
+        });
+    } else {
         return Err(splice::SpliceError::RenameFailed {
             reason: format!(
-                "Symbol '{}' has no references to rename (only definition exists)",
-                symbol_info.name
+                "Symbol name '{}' not found inside its own declaration span ({}..{}) in {}",
+                symbol_info.name,
+                symbol_info.byte_start,
+                symbol_info.byte_end,
+                symbol_info.file_path
             ),
             symbol: symbol_info.name,
         });

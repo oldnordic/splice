@@ -3300,11 +3300,7 @@ fn main() {
 
         let splice_binary = get_splice_binary();
 
-        let test_cases = vec![
-            (10, "10 files"),
-            (50, "50 files"),
-            (100, "100 files"),
-        ];
+        let test_cases = vec![(10, "10 files"), (50, "50 files"), (100, "100 files")];
 
         for (num_files, description) in test_cases {
             let temp_dir = TempDir::new().expect("Failed to create temp dir");

@@ -99,12 +99,12 @@ pub enum SymbolIdError {
     /// ID length is not 16 or 32 characters.
     InvalidLength {
         /// The actual length of the provided ID.
-        length: usize
+        length: usize,
     },
     /// ID contains non-hexadecimal characters.
     InvalidHex {
         /// The first non-hexadecimal character encountered.
-        invalid_char: char
+        invalid_char: char,
     },
     /// ID contains uppercase letters (must be lowercase).
     InvalidCase,

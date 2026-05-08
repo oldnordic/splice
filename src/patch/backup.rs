@@ -192,8 +192,56 @@ impl BackupWriter {
 }
 
 /// Restore files from a backup manifest.
+///
+/// Supports both `BackupManifest` (patch format, `files: Vec<BackupEntry>`)
+/// and `RenameBackupManifest` (rename format, `files: HashMap<String, String>`).
 pub fn restore_from_manifest(manifest_path: &Path, workspace_root: &Path) -> Result<usize> {
-    let manifest = BackupManifest::load(manifest_path)?;
+    let json = fs::read_to_string(manifest_path).map_err(|e| SpliceError::Io {
+        path: manifest_path.to_path_buf(),
+        source: e,
+    })?;
+
+    // Try patch BackupManifest first
+    let mut manifest: BackupManifest = match serde_json::from_str(&json) {
+        Ok(m) => m,
+        Err(_) => {
+            // Fallback: parse as rename-format HashMap manifest and convert
+            let rename_manifest: crate::graph::rename::RenameBackupManifest =
+                serde_json::from_str(&json).map_err(|e| {
+                    SpliceError::Other(format!(
+                    "Failed to parse manifest as either BackupManifest or RenameBackupManifest: {}",
+                    e
+                ))
+                })?;
+            let backup_dir = manifest_path
+                .parent()
+                .ok_or_else(|| SpliceError::Other("Manifest has no parent directory".to_string()))?
+                .to_path_buf();
+            let files = rename_manifest
+                .files
+                .into_iter()
+                .map(|(path, hash)| BackupEntry {
+                    replaced_path: PathBuf::from(path),
+                    hash,
+                    size: 0,
+                })
+                .collect();
+            BackupManifest {
+                operation_id: rename_manifest.operation_id,
+                timestamp: rename_manifest.timestamp,
+                files,
+                backup_dir,
+            }
+        }
+    };
+
+    // Set backup_dir from manifest path if not already set
+    if manifest.backup_dir.as_os_str().is_empty() {
+        manifest.backup_dir = manifest_path
+            .parent()
+            .ok_or_else(|| SpliceError::Other("Manifest has no parent directory".to_string()))?
+            .to_path_buf();
+    }
 
     let mut restored = 0;
 
@@ -429,5 +477,58 @@ mod tests {
         assert_eq!(loaded.files[0].replaced_path, PathBuf::from("src/lib.rs"));
         assert_eq!(loaded.files[0].hash, "abc123");
         assert_eq!(loaded.files[0].size, 1024);
+    }
+
+    #[test]
+    fn test_restore_from_rename_manifest_format() {
+        use crate::graph::rename::RenameBackupManifest;
+        let workspace = TempDir::new().expect("Failed to create temp dir");
+        let workspace_root = workspace.path();
+
+        // Create a test file
+        let src_dir = workspace_root.join("src");
+        fs::create_dir_all(&src_dir).expect("Failed to create src dir");
+        let test_file = src_dir.join("main.rs");
+        let original_content = b"fn foo() {}\n";
+        fs::write(&test_file, original_content).expect("Failed to write test file");
+
+        // Compute hash
+        let hash = {
+            let mut hasher = Sha256::new();
+            hasher.update(original_content);
+            format!("{:x}", hasher.finalize())
+        };
+
+        // Create backup directory and copy file
+        let backup_dir = workspace_root.join(".splice/backups/rename-foo-20250104-120000");
+        fs::create_dir_all(&backup_dir).expect("Failed to create backup dir");
+        let backup_file = backup_dir.join("src/main.rs");
+        fs::create_dir_all(backup_file.parent().unwrap()).expect("Failed to create backup subdir");
+        fs::write(&backup_file, original_content).expect("Failed to write backup");
+
+        // Write rename-format manifest (HashMap<String, String>)
+        let rename_manifest = RenameBackupManifest {
+            operation_id: "rename-foo-20250104-120000".to_string(),
+            timestamp: "2026-01-04T12:00:00Z".to_string(),
+            files: {
+                let mut m = std::collections::HashMap::new();
+                m.insert("src/main.rs".to_string(), hash);
+                m
+            },
+        };
+        let manifest_path = backup_dir.join("manifest.json");
+        let json = serde_json::to_string_pretty(&rename_manifest).expect("Failed to serialize");
+        fs::write(&manifest_path, json).expect("Failed to write manifest");
+
+        // Modify the original file
+        fs::write(&test_file, b"fn bar() {}\n").expect("Failed to modify");
+
+        // Restore using the unified restore_from_manifest
+        let restored =
+            restore_from_manifest(&manifest_path, workspace_root).expect("Failed to restore");
+
+        assert_eq!(restored, 1);
+        let content = fs::read_to_string(&test_file).expect("Failed to read");
+        assert_eq!(content, "fn foo() {}\n");
     }
 }

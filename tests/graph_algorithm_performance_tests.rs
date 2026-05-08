@@ -21,7 +21,11 @@ use tempfile::TempDir;
 
 /// Scale test data for CI: shared runners are too slow for 1K symbol graphs.
 fn target_symbol_count() -> usize {
-    if std::env::var("CI").is_ok() { 100 } else { 1_000 }
+    if std::env::var("CI").is_ok() {
+        100
+    } else {
+        1_000
+    }
 }
 
 /// Module for generating test data for performance tests.

@@ -3,6 +3,15 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.4] - 2026-05-08
+
+### Fixed
+- **splice rename definition bug** — `execute_rename()` now injects the definition site (name-only span) into the reference list before grouping. Previously, only call sites were renamed, leaving `fn old_name()` unchanged while callers referenced `fn new_name()`, causing compile errors. The fix computes the name-only byte offset by searching for `symbol_info.name` within the declaration span, avoiding full-declaration replacement that would corrupt the function body. Also removed the `references.is_empty()` guard so zero-caller symbols can still be renamed.
+- **splice undo manifest format mismatch** — `restore_from_manifest()` in `src/patch/backup.rs` now supports both `BackupManifest` (patch format, `files: Vec<BackupEntry>`) and `RenameBackupManifest` (rename format, `files: HashMap<String, String>`). Previously, undo could only parse patch-format manifests, causing "expected a sequence" errors when restoring rename backups.
+
+### Changed
+- Updated `MANUAL.md` version header to v2.6.4.
+
 ## [2.6.3] - 2026-05-06
 
 ### Fixed

@@ -1,51 +1,36 @@
-# Splice v2.4.0 Release Notes
+# Splice v2.6.4 Release Notes
 
-**Release Date:** 2026-02-04
+**Release Date:** 2026-05-08
 
-Splice v2.4.0 is a feature release that improves preview mode JSON output and updates documentation.
+Splice v2.6.4 is a bug-fix release that resolves two critical issues: cross-file rename not updating the definition site, and `splice undo` failing to restore rename-format backup manifests.
 
 ---
 
 ## What's Fixed
 
-### Preview Mode JSON Output
+### Cross-File Rename Definition Bug
 
-The `splice patch --preview --json` command now returns structured JSON:
+`splice rename` now correctly renames both the **definition site** (the symbol declaration) and all **call sites** across all indexed files.
 
-```json
-{
-  "status": "ok",
-  "message": "Previewed patch 'foo' at bytes 0..29 (dry-run)",
-  "data": {
-    "symbol": "foo",
-    "preview_report": {
-      "file": "src/lib.rs",
-      "line_start": 1,
-      "line_end": 3,
-      "lines_added": 3,
-      "lines_removed": 3,
-      "bytes_added": 31,
-      "bytes_removed": 29
-    },
-    "files": [{"file": "src/lib.rs"}]
-  }
-}
+**Previously:** Rename updated only references (call sites), leaving `fn old_name()` unchanged while all callers referenced `fn new_name()`. The resulting code would not compile.
+
+**Now:** The definition name is extracted using a name-only byte span inside the declaration and included in the replacement set. The fix also enables renaming symbols with zero callers (previously blocked by an empty-reference guard).
+
+**Example:**
+```bash
+splice rename --db .magellan/splice.db --name "foo" --file src/main.rs --to "bar"
 ```
+This now renames `fn foo()` to `fn bar()` AND every `foo()` call site in the same transaction.
 
-**Fields:**
-- `preview_report.file`: Path to the modified file
-- `preview_report.line_start`: Starting line number (1-indexed)
-- `preview_report.line_end`: Ending line number (1-indexed)
-- `preview_report.lines_added`: Number of lines added
-- `preview_report.lines_removed`: Number of lines removed
-- `preview_report.bytes_added`: Number of bytes added
-- `preview_report.bytes_removed`: Number of bytes removed
+### Undo Manifest Format Mismatch
 
-## Documentation Updates
+`splice undo --manifest <path>` now works for both patch-format and rename-format backup manifests.
 
-- **README.md**: Reorganized with badges, toolset diagram, and clearer command reference
-- **MANUAL.md**: Condensed from 1654 to 342 lines, added preview JSON examples
-- **CHANGELOG.md**: Updated with v2.2.4 changes
+**Previously:** The undo reader only understood `BackupManifest` (patch format, `files: Vec<BackupEntry>`). Restoring a rename backup produced: `Failed to parse manifest: expected a sequence at line 4 column 11`.
+
+**Now:** `restore_from_manifest()` attempts both formats, converting rename manifests (`HashMap<String, String>`) internally so the same restore logic handles all backups.
+
+---
 
 ## Installation
 
@@ -62,9 +47,7 @@ cargo build --release
 cp target/release/splice ~/.local/bin/
 ```
 
-## Upgrade from v2.2.x
-
-No breaking changes. Simply reinstall:
+## Upgrade from v2.6.x
 
 ```bash
 cargo install splice --force

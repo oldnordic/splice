@@ -3,7 +3,6 @@
 //! This module provides the CodeIntelBackend trait implementation
 //! for .geo databases using magellan's GeometricBackend directly.
 
-
 /// Geometric code graph implementation.
 ///
 /// Wraps magellan's GeometricBackend and provides the CodeIntelBackend

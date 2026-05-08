@@ -28,7 +28,11 @@ use tempfile::TempDir;
 
 /// CI shared runners are ~3x slower than local dev machines.
 fn ci_multiplier() -> u128 {
-    if std::env::var("CI").is_ok() { 3 } else { 1 }
+    if std::env::var("CI").is_ok() {
+        3
+    } else {
+        1
+    }
 }
 
 /// Create a large Rust file with repeated function definitions.
