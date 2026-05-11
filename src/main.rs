@@ -4094,6 +4094,13 @@ fn execute_status(
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::magellan_integration::MagellanIntegration;
 
+    if !db_path.exists() {
+        return Err(splice::SpliceError::Magellan {
+            context: format!("Database not found: {}", db_path.display()),
+            source: anyhow::anyhow!("No database file at the specified path"),
+        });
+    }
+
     // If detect_backend flag is set, report backend and exit early
     if detect_backend {
         let backend = splice::graph::CodeGraph::detect_backend(db_path)?;
