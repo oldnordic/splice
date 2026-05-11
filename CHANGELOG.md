@@ -3,6 +3,12 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.7] - 2026-05-12
+
+### Fixed
+- **`status` on missing database** — `splice status --db <missing>` previously silently created an empty database and reported 0 files/symbols. Now it returns a JSON error with `SPL-E091` and exits non-zero.
+- **Test reliability** — `test_magellan_query_error_preserves_context` now overwrites SQLite header magic bytes instead of truncating, since SQLite is resilient to truncation.
+
 ## [2.6.4] - 2026-05-08
 
 ### Fixed
