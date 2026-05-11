@@ -1850,18 +1850,14 @@ pub fn greet(name: &str) -> String {
             .index_file(&file_path)
             .expect("Failed to index test file");
 
-        // Now corrupt the database by truncating it
-        let db_metadata = std::fs::metadata(&db_path).expect("Failed to get db metadata");
-        let original_size = db_metadata.len();
-        // Truncate to a smaller size to corrupt it
-        let truncated_size = original_size / 2;
+        // Now corrupt the database by overwriting the SQLite header
         let mut db_file = std::fs::File::options()
             .write(true)
             .open(&db_path)
             .expect("Failed to open database for writing");
         db_file
-            .set_len(truncated_size)
-            .expect("Failed to truncate database");
+            .write_all(b"CORRUPT!")
+            .expect("Failed to corrupt database header");
 
         let splice_binary = get_splice_binary();
         let output = Command::new(&splice_binary)
