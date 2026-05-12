@@ -778,7 +778,7 @@ fn test_llm_json_round_trip_preserves_data() {
     let ec = deserialized.error_code.as_ref().unwrap();
     assert_eq!(ec.code, "SPL-E002");
     assert_eq!(ec.severity, "warning");
-    assert_eq!(ec.location, "example.rs:5:10");
+    assert_eq!(ec.location, Some("example.rs:5:10".to_string()));
 }
 
 // Test 15: CLI payload status field consistency

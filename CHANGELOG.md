@@ -5,6 +5,30 @@ Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.6.9] - 2026-05-12
+
+### Fixed
+
+- **`splice search` returned 0 matches for all queries** — The `glob` crate does not support `{rs,py,ts,...}` brace expansion. When no `--language` was given, the single glob pattern `"**/*.{rs,py,ts,...}"` matched nothing. Search now iterates per file extension, running one glob per type when no language filter is specified.
+
+- **`splice apply-files` applied immediately with no preview** — Added `--dry-run` flag. When set, `apply-files` reports the number of matches and affected files without writing changes or creating backups. JSON output includes `dry_run`, `files_would_patch`, and `matches_count` fields.
+
+- **`splice snapshots cleanup` silently deleted hundreds of snapshots** — Added `--yes` confirmation flag. Bulk deletions above 50 snapshots now refuse to run unless `--yes` is passed, directing the user to use `--dry-run` first or confirm with `--yes`.
+
+- **`error_code.location` was always `"<unknown>"` for errors without a file path** — `ErrorCode.location` changed from `String` to `Option<String>`. When no file/line/column is available, the `location` field is omitted from JSON output entirely instead of showing `"<unknown>"`.
+
+- **`splice migrate-db` used `--db-path` instead of the project-wide `--db` convention** — The flag now accepts `--db` (short `-d`) matching all other DB-touching commands. `--db-path` still works as the underlying field name.
+
+- **`splice create` returned `status:ok` on validation failure** — When the provided code fails validation, `create` now returns a proper error with `status: "error"` and the compiler diagnostics. Previously, the validation failure was printed to stdout/stderr but the JSON envelope reported success.
+
+- **`splice rename --proof` help said "(requires --preview)" but `--preview` does not exist** — Help text corrected to say "(requires --dry-run)".
+
+- **`splice rename --symbol + --file` returned vague "Invalid argument combination"** — Error message is now specific: `"--file is not needed with --symbol (the symbol ID uniquely identifies the target)"`.
+
+- **SPL-E091 explain text referenced nonexistent `splice ingest` command** — The hint and `splice explain --code SPL-E091` output now reference `magellan watch --root ./src --db <db> --scan-initial` and `magellan refresh --db <db>` instead.
+
+- **Clippy** — 3 `clone_on_copy` warnings in `main.rs` auto-fixed (zero warnings remaining).
+
 ## [2.6.8] - 2026-05-12
 
 ### Fixed

@@ -67,16 +67,7 @@ pub fn cmd_create(
                         }
                     }
                 }
-                OutputFormat::Json => {
-                    let json = serde_json::to_string_pretty(&validation).map_err(|e| {
-                        crate::error::SpliceError::IoContext {
-                            context: "Failed to serialize JSON".to_string(),
-                            source: std::io::Error::new(std::io::ErrorKind::InvalidData, e),
-                        }
-                    })?;
-                    println!("{}", json);
-                }
-                OutputFormat::Pretty => {
+                OutputFormat::Json | OutputFormat::Pretty => {
                     let json = serde_json::to_string_pretty(&validation).map_err(|e| {
                         crate::error::SpliceError::IoContext {
                             context: "Failed to serialize JSON".to_string(),
@@ -86,7 +77,28 @@ pub fn cmd_create(
                     println!("{}", json);
                 }
             }
-            Ok(())
+
+            if validation.is_valid {
+                Ok(())
+            } else {
+                Err(SpliceError::CompilerValidationFailed {
+                    file: file_path.to_path_buf(),
+                    language: "unknown".to_string(),
+                    diagnostics: validation
+                        .errors
+                        .iter()
+                        .map(|e| {
+                            crate::error::Diagnostic::new(
+                                "splice-create",
+                                crate::error::DiagnosticLevel::Error,
+                                &e.message,
+                            )
+                            .with_file(file_path.to_path_buf())
+                            .with_position(Some(e.line), Some(e.column))
+                        })
+                        .collect(),
+                })
+            }
         }
         Err(e) => {
             match output_format {

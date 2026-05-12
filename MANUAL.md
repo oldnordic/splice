@@ -1,4 +1,4 @@
-# Splice v2.6.4 Manual
+# Splice v2.6.9 Manual
 
 Comprehensive guide for Splice span-safe refactoring with Magellan integration.
 
@@ -95,8 +95,8 @@ splice rename --symbol <id> --file <path> --to <new_name> [OPTIONS]
 
 **Optional Arguments:**
 - `--db <path>`: Path to codegraph.db (default: `.magellan/splice.db`)
-- `--preview`: Show changes without applying (no file modifications)
-- `--proof`: Generate refactoring proof for audit trail
+- `--dry-run`: Show changes without applying (no file modifications)
+- `--proof`: Generate refactoring proof for audit trail (requires --dry-run)
 - `--snapshot-before`: Capture graph snapshot before renaming (requires --db)
 - `--impact-graph`: Generate DOT graph for impact visualization (requires --preview)
 
@@ -281,6 +281,7 @@ splice apply-files --glob <GLOB> --find <PATTERN> --replace <REPLACEMENT>
 **Optional Arguments:**
 - `--language <LANG>`: Language override
 - `--create-backup`: Create backup before applying
+- `--dry-run`: Preview matches without applying changes. Reports affected files and match count in JSON.
 
 ### splice create
 
@@ -464,7 +465,7 @@ splice snapshots <subcommand> [OPTIONS]
 
 - `list [--operation <NAME>] [--limit <N>] [--disk-use]`: List snapshots
 - `delete <id> [--force]`: Delete a snapshot by ID
-- `cleanup [--keep <N>] [--dry-run]`: Remove old snapshots, keeping N most recent
+- `cleanup [--keep <N>] [--dry-run] [--yes]`: Remove old snapshots, keeping N most recent. Bulk deletes above 50 require `--yes` to confirm.
 
 **Examples:**
 

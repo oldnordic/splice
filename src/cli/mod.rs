@@ -303,6 +303,10 @@ pub enum Commands {
         /// Optional JSON metadata to attach to this operation.
         #[arg(long)]
         metadata: Option<String>,
+
+        /// Preview changes without applying — prints what would change and exits.
+        #[arg(short = 'n', long = "dry-run", visible_alias = "preview")]
+        dry_run: bool,
     },
 
     /// Query symbols by labels (uses Magellan integration).
@@ -598,7 +602,7 @@ pub enum Commands {
     #[command(display_order = 107)]
     MigrateDb {
         /// Path to the Magellan database
-        #[arg(short, long, default_value = ".magellan/magellan.db")]
+        #[arg(short, long = "db", default_value = ".magellan/magellan.db")]
         db_path: std::path::PathBuf,
 
         /// Create backup before migrating
@@ -637,7 +641,7 @@ pub enum Commands {
         #[arg(short = 'n', long = "dry-run")]
         preview: bool,
 
-        /// Generate proof file (requires --preview)
+        /// Generate proof file (requires --dry-run)
         #[arg(long)]
         proof: bool,
 
@@ -952,6 +956,11 @@ pub enum SnapshotsCommands {
         /// Show what would be deleted without deleting
         #[arg(long)]
         dry_run: bool,
+
+        /// Confirm deletion of more than 50 snapshots. Without this flag,
+        /// a bulk-delete refuses to run and asks for either `--yes` or `--dry-run`.
+        #[arg(long)]
+        yes: bool,
     },
 }
 

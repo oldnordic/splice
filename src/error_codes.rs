@@ -15,8 +15,9 @@ pub struct ErrorCode {
     pub code: String,
     /// Severity level (error/warning/note)
     pub severity: String,
-    /// Precise location (file:line:column)
-    pub location: String,
+    /// Precise location (file:line:column), absent when no location is available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub location: Option<String>,
     /// What to do hint
     pub hint: String,
 }
@@ -32,7 +33,7 @@ impl ErrorCode {
         Self {
             code: code.into(),
             severity: severity.into(),
-            location: location.into(),
+            location: Some(location.into()),
             hint: hint.into(),
         }
     }
@@ -45,11 +46,11 @@ impl ErrorCode {
         column: Option<usize>,
     ) -> Self {
         let location = match (file, line, column) {
-            (Some(f), Some(l), Some(c)) => format!("{}:{}:{}", f, l, c),
-            (Some(f), Some(l), None) => format!("{}:{}", f, l),
-            (Some(f), None, Some(c)) => format!("{}:{}", f, c),
-            (Some(f), None, None) => f.to_string(),
-            (None, _, _) => "<unknown>".to_string(),
+            (Some(f), Some(l), Some(c)) => Some(format!("{}:{}:{}", f, l, c)),
+            (Some(f), Some(l), None) => Some(format!("{}:{}", f, l)),
+            (Some(f), None, Some(c)) => Some(format!("{}:{}", f, c)),
+            (Some(f), None, None) => Some(f.to_string()),
+            (None, _, _) => None,
         };
 
         Self {
@@ -308,7 +309,9 @@ impl SpliceErrorCode {
 
             SpliceErrorCode::MagellanError => {
                 "Check that the Magellan database file exists and is readable. \
-                 Try re-indexing the codebase with `splice ingest`.".to_string()
+                 If the error mentions a schema mismatch, re-index with \
+                 `magellan watch --root ./src --db <db> --scan-initial`."
+                    .to_string()
             }
         }
     }
@@ -457,7 +460,7 @@ POSSIBLE CAUSES:
 
 WHAT TO DO:
 1. Check the symbol name is spelled correctly
-2. Run `splice ingest` to ensure the codebase is indexed
+2. Run `magellan watch --root ./src --db <db> --scan-initial` to ensure the codebase is indexed
 3. Use `splice query` to search for symbols by label
 4. Use `splice delete --file <path>` to specify which file
 5. Use `splice explain SPL-E002` for help with ambiguous symbols
@@ -500,7 +503,7 @@ POSSIBLE CAUSES:
 - The symbol exists but references weren't indexed
 
 WHAT TO DO:
-1. Re-run `splice ingest` to rebuild the code graph
+1. Re-run `magellan watch --root ./src --db <db> --scan-initial` to rebuild the code graph
 2. Check that the source files haven't been modified since indexing
 3. Use `splice log --operation-type ingest` to check ingestion status
 4. Report this as a bug if the issue persists
@@ -653,7 +656,7 @@ POSSIBLE CAUSES:
 - File size has changed
 
 WHAT TO DO:
-1. Re-index the codebase with `splice ingest`
+1. Re-index the codebase with `magellan watch --root ./src --db <db> --scan-initial`
 2. Check that the file hasn't been modified externally
 3. Verify the file size matches expectations
 4. Use checksums to detect file modifications
@@ -722,7 +725,7 @@ WHAT TO DO:
 1. Check the file path is correct
 2. Use absolute paths if relative paths are problematic
 3. Verify the file exists with `ls <path>`
-4. Run `splice ingest` to re-index if file was moved
+4. Run `magellan watch --root ./src --db <db> --scan-initial` to re-index if file was moved
 
 RELATED: SPL-E031 (File Read Error)
 "#,
@@ -740,7 +743,7 @@ POSSIBLE CAUSES:
 - Code formatter or linter modified the file
 
 WHAT TO DO:
-1. Re-index the codebase with `splice ingest`
+1. Re-index the codebase with `magellan watch --root ./src --db <db> --scan-initial`
 2. Check for background processes modifying files
 3. Use file checksums to detect modifications
 4. Consider using file watchers to detect external changes
@@ -895,7 +898,7 @@ POSSIBLE CAUSES:
 WHAT TO DO:
 1. Check database permissions with `ls -l codegraph.db`
 2. Ensure no other process is using the database
-3. Try rebuilding the database with `splice ingest --force`
+3. Try rebuilding the database with `magellan watch --root ./src --db <db> --scan-initial`
 4. Check database version compatibility
 
 RELATED: SPL-E062 (Database Error), SPL-E003 (Reference Failed)
@@ -1014,19 +1017,27 @@ RELATED: SPL-E043 (Compiler Validation Failed), SPL-E081 (Analyzer Not Available
             r#"
 Magellan Error (SPL-E091)
 
-An error occurred in the Magellan code graph integration.
+An error occurred opening or querying the Magellan code graph.
 
 POSSIBLE CAUSES:
-- Database file is corrupted or incompatible
+- Database file does not exist
 - Insufficient permissions to read the database
-- Database file doesn't exist (need to run `splice ingest` first)
+- Database schema is older than the one this splice binary expects
+  (e.g., "DB_COMPAT: sqlitegraph schema mismatch: ... found=3, expected=4")
 - Magellan internal error
 
 WHAT TO DO:
 1. Check that the database file exists: ls -l <db_path>
 2. Verify file permissions: readable by current user
-3. Try re-indexing: `splice ingest --force`
-4. Check if Magellan version is compatible
+3. If the underlying error mentions a schema mismatch, re-index with a magellan
+   version matching this splice (run from the project root):
+       magellan watch --root ./src --db .magellan/<project>.db --scan-initial
+   This rewrites the database against the current schema.
+4. To incrementally sync a stale database (no schema change), use:
+       magellan refresh --db .magellan/<project>.db
+5. Run `magellan status --db <db_path>` to confirm the database is readable
+   by the magellan binary in PATH (if magellan can read it but splice cannot,
+   the cause is almost certainly a schema version mismatch).
 
 RELATED: SPL-E061 (Graph Error), SPL-E031 (File Read Error)
 "#,
@@ -1403,7 +1414,7 @@ mod tests {
 
         assert_eq!(code.code, "SPL-E001");
         assert_eq!(code.severity, "error");
-        assert_eq!(code.location, "src/main.rs:10:5");
+        assert_eq!(code.location, Some("src/main.rs:10:5".to_string()));
         assert_eq!(code.hint, "Check symbol spelling");
     }
 
@@ -1418,7 +1429,7 @@ mod tests {
 
         assert_eq!(error_code.code, "SPL-E001");
         assert_eq!(error_code.severity, "error");
-        assert_eq!(error_code.location, "src/main.rs:10:5");
+        assert_eq!(error_code.location, Some("src/main.rs:10:5".to_string()));
         assert!(!error_code.hint.is_empty());
     }
 
@@ -1431,7 +1442,7 @@ mod tests {
             Some(5),
             Some(10),
         );
-        assert_eq!(ec.location, "test.rs:5:10");
+        assert_eq!(ec.location, Some("test.rs:5:10".to_string()));
 
         // File only
         let ec = ErrorCode::from_splice_code(
@@ -1440,11 +1451,11 @@ mod tests {
             None,
             None,
         );
-        assert_eq!(ec.location, "test.rs");
+        assert_eq!(ec.location, Some("test.rs".to_string()));
 
         // Unknown location
         let ec = ErrorCode::from_splice_code(SpliceErrorCode::GraphError, None, None, None);
-        assert_eq!(ec.location, "<unknown>");
+        assert_eq!(ec.location, None);
     }
 
     #[test]
@@ -1574,7 +1585,7 @@ mod tests {
 
         assert_eq!(warning_code.code, "SPL-W001");
         assert_eq!(warning_code.severity, "warning");
-        assert_eq!(warning_code.location, "src/main.rs:10:5");
+        assert_eq!(warning_code.location, Some("src/main.rs:10:5".to_string()));
         assert!(!warning_code.hint.is_empty());
     }
 }

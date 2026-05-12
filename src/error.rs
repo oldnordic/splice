@@ -303,7 +303,7 @@ pub enum SpliceError {
     },
 
     /// Magellan integration error (SPL-E091).
-    #[error("Magellan error: {context}")]
+    #[error("Magellan error: {context}: {source}")]
     Magellan {
         /// Contextual description of the operation that failed
         context: String,
@@ -530,7 +530,7 @@ impl SpliceError {
         let hint = if suggestions.is_empty() {
             if hint.is_empty() {
                 format!(
-                    "Symbol '{}' not found. Run `splice ingest` to index the codebase.",
+                    "Symbol '{}' not found. Run `magellan watch --root ./src --db <db> --scan-initial` to index the codebase.",
                     symbol
                 )
             } else {
@@ -663,6 +663,16 @@ impl SpliceError {
                 .and_then(|f| f.to_str())
                 .map(|f| (Some(f), None, None))
                 .unwrap_or((None, None, None)),
+
+            // I/O errors carry the originating path
+            SpliceError::Io { path, .. } => {
+                (Some(path.to_str().unwrap_or("<invalid>")), None, None)
+            }
+
+            // CargoCheckFailed carries the workspace path
+            SpliceError::CargoCheckFailed { workspace, .. } => {
+                (Some(workspace.to_str().unwrap_or("<invalid>")), None, None)
+            }
 
             // Errors with path context
             SpliceError::FileExternallyModified { file } => (Some(file.as_str()), None, None),

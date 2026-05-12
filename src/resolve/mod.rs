@@ -198,7 +198,7 @@ pub fn resolve_symbol(
 
         let hint = if suggestions.is_empty() {
             format!(
-                "Symbol '{}' not found. Run `splice ingest` to index the codebase.",
+                "Symbol '{}' not found. Run `magellan watch --root ./src --db <db> --scan-initial` to index the codebase.",
                 name
             )
         } else {
@@ -325,7 +325,7 @@ fn resolve_symbol_in_file(
 
             let hint = if suggestions.is_empty() {
                 format!(
-                    "Symbol '{}' not found in {}. Run `splice ingest` to index the codebase.",
+                    "Symbol '{}' not found in {}. Run `magellan watch --root ./src --db <db> --scan-initial` to index the codebase.",
                     name, file_str
                 )
             } else {
@@ -552,7 +552,7 @@ pub fn find_symbol_or_suggest(
 
     let hint = if suggestions.is_empty() {
         format!(
-            "Symbol '{}' not found. Run `splice ingest` to index the codebase.",
+            "Symbol '{}' not found. Run `magellan watch --root ./src --db <db> --scan-initial` to index the codebase.",
             name
         )
     } else {

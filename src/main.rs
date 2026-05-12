@@ -315,10 +315,7 @@ fn main() -> ExitCode {
                         format!("File created: {}", file.display())
                     },
                 )),
-                Err(e) => {
-                    eprintln!("Failed to create file: {}", e);
-                    std::process::exit(1);
-                }
+                Err(e) => Err(e),
             }
         }
 
@@ -342,6 +339,7 @@ fn main() -> ExitCode {
             create_backup,
             operation_id,
             metadata,
+            dry_run,
         } => execute_apply_files(
             &glob,
             &find,
@@ -354,6 +352,7 @@ fn main() -> ExitCode {
             create_backup,
             operation_id,
             metadata,
+            dry_run,
             json_output,
         ),
 
@@ -2701,6 +2700,7 @@ fn execute_apply_files(
     create_backup: bool,
     operation_id: Option<String>,
     metadata: Option<String>,
+    dry_run: bool,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::execution::log;
@@ -2719,6 +2719,50 @@ fn execute_apply_files(
 
     // Convert CLI language to symbol language
     let symbol_language = language.map(|l| l.to_symbol_language());
+
+    // Dry-run path: find matches, summarize what would change, do NOT apply or back up.
+    if dry_run {
+        let find_config = PatternReplaceConfig {
+            glob_pattern: glob_pattern.to_string(),
+            find_pattern: find_pattern.to_string(),
+            replace_pattern: replace_pattern.to_string(),
+            language: symbol_language,
+            validate: false,
+        };
+        let matches = find_pattern_in_files(&find_config)?;
+
+        let mut files_to_patch: std::collections::BTreeSet<std::path::PathBuf> =
+            std::collections::BTreeSet::new();
+        for m in &matches {
+            files_to_patch.insert(m.file.clone());
+        }
+
+        let mut response_data = serde_json::Map::new();
+        response_data.insert(
+            "dry_run".to_string(),
+            serde_json::Value::Bool(true),
+        );
+        response_data.insert(
+            "files_would_patch".to_string(),
+            json!(files_to_patch.iter().collect::<Vec<_>>()),
+        );
+        response_data.insert(
+            "matches_count".to_string(),
+            json!(matches.len()),
+        );
+
+        let message = format!(
+            "[dry-run] Would replace {} occurrence(s) of {:?} across {} file(s). No changes written.",
+            matches.len(),
+            find_pattern,
+            files_to_patch.len()
+        );
+
+        return Ok(splice::cli::CliSuccessPayload::with_data(
+            message,
+            serde_json::Value::Object(response_data),
+        ));
+    }
 
     // Create backup if requested
     let backup_manifest_path = if create_backup {
@@ -3955,44 +3999,42 @@ fn execute_search(
     // Convert CLI language to symbol language
     let symbol_lang = language.map(|l: splice::cli::Language| l.to_symbol_language());
 
-    // Build glob pattern from user input or construct from path and language
-    let glob_pattern = if let Some(g) = glob {
+    // Build glob pattern(s) from user input or construct from path and language.
+    //
+    // NOTE: the `glob` crate does NOT support `{a,b,c}` brace expansion.
+    // When no language is given, we iterate per extension instead of relying on braces.
+    const ALL_EXTENSIONS: &[&str] = &[
+        "rs", "py", "c", "cpp", "h", "hpp", "cc", "cxx", "java", "js", "mjs", "cjs", "ts", "tsx",
+    ];
+    let glob_patterns: Vec<String> = if let Some(g) = glob {
         // User provided explicit glob pattern
-        g
-    } else {
-        // Build default glob based on language or all supported types
-        let extensions = if let Some(lang) = language {
-            match lang {
-                splice::cli::Language::Rust => "rs",
-                splice::cli::Language::Python => "py",
-                splice::cli::Language::C => "c",
-                splice::cli::Language::Cpp => "cpp",
-                splice::cli::Language::Java => "java",
-                splice::cli::Language::JavaScript => "js",
-                splice::cli::Language::TypeScript => "ts",
-            }
-        } else {
-            // Search all supported file types
-            "{rs,py,c,cpp,h,hpp,cc,cxx,java,js,mjs,cjs,ts,tsx}"
+        vec![g]
+    } else if let Some(lang) = language {
+        let ext = match lang {
+            splice::cli::Language::Rust => "rs",
+            splice::cli::Language::Python => "py",
+            splice::cli::Language::C => "c",
+            splice::cli::Language::Cpp => "cpp",
+            splice::cli::Language::Java => "java",
+            splice::cli::Language::JavaScript => "js",
+            splice::cli::Language::TypeScript => "ts",
         };
-
         if path.is_dir() {
-            format!("{}/**/*.{}", path.display(), extensions)
+            vec![format!("{}/**/*.{}", path.display(), ext)]
         } else {
-            path.display().to_string()
+            vec![path.display().to_string()]
         }
+    } else if path.is_dir() {
+        ALL_EXTENSIONS
+            .iter()
+            .map(|ext| format!("{}/**/*.{}", path.display(), ext))
+            .collect()
+    } else {
+        vec![path.display().to_string()]
     };
 
     // Check if this is an apply operation
     let apply_replace = apply && replace.is_some();
-
-    let config = pattern::PatternReplaceConfig {
-        glob_pattern,
-        find_pattern: pattern.to_string(),
-        replace_pattern: replace.unwrap_or("").to_string(),
-        language: symbol_lang,
-        validate: false,
-    };
 
     // If apply mode, perform replacement and return summary
     if apply_replace {
@@ -4000,16 +4042,39 @@ fn execute_search(
             path: std::path::PathBuf::from("."),
             source,
         })?;
-        let result = pattern::apply_pattern_replace(&config, &current_dir)?;
+        let mut total_replacements = 0usize;
+        let mut all_files: std::collections::BTreeSet<PathBuf> = std::collections::BTreeSet::new();
+        for gp in &glob_patterns {
+            let config = pattern::PatternReplaceConfig {
+                glob_pattern: gp.clone(),
+                find_pattern: pattern.to_string(),
+                replace_pattern: replace.unwrap_or_default().to_string(),
+                language: symbol_lang,
+                validate: false,
+            };
+            let result = pattern::apply_pattern_replace(&config, &current_dir)?;
+            total_replacements += result.replacements_count;
+            all_files.extend(result.files_patched);
+        }
 
         Ok(splice::cli::CliSuccessPayload::message_only(format!(
             "Applied {} replacement(s) across {} file(s)",
-            result.replacements_count,
-            result.files_patched.len()
+            total_replacements,
+            all_files.len()
         )))
     } else {
-        // Search-only mode
-        let matches = pattern::find_pattern_in_files(&config)?;
+        // Search-only mode: collect matches across all glob patterns
+        let mut matches = Vec::new();
+        for gp in &glob_patterns {
+            let config = pattern::PatternReplaceConfig {
+                glob_pattern: gp.clone(),
+                find_pattern: pattern.to_string(),
+                replace_pattern: String::new(),
+                language: symbol_lang,
+                validate: false,
+            };
+            matches.extend(pattern::find_pattern_in_files(&config)?);
+        }
 
         if json_output {
             let results: Vec<Value> = matches
@@ -4763,7 +4828,13 @@ fn execute_rename(
         }
         _ => {
             return Err(splice::SpliceError::RenameFailed {
-                reason: "Invalid argument combination".to_string(),
+                reason: if symbol_id.is_some() && file.is_some() {
+                    "--file is not needed with --symbol (the symbol ID uniquely identifies the target)".to_string()
+                } else if name.is_some() && file.is_none() {
+                    "--file is required when using --name".to_string()
+                } else {
+                    "Provide either --symbol <id> or --name <name> --file <path>".to_string()
+                },
                 symbol: new_name.to_string(),
             });
         }
@@ -6277,8 +6348,8 @@ fn execute_snapshots(
         splice::cli::SnapshotsCommands::Delete { id, force } => {
             execute_snapshots_delete(&id, force, json_output)
         }
-        splice::cli::SnapshotsCommands::Cleanup { keep, dry_run } => {
-            execute_snapshots_cleanup(keep, dry_run, json_output)
+        splice::cli::SnapshotsCommands::Cleanup { keep, dry_run, yes } => {
+            execute_snapshots_cleanup(keep, dry_run, yes, json_output)
         }
     }
 }
@@ -6447,9 +6518,12 @@ fn execute_snapshots_delete(
 fn execute_snapshots_cleanup(
     keep: usize,
     dry_run: bool,
+    yes: bool,
     json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::proof::storage::SnapshotStorage;
+
+    const BULK_DELETE_THRESHOLD: usize = 50;
 
     let storage = SnapshotStorage::new()?;
     let snapshots = storage.list_snapshots()?;
@@ -6511,6 +6585,13 @@ fn execute_snapshots_cleanup(
     }
 
     // Actually delete
+    if !yes && to_delete_count > BULK_DELETE_THRESHOLD {
+        return Err(splice::SpliceError::Other(format!(
+            "Refusing to delete {} snapshots (threshold {}). Re-run with --yes to confirm \
+             the bulk delete, or use --dry-run to preview what would be removed.",
+            to_delete_count, BULK_DELETE_THRESHOLD
+        )));
+    }
     let deleted_paths = storage.cleanup_old_snapshots(keep)?;
 
     if json_output {

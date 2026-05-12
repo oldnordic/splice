@@ -752,7 +752,7 @@ fn test_error_code_formatting_all() {
 
         assert_eq!(error_code.code, code);
         assert_eq!(error_code.severity, severity);
-        assert_eq!(error_code.location, location);
+        assert_eq!(error_code.location, Some(location.to_string()));
         assert_eq!(error_code.hint, hint);
     }
 }
@@ -768,7 +768,7 @@ fn test_error_code_from_splice_code_all_severities() {
     );
     assert_eq!(error_code.code, "SPL-E001");
     assert_eq!(error_code.severity, "error");
-    assert_eq!(error_code.location, "src/main.rs:42:10");
+    assert_eq!(error_code.location, Some("src/main.rs:42:10".to_string()));
 
     // Warning severity
     let warning_code = ErrorCode::from_splice_code(
@@ -779,7 +779,7 @@ fn test_error_code_from_splice_code_all_severities() {
     );
     assert_eq!(warning_code.code, "SPL-E002");
     assert_eq!(warning_code.severity, "warning");
-    assert_eq!(warning_code.location, "test.py:10:5");
+    assert_eq!(warning_code.location, Some("test.py:10:5".to_string()));
 
     // Parse error
     let parse_error = ErrorCode::from_splice_code(

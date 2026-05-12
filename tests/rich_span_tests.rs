@@ -259,7 +259,7 @@ fn test_error_code_with_span() {
     let ec = span.error_code.as_ref().unwrap();
     assert_eq!(ec.code, "SPL-E001");
     assert_eq!(ec.severity, "error");
-    assert_eq!(ec.location, "src/main.rs:42:10");
+    assert_eq!(ec.location, Some("src/main.rs:42:10".to_string()));
     assert!(!ec.hint.is_empty());
 }
 
