@@ -4,16 +4,11 @@ Comprehensive guide for Splice span-safe refactoring with Magellan integration.
 
 ---
 
-## Splice v2.5.2 Overview
+## Splice v2.6.9 Overview
 
 ### What is Splice?
 
 Splice is a span-safe code refactoring tool that provides AST-validated code modifications across 7 programming languages (Rust, Python, C, C++, Java, JavaScript, TypeScript). It uses tree-sitter for parsing and SQLiteGraph for code relationship storage, with multi-stage validation (tree-sitter + compiler) before applying changes.
-
-### v2.4.0 New Features
-
-- **Preview JSON Output**: Structured JSON for preview mode with full metrics (line/column, bytes added/removed)
-- **Documentation Updates**: Condensed manual, improved README with toolset references
 
 ### Key Features
 
@@ -52,7 +47,7 @@ splice patch --file <PATH> --symbol <NAME> --with <FILE> [OPTIONS]
 **Optional Arguments:**
 - `--kind <KIND>`: Symbol kind filter (function, method, class, struct, interface, enum, trait, impl, module, variable, constructor, type-alias)
 - `--language <LANG>`: Language override (rust, python, c, cpp, java, java-script, type-script)
-- `--preview`: Run in preview mode without modifying files
+- `--dry-run`: Run in preview mode without modifying files
 - `--json`: Output JSON format
 - `--create-backup`: Create backup before patching
 - `--operation-id <ID>`: Custom operation ID for auditing
@@ -98,7 +93,7 @@ splice rename --symbol <id> --file <path> --to <new_name> [OPTIONS]
 - `--dry-run`: Show changes without applying (no file modifications)
 - `--proof`: Generate refactoring proof for audit trail (requires --dry-run)
 - `--snapshot-before`: Capture graph snapshot before renaming (requires --db)
-- `--impact-graph`: Generate DOT graph for impact visualization (requires --preview)
+- `--impact-graph`: Generate DOT graph for impact visualization (requires --dry-run)
 
 **Features:**
 - Byte-accurate replacement at exact reference spans
@@ -348,12 +343,11 @@ echo 'pub fn test() -> i32 { 42 }' | \
 ```
 
 **Error Handling:**
-- Validation fails: File NOT created, errors shown
+- Validation fails: File NOT created. Returns `status: "error"` with `SPL-E043` and compiler diagnostics (exit code 5).
 - File exists: Returns error, preserves original
 - rustc unavailable: Graceful degradation (assumes OK)
 
 **Use Cases:**
-- AI-generated code is not supported — validate code manually before writing
 - Interactive file creation with validation
 - Batch file creation from templates
 - Automated code generation pipelines
@@ -551,26 +545,6 @@ splice export --db <FILE> --format FORMAT --file <PATH>
 
 ---
 
-
-
-- **Snapshots**: `--snapshot-before` flag captures graph state for rollback
-- **Verify**: Compare snapshots to detect changes
-- **Batch**: Multi-file operations with automatic rollback
-- **Impact Graph**: DOT visualization of refactoring impact
-
-
-
-```bash
-
-```
-
-
-- **Performance**: 2-100x faster for large codebases (100K+ LOC)
-- **File Size**: ~70% smaller database files
-- **Batch Operations**: Transaction-safe multi-file refactors
-
----
-
 ## Supported Languages
 
 | Language | Extensions | Delete | Patch | Validation |
@@ -610,18 +584,22 @@ splice export --db <FILE> --format FORMAT --file <PATH>
     "error_code": {
       "code": "SPL-E###",
       "severity": "error|warning",
+      "location": "file.rs:10:5",
       "hint": "Remediation suggestion"
     }
   }
 }
 ```
 
+The `location` field is present only when a file path is available. Errors without a file association omit `location` entirely.
+```
+
 ---
 
 ## Requirements
 
-- **[Magellan](https://github.com/oldnordic/magellan)** 3.1.7+ — Required for code graph operations
-- **[sqlitegraph](https://crates.io/crates/sqlitegraph)** 2.0.3+ — Included automatically
+- **[Magellan](https://github.com/oldnordic/magellan)** 3.3+ — Required for code graph operations
+- **[sqlitegraph](https://crates.io/crates/sqlitegraph)** 2.2+ — Included automatically
 
 ---
 
@@ -638,13 +616,13 @@ splice export --db <FILE> --format FORMAT --file <PATH>
 
 ### For Editor Integration
 
-1. **Always use `--preview`** before applying changes
+1. **Always use `--dry-run`** before applying changes
 2. **Check impact** with `reachable` or `refs` before refactoring
 3. **Generate proofs** with `--proof` for audit trail
 
 ### For Interactive Use
 
-1. **Use `--preview --output json`** to see exact changes
+1. **Use `--dry-run --output json`** to see exact changes
 2. **Create backups** with `--create-backup` for critical operations
 3. **Run tests** after each operation to verify correctness
 4. **Use batch operations** for multiple related changes
@@ -658,20 +636,42 @@ splice export --db <FILE> --format FORMAT --file <PATH>
 
 ## Error Codes
 
-| Code | Description | Solution |
-|------|-------------|----------|
-| SPL-E001 | Symbol not found | Check name/path or use symbol-id |
-| SPL-E002 | Multiple symbols found | Add --path filter |
-| SPL-E010 | File not found | Verify file path |
-| SPL-E020 | Parse error | Check file syntax |
-| SPL-E030 | Validation failed | Fix replacement code |
-| SPL-E040 | Ambiguous symbol | Use more specific path |
-| SPL-E050 | UTF-8 boundary error | Report bug |
-| SPL-E060 | Backup creation failed | Check disk space |
-| SPL-E070 | Backup restoration failed | Verify backup manifest |
-| SPL-E080 | Snapshot failed | Check disk space |
-| SPL-E091 | Magellan error | Check Magellan installation |
-| SPL-E100 | Batch operation failed | Check --continue-on-error |
+| Code | Description | Exit Code |
+|------|-------------|-----------|
+| SPL-E001 | Symbol not found | 1 |
+| SPL-E002 | Ambiguous symbol (multiple files) | 1 |
+| SPL-E003 | Reference lookup failed | 1 |
+| SPL-E004 | Ambiguous reference | 1 |
+| SPL-E011 | Parse error | 1 |
+| SPL-E012 | Invalid UTF-8 | 1 |
+| SPL-E021 | Invalid byte span | 1 |
+| SPL-E022 | Invalid line range | 1 |
+| SPL-E031 | File read error | 4 |
+| SPL-E033 | File not found | 4 |
+| SPL-E034 | File externally modified | 4 |
+| SPL-E040 | Rename failed | 1 |
+| SPL-E041 | Pre-verification failed | 5 |
+| SPL-E042 | Parse validation failed | 5 |
+| SPL-E043 | Compiler validation failed | 5 |
+| SPL-E051 | Invalid plan schema | 2 |
+| SPL-E052 | Plan execution failed | 1 |
+| SPL-E061 | Graph database error | 3 |
+| SPL-E071 | Execution log error | 3 |
+| SPL-E081 | Analyzer not available | 1 |
+| SPL-E091 | Magellan integration error | 3 |
+
+Use `splice explain --code <SPL-EXXX>` for detailed diagnostics.
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Generic error |
+| 2 | Usage error (invalid arguments) |
+| 3 | Database error |
+| 4 | File not found |
+| 5 | Validation error |
 
 ---
 

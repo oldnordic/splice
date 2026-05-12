@@ -890,6 +890,61 @@ impl ProgressCallback for MyProgress {
 
 ## Error Types
 
+### ErrorCode
+
+Structured error code included in JSON error envelopes.
+
+```rust
+use splice::error_codes::ErrorCode;
+
+pub struct ErrorCode {
+    /// Error code (e.g., "SPL-E001")
+    pub code: String,
+    /// Severity level ("error" or "warning")
+    pub severity: String,
+    /// File:line:column when available, omitted when no location is known
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub location: Option<String>,
+    /// Remediation hint
+    pub hint: String,
+}
+```
+
+**JSON (with location):**
+```json
+{
+  "code": "SPL-E031",
+  "severity": "error",
+  "location": "src/main.rs:42:10",
+  "hint": "Check file permissions and ensure the file exists and is readable."
+}
+```
+
+**JSON (no location):**
+```json
+{
+  "code": "SPL-E091",
+  "severity": "error",
+  "hint": "Check that the Magellan database file exists and is readable..."
+}
+```
+
+### SpliceError
+
+The main error enum. See `src/error.rs` for the full list of variants. Key variants:
+
+| Variant | SPL Code | Typical Cause |
+|---------|----------|---------------|
+| `SymbolNotFound` | SPL-E001 | Symbol name not in database |
+| `AmbiguousSymbol` | SPL-E002 | Name exists in multiple files |
+| `Parse` | SPL-E011 | Tree-sitter parse failure |
+| `InvalidSpan` | SPL-E021 | Bad byte offsets |
+| `Io` | SPL-E031 | File system error (path preserved) |
+| `PreVerificationFailed` | SPL-E041 | Pre-check failed |
+| `ParseValidationFailed` | SPL-E042 | Post-edit parse failure |
+| `CompilerValidationFailed` | SPL-E043 | Compiler error after edit |
+| `Magellan` | SPL-E091 | Database open/query failure |
+
 ### SqliteGraphError
 
 ```rust
