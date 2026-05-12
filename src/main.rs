@@ -111,19 +111,6 @@ fn count_lines_in_span(file_path: &Path, start: usize, end: usize) -> usize {
     }
 }
 
-/// Resolve context counts from -A, -B, -C flags following grep conventions.
-///
-/// # Convention
-/// - `-C N` sets both before and after to N
-/// - If `-A M` is also specified, use `max(N, M)` for after
-/// - If `-B M` is also specified, use `max(N, M)` for before
-/// - Default is `-C 3`, so without flags you get 3 lines on both sides
-///
-/// # Examples
-/// - `-A 5 -B 2`: 5 before, 2 after
-/// - `-C 10 -A 5`: 10 before (from -C), 10 after (max of -C=10 and -A=5)
-/// - No flags: 3 before, 3 after (default -C 3)
-
 /// Capture a graph snapshot before a refactoring operation.
 fn capture_snapshot(db_path: &Path, operation: &str) -> Result<(), splice::SpliceError> {
     use splice::proof::data_structures::RefactoringProof;
@@ -741,6 +728,10 @@ fn is_broken_pipe_panic(info: &std::panic::PanicHookInfo<'_>) -> bool {
 /// 6. Applies each deletion with validation gates
 ///
 /// All logic is delegated to existing APIs.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "CLI handler aggregates clap-parsed flags"
+)]
 fn execute_delete(
     file_path: &Path,
     symbol_name: &str,
@@ -798,7 +789,10 @@ fn execute_delete(
     })?;
 
     // Step 1: Read source file
-    let source = std::fs::read(file_path)?;
+    let source = std::fs::read(file_path).map_err(|source| splice::SpliceError::Io {
+        path: file_path.to_path_buf(),
+        source,
+    })?;
 
     // Step 2: Extract symbols using language-aware dispatcher
     let symbols = extract_symbols_with_language(file_path, &source, symbol_lang)?;
@@ -883,7 +877,11 @@ fn execute_delete(
     // Step 10: Dry-run mode - preview what would be deleted
     if dry_run {
         // Read original file content
-        let replaced_content = std::fs::read_to_string(file_path)?;
+        let replaced_content =
+            std::fs::read_to_string(file_path).map_err(|source| splice::SpliceError::Io {
+                path: file_path.to_path_buf(),
+                source,
+            })?;
 
         // Simulate deletion by removing the span using ropey
         let mut rope = Rope::from_str(&replaced_content);
@@ -895,7 +893,7 @@ fn execute_delete(
 
         // Count lines removed
         let lines_removed = if def.byte_end > def.byte_start {
-            (&replaced_content[def.byte_start..def.byte_end])
+            replaced_content[def.byte_start..def.byte_end]
                 .lines()
                 .count()
         } else {
@@ -1480,6 +1478,10 @@ fn execute_delete(
 /// 4. Applies patch with validation gates
 ///
 /// All logic is delegated to existing APIs.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "CLI handler aggregates clap-parsed flags"
+)]
 fn execute_single_patch(
     file_path: Option<PathBuf>,
     symbol_name: Option<String>,
@@ -1534,6 +1536,10 @@ fn execute_single_patch(
     )
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "CLI handler aggregates clap-parsed flags"
+)]
 fn execute_patch(
     file_path: &Path,
     symbol_name: &str,
@@ -1602,7 +1608,10 @@ fn execute_patch(
     })?;
 
     // Step 1: Read source file
-    let source = std::fs::read(file_path)?;
+    let source = std::fs::read(file_path).map_err(|source| splice::SpliceError::Io {
+        path: file_path.to_path_buf(),
+        source,
+    })?;
 
     // Step 2: Extract symbols using language-aware dispatcher
     let symbols = extract_symbols_with_language(file_path, &source, symbol_lang)?;
@@ -1633,7 +1642,7 @@ fn execute_patch(
     // Step 4: Store symbols in graph with language metadata and line/col
     for symbol in &symbols {
         code_graph.store_symbol_with_file_and_language(
-            &file_path,
+            file_path,
             symbol.name(),
             symbol.kind(),
             symbol.language(),
@@ -1663,16 +1672,20 @@ fn execute_patch(
     });
 
     // Step 6: Resolve symbol to span
-    let resolved = resolve_symbol(&code_graph, Some(&file_path), kind_str, symbol_name)?;
+    let resolved = resolve_symbol(&code_graph, Some(file_path), kind_str, symbol_name)?;
 
     // Step 7: Read replacement content
-    let replacement_content = std::fs::read_to_string(replacement_file)?;
+    let replacement_content =
+        std::fs::read_to_string(replacement_file).map_err(|source| splice::SpliceError::Io {
+            path: replacement_file.to_path_buf(),
+            source,
+        })?;
 
     // Step 8: Determine workspace directory (parent of source file)
     let workspace_dir = file_path.parent().ok_or_else(|| {
         splice::SpliceError::Other("Cannot determine workspace directory".to_string())
     })?;
-    let workspace_root = find_workspace_root(&file_path)?;
+    let workspace_root = find_workspace_root(file_path)?;
 
     // Step 9: Convert CLI analyzer mode to validate analyzer mode (default to Off)
     let analyzer_mode = match analyzer {
@@ -2228,6 +2241,10 @@ fn execute_patch(
 }
 
 /// Execute a batch patch command driven by a JSON manifest.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "CLI handler aggregates clap-parsed flags"
+)]
 fn execute_patch_batch(
     batch_path: &Path,
     analyzer: Option<splice::cli::AnalyzerMode>,
@@ -2376,7 +2393,7 @@ fn execute_patch_batch(
         let parameters = serde_json::json!({
             "batch_file": absolute_batch.to_string_lossy(),
             "file_count": apply_result.files.len(),
-            "span_count": apply_result.files.iter().map(|f| f.matches as usize).sum::<usize>(),
+            "span_count": apply_result.files.iter().map(|f| f.matches).sum::<usize>(),
         });
 
         // Create operation result with operation_id from CLI or generate new UUID
@@ -2667,6 +2684,11 @@ fn execute_undo(
 /// This function applies a text pattern replacement to multiple files
 /// matching a glob pattern, with AST confirmation to ensure replacements
 /// land on valid code tokens.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "CLI handler aggregates clap-parsed flags"
+)]
+#[allow(unused_variables, reason = "stub args reserved for future expansion")]
 fn execute_apply_files(
     glob_pattern: &str,
     find_pattern: &str,
@@ -2681,7 +2703,6 @@ fn execute_apply_files(
     metadata: Option<String>,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
-    #![allow(unused_variables)]
     use splice::execution::log;
     use splice::patch::{
         apply_pattern_replace, find_pattern_in_files, BackupWriter, PatternReplaceConfig,
@@ -2798,6 +2819,11 @@ fn execute_apply_files(
 /// Execute the query command.
 ///
 /// This function queries symbols by labels using Magellan integration.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "CLI handler aggregates clap-parsed flags"
+)]
+#[allow(unused_variables, reason = "stub args reserved for future expansion")]
 fn execute_query(
     db_path: &Path,
     labels: &[String],
@@ -2813,7 +2839,6 @@ fn execute_query(
     expand_level: usize,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
-    #![allow(unused_variables)]
     use splice::execution::log;
     use splice::graph::magellan_integration::MagellanIntegration;
 
@@ -3121,7 +3146,7 @@ fn execute_query(
                     use sqlitegraph::NodeId;
 
                     let mut cache = RelationshipCache::new();
-                    let node_id = NodeId::from(r.entity_id as i64);
+                    let node_id = NodeId::from(r.entity_id);
 
                     let callers = get_callers(graph, node_id, &mut cache).unwrap_or_default();
                     let callees = get_callees(graph, node_id, &mut cache).unwrap_or_default();
@@ -3426,6 +3451,11 @@ fn execute_query(
 /// Execute the get command.
 ///
 /// This function retrieves code chunks from the database using Magellan integration.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "CLI handler aggregates clap-parsed flags"
+)]
+#[allow(unused_variables, reason = "stub args reserved for future expansion")]
 fn execute_get(
     db_path: &Path,
     file_path: &Path,
@@ -3439,7 +3469,6 @@ fn execute_get(
     expand_level: usize,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
-    #![allow(unused_variables)]
     use splice::graph::magellan_integration::MagellanIntegration;
 
     // Resolve context counts from -A/-B/-C flags
@@ -3680,6 +3709,10 @@ fn execute_get(
 /// Execute the `log` command.
 ///
 /// This function queries the execution log and displays results.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "CLI handler aggregates clap-parsed flags"
+)]
 fn execute_log(
     operation_type: Option<String>,
     status: Option<String>,
@@ -3825,8 +3858,8 @@ fn execute_log(
 
         // Print header
         println!(
-            "{:<10} {:<8} {:<8} {:<20} {:<10} {}",
-            "ID", "Type", "Status", "Time", "Duration", "Message"
+            "{:<10} {:<8} {:<8} {:<20} {:<10} Message",
+            "ID", "Type", "Status", "Time", "Duration"
         );
         println!("{}", "-".repeat(100));
 
@@ -3895,6 +3928,10 @@ fn execute_explain(
     )))
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "CLI handler aggregates clap-parsed flags"
+)]
 fn execute_search(
     pattern: &str,
     path: &Path,
@@ -3959,7 +3996,11 @@ fn execute_search(
 
     // If apply mode, perform replacement and return summary
     if apply_replace {
-        let result = pattern::apply_pattern_replace(&config, &std::env::current_dir()?)?;
+        let current_dir = std::env::current_dir().map_err(|source| splice::SpliceError::Io {
+            path: std::path::PathBuf::from("."),
+            source,
+        })?;
+        let result = pattern::apply_pattern_replace(&config, &current_dir)?;
 
         Ok(splice::cli::CliSuccessPayload::message_only(format!(
             "Applied {} replacement(s) across {} file(s)",
@@ -4188,7 +4229,7 @@ fn execute_find(
 
     if results.is_empty() {
         return Err(splice::SpliceError::symbol_not_found(
-            name.as_ref().map(|s| s.as_str()).unwrap_or("unknown"),
+            name.as_deref().unwrap_or("unknown"),
             Some(db_path),
         ));
     }
@@ -4462,7 +4503,10 @@ fn execute_export(
 
     // Write output
     if let Some(path) = output {
-        let file = std::fs::File::create(path)?;
+        let file = std::fs::File::create(path).map_err(|source| splice::SpliceError::Io {
+            path: path.to_path_buf(),
+            source,
+        })?;
         let writer = std::io::BufWriter::new(file);
         write_export(&response, format, writer)?;
     } else {
@@ -4666,6 +4710,10 @@ fn execute_migrate_db(
 ///
 /// # Returns
 /// Result with success payload or error
+#[allow(
+    clippy::too_many_arguments,
+    reason = "CLI handler aggregates clap-parsed flags"
+)]
 fn execute_rename(
     symbol_id: Option<&str>,
     name: Option<&str>,
@@ -5105,6 +5153,10 @@ fn parse_date(input: &str) -> Result<i64, splice::SpliceError> {
 ///
 /// # Returns
 /// Result with success payload or error
+#[allow(
+    clippy::too_many_arguments,
+    reason = "CLI handler aggregates clap-parsed flags"
+)]
 fn execute_reachable(
     symbol: &str,
     path: &Path,
@@ -5948,6 +6000,10 @@ fn execute_verify(
 }
 
 /// Execute batch operations from YAML spec.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "CLI handler aggregates clap-parsed flags"
+)]
 fn execute_batch(
     spec_path: &std::path::Path,
     db_path: Option<std::path::PathBuf>,
@@ -6143,6 +6199,10 @@ fn execute_complete(
     };
 
     // Open Magellan database
+    #[allow(
+        clippy::arc_with_non_send_sync,
+        reason = "single-threaded shared ownership for completion engine"
+    )]
     let magellan = Arc::new(MagellanIntegration::open(&db_path)?);
 
     // Create completion engine
@@ -6337,19 +6397,19 @@ fn execute_snapshots_delete(
     let (path, meta) = snapshot_info.unwrap();
 
     // Confirm deletion unless --force is set
-    if !force {
-        if !confirm_action(&format!(
+    if !force
+        && !confirm_action(&format!(
             "Delete snapshot '{}' from {}? (y/N): ",
             meta.operation,
             chrono::DateTime::from_timestamp(meta.timestamp, 0)
                 .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
                 .unwrap_or_else(|| "Unknown".to_string())
-        ))? {
-            println!("Deletion cancelled.");
-            return Ok(splice::cli::CliSuccessPayload::message_only(
-                "Deletion cancelled".to_string(),
-            ));
-        }
+        ))?
+    {
+        println!("Deletion cancelled.");
+        return Ok(splice::cli::CliSuccessPayload::message_only(
+            "Deletion cancelled".to_string(),
+        ));
     }
 
     // Delete the snapshot
@@ -6727,7 +6787,7 @@ fn emit_error_payload(payload: &splice::cli::CliErrorPayload, _json_output: bool
                     "message": err.to_string()
                 }
             });
-            eprintln!("{}", fallback.to_string());
+            eprintln!("{}", fallback);
         }
     }
 }
@@ -6770,25 +6830,68 @@ fn _build_success_payload(
     splice::cli::CliSuccessPayload::with_data(message, Value::Object(data))
 }
 
+/// Walk parent directories looking for a project marker (Cargo.toml,
+/// pyproject.toml, package.json, etc.). Stop walking before entering
+/// boundary directories like `/tmp`, `$TMPDIR`, or `$HOME` (only when the
+/// file is outside `$HOME`). Without a stop boundary, a stray ancestor
+/// Cargo.toml above the working directory (e.g. left over in `/tmp`)
+/// would be falsely picked as the workspace root.
 fn find_workspace_root(path: &Path) -> Result<PathBuf, splice::SpliceError> {
-    // Get absolute path first
     let absolute_path = std::fs::canonicalize(path).map_err(|e| splice::SpliceError::Io {
         path: path.to_path_buf(),
         source: e,
     })?;
 
+    const MARKERS: &[&str] = &[
+        "Cargo.toml",
+        "pyproject.toml",
+        "package.json",
+        "go.mod",
+        "pom.xml",
+        "build.gradle",
+        "setup.py",
+    ];
+
+    let boundaries = build_boundary_set(&absolute_path);
+
     let mut current = absolute_path.parent();
     while let Some(dir) = current {
-        if dir.join("Cargo.toml").exists() {
-            return Ok(dir.to_path_buf());
+        // A boundary directory (e.g. /tmp) is never considered as the workspace root.
+        if boundaries.contains(dir) {
+            break;
+        }
+        for marker in MARKERS {
+            if dir.join(marker).exists() {
+                return Ok(dir.to_path_buf());
+            }
         }
         current = dir.parent();
     }
 
     Err(splice::SpliceError::Other(format!(
-        "Cannot find Cargo.toml for {}",
+        "No project marker (Cargo.toml, pyproject.toml, package.json, go.mod, pom.xml, build.gradle, setup.py) found in any ancestor of {} within $HOME or before /tmp",
         path.display()
     )))
+}
+
+/// Build the set of directories that bound the upward search for a project
+/// marker. We never look INTO these directories as workspace candidates.
+fn build_boundary_set(file_path: &Path) -> std::collections::HashSet<PathBuf> {
+    let mut set = std::collections::HashSet::new();
+    set.insert(PathBuf::from("/"));
+    set.insert(PathBuf::from("/tmp"));
+    if let Some(tmpdir) = std::env::var_os("TMPDIR") {
+        set.insert(PathBuf::from(tmpdir));
+    }
+    if let Some(home) = std::env::var_os("HOME") {
+        let home_path = PathBuf::from(&home);
+        // Only treat $HOME as a boundary if the file is NOT under $HOME.
+        // Otherwise legitimate $HOME-rooted projects would fail.
+        if !file_path.starts_with(&home_path) {
+            set.insert(home_path);
+        }
+    }
+    set
 }
 /// Extract symbols with explicit language (helper function).
 fn extract_symbols_with_language(

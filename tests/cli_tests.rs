@@ -2794,12 +2794,12 @@ pub fn callee() {}
         );
     }
 
-    /// ============================================================
-    /// LLM Consumption Workflow Tests (Phase 26-04)
-    /// ============================================================
-    /// These tests validate that LLMs can use the unified Splice CLI
-    /// for both code discovery (Magellan queries) and editing
-    /// (span-safe operations) without switching tools.
+    // ============================================================
+    // LLM Consumption Workflow Tests (Phase 26-04)
+    // ============================================================
+    // These tests validate that LLMs can use the unified Splice CLI
+    // for both code discovery (Magellan queries) and editing
+    // (span-safe operations) without switching tools.
 
     /// Test: LLM can complete full discovery workflow using single splice binary
     #[test]

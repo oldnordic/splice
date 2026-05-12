@@ -16,14 +16,12 @@
 //! - JavaScript (.js, .mjs, .cjs)
 //! - TypeScript (.ts, .tsx)
 
-use splice::graph::CodeGraph;
 use splice::ingest::cpp::extract_cpp_symbols;
 use splice::ingest::java::extract_java_symbols;
 use splice::ingest::javascript::extract_javascript_symbols;
 use splice::ingest::python::extract_python_symbols;
 use splice::ingest::rust::extract_rust_symbols;
 use splice::ingest::typescript::extract_typescript_symbols;
-use splice::symbol::Language;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
@@ -70,19 +68,6 @@ impl TestLanguage {
             TestLanguage::Java => Some("javac"),
             TestLanguage::JavaScript => None, // No compiler gate
             TestLanguage::TypeScript => Some("tsc --noEmit"),
-        }
-    }
-
-    /// Get the Splice Language enum value.
-    pub fn splice_language(&self) -> Language {
-        match self {
-            TestLanguage::Rust => Language::Rust,
-            TestLanguage::Python => Language::Python,
-            TestLanguage::C => Language::C,
-            TestLanguage::Cpp => Language::Cpp,
-            TestLanguage::Java => Language::Java,
-            TestLanguage::JavaScript => Language::JavaScript,
-            TestLanguage::TypeScript => Language::TypeScript,
         }
     }
 
@@ -252,48 +237,6 @@ pub fn create_multi_lang_workspace() -> TempDir {
     }
 
     workspace_dir
-}
-
-/// Verify that language-specific validation gate works.
-///
-/// This function checks:
-/// 1. Language detection from file extension
-/// 2. Validation command mapping
-/// 3. Language enum conversion
-pub fn verify_validation_gate(lang: TestLanguage, file_path: &Path) {
-    // Check file extension matches language
-    let extension = file_path
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .expect("File should have extension");
-
-    assert_eq!(
-        extension,
-        lang.extension(),
-        "File extension should match language: expected {}, got {}",
-        lang.extension(),
-        extension
-    );
-
-    // Check validation command mapping (except JavaScript which has none)
-    if let Some(cmd) = lang.validate_command() {
-        assert!(!cmd.is_empty(), "Validation command should not be empty");
-    }
-
-    // Check Splice language enum conversion
-    let splice_lang = lang.splice_language();
-    // Just verify it converts without panicking
-    match splice_lang {
-        Language::Rust
-        | Language::Python
-        | Language::C
-        | Language::Cpp
-        | Language::Java
-        | Language::JavaScript
-        | Language::TypeScript => {
-            // Valid language
-        }
-    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////

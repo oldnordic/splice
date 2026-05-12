@@ -218,34 +218,6 @@ pub fn caller_function() -> String {
             .expect("Failed to execute splice command")
     }
 
-    /// Verify file content matches expected string
-    ///
-    /// # Panics
-    /// Panics if file content doesn't match expected
-    fn assert_file_content(path: &Path, expected: &str) {
-        let actual = fs::read_to_string(path)
-            .unwrap_or_else(|e| panic!("Failed to read file {}: {}", path.display(), e));
-        assert_eq!(
-            actual, expected,
-            "File content mismatch\nExpected:\n{}\n\nActual:\n{}",
-            expected, actual
-        );
-    }
-
-    /// Verify file unchanged from original content
-    ///
-    /// # Panics
-    /// Panics if file content has changed
-    fn assert_file_unchanged(path: &Path, replaced: &str) {
-        let actual = fs::read_to_string(path)
-            .unwrap_or_else(|e| panic!("Failed to read file {}: {}", path.display(), e));
-        assert_eq!(
-            actual, replaced,
-            "File was modified unexpectedly\nExpected (replaced):\n{}\n\nActual:\n{}",
-            replaced, actual
-        );
-    }
-
     /// Compute SHA-256 checksum of file
     ///
     /// Returns hexadecimal string of checksum
@@ -437,7 +409,7 @@ pub fn caller_function() -> String {
 
         // Verify returns preview report (stdout should contain "greet" or "preview")
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(stdout.len() > 0, "Preview should produce output");
+        assert!(!stdout.is_empty(), "Preview should produce output");
 
         // Verify original file unchanged
         let current_content = fs::read_to_string(workspace_path.join("src/lib.rs"))
@@ -720,7 +692,7 @@ mod tests {
         } else {
             // If delete failed, verify error message is meaningful
             assert!(
-                stderr.len() > 0 || stdout.len() > 0,
+                !stderr.is_empty() || !stdout.is_empty(),
                 "Error should produce output"
             );
         }
@@ -836,7 +808,7 @@ mod tests {
                     .collect();
 
                 assert!(
-                    entries.len() > 0,
+                    !entries.is_empty(),
                     "Backup should create files in .splice directory"
                 );
             }
@@ -878,7 +850,7 @@ mod tests {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let output = format!("{}{}", stdout, stderr);
 
-        assert!(output.len() > 0, "Error should produce output");
+        assert!(!output.is_empty(), "Error should produce output");
 
         // Check for error indicators
         let has_error_msg = output.contains("not found")
@@ -1029,7 +1001,7 @@ mod tests {
         // Verify JSON output
         let stdout = String::from_utf8_lossy(&output.stdout);
 
-        if output.status.success() && stdout.len() > 0 {
+        if output.status.success() && !stdout.is_empty() {
             // Try to parse as JSON
             if let Ok(_json) = serde_json::from_str::<serde_json::Value>(&stdout) {
                 // Valid JSON - check for expected fields
@@ -1213,8 +1185,7 @@ mod tests {
         let output = format!("{}{}", stdout, stderr);
 
         if output.contains("hash") || output.contains("checksum") {
-            // CLI reported hash/checksum information
-            assert!(true, "Checksum validation mentioned in output");
+            // CLI reported hash/checksum information (informational only).
         }
 
         let _ = output;
@@ -1245,8 +1216,7 @@ mod tests {
         let stderr = String::from_utf8_lossy(&output.stderr);
 
         if output.status.success() {
-            // No-op succeeded
-            assert!(true, "Empty batch should succeed");
+            // No-op succeeded (empty batch).
         } else {
             // Failed but mentioned no operations
             let output = format!("{}{}", stdout, stderr);
@@ -1390,7 +1360,7 @@ pub fn foo() -> String {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
 
-        if stdout.len() > 0 || stderr.len() > 0 {
+        if !stdout.is_empty() || !stderr.is_empty() {
             // Preview produced output
         }
 
@@ -1452,7 +1422,7 @@ pub fn foo() -> String {
             // If command succeeded and produced output
             if output.status.success() {
                 let stdout = String::from_utf8_lossy(&output.stdout);
-                if stdout.len() > 0 {
+                if !stdout.is_empty() {
                     // Try to parse as JSON
                     if serde_json::from_str::<serde_json::Value>(&stdout).is_ok() {
                         // Valid JSON

@@ -208,10 +208,7 @@ fn test_cycles_with_symbol() {
         Ok(cli) => match cli.command {
             Commands::Cycles { symbol, path, .. } => {
                 assert_eq!(symbol.as_deref(), Some("process"));
-                assert_eq!(
-                    path.as_ref().map(|p| p.as_path()),
-                    Some(PathBuf::from("src/lib.rs").as_path())
-                );
+                assert_eq!(path.as_deref(), Some(PathBuf::from("src/lib.rs").as_path()));
             }
             other => panic!("Expected Cycles command with symbol, got {:?}", other),
         },

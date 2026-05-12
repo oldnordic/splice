@@ -322,14 +322,13 @@ pub enum SpliceError {
     },
 }
 
-impl From<std::io::Error> for SpliceError {
-    fn from(err: std::io::Error) -> Self {
-        SpliceError::Io {
-            path: PathBuf::from("<unknown>"),
-            source: err,
-        }
-    }
-}
+// Note: `From<std::io::Error> for SpliceError` is intentionally NOT implemented.
+//
+// Bare `?` propagation of `std::io::Error` would lose the originating file path,
+// surfacing as `"I/O error for path <unknown>: ..."`. All sites that wrap an
+// `io::Error` must use explicit `.map_err(|source| SpliceError::Io { path, source })`
+// (or `SpliceError::IoContext { context, source }` when no path is available).
+// See `crate::io_ext` for the path-preserving helpers used at fs call sites.
 
 impl From<crate::batch::BatchError> for SpliceError {
     fn from(err: crate::batch::BatchError) -> Self {

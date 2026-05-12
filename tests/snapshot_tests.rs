@@ -49,7 +49,7 @@ fn test_save_and_load_snapshot() {
 
     let db_path = temp_dir.path().join("test.db");
     let metadata = storage
-        .save_snapshot("test_operation", &db_path.as_path(), snapshot.clone())
+        .save_snapshot("test_operation", db_path.as_path(), snapshot.clone())
         .expect("Failed to save snapshot");
 
     assert!(
@@ -246,7 +246,7 @@ fn test_restore_from_snapshot_disabled() {
 
     let snapshot_path = temp_dir.path().join("snapshot.json");
     storage
-        .save_snapshot("restore_test", &db_path.as_path(), snapshot)
+        .save_snapshot("restore_test", db_path.as_path(), snapshot)
         .expect("Failed to save snapshot");
 
     // Restore is disabled

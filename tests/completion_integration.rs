@@ -1,5 +1,10 @@
 //! Integration tests for import-aware completion.
 
+#![allow(
+    clippy::arc_with_non_send_sync,
+    reason = "single-threaded shared ownership for completion engine"
+)]
+
 use rusqlite::{params, Connection};
 use splice::completion::engine::CompletionEngine;
 use splice::completion::types::{CompletionRequest, SuggestionSource};
@@ -153,7 +158,7 @@ fn test_relative_file_path_keeps_local_symbols_as_database_source() {
 
     std::env::set_current_dir(db_path.parent().unwrap()).unwrap();
 
-    let result = (|| {
+    let result = {
         let magellan = Arc::new(MagellanIntegration::open(&db_path).unwrap());
         let engine = CompletionEngine::new(magellan, &db_path);
 
@@ -165,7 +170,7 @@ fn test_relative_file_path_keeps_local_symbols_as_database_source() {
         };
 
         engine.complete_at_cursor(request)
-    })();
+    };
 
     std::env::set_current_dir(original_dir).unwrap();
 

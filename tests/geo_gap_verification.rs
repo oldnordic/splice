@@ -2,8 +2,6 @@
 //!
 //! This test documents the specific gap preventing .geo workflow completion.
 
-use std::path::Path;
-
 /// The gap: magellan::CodeGraph::open() cannot open .geo files
 ///
 /// ERROR: DB_COMPAT: not a sqlite database: ./code.geo

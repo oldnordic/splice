@@ -14,7 +14,8 @@
 //! - Compare checksums to document actual changes
 
 use crate::checksum::{checksum_file, Checksum};
-use crate::error::Result;
+use crate::error::{Result, SpliceError};
+use crate::io_ext;
 use std::path::Path;
 
 /// Multiplier for disk space estimation to account for filesystem overhead.
@@ -262,8 +263,12 @@ fn get_disk_space(path: &Path) -> Result<(u64, u64)> {
         use std::os::unix::ffi::OsStrExt;
 
         // Convert path to CString
-        let c_path = CString::new(path.as_os_str().as_bytes()).map_err(|_| {
-            std::io::Error::new(std::io::ErrorKind::InvalidInput, "path contains null byte")
+        let c_path = CString::new(path.as_os_str().as_bytes()).map_err(|_| SpliceError::Io {
+            path: path.to_path_buf(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "path contains null byte",
+            ),
         })?;
 
         // Unsafe block to call statvfs
@@ -271,7 +276,10 @@ fn get_disk_space(path: &Path) -> Result<(u64, u64)> {
             let mut stat: libc::statvfs = std::mem::zeroed();
 
             if libc::statvfs(c_path.as_ptr(), &mut stat) != 0 {
-                return Err(std::io::Error::last_os_error().into());
+                return Err(SpliceError::Io {
+                    path: path.to_path_buf(),
+                    source: std::io::Error::last_os_error(),
+                });
             }
 
             // Calculate available and total bytes
@@ -555,9 +563,8 @@ pub struct ChecksumDiff {
 pub fn checksum_diff(before_checksum: &str, after_checksum: &str) -> ChecksumDiff {
     let changed = before_checksum != after_checksum;
 
-    // Estimate delta from checksum length (heuristic)
-    // This is a rough approximation - actual delta would require file sizes
-    let estimated_delta = if changed { 0 } else { 0 };
+    // Delta estimation isn't implemented — actual file sizes would be required.
+    let estimated_delta = 0;
 
     ChecksumDiff {
         changed,
@@ -705,7 +712,7 @@ pub fn verify_localized_change(
     replaced_content: &[u8],
     target_span: (usize, usize),
 ) -> Result<bool> {
-    let current = std::fs::read(file_path)?;
+    let current = io_ext::read(file_path)?;
 
     // Check bytes before target span
     if target_span.0 > 0 && target_span.0 <= replaced_content.len() {
@@ -731,6 +738,47 @@ pub fn verify_localized_change(
     }
 
     Ok(true)
+}
+
+/// Run cargo check to validate Rust compilation
+///
+/// This helper function runs `cargo check --quiet` in the workspace directory
+/// to verify that the code compiles after a patch operation.
+///
+/// # Arguments
+/// * `workspace_dir` - Path to the workspace directory
+///
+/// # Returns
+/// * `Ok(Output)` - Process output from cargo check
+/// * `Err(SpliceError)` - Failed to run cargo check
+///
+/// # Notes
+/// - Uses --quiet flag to suppress build output (only show errors)
+/// - Non-Rust projects or missing cargo will return an error
+/// - Caller should decide whether to block on failure (we don't block here)
+fn run_cargo_check(workspace_dir: &Path) -> Result<std::process::Output> {
+    use std::process::Command;
+
+    if !workspace_dir.join("Cargo.toml").exists() {
+        return Err(crate::error::SpliceError::IoContext {
+            context: format!(
+                "Cannot run cargo check outside a Rust package: {}",
+                workspace_dir.display()
+            ),
+            source: std::io::Error::new(std::io::ErrorKind::NotFound, "Cargo.toml not found"),
+        });
+    }
+
+    let output = Command::new("cargo")
+        .args(["check", "--quiet", "--color=never"])
+        .current_dir(workspace_dir)
+        .output()
+        .map_err(|e| crate::error::SpliceError::IoContext {
+            context: format!("Failed to run cargo check: {}", e),
+            source: e,
+        })?;
+
+    Ok(output)
 }
 
 #[cfg(test)]
@@ -782,6 +830,10 @@ mod tests {
         );
 
         // Cleanup: restore write permissions
+        #[allow(
+            clippy::permissions_set_readonly_false,
+            reason = "test cleanup: restore write so TempDir can clean up"
+        )]
         perms.set_readonly(false);
         fs::set_permissions(&file_path, perms).unwrap();
     }
@@ -830,6 +882,10 @@ mod tests {
         assert!(result.is_blocking());
 
         // Cleanup: restore write permissions
+        #[allow(
+            clippy::permissions_set_readonly_false,
+            reason = "test cleanup: restore write so TempDir can clean up"
+        )]
         perms.set_readonly(false);
         fs::set_permissions(&readonly_dir, perms).unwrap();
     }
@@ -1009,8 +1065,6 @@ mod tests {
     // TDD test for actual disk space checking
     #[test]
     fn test_get_disk_space_returns_actual_values() {
-        use std::path::Path;
-
         let temp_dir = TempDir::new().unwrap();
 
         // Test that get_disk_space returns actual values, not hardcoded 1TB stub
@@ -1063,45 +1117,4 @@ mod tests {
             "get_disk_space on /tmp returned stub value (1TB). /tmp typically has less space."
         );
     }
-}
-
-/// Run cargo check to validate Rust compilation
-///
-/// This helper function runs `cargo check --quiet` in the workspace directory
-/// to verify that the code compiles after a patch operation.
-///
-/// # Arguments
-/// * `workspace_dir` - Path to the workspace directory
-///
-/// # Returns
-/// * `Ok(Output)` - Process output from cargo check
-/// * `Err(SpliceError)` - Failed to run cargo check
-///
-/// # Notes
-/// - Uses --quiet flag to suppress build output (only show errors)
-/// - Non-Rust projects or missing cargo will return an error
-/// - Caller should decide whether to block on failure (we don't block here)
-fn run_cargo_check(workspace_dir: &Path) -> Result<std::process::Output> {
-    use std::process::Command;
-
-    if !workspace_dir.join("Cargo.toml").exists() {
-        return Err(crate::error::SpliceError::IoContext {
-            context: format!(
-                "Cannot run cargo check outside a Rust package: {}",
-                workspace_dir.display()
-            ),
-            source: std::io::Error::new(std::io::ErrorKind::NotFound, "Cargo.toml not found"),
-        });
-    }
-
-    let output = Command::new("cargo")
-        .args(["check", "--quiet", "--color=never"])
-        .current_dir(workspace_dir)
-        .output()
-        .map_err(|e| crate::error::SpliceError::IoContext {
-            context: format!("Failed to run cargo check: {}", e),
-            source: e,
-        })?;
-
-    Ok(output)
 }

@@ -29,15 +29,6 @@ use std::io::Write;
 use std::time::Instant;
 use tempfile::TempDir;
 
-/// CI shared runners are ~3x slower than local dev machines.
-fn ci_multiplier() -> u128 {
-    if std::env::var("CI").is_ok() {
-        3
-    } else {
-        1
-    }
-}
-
 /// Helper to create a test code graph with a specified number of symbols.
 ///
 /// Reuses the TestGraphBuilder pattern from existing relationship_performance.rs
@@ -60,16 +51,6 @@ impl TestGraphBuilder {
             temp_dir,
             symbols_per_file: 10,
         })
-    }
-
-    /// Get mutable reference to the graph.
-    fn graph_mut(&mut self) -> &mut CodeGraph {
-        &mut self.graph
-    }
-
-    /// Get reference to the graph.
-    fn graph(&self) -> &CodeGraph {
-        &self.graph
     }
 
     /// Create a file with symbols and return the file path.
@@ -128,7 +109,7 @@ pub fn {}() -> Result<(), Error> {{
 
     /// Create a large graph with specified total symbols.
     fn create_large_graph(&mut self, total_symbols: usize) -> std::io::Result<()> {
-        let num_files = (total_symbols + self.symbols_per_file - 1) / self.symbols_per_file;
+        let num_files = total_symbols.div_ceil(self.symbols_per_file);
 
         for file_index in 0..num_files {
             let symbols_in_file = if file_index == num_files - 1 {
@@ -141,11 +122,6 @@ pub fn {}() -> Result<(), Error> {{
         }
 
         Ok(())
-    }
-
-    /// Get the temp dir path.
-    fn temp_dir(&self) -> &TempDir {
-        &self.temp_dir
     }
 
     /// Get the graph and temp dir (consumes builder).
@@ -211,7 +187,7 @@ fn test_get_callers_small_graph_performance() {
 
     let result = get_callers(&graph, node_id, &mut cache);
 
-    let duration = start.elapsed();
+    let _duration = start.elapsed();
 
     assert!(result.is_ok(), "get_callers failed: {:?}", result.err());
 
@@ -484,7 +460,7 @@ fn test_multiple_symbols_large_graph() {
     for symbol_name in symbol_names {
         let node_id = graph
             .find_symbol_in_file(file_path_str, symbol_name)
-            .expect(&format!("Symbol {} not found", symbol_name));
+            .unwrap_or_else(|| panic!("Symbol {} not found", symbol_name));
 
         let result = get_callers(&graph, node_id, &mut cache);
         assert!(

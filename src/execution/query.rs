@@ -161,13 +161,13 @@ impl ExecutionQuery {
                     command_line: row.get(6)?,
                     parameters: parameters_json
                         .and_then(|s| serde_json::from_str(&s).ok())
-                        .or_else(|| Some(serde_json::Value::Null)),
+                        .or(Some(serde_json::Value::Null)),
                     result_summary: result_summary_json
                         .and_then(|s| serde_json::from_str(&s).ok())
-                        .or_else(|| Some(serde_json::Value::Null)),
+                        .or(Some(serde_json::Value::Null)),
                     error_details: error_details_json
                         .and_then(|s| serde_json::from_str(&s).ok())
-                        .or_else(|| Some(serde_json::Value::Null)),
+                        .or(Some(serde_json::Value::Null)),
                     duration_ms: row.get(9)?,
                     created_at: row.get(10)?,
                 })
@@ -239,13 +239,13 @@ pub fn get_execution(conn: &Connection, execution_id: &str) -> Result<Option<Exe
                 command_line: row.get(6)?,
                 parameters: parameters_json
                     .and_then(|s| serde_json::from_str(&s).ok())
-                    .or_else(|| Some(serde_json::Value::Null)),
+                    .or(Some(serde_json::Value::Null)),
                 result_summary: result_summary_json
                     .and_then(|s| serde_json::from_str(&s).ok())
-                    .or_else(|| Some(serde_json::Value::Null)),
+                    .or(Some(serde_json::Value::Null)),
                 error_details: error_details_json
                     .and_then(|s| serde_json::from_str(&s).ok())
-                    .or_else(|| Some(serde_json::Value::Null)),
+                    .or(Some(serde_json::Value::Null)),
                 duration_ms: row.get(9)?,
                 created_at: row.get(10)?,
             })
@@ -307,10 +307,8 @@ pub fn get_execution_stats(conn: &Connection) -> Result<ExecutionStats> {
             })
             .map_err(|e| SpliceError::Other(format!("failed to query by type: {}", e)))?;
 
-        for row in type_rows {
-            if let Ok((op_type, count)) = row {
-                by_type.insert(op_type, count);
-            }
+        for (op_type, count) in type_rows.flatten() {
+            by_type.insert(op_type, count);
         }
     }
 
@@ -329,10 +327,8 @@ pub fn get_execution_stats(conn: &Connection) -> Result<ExecutionStats> {
             })
             .map_err(|e| SpliceError::Other(format!("failed to query by status: {}", e)))?;
 
-        for row in status_rows {
-            if let Ok((status, count)) = row {
-                by_status.insert(status, count);
-            }
+        for (status, count) in status_rows.flatten() {
+            by_status.insert(status, count);
         }
     }
 
@@ -374,13 +370,9 @@ pub fn get_execution_stats(conn: &Connection) -> Result<ExecutionStats> {
 ///
 /// Returns a formatted string suitable for table display.
 pub fn format_table_row(log: &ExecutionLog) -> String {
-    let duration = log.duration_ms.map_or("".to_string(), |ms| {
-        if ms >= 1000 {
-            format!("{}ms", ms)
-        } else {
-            format!("{}ms", ms)
-        }
-    });
+    let duration = log
+        .duration_ms
+        .map_or("".to_string(), |ms| format!("{}ms", ms));
 
     // Truncate execution_id for display
     let id_short = &log.execution_id[..8.min(log.execution_id.len())];

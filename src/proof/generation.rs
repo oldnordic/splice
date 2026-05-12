@@ -150,7 +150,7 @@ pub fn generate_snapshot(db_path: &Path) -> Result<GraphSnapshot> {
         .map(|s| s.fan_out + 1)
         .max()
         .filter(|&x| x > 1) // Only meaningful if there's at least one edge
-        .or_else(|| {
+        .or({
             // If no edges, complexity is 1 (trivial case) or 0 (empty graph)
             if total_symbols > 0 {
                 Some(1)

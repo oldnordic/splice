@@ -512,14 +512,14 @@ pub fn group_references_by_file(
     for reference in references {
         grouped
             .entry(reference.file_path.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(reference.clone());
     }
 
     // Sort each file's references by byte_start DESCENDING
     // This ensures replacements are applied from end to start
     for refs in grouped.values_mut() {
-        refs.sort_by(|a, b| b.byte_start.cmp(&a.byte_start));
+        refs.sort_by_key(|b| std::cmp::Reverse(b.byte_start));
     }
 
     grouped

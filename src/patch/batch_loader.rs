@@ -1,5 +1,6 @@
 use super::{SpanBatch, SpanReplacement};
 use crate::error::{Result, SpliceError};
+use crate::io_ext;
 use serde::Deserialize;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -27,7 +28,7 @@ struct ReplacementSpec {
 
 /// Load span batches from a JSON manifest.
 pub fn load_batches_from_file(batch_path: &Path) -> Result<Vec<SpanBatch>> {
-    let contents = fs::read_to_string(batch_path)?;
+    let contents = io_ext::read_to_string(batch_path)?;
     let spec: BatchSpec =
         serde_json::from_str(&contents).map_err(|err| SpliceError::InvalidBatchSchema {
             message: format!("JSON parse error: {}", err),

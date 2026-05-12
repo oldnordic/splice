@@ -1132,7 +1132,8 @@ mod tests {
         mapped_count += 1;
 
         // InvalidUtf8 - create by converting invalid bytes
-        let invalid_utf8 = std::str::from_utf8(b"\xff\xfe").unwrap_err();
+        let invalid_bytes = vec![0xffu8, 0xfe];
+        let invalid_utf8 = std::str::from_utf8(&invalid_bytes).unwrap_err();
         let error = SpliceError::InvalidUtf8 {
             file: PathBuf::from("test.rs"),
             source: invalid_utf8,
@@ -1305,7 +1306,8 @@ mod tests {
         );
 
         // Utf8 variant - intentionally unmapped
-        let invalid_utf8 = std::str::from_utf8(b"\xff\xfe").unwrap_err();
+        let invalid_bytes = vec![0xffu8, 0xfe];
+        let invalid_utf8 = std::str::from_utf8(&invalid_bytes).unwrap_err();
         let error = SpliceError::Utf8(invalid_utf8);
         assert!(
             SpliceErrorCode::from_splice_error(&error).is_none(),

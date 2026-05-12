@@ -384,7 +384,7 @@ fn test_function() -> i32 {
 
     // Should still provide context around the original span
     assert!(
-        ctx.before.len() > 0 || ctx.after.len() > 0 || !ctx.selected.is_empty(),
+        !ctx.before.is_empty() || !ctx.after.is_empty() || !ctx.selected.is_empty(),
         "Should have some context content"
     );
 }
@@ -539,7 +539,7 @@ fn test_context_with_expand_cpp() {
 
     // Should have some context (before or after)
     assert!(
-        ctx.before.len() > 0 || ctx.after.len() > 0,
+        !ctx.before.is_empty() || !ctx.after.is_empty(),
         "Should have some context"
     );
 }

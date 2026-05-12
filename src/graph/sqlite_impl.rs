@@ -215,6 +215,10 @@ impl CodeGraphSqlite {
     }
 
     /// Store a symbol node in the graph.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "symbol metadata: byte/line/col spans for each axis"
+    )]
     pub fn store_symbol(
         &mut self,
         name: &str,
@@ -260,6 +264,10 @@ impl CodeGraphSqlite {
     }
 
     /// Store a symbol node with associated file and language.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "symbol metadata: byte/line/col spans for each axis"
+    )]
     pub fn store_symbol_with_file_and_language(
         &mut self,
         file_path: &Path,

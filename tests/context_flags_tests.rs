@@ -18,10 +18,10 @@ fn test_context_flag_c_default() {
     // -C defaults to 3, so without flags we get 3 lines on both sides
     let dir = TempDir::new().unwrap();
     let content = "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\n";
-    let file = create_test_file(&dir, "test.rs", content);
+    let _file = create_test_file(&dir, "test.rs", content);
 
     // Run splice with --json to capture output
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_splice"))
+    let _output = std::process::Command::new(env!("CARGO_BIN_EXE_splice"))
         .arg("query")
         .arg("--db")
         .arg(dir.path().join("db"))
@@ -33,7 +33,6 @@ fn test_context_flag_c_default() {
 
     // This test verifies the default behavior exists
     // The actual default is handled by clap in main.rs
-    assert!(true);
 }
 
 #[test]
@@ -41,9 +40,9 @@ fn test_context_flag_a_only() {
     // -A 5 should give 5 lines after, 0 before
     let dir = TempDir::new().unwrap();
     let content = "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\n";
-    let file = create_test_file(&dir, "test.rs", content);
+    let _file = create_test_file(&dir, "test.rs", content);
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_splice"))
+    let _output = std::process::Command::new(env!("CARGO_BIN_EXE_splice"))
         .arg("query")
         .arg("--db")
         .arg(dir.path().join("db"))
@@ -57,7 +56,6 @@ fn test_context_flag_a_only() {
 
     // This test verifies the -A flag is accepted
     // The actual context behavior is tested in other tests
-    assert!(true);
 }
 
 #[test]
@@ -65,9 +63,9 @@ fn test_context_flag_b_only() {
     // -B 2 should give 2 lines before, 0 after
     let dir = TempDir::new().unwrap();
     let content = "line 1\nline 2\nline 3\nline 4\nline 5\n";
-    let file = create_test_file(&dir, "test.rs", content);
+    let _file = create_test_file(&dir, "test.rs", content);
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_splice"))
+    let _output = std::process::Command::new(env!("CARGO_BIN_EXE_splice"))
         .arg("query")
         .arg("--db")
         .arg(dir.path().join("db"))
@@ -80,7 +78,6 @@ fn test_context_flag_b_only() {
         .unwrap();
 
     // This test verifies the -B flag is accepted
-    assert!(true);
 }
 
 #[test]
@@ -89,9 +86,9 @@ fn test_context_flag_a_and_b_combination() {
     let dir = TempDir::new().unwrap();
     let content =
         "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\n";
-    let file = create_test_file(&dir, "test.rs", content);
+    let _file = create_test_file(&dir, "test.rs", content);
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_splice"))
+    let _output = std::process::Command::new(env!("CARGO_BIN_EXE_splice"))
         .arg("query")
         .arg("--db")
         .arg(dir.path().join("db"))
@@ -106,7 +103,6 @@ fn test_context_flag_a_and_b_combination() {
         .unwrap();
 
     // This test verifies the -A and -B combination is accepted
-    assert!(true);
 }
 
 #[test]
@@ -117,9 +113,9 @@ fn test_context_flag_c_overrides_a_when_larger() {
         .map(|i| format!("line {}", i))
         .collect::<Vec<_>>()
         .join("\n");
-    let file = create_test_file(&dir, "test.rs", &content);
+    let _file = create_test_file(&dir, "test.rs", &content);
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_splice"))
+    let _output = std::process::Command::new(env!("CARGO_BIN_EXE_splice"))
         .arg("query")
         .arg("--db")
         .arg(dir.path().join("db"))
@@ -134,7 +130,6 @@ fn test_context_flag_c_overrides_a_when_larger() {
         .unwrap();
 
     // This test verifies the -C flag overrides -A when larger
-    assert!(true);
 }
 
 #[test]
@@ -165,12 +160,11 @@ fn test_context_large_file_performance() {
 fn test_json_context_before_after_arrays() {
     // Verify CLI-12: JSON output includes context_before and context_after keys
     use splice::context;
-    use std::io;
 
     let dir = TempDir::new().unwrap();
     // Content without trailing newline to avoid ropey empty line issues
     let content = "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8";
-    let file = create_test_file(&dir, "test.rs", content);
+    let _file = create_test_file(&dir, "test.rs", content);
 
     // Test extract_context_asymmetric directly
     let test_file = dir.path().join("test.rs");
@@ -199,7 +193,7 @@ fn test_json_context_with_b_flag() {
     let dir = TempDir::new().unwrap();
     // Content without trailing newline
     let content = "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7";
-    let file = create_test_file(&dir, "test.rs", content);
+    let _file = create_test_file(&dir, "test.rs", content);
 
     let test_file = dir.path().join("test.rs");
 
@@ -233,7 +227,7 @@ fn test_json_context_with_c_flag() {
     let dir = TempDir::new().unwrap();
     // Content without trailing newline
     let content = "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10";
-    let file = create_test_file(&dir, "test.rs", content);
+    let _file = create_test_file(&dir, "test.rs", content);
 
     let test_file = dir.path().join("test.rs");
 
@@ -265,7 +259,7 @@ fn test_context_at_file_start() {
     let dir = TempDir::new().unwrap();
     // Content without trailing newline
     let content = "line 1\nline 2\nline 3\nline 4\nline 5";
-    let file = create_test_file(&dir, "test.rs", content);
+    let _file = create_test_file(&dir, "test.rs", content);
 
     let test_file = dir.path().join("test.rs");
 
@@ -291,7 +285,7 @@ fn test_context_at_file_end() {
     let dir = TempDir::new().unwrap();
     // Content without trailing newline
     let content = "line 1\nline 2\nline 3\nline 4\nline 5";
-    let file = create_test_file(&dir, "test.rs", content);
+    let _file = create_test_file(&dir, "test.rs", content);
 
     let test_file = dir.path().join("test.rs");
 
@@ -407,7 +401,7 @@ line 3\n\
 line 4\n\
 line 5\n\
 footer\n";
-    let file = create_test_file(&dir, "test.rs", content);
+    let _file = create_test_file(&dir, "test.rs", content);
 
     let test_file = dir.path().join("test.rs");
 
@@ -429,7 +423,7 @@ fn test_context_empty_before() {
 
     let dir = TempDir::new().unwrap();
     let content = "line 1\nline 2\nline 3\n";
-    let file = create_test_file(&dir, "test.rs", content);
+    let _file = create_test_file(&dir, "test.rs", content);
 
     let test_file = dir.path().join("test.rs");
 
@@ -448,7 +442,7 @@ fn test_context_empty_after() {
     let dir = TempDir::new().unwrap();
     // Content without trailing newline
     let content = "line 1\nline 2\nline 3";
-    let file = create_test_file(&dir, "test.rs", content);
+    let _file = create_test_file(&dir, "test.rs", content);
 
     let test_file = dir.path().join("test.rs");
 

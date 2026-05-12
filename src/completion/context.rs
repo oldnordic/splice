@@ -5,7 +5,7 @@ use crate::graph::MagellanIntegration;
 use anyhow::Result;
 use rusqlite::Connection;
 use serde_json::Value as JsonValue;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// Context around cursor position
@@ -31,22 +31,22 @@ pub struct CompletionContext {
 impl CompletionContext {
     /// Normalize file path to absolute path for database queries
     /// Converts relative paths (e.g., "src/file.rs") to absolute paths
-    fn normalize_path(file_path: &PathBuf) -> PathBuf {
+    fn normalize_path(file_path: &Path) -> PathBuf {
         if file_path.is_absolute() {
-            file_path.clone()
+            file_path.to_path_buf()
         } else {
             // Convert relative path to absolute by prepending current directory
             std::env::current_dir()
                 .unwrap_or_else(|_| PathBuf::from("."))
                 .join(file_path)
                 .canonicalize()
-                .unwrap_or_else(|_| file_path.clone())
+                .unwrap_or_else(|_| file_path.to_path_buf())
         }
     }
 
     /// Analyze code context at cursor position
     pub fn analyze(
-        file_path: &PathBuf,
+        file_path: &Path,
         line: usize,
         column: usize,
         magellan: &Arc<MagellanIntegration>,
@@ -87,7 +87,7 @@ impl CompletionContext {
     }
 
     fn find_enclosing_function(
-        file_path: &PathBuf,
+        file_path: &Path,
         line: usize,
         magellan: &Arc<MagellanIntegration>,
     ) -> Result<Option<Symbol>> {
@@ -157,7 +157,7 @@ impl CompletionContext {
     }
 
     fn find_enclosing_module(
-        _file_path: &PathBuf,
+        _file_path: &Path,
         _magellan: &Arc<MagellanIntegration>,
     ) -> Result<Option<Symbol>> {
         // Extract module path from file_path
@@ -168,7 +168,7 @@ impl CompletionContext {
     }
 
     fn get_visible_symbols(
-        file_path: &PathBuf,
+        file_path: &Path,
         _module: &Option<Symbol>,
         magellan: &Arc<MagellanIntegration>,
     ) -> Result<Vec<Symbol>> {
@@ -224,10 +224,10 @@ impl CompletionContext {
     }
 
     fn get_imported_symbols(
-        file_path: &PathBuf,
+        file_path: &Path,
         magellan: &Arc<MagellanIntegration>,
     ) -> Result<Vec<Symbol>> {
-        let resolver = ImportResolver::new(&magellan.db_path().to_path_buf());
+        let resolver = ImportResolver::new(magellan.db_path());
 
         // Get all imports for this file
         let imports = resolver.get_file_imports(file_path)?;
@@ -264,7 +264,7 @@ impl CompletionContext {
         Ok(imported_symbols)
     }
 
-    fn resolve_import_targets(import: &ImportEntity, current_file: &PathBuf) -> Vec<PathBuf> {
+    fn resolve_import_targets(import: &ImportEntity, current_file: &Path) -> Vec<PathBuf> {
         // For MVP: Try sibling files and common patterns
         // TODO: Use ModulePathIndex for proper resolution
 
@@ -290,7 +290,7 @@ impl CompletionContext {
     }
 
     fn get_public_symbols(
-        file_path: &PathBuf,
+        file_path: &Path,
         magellan: &Arc<MagellanIntegration>,
     ) -> Result<Vec<Symbol>> {
         let db_query = r#"

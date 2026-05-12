@@ -15,7 +15,7 @@
 
 use splice::graph::MagellanIntegration;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 use tempfile::TempDir;
 
@@ -56,7 +56,7 @@ mod test_data {
     }
 
     /// Generate a Rust project with the specified number of symbols.
-    fn generate_rust_project(project_path: &PathBuf, target_symbols: usize) {
+    fn generate_rust_project(project_path: &Path, target_symbols: usize) {
         let src_dir = project_path.join("src");
         fs::create_dir_all(&src_dir).unwrap();
 
@@ -121,7 +121,7 @@ path = "src/lib.rs"
     }
 
     /// Ingest the generated project into the code graph.
-    fn ingest_project(project_path: &PathBuf) {
+    fn ingest_project(project_path: &Path) {
         let db_path = project_path.join(".magellan/splice.db");
         let src_path = project_path.join("src");
 
@@ -136,12 +136,12 @@ path = "src/lib.rs"
             if path.extension().and_then(|s| s.to_str()) == Some("rs") {
                 integration
                     .index_file(&path)
-                    .expect(&format!("Failed to index file {:?}", path));
+                    .unwrap_or_else(|_| panic!("Failed to index file {:?}", path));
 
                 // Also index references
                 integration
                     .index_references(&path)
-                    .expect(&format!("Failed to index references for {:?}", path));
+                    .unwrap_or_else(|_| panic!("Failed to index references for {:?}", path));
             }
         }
     }
@@ -297,6 +297,10 @@ fn tarjan_scc(
     sccs
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Tarjan's SCC algorithm state is positional by nature"
+)]
 fn strongconnect(
     v: &(String, String),
     graph: &std::collections::HashMap<

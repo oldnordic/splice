@@ -218,9 +218,7 @@ fn test_status_command_requires_db_flag() {
         db: PathBuf::from("/tmp/test.db"),
         detect_backend: false,
     };
-
-    // If we reached here, the Status command has the required db field
-    assert!(true);
+    // If this compiles, the Status command has the required db field.
 }
 
 #[test]
@@ -246,8 +244,7 @@ fn test_find_command_requires_name_or_symbol_id() {
         output: splice::cli::OutputFormat::Human,
     };
 
-    // Both are valid at the struct level (clap handles conflicts_with at parse time)
-    assert!(true);
+    // Both are valid at the struct level (clap handles conflicts_with at parse time).
 }
 
 #[test]
@@ -260,9 +257,7 @@ fn test_files_command_requires_db_flag() {
         symbols: false,
         output: splice::cli::OutputFormat::Human,
     };
-
-    // If we reached here, the Files command has the required db field
-    assert!(true);
+    // If this compiles, the Files command has the required db field.
 }
 
 #[test]
@@ -274,10 +269,7 @@ fn test_output_format_flag_accepted() {
     let _human = OutputFormat::Human;
     let _json = OutputFormat::Json;
     let _pretty = OutputFormat::Pretty;
-
-    // Verify we can convert to string if needed for clap parsing
     // (clap derives ValueEnum which provides to_possible_value())
-    assert!(true);
 }
 
 #[test]
@@ -311,9 +303,7 @@ fn test_refs_command_has_direction_field() {
         output: OutputFormat::Human,
         impact_graph: false,
     };
-
-    // If we reached here, the Refs command has all required fields
-    assert!(true);
+    // If this compiles, the Refs command has all required fields.
 }
 
 #[test]
@@ -505,17 +495,6 @@ mod export_tests {
         }
 
         bin_path
-    }
-
-    /// Extract JSON from stdout that may contain debug output lines.
-    fn extract_json_from_stdout(stdout: &str) -> String {
-        let start = stdout.find('{');
-        let end = stdout.rfind('}');
-
-        match (start, end) {
-            (Some(start), Some(end)) if end >= start => stdout[start..=end].to_string(),
-            _ => String::new(),
-        }
     }
 
     #[test]
@@ -1248,18 +1227,12 @@ def helper():
         // Find section boundaries
         let mut files_section_start = None;
         let mut symbols_section_start = None;
-        let mut references_section_start = None;
-        let mut calls_section_start = None;
 
         for (i, line) in lines.iter().enumerate() {
             if *line == "# Files" {
                 files_section_start = Some(i);
             } else if *line == "# Symbols" {
                 symbols_section_start = Some(i);
-            } else if *line == "# References" {
-                references_section_start = Some(i);
-            } else if *line == "# Calls" {
-                calls_section_start = Some(i);
             }
         }
 
@@ -1342,10 +1315,8 @@ def helper():
         // 6. Validate no empty rows between sections
         for (i, line) in lines.iter().enumerate() {
             // Empty lines are allowed, but consecutive empty lines are not
-            if line.is_empty() {
-                if i > 0 && lines[i - 1].is_empty() {
-                    panic!("Line {}: consecutive empty lines not allowed", i + 1);
-                }
+            if line.is_empty() && i > 0 && lines[i - 1].is_empty() {
+                panic!("Line {}: consecutive empty lines not allowed", i + 1);
             }
         }
 

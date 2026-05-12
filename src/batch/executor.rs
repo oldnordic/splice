@@ -6,6 +6,7 @@ use crate::batch::spec::{BatchOperation, BatchSpec, DeleteOp, ExecutionMode, Pat
 use crate::batch::transaction::{BatchTransaction, RollbackMode, TransactionResult};
 use crate::error::{Result, SpliceError};
 use crate::graph::{CodeGraph, MagellanIntegration};
+use crate::io_ext;
 use crate::symbol::Symbol;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -28,8 +29,6 @@ pub struct OperationResult {
 /// Result of executing a batch spec.
 #[derive(Debug, Clone)]
 pub struct BatchResult {
-    /// Path to the batch spec file
-    pub spec_path: PathBuf,
     /// Total operations in spec
     pub total_operations: usize,
     /// Number of successful operations
@@ -120,7 +119,6 @@ impl BatchExecutor {
         let total_duration_ms = start.elapsed().as_millis() as u64;
 
         Ok(BatchResult {
-            spec_path: PathBuf::from("<unknown>"), // Set by caller
             total_operations,
             successful,
             failed,
@@ -197,7 +195,7 @@ impl BatchExecutor {
         let mut code_graph = CodeGraph::open(db_path)?;
 
         // Read source file to extract symbols
-        let source = std::fs::read(&op.file)?;
+        let source = io_ext::read(&op.file)?;
 
         // Detect language
         let language =
@@ -281,7 +279,7 @@ impl BatchExecutor {
         let mut code_graph = CodeGraph::open(db_path)?;
 
         // Read source file to extract symbols
-        let source = std::fs::read(&op.file)?;
+        let source = io_ext::read(&op.file)?;
 
         // Detect language
         let language =
@@ -443,10 +441,9 @@ impl BatchExecutor {
     fn report_progress(&self, result: &OperationResult) {
         let status = if result.success { "+" } else { "x" };
         eprintln!(
-            "[{}] Op {}/{}: {} ({})",
+            "[{}] Op {}/?: {} ({})",
             status,
-            result.index,
-            "?", // Total not known yet
+            result.index, // Total not known yet
             result.op_type,
             result.duration_ms
         );

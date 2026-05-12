@@ -1529,7 +1529,7 @@ fn test_context_utf8_multibyte_all_languages() {
         let ctx = extract_context(file_path, newline_offset + 1, contents.len(), 0).unwrap();
 
         // Should handle UTF-8 correctly without crashing
-        assert!(!ctx.selected.is_empty() || ctx.before.len() > 0 || ctx.after.len() > 0);
+        assert!(!ctx.selected.is_empty() || !ctx.before.is_empty() || !ctx.after.is_empty());
     }
 }
 

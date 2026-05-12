@@ -47,17 +47,13 @@ fn default_spec_version() -> String {
 /// Execution mode for batch operations.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum ExecutionMode {
     /// Stop at first error (default)
+    #[default]
     StopOnError,
     /// Continue on error, report all failures
     ContinueOnError,
-}
-
-impl Default for ExecutionMode {
-    fn default() -> Self {
-        Self::StopOnError
-    }
 }
 
 /// A single batch operation.

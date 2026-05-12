@@ -34,13 +34,6 @@ mod tests {
         path
     }
 
-    /// Create a temporary Rust file with a function.
-    fn create_test_rust_file(content: &str) -> NamedTempFile {
-        let mut file = NamedTempFile::with_suffix(".rs").unwrap();
-        file.write_all(content.as_bytes()).unwrap();
-        file
-    }
-
     /// Create a temporary replacement file.
     fn create_replacement_file(content: &str) -> NamedTempFile {
         let mut file = NamedTempFile::with_suffix(".rs").unwrap();

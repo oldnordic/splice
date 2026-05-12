@@ -414,7 +414,7 @@ pub struct SpanSemantics {
 }
 
 /// Checksum metadata for a span.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SpanChecksums {
     /// Checksum of span content before modification (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -425,16 +425,6 @@ pub struct SpanChecksums {
     /// Checksum of entire file before modification (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_checksum_before: Option<String>,
-}
-
-impl Default for SpanChecksums {
-    fn default() -> Self {
-        Self {
-            checksum_before: None,
-            checksum_after: None,
-            file_checksum_before: None,
-        }
-    }
 }
 
 fn generate_span_id(file_path: &str, byte_start: usize, byte_end: usize) -> String {
@@ -1047,10 +1037,10 @@ impl From<crate::resolve::ResolvedSpan> for SpanResult {
     }
 }
 
-/// Magellan-compatible response types for delegated query commands.
-///
-/// These types use Magellan field naming conventions (start_line vs line_start)
-/// for compatibility with Magellan's JSON output format.
+// Magellan-compatible response types for delegated query commands.
+//
+// These types use Magellan field naming conventions (start_line vs line_start)
+// for compatibility with Magellan's JSON output format.
 
 /// Status response showing database statistics.
 #[derive(Debug, Clone, Serialize, Deserialize)]

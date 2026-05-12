@@ -2,9 +2,9 @@
 
 use crate::cli::OutputFormat;
 use crate::create::{self};
-use crate::error::Result;
+use crate::error::{Result, SpliceError};
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Handle `splice create` command
 ///
@@ -33,7 +33,12 @@ pub fn cmd_create(
     };
     // Step 1: Read code from stdin
     let mut code = String::new();
-    std::io::stdin().read_to_string(&mut code)?;
+    std::io::stdin()
+        .read_to_string(&mut code)
+        .map_err(|source| SpliceError::Io {
+            path: PathBuf::from("<stdin>"),
+            source,
+        })?;
 
     // Step 2: Call create module
     let result = if with_mod {
@@ -109,8 +114,7 @@ pub fn cmd_create(
 mod tests {
     use super::*;
     use std::io::Cursor;
-    use std::io::Write;
-    use std::path::PathBuf;
+
     use tempfile::TempDir;
 
     /// Test that cmd_create handler function exists and has correct signature
@@ -118,7 +122,6 @@ mod tests {
     fn test_cmd_create_handler_exists() {
         // This test just verifies the function exists
         // Actual functionality is tested in integration tests
-        use crate::commands::cmd_create;
 
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.rs");

@@ -323,7 +323,7 @@ fn validate_typescript(path: &Path) -> Result<ValidationOutcome> {
     let path_str = path
         .to_str()
         .ok_or_else(|| SpliceError::Other(format!("Invalid UTF-8 path: {}", path.display())))?;
-    let parent_dir = path.parent().map(|p| p.as_ref()).unwrap_or(Path::new("."));
+    let parent_dir = path.parent().unwrap_or(Path::new("."));
 
     let output = Command::new("tsc")
         .args(["--noEmit", path_str])

@@ -7,6 +7,7 @@ use crate::error::{Result, SpliceError};
 use crate::graph::CodeGraph;
 use crate::ingest::imports::extract_rust_imports;
 use crate::ingest::rust::{extract_rust_symbols, RustSymbol, RustSymbolKind, Visibility};
+use crate::io_ext;
 use crate::resolve::references::{Reference, ReferenceContext, ReferenceSet, SymbolDefinition};
 use ropey::Rope;
 use std::path::{Path, PathBuf};
@@ -25,7 +26,7 @@ pub fn find_rust_references(
     symbol_kind: Option<RustSymbolKind>,
 ) -> Result<ReferenceSet> {
     // Step 1: Read and parse the source file
-    let source = std::fs::read(file_path)?;
+    let source = io_ext::read(file_path)?;
     let rope = Rope::from_str(std::str::from_utf8(&source)?);
 
     // Step 2: Extract all symbols to find the target definition
@@ -693,27 +694,61 @@ fn check_reexport_matches(
     false
 }
 
-/// Find the workspace root by searching upward for Cargo.toml.
+/// Find the workspace root by searching upward for a project marker.
+///
+/// Walks parent directories looking for any of `Cargo.toml`, `pyproject.toml`,
+/// `package.json`, `go.mod`, `pom.xml`, `build.gradle`, or `setup.py`. Stops
+/// walking before entering boundary directories (`/`, `/tmp`, `$TMPDIR`, or
+/// `$HOME` when the file is outside `$HOME`) to avoid picking a stray
+/// ancestor manifest above the working directory as the workspace root.
 fn find_workspace_root(start_path: &Path) -> Result<PathBuf> {
-    let mut current = start_path
-        .parent()
-        .ok_or_else(|| SpliceError::Other("Cannot determine workspace root".to_string()))?;
+    const MARKERS: &[&str] = &[
+        "Cargo.toml",
+        "pyproject.toml",
+        "package.json",
+        "go.mod",
+        "pom.xml",
+        "build.gradle",
+        "setup.py",
+    ];
 
-    loop {
-        let cargo_toml = current.join("Cargo.toml");
-        if cargo_toml.exists() {
-            return Ok(current.to_path_buf());
+    let boundaries = build_workspace_boundary_set(start_path);
+
+    let mut current = start_path.parent();
+    while let Some(dir) = current {
+        if boundaries.contains(dir) {
+            break;
         }
-
-        match current.parent() {
-            Some(parent) => current = parent,
-            None => {
-                return Err(SpliceError::Other(
-                    "Cargo.toml not found in any parent directory".to_string(),
-                ))
+        for marker in MARKERS {
+            if dir.join(marker).exists() {
+                return Ok(dir.to_path_buf());
             }
         }
+        current = dir.parent();
     }
+
+    Err(SpliceError::Other(format!(
+        "No project marker (Cargo.toml, pyproject.toml, package.json, go.mod, pom.xml, build.gradle, setup.py) found in any ancestor of {} within $HOME or before /tmp",
+        start_path.display()
+    )))
+}
+
+/// Build the set of directories that bound the upward search for a project
+/// marker. We never look INTO these directories as workspace candidates.
+fn build_workspace_boundary_set(file_path: &Path) -> std::collections::HashSet<PathBuf> {
+    let mut set = std::collections::HashSet::new();
+    set.insert(PathBuf::from("/"));
+    set.insert(PathBuf::from("/tmp"));
+    if let Some(tmpdir) = std::env::var_os("TMPDIR") {
+        set.insert(PathBuf::from(tmpdir));
+    }
+    if let Some(home) = std::env::var_os("HOME") {
+        let home_path = PathBuf::from(&home);
+        if !file_path.starts_with(&home_path) {
+            set.insert(home_path);
+        }
+    }
+    set
 }
 
 /// Find all .rs files in the workspace directory.
@@ -1276,6 +1311,28 @@ fn main() {
 
         // Should find workspace root from main.rs
         let found_root = find_workspace_root(&main_rs).unwrap();
+        assert_eq!(found_root, workspace);
+    }
+
+    #[test]
+    fn test_find_workspace_root_finds_pyproject_toml() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        // Multi-language: a pyproject.toml-rooted project should resolve too.
+        let temp_dir = TempDir::new().unwrap();
+        let workspace = temp_dir.path();
+
+        let pyproject = workspace.join("pyproject.toml");
+        fs::write(&pyproject, "[project]\nname = \"test\"\n").unwrap();
+
+        let pkg_dir = workspace.join("pkg");
+        fs::create_dir_all(&pkg_dir).unwrap();
+
+        let module = pkg_dir.join("m.py");
+        fs::write(&module, "").unwrap();
+
+        let found_root = find_workspace_root(&module).unwrap();
         assert_eq!(found_root, workspace);
     }
 

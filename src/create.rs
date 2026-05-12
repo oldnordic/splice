@@ -3,6 +3,7 @@
 //! Provides functionality for creating new Rust files with rust-analyzer validation.
 
 use crate::error::{Result, SpliceError};
+use crate::io_ext;
 use crate::validate::validate_rust_snippet;
 use crate::write::write_atomic;
 use std::fs;
@@ -61,7 +62,10 @@ pub fn create_file_with_validation(
     // Step 5: Create parent directories if needed
     if let Some(parent) = file_path.parent() {
         if !parent.exists() {
-            fs::create_dir_all(parent)?;
+            fs::create_dir_all(parent).map_err(|source| SpliceError::Io {
+                path: parent.to_path_buf(),
+                source,
+            })?;
         }
     }
 
@@ -145,7 +149,7 @@ fn add_module_declaration(file_path: &Path, workspace_dir: &Path) -> Result<()> 
 
     // Check if module declaration already exists
     if parent_module.exists() {
-        let content = fs::read_to_string(&parent_module)?;
+        let content = io_ext::read_to_string(&parent_module)?;
         let mod_decl = format!("mod {};", file_stem);
 
         if content.contains(&mod_decl) {
@@ -168,7 +172,7 @@ fn add_module_declaration(file_path: &Path, workspace_dir: &Path) -> Result<()> 
             format!("{}\n{}\n", content.trim_end(), mod_line)
         };
 
-        fs::write(&parent_module, new_content)?;
+        io_ext::write(&parent_module, new_content)?;
     }
 
     Ok(())

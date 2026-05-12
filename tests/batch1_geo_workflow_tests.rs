@@ -8,8 +8,6 @@
 //! 5. Handle ambiguity explicitly
 //! 6. Still work with SQLite backend
 
-use std::path::Path;
-
 /// Test 1: Can open geometric backend
 #[test]
 #[cfg(feature = "geometric")]
@@ -161,7 +159,6 @@ fn splice_geo_ambiguity_handling_is_explicit() {
 /// Test 6: SQLite backend still works for Batch 1
 #[test]
 fn splice_sqlite_backend_still_works_for_batch1() {
-    use std::io::Write;
     use tempfile::NamedTempFile;
 
     let temp_file = NamedTempFile::with_suffix(".db").unwrap();

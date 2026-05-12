@@ -103,10 +103,12 @@ impl Language {
 /// This follows the DRY principle - there should be only one way to create
 /// a language-specific parser.
 ///
+/// `file_path` is used only for error reporting when `set_language` fails.
+///
 /// # Errors
 ///
 /// Returns `SpliceError::Parse` if the language cannot be set on the parser.
-pub fn parser_for_language(language: Language) -> Result<tree_sitter::Parser> {
+pub fn parser_for_language(file_path: &Path, language: Language) -> Result<tree_sitter::Parser> {
     let mut parser = tree_sitter::Parser::new();
 
     let lang = match language {
@@ -120,7 +122,7 @@ pub fn parser_for_language(language: Language) -> Result<tree_sitter::Parser> {
     };
 
     parser.set_language(&lang).map_err(|e| SpliceError::Parse {
-        file: std::path::PathBuf::from("<unknown>"),
+        file: file_path.to_path_buf(),
         message: format!("Failed to set language for parser: {:?}", e),
     })?;
 

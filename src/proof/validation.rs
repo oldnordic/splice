@@ -27,19 +27,16 @@ pub fn validate_invariants(
     before: &GraphSnapshot,
     after: &GraphSnapshot,
 ) -> Result<Vec<InvariantCheck>> {
-    let mut checks = Vec::new();
-
-    // Check 1: Reference counts are preserved
-    checks.push(check_reference_counts(before, after));
-
-    // Check 2: No orphaned symbols
-    checks.push(check_orphaned_symbols(after));
-
-    // Check 3: Symbol IDs are stable
-    checks.push(check_symbol_id_stability(before, after));
-
-    // Check 4: Entry points are preserved
-    checks.push(check_entry_points(before, after));
+    let checks = vec![
+        // Check 1: Reference counts are preserved
+        check_reference_counts(before, after),
+        // Check 2: No orphaned symbols
+        check_orphaned_symbols(after),
+        // Check 3: Symbol IDs are stable
+        check_symbol_id_stability(before, after),
+        // Check 4: Entry points are preserved
+        check_entry_points(before, after),
+    ];
 
     Ok(checks)
 }
@@ -278,7 +275,6 @@ fn check_entry_points(before: &GraphSnapshot, after: &GraphSnapshot) -> Invarian
 mod tests {
     use super::*;
     use crate::proof::data_structures::{GraphStats, SymbolInfo};
-    use std::path::PathBuf;
 
     fn create_test_snapshot() -> GraphSnapshot {
         let mut symbols = HashMap::new();
@@ -349,7 +345,7 @@ mod tests {
 
     #[test]
     fn test_check_reference_counts_failure() {
-        let mut before = create_test_snapshot();
+        let before = create_test_snapshot();
         let mut after = create_test_snapshot();
 
         // Change fan-in in after snapshot

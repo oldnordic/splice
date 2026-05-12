@@ -328,7 +328,7 @@ pub fn insert_execution_log(conn: &Connection, log: &ExecutionLog) -> Result<i64
     let parameters_json = log
         .parameters
         .as_ref()
-        .map(|v| serde_json::to_string(v))
+        .map(serde_json::to_string)
         .transpose()
         .map_err(|e| {
             SpliceError::Other(format!("failed to serialize parameters to JSON: {}", e))
@@ -337,7 +337,7 @@ pub fn insert_execution_log(conn: &Connection, log: &ExecutionLog) -> Result<i64
     let result_summary_json = log
         .result_summary
         .as_ref()
-        .map(|v| serde_json::to_string(v))
+        .map(serde_json::to_string)
         .transpose()
         .map_err(|e| {
             SpliceError::Other(format!("failed to serialize result_summary to JSON: {}", e))
@@ -346,7 +346,7 @@ pub fn insert_execution_log(conn: &Connection, log: &ExecutionLog) -> Result<i64
     let error_details_json = log
         .error_details
         .as_ref()
-        .map(|v| serde_json::to_string(v))
+        .map(serde_json::to_string)
         .transpose()
         .map_err(|e| {
             SpliceError::Other(format!("failed to serialize error_details to JSON: {}", e))
@@ -440,7 +440,7 @@ mod tests {
         let conn = init_execution_log_db(db_dir).unwrap();
 
         // Verify indexes exist
-        let mut check_index = |index_name: &str| -> bool {
+        let check_index = |index_name: &str| -> bool {
             conn.query_row(
                 &format!(
                     "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='{}'",

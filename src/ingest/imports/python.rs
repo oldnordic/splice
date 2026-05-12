@@ -212,11 +212,9 @@ fn extract_import_from_statement(
                     }
                 }
             }
-            "aliased_import" => {
-                if stage == 2 {
-                    if let Some(alias) = extract_alias_name(child, source) {
-                        imported_names.push(alias);
-                    }
+            "aliased_import" if stage == 2 => {
+                if let Some(alias) = extract_alias_name(child, source) {
+                    imported_names.push(alias);
                 }
             }
             "wildcard_import" => {

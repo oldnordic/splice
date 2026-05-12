@@ -5,8 +5,8 @@
 
 use crate::error::Result;
 use crate::ingest::rust::RustSymbolKind;
+use crate::io_ext;
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::path::Path;
 
 /// A refactoring plan containing multiple sequential patch steps.
@@ -46,7 +46,7 @@ pub struct PatchStep {
 /// * `Err(SpliceError)` - JSON parse error or schema validation error
 pub fn parse_plan(plan_path: &Path) -> Result<Plan> {
     // Read plan file
-    let content = fs::read_to_string(plan_path)?;
+    let content = io_ext::read_to_string(plan_path)?;
 
     // Parse JSON
     let plan: Plan =
@@ -195,7 +195,7 @@ fn execute_single_step(
     use crate::validate::AnalyzerMode;
 
     // Step 1: Read source file
-    let source = std::fs::read(file_path)?;
+    let source = io_ext::read(file_path)?;
 
     // Step 2: Extract symbols from source file (on-the-fly ingestion)
     let symbols = extract_rust_symbols(file_path, &source)?;
@@ -232,7 +232,7 @@ fn execute_single_step(
     let resolved = resolve_symbol(&code_graph, Some(file_path), kind_str, symbol_name)?;
 
     // Step 7: Read replacement content
-    let replacement_content = std::fs::read_to_string(replacement_file)?;
+    let replacement_content = io_ext::read_to_string(replacement_file)?;
 
     // Step 8: Apply patch with validation (analyzer OFF for plan execution)
     let (before_hash, after_hash) = apply_patch_with_validation(

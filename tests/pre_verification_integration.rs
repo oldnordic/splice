@@ -199,6 +199,10 @@ fn test_pre_verify_detects_readonly_file() {
     assert!(writable_failed, "Expected file_writable failure");
 
     // Cleanup: restore write permissions
+    #[allow(
+        clippy::permissions_set_readonly_false,
+        reason = "test cleanup: restore write so TempDir can clean up"
+    )]
     perms.set_readonly(false);
     fs::set_permissions(&test_file, perms).unwrap();
 }
@@ -256,6 +260,10 @@ fn test_pre_verify_checks_workspace_writable() {
     assert!(results.iter().any(|r| r.is_blocking()));
 
     // Cleanup: restore write permissions
+    #[allow(
+        clippy::permissions_set_readonly_false,
+        reason = "test cleanup: restore write so TempDir can clean up"
+    )]
     perms.set_readonly(false);
     fs::set_permissions(workspace, perms).unwrap();
 }

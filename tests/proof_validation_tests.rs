@@ -3,12 +3,9 @@
 //! These tests verify that invariant validation works correctly
 //! for real refactoring operations.
 
-use splice::proof::data_structures::{
-    GraphSnapshot, GraphStats, InvariantCheck, InvariantViolation, SymbolInfo, ViolationSeverity,
-};
+use splice::proof::data_structures::{GraphSnapshot, GraphStats, SymbolInfo, ViolationSeverity};
 use splice::proof::validation::validate_invariants;
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 /// Helper to create a minimal graph snapshot for testing.
 fn create_minimal_snapshot() -> GraphSnapshot {
@@ -83,7 +80,7 @@ fn test_validate_invariants_no_change() {
 
 #[test]
 fn test_validate_invariants_detects_reference_count_change() {
-    let mut before = create_minimal_snapshot();
+    let before = create_minimal_snapshot();
     let mut after = create_minimal_snapshot();
 
     // Simulate a broken refactoring: fan-in changed
@@ -207,7 +204,7 @@ fn test_validate_invariants_reports_new_entry_points() {
 
 #[test]
 fn test_validate_invariants_multiple_violations() {
-    let mut before = create_minimal_snapshot();
+    let before = create_minimal_snapshot();
     let mut after = create_minimal_snapshot();
 
     // Make multiple changes to trigger multiple violations
@@ -228,7 +225,7 @@ fn test_validate_invariants_multiple_violations() {
 #[test]
 fn test_validate_invariants_realistic_rename() {
     // Simulate a realistic rename operation
-    let mut before = create_minimal_snapshot();
+    let before = create_minimal_snapshot();
 
     // Create "after" state where helper was renamed to helper_v2
     let mut after_symbols = HashMap::new();

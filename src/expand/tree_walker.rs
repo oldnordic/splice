@@ -55,7 +55,7 @@ where
         }
 
         // Stop at source file root
-        if parent.kind() == "source_file" || parent.is_named() == false {
+        if parent.kind() == "source_file" || !parent.is_named() {
             return None;
         }
 
@@ -185,7 +185,7 @@ pub fn find_containing_block(
                 node = parent;
                 continue;
             }
-            return Some((parent.start_byte() as usize, parent.end_byte() as usize));
+            return Some((parent.start_byte(), parent.end_byte()));
         }
 
         node = parent;
@@ -292,7 +292,7 @@ pub fn is_doc_comment_node(node: &tree_sitter::Node) -> bool {
 /// let comments = extract_leading_doc_comments(function_node, source);
 /// assert_eq!(comments, vec!["/// Example docs"]);
 /// ```
-pub fn extract_leading_doc_comments<'a>(node: tree_sitter::Node, source: &'a [u8]) -> Vec<String> {
+pub fn extract_leading_doc_comments(node: tree_sitter::Node, source: &[u8]) -> Vec<String> {
     extract_leading_doc_comment_nodes(node, source)
         .iter()
         .filter_map(|node| node.utf8_text(source).ok())
@@ -367,7 +367,7 @@ pub fn extract_leading_docs(node: &tree_sitter::Node, source: &[u8]) -> usize {
                 // Not a doc-style comment, stop
                 break;
             }
-        } else if kind == "\n" || prev.is_named() == false {
+        } else if kind == "\n" || !prev.is_named() {
             // Allow one blank line between docs and symbol
             // Tree-sitter may represent blank lines as unnamed nodes
             blank_lines += 1;
@@ -907,7 +907,7 @@ mod tests {
             .expect("Should find function identifier");
 
         // Try to find containing block (should return None for top-level function)
-        let block_span = find_containing_block(
+        let _block_span = find_containing_block(
             &root,
             identifier_node.start_byte(),
             identifier_node.end_byte(),

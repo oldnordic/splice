@@ -53,7 +53,7 @@
 use anyhow::Result;
 use rusqlite::Connection;
 use serde_json::Value as JsonValue;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Import entity from Magellan database.
 ///
@@ -157,9 +157,9 @@ impl ImportResolver {
     ///
     /// let resolver = ImportResolver::new(&PathBuf::from(".magellan/splice.db"));
     /// ```
-    pub fn new(db_path: &PathBuf) -> Self {
+    pub fn new(db_path: &Path) -> Self {
         Self {
-            db_path: db_path.clone(),
+            db_path: db_path.to_path_buf(),
         }
     }
 
@@ -202,7 +202,7 @@ impl ImportResolver {
     /// - Typical query time: 1-2ms
     /// - Scales with number of imports in file (not codebase size)
     /// - Database connection opened per query (not cached)
-    pub fn get_file_imports(&self, file_path: &PathBuf) -> Result<Vec<ImportEntity>> {
+    pub fn get_file_imports(&self, file_path: &Path) -> Result<Vec<ImportEntity>> {
         let conn = Connection::open(&self.db_path)?;
 
         let query = r#"

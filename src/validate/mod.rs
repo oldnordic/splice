@@ -400,7 +400,11 @@ pub fn validate_with_cargo(project_dir: &Path) -> Result<ValidationResult> {
     let output = Command::new("cargo")
         .args(["check", "--message-format=short", "--color=never"])
         .current_dir(project_dir)
-        .output()?;
+        .output()
+        .map_err(|source| SpliceError::Io {
+            path: project_dir.to_path_buf(),
+            source,
+        })?;
 
     if output.status.success() {
         return Ok(ValidationResult::Pass);
@@ -728,6 +732,28 @@ at crate mycrate, file /home/Projects/app/src/lib.rs: Error Ra("E0425", Error) f
             "info: rust-analyzer started\ninfo: rust-analyzer finished",
         );
         assert!(diags.is_empty());
+    }
+
+    /// Bug B4: When the `cargo` invocation in `validate_with_cargo` fails to
+    /// spawn (e.g., the project_dir doesn't exist), the bare `?` propagation
+    /// previously surfaced as `"I/O error for path <unknown>"`. The error
+    /// must mention the real project directory instead.
+    #[test]
+    fn validate_with_cargo_missing_dir_error_has_real_path() {
+        let bogus_dir = Path::new("/nonexistent_splice_test_dir_b4/no_such_project");
+        let result = validate_with_cargo(bogus_dir);
+        let err = result.expect_err("spawn should fail when current_dir does not exist");
+        let msg = err.to_string();
+        assert!(
+            !msg.contains("<unknown>"),
+            "error must not contain <unknown> placeholder; got: {}",
+            msg
+        );
+        assert!(
+            msg.contains(bogus_dir.to_string_lossy().as_ref()),
+            "error must mention the project_dir; got: {}",
+            msg
+        );
     }
 }
 

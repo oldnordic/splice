@@ -3,6 +3,33 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [2.6.8] - 2026-05-12
+
+### Fixed
+
+- **Misleading `"File name too long"` error from `splice patch`** — When the target file lived outside any project directory but a stray `Cargo.toml` existed in an ancestor of `/tmp` (e.g. left over from a debug session), `find_workspace_root` walked all the way up to that stray `Cargo.toml` and picked `/tmp` as the workspace root. `clone_workspace_for_preview` then tried to recursively copy all of `/tmp` into a temp directory, hitting some long path and surfacing the result as `"I/O error for path <unknown>: File name too long (os error 36)"`. Three independent issues compounded:
+  - `find_workspace_root` (`src/main.rs`, and the duplicate in `src/resolve/references/rust.rs`) now stops walking before entering `/`, `/tmp`, `$TMPDIR`, or `$HOME` (when the file is outside `$HOME`). Both copies recognise additional project markers (`pyproject.toml`, `package.json`, `go.mod`, `pom.xml`, `build.gradle`, `setup.py`) — not just `Cargo.toml`.
+  - `should_skip_entry` in `src/patch/mod.rs` now excludes more build/cache directories (`dist`, `build`, `__pycache__`, `.venv`, `venv`, `.pytest_cache`, `.mypy_cache`, `.tox`, `.next`, `.nuxt`, `.cache`, `.gradle`, `.idea`, `.vscode`) from the preview workspace clone.
+  - New `src/io_ext.rs` provides `read`/`read_to_string`/`write` helpers that preserve the file path in `SpliceError::Io`. All bare `?` propagation sites of `std::fs` calls have been migrated (in `patch/mod.rs`, `main.rs`, `plan/mod.rs`, `create.rs`, `verify.rs`, `batch/executor.rs`, `patch/batch_loader.rs`, `resolve/references/rust.rs`, and `graph/router.rs`) — `splice patch`, `splice delete`, `splice plan`, `splice create`, `splice rename`, and `splice batch` now surface the real path in io error messages instead of the literal `<unknown>` placeholder.
+
+- **Multi-language project detection** — `splice patch` no longer requires a Rust project. A file under `pyproject.toml`, `package.json`, `go.mod`, `pom.xml`, `build.gradle`, or `setup.py` is now correctly resolved to its workspace root.
+
+- **`<unknown>` placeholder in `validate_with_cargo` spawn failure** — `validate::validate_with_cargo()` previously used bare `?` on `Command::new("cargo").output()`, so a spawn failure (missing binary or non-existent `project_dir`) surfaced as `"I/O error for path <unknown>: …"`. The error now mentions the real `project_dir`.
+
+- **`<unknown>` placeholder in `patch::validate_utf8_span`** — `patch::validate_utf8_span` previously hard-coded `<unknown>` for the file path in `SpliceError::InvalidSpan`. The function now takes a `file_path: &Path` parameter (breaking API change — no internal callers; external callers must pass the originating file path) and surfaces the real path in the error.
+
+- **`<unknown>` placeholder in `symbol::parser_for_language`** — `parser_for_language()` previously hard-coded `<unknown>` for the file path in `SpliceError::Parse` when `tree_sitter::Parser::set_language` failed. The function now takes a `file_path: &Path` parameter (breaking API change; 3 internal callers updated: `patch::pattern::find_pattern_in_file`, `expand::expand_to_body_with_docs`, `expand::expand_symbol_impl`).
+
+### Changed
+
+- **Removed `From<std::io::Error> for SpliceError`** — The catch-all `From` impl produced `SpliceError::Io { path: PathBuf::from("<unknown>"), source }` for any bare `?` propagation of `io::Error`. The impl is gone, so a bare `?` on `io::Error` no longer compiles in code returning `Result<_, SpliceError>` — every `io::Error` wrap site must now use explicit `map_err` with the originating path. Six call sites were migrated: `commands.rs` (stdin), `patch/mod.rs` (cargo check spawn + `TempDir::new`), `verify.rs` (statvfs CString + last_os_error), and `main.rs` (`env::current_dir`).
+
+- **Removed dead `BatchResult.spec_path` field** — The field was never read anywhere in the codebase; the comment "Set by caller" was inaccurate. Removing it eliminated a stray `PathBuf::from("<unknown>")` placeholder. Breaking change for hypothetical external Rust consumers of `BatchResult`.
+
+- **Clippy cleanup** — Resolved all 338 `cargo clippy --all-targets` warnings (mix of auto-fix and manual): boxed large `Err` variants in `relationships`, hoisted regex compilation out of loops in test data, replaced `sort_by` with `sort_by_key`, replaced `&PathBuf` with `&Path` in several signatures, deleted dead test helper functions, and added `#[allow(..., reason = "...")]` (project-required reason field) for CLI handler argument counts and `Arc<MagellanIntegration>` shared ownership.
+
 ## [2.6.7] - 2026-05-12
 
 ### Fixed

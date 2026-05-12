@@ -13,18 +13,6 @@ fn create_test_file(dir: &TempDir, name: &str, content: &str) -> PathBuf {
     path
 }
 
-/// Helper to verify expansion returns expected content.
-fn verify_expansion(path: &PathBuf, byte_offset: usize, _expected_content: &str) {
-    let source = std::fs::read(path).unwrap();
-
-    // Find what text should be at the expanded region
-    assert!(byte_offset < source.len(), "Byte offset beyond file length");
-
-    // For now, just verify we can read the file and the offset is valid
-    // Full expansion verification will be done in specific tests
-    assert!(!source.is_empty(), "Source file should not be empty");
-}
-
 // ============================================================================
 // Rust Test Fixtures
 // ============================================================================

@@ -50,7 +50,7 @@ pub fn suggest_similar_symbols(
         .filter(|symbol| {
             // Quick prefix check to avoid expensive distance calculation
             // Only compute distance for symbols starting with same character
-            symbol.chars().next() == Some(target_first)
+            symbol.starts_with(target_first)
         })
         .map(|symbol| {
             let dist = levenshtein(target, symbol);

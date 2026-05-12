@@ -285,7 +285,6 @@ mod tests {
     use super::*;
     use crate::proof::data_structures::GraphStats;
     use std::collections::HashMap;
-    use std::path::PathBuf;
 
     fn create_test_snapshot(timestamp: i64) -> GraphSnapshot {
         let mut symbols = HashMap::new();

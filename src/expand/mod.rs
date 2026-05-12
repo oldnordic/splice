@@ -109,7 +109,7 @@ pub struct RustExpander;
 impl SymbolExpander for RustExpander {
     fn expand_to_body(&self, node: tree_sitter::Node, source: &[u8]) -> Option<(usize, usize)> {
         find_parent_symbol_node(node, source, |kind| self.is_symbol_kind(kind))
-            .map(|n| (n.start_byte() as usize, n.end_byte() as usize))
+            .map(|n| (n.start_byte(), n.end_byte()))
     }
 
     fn is_symbol_kind(&self, node_kind: &str) -> bool {
@@ -139,7 +139,7 @@ pub struct PythonExpander;
 impl SymbolExpander for PythonExpander {
     fn expand_to_body(&self, node: tree_sitter::Node, source: &[u8]) -> Option<(usize, usize)> {
         find_parent_symbol_node(node, source, |kind| self.is_symbol_kind(kind))
-            .map(|n| (n.start_byte() as usize, n.end_byte() as usize))
+            .map(|n| (n.start_byte(), n.end_byte()))
     }
 
     fn is_symbol_kind(&self, node_kind: &str) -> bool {
@@ -158,7 +158,7 @@ pub struct CppExpander;
 impl SymbolExpander for CppExpander {
     fn expand_to_body(&self, node: tree_sitter::Node, source: &[u8]) -> Option<(usize, usize)> {
         find_parent_symbol_node(node, source, |kind| self.is_symbol_kind(kind))
-            .map(|n| (n.start_byte() as usize, n.end_byte() as usize))
+            .map(|n| (n.start_byte(), n.end_byte()))
     }
 
     fn is_symbol_kind(&self, node_kind: &str) -> bool {
@@ -185,7 +185,7 @@ pub struct JavaExpander;
 impl SymbolExpander for JavaExpander {
     fn expand_to_body(&self, node: tree_sitter::Node, source: &[u8]) -> Option<(usize, usize)> {
         find_parent_symbol_node(node, source, |kind| self.is_symbol_kind(kind))
-            .map(|n| (n.start_byte() as usize, n.end_byte() as usize))
+            .map(|n| (n.start_byte(), n.end_byte()))
     }
 
     fn is_symbol_kind(&self, node_kind: &str) -> bool {
@@ -212,7 +212,7 @@ pub struct JavaScriptExpander;
 impl SymbolExpander for JavaScriptExpander {
     fn expand_to_body(&self, node: tree_sitter::Node, source: &[u8]) -> Option<(usize, usize)> {
         find_parent_symbol_node(node, source, |kind| self.is_symbol_kind(kind))
-            .map(|n| (n.start_byte() as usize, n.end_byte() as usize))
+            .map(|n| (n.start_byte(), n.end_byte()))
     }
 
     fn is_symbol_kind(&self, node_kind: &str) -> bool {
@@ -238,7 +238,7 @@ pub struct TypeScriptExpander;
 impl SymbolExpander for TypeScriptExpander {
     fn expand_to_body(&self, node: tree_sitter::Node, source: &[u8]) -> Option<(usize, usize)> {
         find_parent_symbol_node(node, source, |kind| self.is_symbol_kind(kind))
-            .map(|n| (n.start_byte() as usize, n.end_byte() as usize))
+            .map(|n| (n.start_byte(), n.end_byte()))
     }
 
     fn is_symbol_kind(&self, node_kind: &str) -> bool {
@@ -375,7 +375,7 @@ pub fn expand_to_body_with_docs(
     })?;
 
     // Create parser
-    let mut parser = parser_for_language(language)?;
+    let mut parser = parser_for_language(path, language)?;
 
     // Parse the file
     let tree = parser
@@ -438,7 +438,7 @@ fn expand_symbol_impl(
     })?;
 
     // Create parser
-    let mut parser = parser_for_language(language)?;
+    let mut parser = parser_for_language(path, language)?;
 
     // Parse the file
     let tree = parser

@@ -690,6 +690,7 @@ impl MagellanIntegration {
     /// Symbol IDs are generated as:
     /// - V1: SHA-256(name:path:byte_start)[0..8] -> 16 hex chars
     /// - V2: BLAKE3(name:path:byte_start)[0..16] -> 32 hex chars
+    ///
     /// We regenerate IDs during iteration to find matches, trying V2 first.
     pub fn find_symbol_by_id(&mut self, symbol_id: &str) -> Result<Option<SymbolInfo>> {
         match self.backend {
@@ -1835,6 +1836,10 @@ impl MagellanIntegration {
     }
 
     /// Recursive DFS helper for SCC detection (iterative to avoid stack overflow).
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "Tarjan's SCC algorithm state is positional by nature"
+    )]
     fn scc_dfs(
         &self,
         node: &(String, String),
@@ -2500,7 +2505,7 @@ impl MagellanIntegration {
         let mut in_degree: HashMap<usize, usize> = HashMap::new();
         let mut out_neighbors: HashMap<usize, HashSet<usize>> = HashMap::new();
 
-        for ((from, to), _weight) in &scc_edges {
+        for (from, to) in scc_edges.keys() {
             *in_degree.entry(*to).or_insert(0) += 1;
             out_neighbors.entry(*from).or_default().insert(*to);
             in_degree.entry(*from).or_insert(0); // ensure all SCCs have entry
@@ -2716,7 +2721,7 @@ impl MagellanIntegration {
         let root_attrs = if config
             .highlight_symbol
             .as_ref()
-            .map_or(false, |h| *h == symbol_name)
+            .is_some_and(|h| *h == symbol_name)
         {
             " [style=filled, fillcolor=lightblue]"
         } else {
@@ -2745,7 +2750,7 @@ impl MagellanIntegration {
                 let attrs = if config
                     .highlight_symbol
                     .as_ref()
-                    .map_or(false, |h| *h == reachable.symbol.name)
+                    .is_some_and(|h| *h == reachable.symbol.name)
                 {
                     " [style=filled, fillcolor=lightblue]"
                 } else {
@@ -2801,7 +2806,7 @@ impl MagellanIntegration {
                 let attrs = if config
                     .highlight_symbol
                     .as_ref()
-                    .map_or(false, |h| *h == reachable.symbol.name)
+                    .is_some_and(|h| *h == reachable.symbol.name)
                 {
                     " [style=filled, fillcolor=lightblue]"
                 } else {
@@ -2899,7 +2904,7 @@ impl MagellanIntegration {
         let root_attrs = if config
             .highlight_symbol
             .as_ref()
-            .map_or(false, |h| *h == symbol_name)
+            .is_some_and(|h| *h == symbol_name)
         {
             " [style=filled, fillcolor=lightblue]"
         } else {
@@ -2927,7 +2932,7 @@ impl MagellanIntegration {
             let attrs = if config
                 .highlight_symbol
                 .as_ref()
-                .map_or(false, |h| *h == call.caller)
+                .is_some_and(|h| *h == call.caller)
             {
                 " [style=filled, fillcolor=lightblue]"
             } else {
@@ -2960,7 +2965,7 @@ impl MagellanIntegration {
             let attrs = if config
                 .highlight_symbol
                 .as_ref()
-                .map_or(false, |h| *h == call.callee)
+                .is_some_and(|h| *h == call.callee)
             {
                 " [style=filled, fillcolor=lightblue]"
             } else {

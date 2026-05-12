@@ -119,12 +119,13 @@ fn extract_symbols(
 /// In tree-sitter Rust grammar:
 /// - Inherent impl: `impl StructName` -> has `type:` field pointing to StructName
 /// - Trait impl: `impl Trait for StructName` -> has `trait:` field (Trait) and `type:` field (StructName)
+///
 /// The `type:` field ALWAYS contains the struct name being implemented.
 fn extract_impl_name(node: &tree_sitter::Node, source: &[u8]) -> Option<String> {
     // Access the 'type' field which always contains the struct name
     let type_node = node.child_by_field_name("type")?;
 
-    let name_bytes = &source[type_node.start_byte() as usize..type_node.end_byte() as usize];
+    let name_bytes = &source[type_node.start_byte()..type_node.end_byte()];
     std::str::from_utf8(name_bytes).ok().map(|s| s.to_string())
 }
 

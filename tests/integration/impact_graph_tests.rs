@@ -3,31 +3,6 @@
 use splice::cli::{CallDirection, Commands, OutputFormat, ReachabilityDirection};
 use std::path::PathBuf;
 
-/// Helper function to verify DOT format is valid
-/// DOT format must start with "digraph" and contain valid node/edge declarations
-fn is_valid_dot(dot: &str) -> bool {
-    let lines: Vec<&str> = dot.lines().collect();
-    if lines.is_empty() {
-        return false;
-    }
-    // Must start with digraph declaration
-    let first_line = lines[0].trim();
-    if !first_line.starts_with("digraph") {
-        return false;
-    }
-    // Must contain closing brace
-    let last_line = lines.last().unwrap().trim();
-    if !last_line.starts_with('}') {
-        return false;
-    }
-    // Must contain node or edge declarations
-    let has_content = lines.iter().any(|line| {
-        let trimmed = line.trim();
-        trimmed.contains('[') || trimmed.contains("->")
-    });
-    has_content
-}
-
 #[test]
 fn test_refs_command_has_impact_graph_flag() {
     // Verify Refs command struct has impact_graph field

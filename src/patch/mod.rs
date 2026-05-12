@@ -13,6 +13,7 @@ mod batch_loader;
 pub mod pattern;
 
 use crate::error::{Diagnostic, DiagnosticLevel, Result, SpliceError};
+use crate::io_ext;
 use crate::symbol::Language as SymbolLanguage;
 use crate::validate::{self, AnalyzerMode};
 use crate::verify;
@@ -152,6 +153,10 @@ pub struct PreviewReport {
 /// # Returns
 /// * `Ok((before_hash, after_hash))` - SHA-256 hashes before/after patch
 /// * `Err(SpliceError)` - Validation failure with automatic rollback
+#[allow(
+    clippy::too_many_arguments,
+    reason = "patch primitive: byte span + content + validation config"
+)]
 pub fn apply_patch_with_validation(
     file_path: &Path,
     start: usize,
@@ -234,7 +239,7 @@ pub fn apply_patch_with_validation(
     }
 
     // Step 1: Read original file and compute hash
-    let replaced = std::fs::read(file_path)?;
+    let replaced = io_ext::read(file_path)?;
     let before_hash = compute_hash(&replaced);
 
     // Step 2: Validate span bounds
@@ -290,7 +295,7 @@ pub fn apply_patch_with_validation(
     }
 
     // Step 8: Compute after hash
-    let refreshed_bytes = std::fs::read(file_path)?;
+    let refreshed_bytes = io_ext::read(file_path)?;
     let after_hash = compute_hash(&refreshed_bytes);
 
     // Step 9: Run post-verification to confirm expected changes
@@ -442,7 +447,7 @@ pub fn preview_patch(
         true,  // skip: preview mode also doesn't need graph DB
     )?;
 
-    let preview_report = compute_preview_report(&file_path, start, end, new_content)?;
+    let preview_report = compute_preview_report(file_path, start, end, new_content)?;
 
     Ok((
         FilePatchSummary {
@@ -520,7 +525,7 @@ pub fn preview_patch_with_content(
     let preview_file = preview_workspace.path().join(relative);
 
     // Read original file content before patching
-    let before_content = std::fs::read_to_string(&preview_file)?;
+    let before_content = io_ext::read_to_string(&preview_file)?;
 
     let (before_hash, after_hash) = apply_patch_with_validation(
         &preview_file,
@@ -535,7 +540,7 @@ pub fn preview_patch_with_content(
     )?;
 
     // Read patched file content
-    let after_content = std::fs::read_to_string(&preview_file)?;
+    let after_content = io_ext::read_to_string(&preview_file)?;
 
     let preview_report = compute_preview_report(&file_path, start, end, new_content)?;
 
@@ -585,7 +590,7 @@ fn run_validation_gates(
 /// Validates that the patched file can be parsed as valid syntax
 /// for the given programming language.
 fn gate_tree_sitter_reparse(file_path: &Path, language: SymbolLanguage) -> Result<()> {
-    let source = std::fs::read(file_path)?;
+    let source = io_ext::read(file_path)?;
 
     let mut parser = tree_sitter::Parser::new();
     let tree_sitter_lang = get_tree_sitter_language(language);
@@ -774,19 +779,23 @@ fn gate_cargo_check(workspace_dir: &Path) -> Result<()> {
 
     // Spawn cargo check in a separate thread to allow timeout
     let workspace_path = workspace_dir.to_path_buf();
+    let thread_workspace = workspace_path.clone();
     let (tx, rx) = std::sync::mpsc::channel();
 
     thread::spawn(move || {
         let output = Command::new("cargo")
             .args(["check", "--color=never"])
-            .current_dir(&workspace_path)
+            .current_dir(&thread_workspace)
             .output();
         let _ = tx.send(output);
     });
 
     // Wait for completion with 120-second timeout (cargo check can take 50+ seconds on large projects)
     let output = match rx.recv_timeout(Duration::from_secs(120)) {
-        Ok(result) => result?,
+        Ok(result) => result.map_err(|source| SpliceError::Io {
+            path: workspace_path.clone(),
+            source,
+        })?,
         Err(_) => {
             return Err(SpliceError::Other(
                 "cargo check timed out after 120 seconds".to_string(),
@@ -851,7 +860,7 @@ fn compute_hash(bytes: &[u8]) -> String {
 /// This is a simple span replacement without validation gates.
 /// Prefer `apply_patch_with_validation` for all new code.
 pub fn replace_span(file_path: &Path, start: usize, end: usize, new_content: &str) -> Result<()> {
-    let replaced = std::fs::read_to_string(file_path)?;
+    let replaced = io_ext::read_to_string(file_path)?;
     let file_size = replaced.len();
 
     if start > end || end > file_size {
@@ -880,7 +889,7 @@ pub fn replace_span(file_path: &Path, start: usize, end: usize, new_content: &st
     rope.remove(start_char..end_char);
     rope.insert(start_char, new_content);
 
-    std::fs::write(file_path, rope.to_string())?;
+    io_ext::write(file_path, rope.to_string())?;
 
     Ok(())
 }
@@ -907,11 +916,9 @@ fn run_batch_validations(
 
     if requires_rust_validation {
         gate_cargo_check(workspace_dir)?;
-        if language == SymbolLanguage::Rust {
-            if analyzer_mode != AnalyzerMode::Off {
-                use crate::validate::gate_rust_analyzer;
-                gate_rust_analyzer(workspace_dir, analyzer_mode)?;
-            }
+        if language == SymbolLanguage::Rust && analyzer_mode != AnalyzerMode::Off {
+            use crate::validate::gate_rust_analyzer;
+            gate_rust_analyzer(workspace_dir, analyzer_mode)?;
         }
     }
 
@@ -980,7 +987,7 @@ fn apply_replacements(replaced: &[u8], replacements: &[SpanReplacement]) -> Resu
 }
 
 fn read_with_hash(path: &Path) -> Result<(Vec<u8>, String)> {
-    let data = std::fs::read(path)?;
+    let data = io_ext::read(path)?;
     let hash = compute_hash(&data);
     Ok((data, hash))
 }
@@ -988,21 +995,31 @@ fn read_with_hash(path: &Path) -> Result<(Vec<u8>, String)> {
 fn rollback_files(files: &[AppliedFile]) {
     for file in files.iter().rev() {
         if let Err(err) = write_atomic(&file.file, &file.replaced, "rollback") {
-            log::error!(
-                "Rollback failed for {}: {}",
-                file.file.display(),
-                err.to_string()
-            );
+            log::error!("Rollback failed for {}: {}", file.file.display(), err);
         }
     }
 }
 
 fn write_atomic(file_path: &Path, content: &[u8], suffix: &str) -> Result<()> {
     let temp_path = temp_path_for(file_path, suffix)?;
-    let mut temp_file = File::create(&temp_path)?;
-    temp_file.write_all(content)?;
-    temp_file.sync_all()?;
-    std::fs::rename(&temp_path, file_path)?;
+    let mut temp_file = File::create(&temp_path).map_err(|source| SpliceError::Io {
+        path: temp_path.clone(),
+        source,
+    })?;
+    temp_file
+        .write_all(content)
+        .map_err(|source| SpliceError::Io {
+            path: temp_path.clone(),
+            source,
+        })?;
+    temp_file.sync_all().map_err(|source| SpliceError::Io {
+        path: temp_path.clone(),
+        source,
+    })?;
+    std::fs::rename(&temp_path, file_path).map_err(|source| SpliceError::Io {
+        path: file_path.to_path_buf(),
+        source,
+    })?;
     Ok(())
 }
 
@@ -1036,7 +1053,10 @@ struct AppliedFile {
 ///
 /// Returns `Ok(TempDir)` which will be cleaned up when dropped.
 fn clone_workspace_for_preview(workspace_root: &Path) -> Result<TempDir> {
-    let preview_dir = TempDir::new()?;
+    let preview_dir = TempDir::new().map_err(|source| SpliceError::Io {
+        path: std::env::temp_dir(),
+        source,
+    })?;
     let preview_path = preview_dir.path();
 
     // First, copy the workspace itself
@@ -1150,7 +1170,7 @@ fn clone_workspace_for_preview(workspace_root: &Path) -> Result<TempDir> {
 /// e.g., `../llmgrep` from `llmgrep = { path = "../llmgrep" }`.
 fn extract_local_path_dependencies(workspace_root: &Path) -> Result<Vec<PathBuf>> {
     let cargo_toml_path = workspace_root.join("Cargo.toml");
-    let cargo_content = fs::read_to_string(&cargo_toml_path)?;
+    let cargo_content = io_ext::read_to_string(&cargo_toml_path)?;
 
     let mut local_deps = Vec::new();
     let mut seen_deps = std::collections::HashSet::new();
@@ -1216,24 +1236,44 @@ fn extract_local_path_dependencies(workspace_root: &Path) -> Result<Vec<PathBuf>
 }
 
 fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
-    fs::create_dir_all(dst)?;
+    fs::create_dir_all(dst).map_err(|source| SpliceError::Io {
+        path: dst.to_path_buf(),
+        source,
+    })?;
 
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
+    let read_dir = fs::read_dir(src).map_err(|source| SpliceError::Io {
+        path: src.to_path_buf(),
+        source,
+    })?;
+    for entry in read_dir {
+        let entry = entry.map_err(|source| SpliceError::Io {
+            path: src.to_path_buf(),
+            source,
+        })?;
         if should_skip_entry(&entry.file_name()) {
             continue;
         }
 
+        let entry_path = entry.path();
         let dest = dst.join(entry.file_name());
-        let file_type = entry.file_type()?;
+        let file_type = entry.file_type().map_err(|source| SpliceError::Io {
+            path: entry_path.clone(),
+            source,
+        })?;
 
         if file_type.is_dir() {
-            copy_dir_recursive(&entry.path(), &dest)?;
+            copy_dir_recursive(&entry_path, &dest)?;
         } else if file_type.is_file() {
             if let Some(parent) = dest.parent() {
-                fs::create_dir_all(parent)?;
+                fs::create_dir_all(parent).map_err(|source| SpliceError::Io {
+                    path: parent.to_path_buf(),
+                    source,
+                })?;
             }
-            fs::copy(entry.path(), &dest)?;
+            fs::copy(&entry_path, &dest).map_err(|source| SpliceError::Io {
+                path: entry_path.clone(),
+                source,
+            })?;
         }
     }
 
@@ -1247,6 +1287,20 @@ fn should_skip_entry(name: &OsStr) -> bool {
             | ".splice-backup"
             | "target"
             | "node_modules"
+            | "dist"
+            | "build"
+            | "__pycache__"
+            | ".venv"
+            | "venv"
+            | ".pytest_cache"
+            | ".mypy_cache"
+            | ".tox"
+            | ".next"
+            | ".nuxt"
+            | ".cache"
+            | ".gradle"
+            | ".idea"
+            | ".vscode"
             | ".splice_graph.db"
             | ".splice_graph.db-shm"
             | ".splice_graph.db-wal"
@@ -1279,7 +1333,7 @@ pub fn compute_preview_report(
     end: usize,
     new_content: &str,
 ) -> Result<PreviewReport> {
-    let replaced = fs::read(file_path)?;
+    let replaced = io_ext::read(file_path)?;
     let source = std::str::from_utf8(&replaced)?;
     let rope = Rope::from_str(source);
 
@@ -1293,7 +1347,7 @@ pub fn compute_preview_report(
     };
 
     let lines_removed = if end > start {
-        (&source[start..end]).lines().count()
+        source[start..end].lines().count()
     } else {
         0
     };
@@ -1304,7 +1358,7 @@ pub fn compute_preview_report(
     };
 
     let bytes_removed = end.saturating_sub(start);
-    let bytes_added = new_content.as_bytes().len();
+    let bytes_added = new_content.len();
 
     Ok(PreviewReport {
         file: file_path.to_string_lossy().into_owned(),
@@ -1322,13 +1376,13 @@ pub fn compute_preview_report(
 }
 
 /// Validate that a span aligns with UTF-8 boundaries.
-pub fn validate_utf8_span(source: &str, start: usize, end: usize) -> Result<()> {
+pub fn validate_utf8_span(file_path: &Path, source: &str, start: usize, end: usize) -> Result<()> {
     let file_size = source.len();
 
     // Validate that the span is within bounds
     if end > file_size || start > end {
         return Err(SpliceError::InvalidSpan {
-            file: std::path::PathBuf::from("<unknown>"),
+            file: file_path.to_path_buf(),
             start,
             end,
             file_size,
@@ -1483,5 +1537,68 @@ path = "lib.rs"
         // strict=true should treat warnings as errors
         // skip=true should bypass pre-verification
         let _ = (start, end);
+    }
+
+    #[test]
+    fn test_should_skip_entry_python_caches() {
+        // Bug B2: preview should not copy Python cache directories into the
+        // workspace clone — they're build artifacts and can be large or
+        // contain unusual paths that interfere with `cargo check`.
+        assert!(should_skip_entry(OsStr::new("__pycache__")));
+        assert!(should_skip_entry(OsStr::new(".venv")));
+        assert!(should_skip_entry(OsStr::new("venv")));
+        assert!(should_skip_entry(OsStr::new(".pytest_cache")));
+        assert!(should_skip_entry(OsStr::new(".mypy_cache")));
+        assert!(should_skip_entry(OsStr::new(".tox")));
+    }
+
+    #[test]
+    fn test_should_skip_entry_js_build_artifacts() {
+        // Bug B2: preview should not copy JS/TS build outputs and framework caches.
+        assert!(should_skip_entry(OsStr::new("dist")));
+        assert!(should_skip_entry(OsStr::new("build")));
+        assert!(should_skip_entry(OsStr::new(".next")));
+        assert!(should_skip_entry(OsStr::new(".nuxt")));
+        assert!(should_skip_entry(OsStr::new(".cache")));
+    }
+
+    #[test]
+    fn test_should_skip_entry_java_and_ide() {
+        // Bug B2: preview should not copy Java/Gradle caches or IDE config.
+        assert!(should_skip_entry(OsStr::new(".gradle")));
+        assert!(should_skip_entry(OsStr::new(".idea")));
+        assert!(should_skip_entry(OsStr::new(".vscode")));
+    }
+
+    #[test]
+    fn test_should_skip_entry_preserves_source_dirs() {
+        // Regression: legitimate source directories must NOT be skipped.
+        assert!(!should_skip_entry(OsStr::new("src")));
+        assert!(!should_skip_entry(OsStr::new("tests")));
+        assert!(!should_skip_entry(OsStr::new("examples")));
+        assert!(!should_skip_entry(OsStr::new("benches")));
+        assert!(!should_skip_entry(OsStr::new("Cargo.toml")));
+        assert!(!should_skip_entry(OsStr::new("lib.rs")));
+    }
+
+    /// Bug B5: `validate_utf8_span` previously hard-coded the literal
+    /// `<unknown>` for the file path in `SpliceError::InvalidSpan`. The
+    /// error must surface the real file path passed by the caller.
+    #[test]
+    fn validate_utf8_span_invalid_bounds_reports_real_path() {
+        let path = Path::new("/some/real/file/path.rs");
+        let err = validate_utf8_span(path, "abc", 0, 100)
+            .expect_err("out-of-bounds span should be an error");
+        let msg = err.to_string();
+        assert!(
+            !msg.contains("<unknown>"),
+            "error must not contain <unknown> placeholder; got: {}",
+            msg
+        );
+        assert!(
+            msg.contains("/some/real/file/path.rs"),
+            "error must mention the real file path; got: {}",
+            msg
+        );
     }
 }

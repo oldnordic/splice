@@ -427,12 +427,12 @@ fn find_symbol_spans(source: &str, symbol_name: &str) -> Vec<(usize, usize)> {
             || !source
                 .chars()
                 .nth(abs_pos - 1)
-                .map_or(false, |c| c.is_alphanumeric() || c == '_');
+                .is_some_and(|c| c.is_alphanumeric() || c == '_');
         let after_ok = abs_pos + symbol_name.len() >= source.len()
             || !source
                 .chars()
                 .nth(abs_pos + symbol_name.len())
-                .map_or(false, |c| c.is_alphanumeric() || c == '_');
+                .is_some_and(|c| c.is_alphanumeric() || c == '_');
 
         if before_ok && after_ok {
             spans.push((abs_pos, abs_pos + symbol_name.len()));
@@ -442,7 +442,7 @@ fn find_symbol_spans(source: &str, symbol_name: &str) -> Vec<(usize, usize)> {
     }
 
     // Sort by byte_start descending for safe replacement
-    spans.sort_by(|a, b| b.0.cmp(&a.0));
+    spans.sort_by_key(|b| std::cmp::Reverse(b.0));
     spans
 }
 

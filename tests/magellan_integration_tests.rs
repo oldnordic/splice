@@ -8,9 +8,7 @@
 
 #![cfg(feature = "sqlite")]
 
-use splice::graph::magellan_integration::{
-    CodeChunk, MagellanIntegration, SymbolInfo, SymbolWithRelations,
-};
+use splice::graph::magellan_integration::MagellanIntegration;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
@@ -336,20 +334,6 @@ fn create_multilang_workspace(dir: &Path) -> Vec<PathBuf> {
 /// Count symbols by label in the database.
 fn count_symbols_by_label(db: &MagellanIntegration, label: &str) -> usize {
     db.count_by_label(label).unwrap_or(0)
-}
-
-/// Verify that a code chunk matches expected content.
-fn verify_code_chunk(
-    db: &MagellanIntegration,
-    file: &Path,
-    start: usize,
-    end: usize,
-    expected_substring: &str,
-) -> bool {
-    match db.get_code_chunk(file, start, end) {
-        Ok(Some(chunk)) => chunk.content.contains(expected_substring),
-        _ => false,
-    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -808,7 +792,7 @@ fn test_get_all_labels() {
         "javascript",
         "typescript",
     ];
-    for lang_label in expected_lang_labels {
+    for _lang_label in expected_lang_labels {
         // Note: Magellan may use slightly different label names
         // Just verify we have some labels
         assert!(!labels.is_empty(), "Should have labels");

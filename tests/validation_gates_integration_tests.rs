@@ -7,7 +7,7 @@
 //! - Checksum verification
 
 use splice::syntax_validator::validate_syntax;
-use splice::verify::{verify_after_patch, PostVerificationResult};
+use splice::verify::verify_after_patch;
 use std::fs::{self, File};
 use std::io::Write;
 use tempfile::TempDir;

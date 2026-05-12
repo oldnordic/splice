@@ -151,12 +151,10 @@ pub fn derive_tool_hints(
 
     // Determine may_break_tests using static heuristic
     // True for: public functions, trait signatures, impl blocks
-    let may_break_tests = match (semantic_kind, is_public) {
-        (SemanticKind::Function, true) => true,
-        (SemanticKind::Trait, true) => true,
-        (SemanticKind::Type, true) => true,
-        _ => false,
-    };
+    let may_break_tests = matches!(
+        (semantic_kind, is_public),
+        (SemanticKind::Function, true) | (SemanticKind::Trait, true) | (SemanticKind::Type, true)
+    );
 
     // Determine requires_compilation
     // True for: type-changing operations, public signature changes
@@ -182,10 +180,10 @@ mod tests {
     #[test]
     fn test_tool_hints_default() {
         let hints = ToolHints::default();
-        assert_eq!(hints.requires_full_context, false);
-        assert_eq!(hints.apply_atomically, true);
-        assert_eq!(hints.may_break_tests, false);
-        assert_eq!(hints.requires_compilation, false);
+        assert!(!hints.requires_full_context);
+        assert!(hints.apply_atomically);
+        assert!(!hints.may_break_tests);
+        assert!(!hints.requires_compilation);
     }
 
     #[test]
@@ -195,10 +193,10 @@ mod tests {
             .with_may_break_tests(true)
             .with_requires_compilation(true);
 
-        assert_eq!(hints.requires_full_context, true);
-        assert_eq!(hints.apply_atomically, true); // Always true
-        assert_eq!(hints.may_break_tests, true);
-        assert_eq!(hints.requires_compilation, true);
+        assert!(hints.requires_full_context);
+        assert!(hints.apply_atomically); // Always true
+        assert!(hints.may_break_tests);
+        assert!(hints.requires_compilation);
     }
 
     #[test]
@@ -216,33 +214,33 @@ mod tests {
     #[test]
     fn test_for_function_delete() {
         let hints = ToolHints::for_function_delete(true);
-        assert_eq!(hints.requires_full_context, false);
-        assert_eq!(hints.apply_atomically, true);
-        assert_eq!(hints.may_break_tests, true); // public function
-        assert_eq!(hints.requires_compilation, true);
+        assert!(!hints.requires_full_context);
+        assert!(hints.apply_atomically);
+        assert!(hints.may_break_tests); // public function
+        assert!(hints.requires_compilation);
 
         let hints_private = ToolHints::for_function_delete(false);
-        assert_eq!(hints_private.may_break_tests, false); // private function
+        assert!(!hints_private.may_break_tests); // private function
     }
 
     #[test]
     fn test_for_struct_modify() {
         let hints = ToolHints::for_struct_modify(true);
-        assert_eq!(hints.requires_full_context, false);
-        assert_eq!(hints.apply_atomically, true);
-        assert_eq!(hints.may_break_tests, true); // public struct
-        assert_eq!(hints.requires_compilation, true);
+        assert!(!hints.requires_full_context);
+        assert!(hints.apply_atomically);
+        assert!(hints.may_break_tests); // public struct
+        assert!(hints.requires_compilation);
 
         let hints_private = ToolHints::for_struct_modify(false);
-        assert_eq!(hints_private.may_break_tests, false); // private struct
+        assert!(!hints_private.may_break_tests); // private struct
     }
 
     #[test]
     fn test_for_body_replace() {
         let hints = ToolHints::for_body_replace();
-        assert_eq!(hints.requires_full_context, false);
-        assert_eq!(hints.apply_atomically, true);
-        assert_eq!(hints.may_break_tests, false); // body changes don't break tests
-        assert_eq!(hints.requires_compilation, false); // no signature/type change
+        assert!(!hints.requires_full_context);
+        assert!(hints.apply_atomically);
+        assert!(!hints.may_break_tests); // body changes don't break tests
+        assert!(!hints.requires_compilation); // no signature/type change
     }
 }

@@ -5,10 +5,6 @@
 //! - CLI layer ↔ Splice library
 //! - End-to-end workflows with GeometricDB
 
-use splice::graph::BackendType;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-
 /// Test that Splice can detect GeometricDB format across component boundary
 ///
 /// Layer 3: Cross-component integration between graph::CodeGraph and actual file system
@@ -106,7 +102,7 @@ fn test_component_backend_api_stability() {
     let sqlite = BackendType::SQLite;
 
     // Layer 3b: Clone trait works
-    let _sqlite_clone = sqlite.clone();
+    let _sqlite_clone = sqlite;
 
     // Layer 3c: Copy trait works (implied by Clone for simple enums)
     let _sqlite_copy: BackendType = sqlite;

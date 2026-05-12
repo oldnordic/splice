@@ -177,6 +177,7 @@ fn test_symbol_id_components_v2() {
 fn test_symbol_id_unicode_v1() {
     // Test with Unicode symbol names (verify UTF-8 handling)
     let unicode_names = vec!["café", "函数", "функция", "関数", "الأمر", "test_emoji_🦀"];
+    let hex_regex = Regex::new(r"^[0-9a-f]{16}$").unwrap();
 
     for name in unicode_names {
         let id = generate_v1(name, "src/test.rs", 0);
@@ -190,7 +191,6 @@ fn test_symbol_id_unicode_v1() {
             name
         );
 
-        let hex_regex = Regex::new(r"^[0-9a-f]{16}$").unwrap();
         assert!(
             hex_regex.is_match(id_str),
             "Unicode name '{}' should produce valid V1 hex ID",
@@ -203,6 +203,7 @@ fn test_symbol_id_unicode_v1() {
 fn test_symbol_id_unicode_v2() {
     // Test with Unicode symbol names (verify UTF-8 handling)
     let unicode_names = vec!["café", "函数", "функция", "関数", "الأمر", "test_emoji_🦀"];
+    let hex_regex = Regex::new(r"^[0-9a-f]{32}$").unwrap();
 
     for name in unicode_names {
         let id = generate_v2(name, "src/test.rs", 0);
@@ -216,7 +217,6 @@ fn test_symbol_id_unicode_v2() {
             name
         );
 
-        let hex_regex = Regex::new(r"^[0-9a-f]{32}$").unwrap();
         assert!(
             hex_regex.is_match(id_str),
             "Unicode name '{}' should produce valid V2 hex ID",
@@ -400,11 +400,7 @@ fn test_execution_id_timestamp_valid() {
         .unwrap_or(0);
 
     // Timestamp should be within reasonable range (last 60 seconds, or within 60 seconds in future due to clock skew)
-    let time_diff = if now > timestamp {
-        now - timestamp
-    } else {
-        timestamp - now
-    };
+    let time_diff = now.abs_diff(timestamp);
     assert!(
         time_diff < 60,
         "Timestamp should be within 60 seconds of current time. Got: {}, now: {}, diff: {}",

@@ -169,7 +169,7 @@ pub struct TestStruct {
     );
 
     let symbols = result.unwrap();
-    assert!(symbols.len() > 0, "Should retrieve at least one symbol");
+    assert!(!symbols.is_empty(), "Should retrieve at least one symbol");
 
     println!("Retrieved {} symbols by labels", symbols.len());
 

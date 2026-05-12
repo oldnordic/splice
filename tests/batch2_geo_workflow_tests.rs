@@ -7,8 +7,6 @@
 //! 4. Detect dead symbols on .geo
 //! 5. Still work with SQLite backend for Batch 2 methods
 
-use std::path::Path;
-
 /// Test 1: Can compute reachable symbols on .geo
 #[test]
 #[cfg(feature = "geometric")]
@@ -189,7 +187,6 @@ fn splice_can_detect_dead_symbols_on_geo() {
 /// Test 5: SQLite backend still works for Batch 2 methods
 #[test]
 fn splice_sqlite_backend_still_works_for_batch2() {
-    use std::io::Write;
     use tempfile::NamedTempFile;
 
     let temp_file = NamedTempFile::with_suffix(".db").unwrap();

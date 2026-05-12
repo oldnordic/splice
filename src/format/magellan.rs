@@ -65,6 +65,10 @@ pub struct MagellanSpan {
 
 impl MagellanSpan {
     /// Create a new MagellanSpan from individual fields.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "span metadata: byte/line/col offsets"
+    )]
     pub fn new(
         span_id: String,
         file_path: String,

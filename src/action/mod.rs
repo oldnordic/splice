@@ -143,9 +143,7 @@ fn generate_reason(
                 symbol_name
             )
         }
-        ActionType::Query => {
-            format!("Query for symbols matching specified labels")
-        }
+        ActionType::Query => "Query for symbols matching specified labels".to_string(),
         ActionType::Read => {
             format!(
                 "Read symbol '{}' ({}) at {}",

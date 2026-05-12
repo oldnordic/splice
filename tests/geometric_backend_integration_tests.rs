@@ -5,8 +5,6 @@
 //! - MagellanIntegration (graph::magellan_integration::MagellanIntegration)
 //! - CLI commands that use backend detection
 
-use std::path::PathBuf;
-
 /// Test that backend detection integrates correctly with MagellanIntegration.open()
 ///
 /// Layer 2: When a .geo file exists, the integration should handle it appropriately
@@ -59,7 +57,6 @@ fn test_geometric_backend_integration_with_magellan() {
 #[cfg(not(feature = "geometric"))]
 fn test_geometric_backend_disabled_integration() {
     use splice::graph::CodeGraph;
-    use std::path::Path;
 
     let temp_dir = std::env::temp_dir();
     let geo_path = temp_dir.join(format!("test_disabled_{}.geo", uuid::Uuid::new_v4()));
@@ -165,7 +162,6 @@ fn test_backend_display_integration() {
 #[test]
 fn test_backend_detection_cli_integration() {
     use splice::graph::CodeGraph;
-    use std::path::Path;
 
     let temp_dir = std::env::temp_dir();
 

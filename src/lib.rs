@@ -25,6 +25,7 @@ pub mod format;
 pub mod graph;
 pub mod hints;
 pub mod ingest;
+pub(crate) mod io_ext;
 pub mod output;
 pub mod patch;
 pub mod plan;

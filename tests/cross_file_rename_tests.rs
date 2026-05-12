@@ -13,10 +13,9 @@
 use magellan::references::ReferenceFact;
 use splice::graph::rename::{
     apply_replacements_in_file, create_rename_backup, generate_colored_preview,
-    generate_preview_diff, group_references_by_file, simulate_replacements,
-    simulate_replacements_content, RenameBackupManifest, RenameTransaction,
+    generate_preview_diff, group_references_by_file, simulate_replacements_content,
+    RenameBackupManifest, RenameTransaction,
 };
-use splice::graph::MagellanIntegration;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -70,12 +69,12 @@ mod test_helpers {
                 || !source
                     .chars()
                     .nth(abs_pos - 1)
-                    .map_or(false, |c| c.is_alphanumeric() || c == '_');
+                    .is_some_and(|c| c.is_alphanumeric() || c == '_');
             let after_ok = abs_pos + symbol_name.len() >= source.len()
                 || !source
                     .chars()
                     .nth(abs_pos + symbol_name.len())
-                    .map_or(false, |c| c.is_alphanumeric() || c == '_');
+                    .is_some_and(|c| c.is_alphanumeric() || c == '_');
 
             if before_ok && after_ok {
                 spans.push((abs_pos, abs_pos + symbol_name.len()));
@@ -85,7 +84,7 @@ mod test_helpers {
         }
 
         // Sort by byte_start descending for safe replacement
-        spans.sort_by(|a, b| b.0.cmp(&a.0));
+        spans.sort_by_key(|b| std::cmp::Reverse(b.0));
         spans
     }
 
@@ -434,15 +433,6 @@ export function processData(): void {
 
         temp_dir
     }
-
-    /// Run splice ingest on a test project (placeholder for real implementation)
-    ///
-    /// In production, this would call the splice ingest command to populate
-    /// the Magellan database. For tests, we use manual span detection.
-    pub fn ingest_project(_project_path: &PathBuf) {
-        // Placeholder: would run splice ingest command
-        // In tests, we use find_symbol_spans() instead
-    }
 }
 
 // ============================================================================
@@ -471,7 +461,7 @@ fn test_rename_rust_cross_file() {
     // lib.rs: "utils::helper_function()" - the word boundary check finds the whole thing as one word
     // because "helper_function" is treated as a single identifier
     assert!(
-        lib_spans.len() >= 1,
+        !lib_spans.is_empty(),
         "Should find at least 1 occurrence in lib.rs"
     );
     assert_eq!(

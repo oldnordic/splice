@@ -120,7 +120,7 @@ fn find_pattern_in_file(
     })?;
 
     // Get parser for the language
-    let mut parser = parser_for_language(language)?;
+    let mut parser = parser_for_language(file_path, language)?;
 
     let tree = parser
         .parse(&content, None)
@@ -135,7 +135,7 @@ fn find_pattern_in_file(
         let abs_end = abs_start + pattern.len();
 
         // Check if this location is in a valid AST node
-        let byte_offset = abs_start as usize;
+        let byte_offset = abs_start;
         let node = tree
             .root_node()
             .descendant_for_byte_range(byte_offset, byte_offset);
@@ -219,7 +219,7 @@ pub fn apply_pattern_replace(
     let mut replacements_count = 0;
 
     // First pass: create backups of all files to be modified
-    for (file_path, _) in &matches_by_file {
+    for file_path in matches_by_file.keys() {
         let replaced = std::fs::read_to_string(file_path).map_err(|e| SpliceError::Io {
             path: file_path.clone(),
             source: e,
@@ -258,13 +258,13 @@ pub fn apply_pattern_replace(
                 let mut temp =
                     tempfile::NamedTempFile::new_in(parent_dir).map_err(|e| SpliceError::Io {
                         path: file_path.clone(),
-                        source: e.into(),
+                        source: e,
                     })?;
 
                 temp.write_all(content.as_bytes())
                     .map_err(|e| SpliceError::Io {
                         path: file_path.clone(),
-                        source: e.into(),
+                        source: e,
                     })?;
 
                 // Persist atomically (replaces original file)

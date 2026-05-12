@@ -186,7 +186,7 @@ pub fn get_callers(
     graph: &CodeGraph,
     symbol_node_id: NodeId,
     cache: &mut RelationshipCache,
-) -> Result<Vec<Relationship>, Relationships> {
+) -> Result<Vec<Relationship>, Box<Relationships>> {
     const CALLER_THRESHOLD: usize = 100;
 
     // Check cache first
@@ -261,7 +261,7 @@ pub fn get_callees(
     graph: &CodeGraph,
     symbol_node_id: NodeId,
     cache: &mut RelationshipCache,
-) -> Result<Vec<Relationship>, Relationships> {
+) -> Result<Vec<Relationship>, Box<Relationships>> {
     const CALLEE_THRESHOLD: usize = 100;
 
     // Check cache first
@@ -326,7 +326,7 @@ fn fetch_neighbor_ids(
     symbol_node_id: NodeId,
     direction: BackendDirection,
     edge_types: &[&str],
-) -> Result<Vec<i64>, Relationships> {
+) -> Result<Vec<i64>, Box<Relationships>> {
     let mut ids = Vec::new();
     for edge_type in edge_types {
         // Use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
@@ -355,7 +355,7 @@ fn relationship_from_call_node(
     graph: &CodeGraph,
     call_node_id: i64,
     rel_type: &str,
-) -> Result<Option<Relationship>, Relationships> {
+) -> Result<Option<Relationship>, Box<Relationships>> {
     // Use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
     let backend = match graph.inner() {
         Ok(b) => b,
@@ -396,7 +396,7 @@ fn relationship_from_symbol_node(
     graph: &CodeGraph,
     symbol_node_id: i64,
     rel_type: &str,
-) -> Result<Option<Relationship>, Relationships> {
+) -> Result<Option<Relationship>, Box<Relationships>> {
     // Use SnapshotId(0) for latest state (sqlitegraph v1.2.7+ API)
     let backend = match graph.inner() {
         Ok(b) => b,
@@ -470,7 +470,7 @@ pub fn get_imports(
     _graph: &CodeGraph,
     file_path: &Path,
     cache: &mut RelationshipCache,
-) -> Result<Vec<Relationship>, Relationships> {
+) -> Result<Vec<Relationship>, Box<Relationships>> {
     use crate::ingest::detect::{detect_language, Language};
     use crate::ingest::imports::ImportFact;
     use std::fs;
@@ -483,7 +483,7 @@ pub fn get_imports(
 
     // Check file exists
     if !file_path.exists() {
-        return Err(Relationships::error("FILE_NOT_FOUND"));
+        return Err(Box::new(Relationships::error("FILE_NOT_FOUND")));
     }
 
     // Detect language from extension
@@ -599,7 +599,7 @@ pub fn get_exports(
     _graph: &CodeGraph,
     _file_path: &Path,
     cache: &mut RelationshipCache,
-) -> Result<Vec<Relationship>, Relationships> {
+) -> Result<Vec<Relationship>, Box<Relationships>> {
     // Check cache first
     let cache_key = format!("export:{}", _file_path.display());
     if let Some(cached) = cache.get(&cache_key) {

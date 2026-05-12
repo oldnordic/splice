@@ -86,7 +86,7 @@ impl CodeGraph {
 
     /// Check if a path is a geometric database.
     pub fn is_geometric_db(path: &Path) -> bool {
-        path.extension().map_or(false, |ext| ext == "geo")
+        path.extension().is_some_and(|ext| ext == "geo")
     }
 
     /// Detect backend type without opening.
@@ -101,9 +101,15 @@ impl CodeGraph {
         // Check file header for SQLite
         if path.exists() {
             use std::io::Read;
-            let mut file = std::fs::File::open(path)?;
+            let mut file = std::fs::File::open(path).map_err(|source| SpliceError::Io {
+                path: path.to_path_buf(),
+                source,
+            })?;
             let mut header = [0u8; 16];
-            let bytes_read = file.read(&mut header)?;
+            let bytes_read = file.read(&mut header).map_err(|source| SpliceError::Io {
+                path: path.to_path_buf(),
+                source,
+            })?;
             if bytes_read >= 16 && header.starts_with(b"SQLite format 3\0") {
                 return Ok(BackendType::SQLite);
             }
@@ -198,6 +204,10 @@ impl CodeGraph {
     }
 
     /// Store a symbol with file context and language.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "symbol metadata: byte/line/col spans for each axis"
+    )]
     pub fn store_symbol_with_file_and_language(
         &mut self,
         file_path: &Path,

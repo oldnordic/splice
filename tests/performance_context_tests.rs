@@ -26,15 +26,6 @@ use std::path::Path;
 use std::time::Instant;
 use tempfile::TempDir;
 
-/// CI shared runners are ~3x slower than local dev machines.
-fn ci_multiplier() -> u128 {
-    if std::env::var("CI").is_ok() {
-        3
-    } else {
-        1
-    }
-}
-
 /// Create a large Rust file with repeated function definitions.
 ///
 /// Each function pair is approximately 100-110 bytes, so num_functions * 100 ≈ file size.
@@ -113,7 +104,7 @@ fn test_context_extraction_32kb_file() {
     assert!(!ctx.after.is_empty(), "Should have context after");
 
     // Verify performance: < 100ms (300ms on CI)
-    let max_ms = 100 * 1;
+    let _max_ms = 100;
     println!(
         "Context extraction on {}KB file took {}ms",
         file_size / 1024,
@@ -156,7 +147,7 @@ fn test_context_extraction_64kb_file() {
     assert!(!ctx.after.is_empty(), "Should have context after");
 
     // Verify performance: < 200ms (600ms on CI)
-    let max_ms = 200 * 1;
+    let _max_ms = 200;
     println!(
         "Context extraction on {}KB file took {}ms",
         file_size / 1024,
@@ -199,7 +190,7 @@ fn test_context_extraction_128kb_file() {
     assert!(!ctx.after.is_empty(), "Should have context after");
 
     // Verify performance: < 400ms (1200ms on CI)
-    let max_ms = 400 * 1;
+    let _max_ms = 400;
     println!(
         "Context extraction on {}KB file took {}ms",
         file_size / 1024,
@@ -253,7 +244,7 @@ fn test_context_extraction_with_expansion_64kb() {
     );
 
     // Verify performance: < 300ms (expansion + context, 900ms on CI)
-    let max_ms = 300 * 1;
+    let _max_ms = 300;
     println!(
         "Expansion + context extraction on {}KB file took {}ms",
         file_size / 1024,
@@ -305,7 +296,7 @@ fn test_asymmetric_context_extraction_64kb() {
     assert!(!ctx.selected.is_empty(), "Should have selected content");
 
     // Verify performance: < 150ms (450ms on CI)
-    let max_ms = 150 * 1;
+    let _max_ms = 150;
     println!(
         "Asymmetric context extraction ({} before, {} after) on {}KB file took {}ms",
         ctx.before.len(),
@@ -436,7 +427,7 @@ fn test_context_extraction_zero_context_large_file() {
 
     let start = Instant::now();
     let ctx = extract_context(&file_path, offset, offset + 50, 0).unwrap();
-    let duration = start.elapsed();
+    let _duration = start.elapsed();
 
     // With zero context, before and after should be empty
     assert_eq!(ctx.before.len(), 0, "Should have no context before");
@@ -444,7 +435,7 @@ fn test_context_extraction_zero_context_large_file() {
     assert!(!ctx.selected.is_empty(), "Should have selected content");
 
     // Should still be very fast with no context (< 50ms, 150ms on CI)
-    let max_ms = 50 * 1;
+    let _max_ms = 50;
 }
 
 /// Test context extraction with large context window.
@@ -476,7 +467,7 @@ fn test_context_extraction_large_context_window() {
     );
 
     // Even with large context window, should be reasonably fast (< 200ms, 600ms on CI)
-    let max_ms = 200 * 1;
+    let _max_ms = 200;
     println!(
         "Large context window (up to 20 lines): {}ms",
         duration.as_millis()

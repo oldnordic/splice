@@ -214,7 +214,7 @@ impl SnapshotStorage {
         }
 
         // Sort by timestamp (newest first)
-        snapshots.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        snapshots.sort_by_key(|b| std::cmp::Reverse(b.timestamp));
 
         Ok(snapshots)
     }
@@ -255,7 +255,7 @@ impl SnapshotStorage {
         }
 
         // Sort by timestamp descending (newest first) to keep the most recent
-        snapshots.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        snapshots.sort_by_key(|b| std::cmp::Reverse(b.timestamp));
 
         // Delete snapshots beyond keep_count
         for snapshot in snapshots.into_iter().skip(keep_count) {

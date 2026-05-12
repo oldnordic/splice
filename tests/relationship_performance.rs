@@ -26,15 +26,6 @@ use std::path::Path;
 use std::time::Instant;
 use tempfile::TempDir;
 
-/// CI shared runners are ~3x slower than local dev machines.
-fn ci_multiplier() -> u128 {
-    if std::env::var("CI").is_ok() {
-        3
-    } else {
-        1
-    }
-}
-
 /// Helper to create a test code graph with a specified number of symbols.
 ///
 /// Generates function definitions with call relationships and imports/exports.
@@ -42,7 +33,6 @@ fn ci_multiplier() -> u128 {
 struct TestGraphBuilder {
     graph: CodeGraph,
     temp_dir: TempDir,
-    symbols_per_file: usize,
 }
 
 impl TestGraphBuilder {
@@ -52,16 +42,7 @@ impl TestGraphBuilder {
         let db_path = temp_dir.path().join("test_graph.db");
         let graph = CodeGraph::open(&db_path).expect("Failed to open graph");
 
-        Ok(Self {
-            graph,
-            temp_dir,
-            symbols_per_file: 10,
-        })
-    }
-
-    /// Get mutable reference to the graph.
-    fn graph_mut(&mut self) -> &mut CodeGraph {
-        &mut self.graph
+        Ok(Self { graph, temp_dir })
     }
 
     /// Get reference to the graph.
@@ -305,22 +286,19 @@ mod tests {
     #[test]
     fn test_small_graph_creation() {
         let (_graph, _temp_dir) = small_graph();
-        // Graph created successfully
-        assert!(true, "Small graph created without errors");
+        // Graph created successfully (no panic from setup).
     }
 
     #[test]
     fn test_medium_graph_creation() {
         let (_graph, _temp_dir) = medium_graph();
-        // Graph created successfully
-        assert!(true, "Medium graph created without errors");
+        // Graph created successfully (no panic from setup).
     }
 
     #[test]
     fn test_large_graph_creation() {
         let (_graph, _temp_dir) = large_graph();
-        // Graph created successfully
-        assert!(true, "Large graph created without errors");
+        // Graph created successfully (no panic from setup).
     }
 
     #[test]
@@ -404,7 +382,7 @@ mod tests {
 
         let result = get_callers(&graph, node_id, &mut cache);
 
-        let duration = start.elapsed();
+        let _duration = start.elapsed();
 
         // Query should succeed (even if empty - CALLS edges not implemented yet)
         assert!(result.is_ok(), "get_callers failed: {:?}", result.err());
@@ -430,7 +408,7 @@ mod tests {
 
         let result = get_callers(&graph, node_id, &mut cache);
 
-        let duration = start.elapsed();
+        let _duration = start.elapsed();
 
         // Query should succeed
         assert!(result.is_ok(), "get_callers failed: {:?}", result.err());
@@ -456,7 +434,7 @@ mod tests {
 
         let result = get_callees(&graph, node_id, &mut cache);
 
-        let duration = start.elapsed();
+        let _duration = start.elapsed();
 
         // Query should succeed
         assert!(result.is_ok(), "get_callees failed: {:?}", result.err());
@@ -499,7 +477,7 @@ mod tests {
         let result_imports = get_imports(&graph, &file_path, &mut cache);
         let result_exports = get_exports(&graph, &file_path, &mut cache);
 
-        let duration = start.elapsed();
+        let _duration = start.elapsed();
 
         // Queries should succeed
         assert!(
@@ -639,7 +617,7 @@ mod tests {
 
         let result = get_callers(builder.graph(), first_node, &mut cache);
 
-        let duration = start.elapsed();
+        let _duration = start.elapsed();
 
         // Should succeed without stack overflow
         assert!(result.is_ok(), "get_callers should succeed on deep chain");

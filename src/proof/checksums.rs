@@ -4,7 +4,7 @@
 //! to ensure audit trail integrity. Each proof includes checksums for:
 //! - Before snapshot hash
 //! - After snapshot hash
-//! Overall proof hash (for tamper detection)
+//! - Overall proof hash (for tamper detection)
 
 use crate::error::{Result, SpliceError};
 use crate::proof::data_structures::{GraphSnapshot, ProofChecksums, RefactoringProof};

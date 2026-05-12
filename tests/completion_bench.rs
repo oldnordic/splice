@@ -22,6 +22,10 @@ fn benchmark_completion_performance() {
     }
 
     // Open Magellan database
+    #[allow(
+        clippy::arc_with_non_send_sync,
+        reason = "single-threaded shared ownership for completion engine"
+    )]
     let magellan = match MagellanIntegration::open(&db_path) {
         Ok(m) => Arc::new(m),
         Err(e) => {
