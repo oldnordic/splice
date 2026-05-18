@@ -5,6 +5,12 @@ Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.6.10] - 2026-05-18
+
+### Changed
+- Updated Magellan dependency to `3.3.9` (sqlitegraph 3.0.1).
+- Updated sqlitegraph dependency to `3.0.1`.
+
 ## [2.6.9] - 2026-05-12
 
 ### Fixed
