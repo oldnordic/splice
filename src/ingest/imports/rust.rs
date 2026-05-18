@@ -24,7 +24,7 @@ pub fn extract_rust_imports(path: &Path, source: &[u8]) -> Result<Vec<super::Imp
     // Create tree-sitter parser for Rust
     let mut parser = tree_sitter::Parser::new();
     parser
-        .set_language(&tree_sitter_rust::language())
+        .set_language(&tree_sitter_rust::LANGUAGE.into())
         .map_err(|e| SpliceError::Parse {
             file: path.to_path_buf(),
             message: format!("Failed to set Rust language: {:?}", e),

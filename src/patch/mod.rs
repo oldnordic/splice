@@ -626,13 +626,13 @@ fn gate_tree_sitter_reparse(file_path: &Path, language: SymbolLanguage) -> Resul
 /// Get the appropriate tree-sitter language for the given SymbolLanguage.
 fn get_tree_sitter_language(language: SymbolLanguage) -> tree_sitter::Language {
     match language {
-        SymbolLanguage::Rust => tree_sitter_rust::language(),
-        SymbolLanguage::Python => tree_sitter_python::language(),
-        SymbolLanguage::C => tree_sitter_c::language(),
-        SymbolLanguage::Cpp => tree_sitter_cpp::language(),
-        SymbolLanguage::Java => tree_sitter_java::language(),
-        SymbolLanguage::JavaScript => tree_sitter_javascript::language(),
-        SymbolLanguage::TypeScript => tree_sitter_typescript::language_typescript(),
+        SymbolLanguage::Rust => tree_sitter_rust::LANGUAGE.into(),
+        SymbolLanguage::Python => tree_sitter_python::LANGUAGE.into(),
+        SymbolLanguage::C => tree_sitter_c::LANGUAGE.into(),
+        SymbolLanguage::Cpp => tree_sitter_cpp::LANGUAGE.into(),
+        SymbolLanguage::Java => tree_sitter_java::LANGUAGE.into(),
+        SymbolLanguage::JavaScript => tree_sitter_javascript::LANGUAGE.into(),
+        SymbolLanguage::TypeScript => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
     }
 }
 

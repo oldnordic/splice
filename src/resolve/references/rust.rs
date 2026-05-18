@@ -157,7 +157,7 @@ fn build_scope_map(source: &[u8]) -> Result<ScopeMap> {
     let mut scope_map = ScopeMap::new();
     let mut parser = tree_sitter::Parser::new();
     parser
-        .set_language(&tree_sitter_rust::language())
+        .set_language(&tree_sitter_rust::LANGUAGE.into())
         .map_err(|e| SpliceError::Parse {
             file: PathBuf::from("<source>"),
             message: format!("Failed to set Rust language: {:?}", e),
@@ -398,7 +398,7 @@ fn find_same_file_references(
     // Parse the file
     let mut parser = tree_sitter::Parser::new();
     parser
-        .set_language(&tree_sitter_rust::language())
+        .set_language(&tree_sitter_rust::LANGUAGE.into())
         .map_err(|e| SpliceError::Parse {
             file: file_path.to_path_buf(),
             message: format!("Failed to set Rust language: {:?}", e),
@@ -896,7 +896,7 @@ fn find_references_in_file(
     // Parse the file
     let mut parser = tree_sitter::Parser::new();
     parser
-        .set_language(&tree_sitter_rust::language())
+        .set_language(&tree_sitter_rust::LANGUAGE.into())
         .map_err(|e| SpliceError::Parse {
             file: file_path.to_path_buf(),
             message: format!("Failed to set Rust language: {:?}", e),

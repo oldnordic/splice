@@ -117,14 +117,14 @@ pub fn extract_typescript_symbols(path: &Path, source: &[u8]) -> Result<Vec<Type
 
     if is_tsx {
         parser
-            .set_language(&tree_sitter_typescript::language_tsx())
+            .set_language(&tree_sitter_typescript::LANGUAGE_TSX.into())
             .map_err(|e| SpliceError::Parse {
                 file: path.to_path_buf(),
                 message: format!("Failed to set TSX language: {:?}", e),
             })?;
     } else {
         parser
-            .set_language(&tree_sitter_typescript::language_typescript())
+            .set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())
             .map_err(|e| SpliceError::Parse {
                 file: path.to_path_buf(),
                 message: format!("Failed to set TypeScript language: {:?}", e),

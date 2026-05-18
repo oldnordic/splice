@@ -67,14 +67,14 @@ fn detect_language(file_path: &Path) -> Result<Option<tree_sitter::Language>> {
         .unwrap_or("");
 
     match extension {
-        "rs" => Ok(Some(tree_sitter_rust::language())),
-        "py" => Ok(Some(tree_sitter_python::language())),
-        "c" | "h" => Ok(Some(tree_sitter_c::language())),
-        "cpp" | "cc" | "cxx" | "hpp" => Ok(Some(tree_sitter_cpp::language())),
-        "js" | "mjs" => Ok(Some(tree_sitter_javascript::language())),
-        "ts" => Ok(Some(tree_sitter_typescript::language_tsx())),
-        "tsx" => Ok(Some(tree_sitter_typescript::language_tsx())),
-        "java" => Ok(Some(tree_sitter_java::language())),
+        "rs" => Ok(Some(tree_sitter_rust::LANGUAGE.into())),
+        "py" => Ok(Some(tree_sitter_python::LANGUAGE.into())),
+        "c" | "h" => Ok(Some(tree_sitter_c::LANGUAGE.into())),
+        "cpp" | "cc" | "cxx" | "hpp" => Ok(Some(tree_sitter_cpp::LANGUAGE.into())),
+        "js" | "mjs" => Ok(Some(tree_sitter_javascript::LANGUAGE.into())),
+        "ts" => Ok(Some(tree_sitter_typescript::LANGUAGE_TSX.into())),
+        "tsx" => Ok(Some(tree_sitter_typescript::LANGUAGE_TSX.into())),
+        "java" => Ok(Some(tree_sitter_java::LANGUAGE.into())),
         _ => Ok(None),
     }
 }

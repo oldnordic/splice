@@ -105,7 +105,7 @@ pub fn extract_cpp_symbols(path: &Path, source: &[u8]) -> Result<Vec<CppSymbol>>
     // Create tree-sitter parser for C/C++
     let mut parser = tree_sitter::Parser::new();
     parser
-        .set_language(&tree_sitter_cpp::language())
+        .set_language(&tree_sitter_cpp::LANGUAGE.into())
         .map_err(|e| SpliceError::Parse {
             file: path.to_path_buf(),
             message: format!("Failed to set C++ language: {:?}", e),

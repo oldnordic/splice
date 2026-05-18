@@ -25,7 +25,7 @@ pub fn extract_java_imports(path: &Path, source: &[u8]) -> Result<Vec<super::Imp
     // Create tree-sitter parser for Java
     let mut parser = tree_sitter::Parser::new();
     parser
-        .set_language(&tree_sitter_java::language())
+        .set_language(&tree_sitter_java::LANGUAGE.into())
         .map_err(|e| SpliceError::Parse {
             file: path.to_path_buf(),
             message: format!("Failed to set Java language: {:?}", e),

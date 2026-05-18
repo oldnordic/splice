@@ -104,7 +104,7 @@ impl JavaScriptSymbolKind {
 pub fn extract_javascript_symbols(path: &Path, source: &[u8]) -> Result<Vec<JavaScriptSymbol>> {
     let mut parser = tree_sitter::Parser::new();
     parser
-        .set_language(&tree_sitter_javascript::language())
+        .set_language(&tree_sitter_javascript::LANGUAGE.into())
         .map_err(|e| SpliceError::Parse {
             file: path.to_path_buf(),
             message: format!("Failed to set JavaScript language: {:?}", e),
@@ -425,7 +425,7 @@ mod tests {
     fn test_extract_typescript_interface() {
         let mut parser = tree_sitter::Parser::new();
         parser
-            .set_language(&tree_sitter_typescript::language_typescript())
+            .set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())
             .expect("Failed to load TypeScript grammar");
 
         let source = b"interface User { name: string; age: number; }\n";
@@ -444,7 +444,7 @@ mod tests {
     fn test_extract_typescript_type_alias() {
         let mut parser = tree_sitter::Parser::new();
         parser
-            .set_language(&tree_sitter_typescript::language_typescript())
+            .set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())
             .expect("Failed to load TypeScript grammar");
 
         let source = b"type UserId = string | number;\n";
@@ -463,7 +463,7 @@ mod tests {
     fn test_extract_typescript_enum() {
         let mut parser = tree_sitter::Parser::new();
         parser
-            .set_language(&tree_sitter_typescript::language_typescript())
+            .set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())
             .expect("Failed to load TypeScript grammar");
 
         let source = b"enum Color { Red, Green, Blue }\n";
@@ -482,7 +482,7 @@ mod tests {
     fn test_extract_typescript_namespace() {
         let mut parser = tree_sitter::Parser::new();
         parser
-            .set_language(&tree_sitter_typescript::language_typescript())
+            .set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())
             .expect("Failed to load TypeScript grammar");
 
         let source = b"namespace Utils { export function helper() {} }\n";
@@ -509,7 +509,7 @@ mod tests {
     fn test_extract_typescript_typed_function() {
         let mut parser = tree_sitter::Parser::new();
         parser
-            .set_language(&tree_sitter_typescript::language_typescript())
+            .set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())
             .expect("Failed to load TypeScript grammar");
 
         let source = b"function add(a: number, b: number): number { return a + b; }\n";
@@ -529,7 +529,7 @@ mod tests {
     fn test_extract_typescript_class_with_implements() {
         let mut parser = tree_sitter::Parser::new();
         parser
-            .set_language(&tree_sitter_typescript::language_typescript())
+            .set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())
             .expect("Failed to load TypeScript grammar");
 
         let source = b"class MyClass implements Serializable { serialize() {} }\n";
@@ -550,7 +550,7 @@ mod tests {
     fn test_extract_typescript_interface_with_extends() {
         let mut parser = tree_sitter::Parser::new();
         parser
-            .set_language(&tree_sitter_typescript::language_typescript())
+            .set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())
             .expect("Failed to load TypeScript grammar");
 
         let source =

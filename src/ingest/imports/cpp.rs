@@ -12,7 +12,7 @@ pub struct CppExtractor;
 
 impl ImportExtractor for CppExtractor {
     fn language() -> tree_sitter::Language {
-        tree_sitter_cpp::language()
+        tree_sitter_cpp::LANGUAGE.into()
     }
 
     fn language_enum() -> Language {

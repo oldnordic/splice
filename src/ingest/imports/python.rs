@@ -12,7 +12,7 @@ pub struct PythonExtractor;
 
 impl ImportExtractor for PythonExtractor {
     fn language() -> tree_sitter::Language {
-        tree_sitter_python::language()
+        tree_sitter_python::LANGUAGE.into()
     }
 
     fn language_enum() -> Language {

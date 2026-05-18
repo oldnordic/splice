@@ -397,7 +397,7 @@ mod tests {
     fn test_find_parent_symbol_node_simple() {
         let source = b"fn example() { let x = 42; }";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_rust::language()).unwrap();
+        parser.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -418,7 +418,7 @@ mod tests {
     fn test_find_parent_symbol_node_not_found() {
         let source = b"fn example() { }";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_rust::language()).unwrap();
+        parser.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -436,7 +436,7 @@ mod tests {
     fn test_extract_leading_doc_comments_none() {
         let source = b"fn example() { }";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_rust::language()).unwrap();
+        parser.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -450,7 +450,7 @@ mod tests {
     fn test_extract_leading_doc_comments_single() {
         let source = b"/// Example docs\nfn example() { }";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_rust::language()).unwrap();
+        parser.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -468,7 +468,7 @@ mod tests {
     fn test_extract_leading_doc_comments_multiple() {
         let source = b"/// First line\n/// Second line\nfn example() { }";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_rust::language()).unwrap();
+        parser.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -487,7 +487,7 @@ mod tests {
     fn test_expand_to_containing_block_in_module() {
         let source = b"mod my_module { fn example() { } }";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_rust::language()).unwrap();
+        parser.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -512,7 +512,7 @@ mod tests {
     fn test_is_doc_comment_node() {
         let source = b"/// comment\nfn test() {}";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_rust::language()).unwrap();
+        parser.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -532,7 +532,7 @@ mod tests {
         let source = b"def example():\n    pass\n";
         let mut parser = tree_sitter::Parser::new();
         parser
-            .set_language(&tree_sitter_python::language())
+            .set_language(&tree_sitter_python::LANGUAGE.into())
             .unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
@@ -556,7 +556,7 @@ mod tests {
         let source = b"class MyClass:\n    pass\n";
         let mut parser = tree_sitter::Parser::new();
         parser
-            .set_language(&tree_sitter_python::language())
+            .set_language(&tree_sitter_python::LANGUAGE.into())
             .unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
@@ -578,7 +578,7 @@ mod tests {
     fn test_cpp_function_expansion() {
         let source = b"int example() { return 0; }";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_cpp::language()).unwrap();
+        parser.set_language(&tree_sitter_cpp::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -600,7 +600,7 @@ mod tests {
     fn test_java_class_expansion() {
         let source = b"class MyClass { void method() {} }";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_java::language()).unwrap();
+        parser.set_language(&tree_sitter_java::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -622,7 +622,7 @@ mod tests {
         let source = b"function example() { return; }";
         let mut parser = tree_sitter::Parser::new();
         parser
-            .set_language(&tree_sitter_javascript::language())
+            .set_language(&tree_sitter_javascript::LANGUAGE.into())
             .unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
@@ -646,7 +646,7 @@ mod tests {
         let source = b"interface MyInterface { name: string; }";
         let mut parser = tree_sitter::Parser::new();
         parser
-            .set_language(&tree_sitter_typescript::language_typescript())
+            .set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())
             .unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
@@ -680,7 +680,7 @@ mod tests {
         // Level 0 should return the original node span, not expanded
         let source = b"fn example() { let value = 42; }";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_rust::language()).unwrap();
+        parser.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -707,7 +707,7 @@ mod tests {
         // Level 1 should expand to full function body
         let source = b"fn example() { let value = 42; }";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_rust::language()).unwrap();
+        parser.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -738,7 +738,7 @@ mod tests {
         // Level 2 should expand to containing class/module
         let source = b"mod my_module { fn example() { } }";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_rust::language()).unwrap();
+        parser.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -774,7 +774,7 @@ mod tests {
         // Test progressive expansion: method -> impl -> module
         let source = b"mod my_mod { impl Struct { fn method(&self) {} } }";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_rust::language()).unwrap();
+        parser.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -814,7 +814,7 @@ mod tests {
         let source = b"class MyClass:\n    def method(self):\n        pass\n";
         let mut parser = tree_sitter::Parser::new();
         parser
-            .set_language(&tree_sitter_python::language())
+            .set_language(&tree_sitter_python::LANGUAGE.into())
             .unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
@@ -854,7 +854,7 @@ mod tests {
         let source = b"class MyClass {\n  method(): void {}\n}\n";
         let mut parser = tree_sitter::Parser::new();
         parser
-            .set_language(&tree_sitter_typescript::language_typescript())
+            .set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())
             .unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
@@ -897,7 +897,7 @@ mod tests {
         // Test graceful handling when no containing block exists
         let source = b"fn standalone_function() { }";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_rust::language()).unwrap();
+        parser.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -930,7 +930,7 @@ mod tests {
     fn test_extract_leading_docs_rust_line_comments() {
         let source = b"/// Example documentation\n/// Second line\nfn example() {}";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_rust::language()).unwrap();
+        parser.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -954,7 +954,7 @@ mod tests {
     fn test_extract_leading_docs_rust_block_comments() {
         let source = b"/** Block documentation */\nfn example() {}";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_rust::language()).unwrap();
+        parser.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -1027,7 +1027,7 @@ mod tests {
     fn test_extract_leading_docs_rust_inner_comments() {
         let source = b"//! Inner documentation\n//! Second line\nfn example() {}";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_rust::language()).unwrap();
+        parser.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -1047,7 +1047,7 @@ mod tests {
     fn test_extract_leading_docs_no_doc_comments() {
         let source = b"fn example() {}";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_rust::language()).unwrap();
+        parser.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -1072,7 +1072,7 @@ mod tests {
         let source = b"\"\"\"Example documentation\"\"\"\ndef example():\n    pass";
         let mut parser = tree_sitter::Parser::new();
         parser
-            .set_language(&tree_sitter_python::language())
+            .set_language(&tree_sitter_python::LANGUAGE.into())
             .unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
@@ -1150,7 +1150,7 @@ mod tests {
         let source = b"# Example documentation\n# Second line\ndef example():\n    pass";
         let mut parser = tree_sitter::Parser::new();
         parser
-            .set_language(&tree_sitter_python::language())
+            .set_language(&tree_sitter_python::LANGUAGE.into())
             .unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
@@ -1176,7 +1176,7 @@ mod tests {
     fn test_extract_leading_docs_java_javadoc() {
         let source = b"/** Javadoc comment */\nclass MyClass {}";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_java::language()).unwrap();
+        parser.set_language(&tree_sitter_java::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
@@ -1201,7 +1201,7 @@ mod tests {
         let source = b"/** JSDoc comment */\nfunction example() {}";
         let mut parser = tree_sitter::Parser::new();
         parser
-            .set_language(&tree_sitter_javascript::language())
+            .set_language(&tree_sitter_javascript::LANGUAGE.into())
             .unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
@@ -1226,7 +1226,7 @@ mod tests {
     fn test_extract_leading_docs_non_doc_comment_stops() {
         let source = b"// Regular comment\nfn example() {}";
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_rust::language()).unwrap();
+        parser.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap();
         let tree = parser.parse(source, None).unwrap();
         let root = tree.root_node();
 
