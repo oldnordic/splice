@@ -108,3 +108,14 @@ docs/workflow-improvement-suggestions.md
 *.geo
 docs/*ASSESSMENT.md
 CLI-TEST-BUGS-v2.6.8.md
+
+# AI assistant config files (may contain secrets)
+.mcp.json
+AGENTS.md
+GEMINI.md
+CLAUDE.md
+
+# AI assistant working directories
+.magellan/
+.hermes/
+.claude/
