@@ -5,6 +5,12 @@ Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.6.12] - 2026-05-19
+
+### Changed
+
+- **sqlitegraph 3.0.1 → 3.0.2** — Picks up V3Backend flush-error handling, PersistentHeaderV3 panic fixes, CliClient stack optimization, and HNSW docstring corrections.
+
 ## [2.6.10] - 2026-05-18
 
 ### Changed
