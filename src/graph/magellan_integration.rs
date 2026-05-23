@@ -1635,72 +1635,90 @@ impl MagellanIntegration {
     }
 
     /// SQLite implementation of detect_cycles.
+    ///
+    /// Uses a single bulk SQL query (`all_call_edges_sqlite`) to build the call
+    /// graph, replacing the previous N+1 per-symbol loop. This also fixes a
+    /// cross-file cycle detection bug where the old code keyed callee nodes by
+    /// the *caller's* file path instead of the callee's actual file path.
     fn detect_cycles_sqlite(&mut self, max_cycles: usize) -> Result<Vec<CycleInfo>> {
         use std::collections::{HashMap, HashSet};
 
-        // Build call graph: symbol -> set of callees
+        let call_edges = self.all_call_edges_sqlite()?;
+
+        // Build call graph: (file, name) → set of (callee_file, callee_name)
         let mut call_graph: HashMap<(String, String), HashSet<(String, String)>> = HashMap::new();
-        let mut all_symbols: HashSet<(String, String)> = HashSet::new();
 
-        let file_nodes = self
-            .inner
-            .all_file_nodes()
-            .map_err(|e| SpliceError::Other(format!("Failed to get file nodes: {}", e)))?;
-
-        for file_path in file_nodes.keys() {
-            let symbols = self
-                .inner
-                .symbols_in_file(file_path)
-                .map_err(|e| SpliceError::Other(format!("Failed to get symbols: {}", e)))?;
-
-            for fact in symbols {
-                if let Some(ref name) = fact.name {
-                    let key = (fact.file_path.to_string_lossy().to_string(), name.clone());
-                    all_symbols.insert(key.clone());
-                    call_graph.entry(key).or_default();
-                }
-            }
+        for (caller_file, caller_name, callee_file, callee_name) in call_edges {
+            let caller_key = (caller_file, caller_name);
+            let callee_key = (callee_file, callee_name);
+            call_graph
+                .entry(caller_key)
+                .or_default()
+                .insert(callee_key.clone());
+            call_graph.entry(callee_key).or_default();
         }
 
-        // Add edges
-        for (caller, callees) in call_graph.iter_mut() {
-            let calls = self
-                .inner
-                .calls_from_symbol(&caller.0, &caller.1)
-                .unwrap_or_default();
-
-            for call in calls {
-                let callee_key = (
-                    call.file_path.to_string_lossy().to_string(),
-                    call.callee.clone(),
-                );
-                if all_symbols.contains(&callee_key) {
-                    callees.insert(callee_key);
-                }
-            }
-        }
-
-        // Find SCCs using iterative DFS (Tarjan's algorithm simplified)
         let sccs = self.find_sccs(&call_graph)?;
 
-        // Convert SCCs to cycles (only SCCs with size > 1 or self-loops)
         let mut cycles = Vec::new();
-
         for (index, scc) in sccs.iter().enumerate() {
             if cycles.len() >= max_cycles {
                 break;
             }
-
-            // Filter: cycles have size > 1 OR are self-loops
             let is_self_loop = scc.len() == 1 && self.has_self_loop(&scc[0], &call_graph);
-            let is_cycle = scc.len() > 1 || is_self_loop;
-
-            if is_cycle {
+            if scc.len() > 1 || is_self_loop {
                 cycles.push(self.scc_to_cycle_info(scc, index, is_self_loop)?);
             }
         }
 
         Ok(cycles)
+    }
+
+    /// Retrieve all call edges from the database in a single query.
+    ///
+    /// Returns `(caller_file, caller_name, callee_file, callee_name)` tuples by
+    /// joining Call entities with their CALLS edges and the target Symbol entities.
+    /// This replaces the previous N+1 per-symbol `calls_from_symbol` loop and
+    /// correctly carries the callee's own file path rather than the caller's.
+    fn all_call_edges_sqlite(&self) -> Result<Vec<(String, String, String, String)>> {
+        use rusqlite::Connection;
+
+        let conn = Connection::open(&self.db_path).map_err(|e| {
+            SpliceError::Other(format!("Failed to open db for call-edge query: {}", e))
+        })?;
+
+        let mut stmt = conn
+            .prepare(
+                "SELECT call_node.file_path,
+                        json_extract(call_node.data, '$.caller'),
+                        callee_sym.file_path,
+                        callee_sym.name
+                 FROM graph_entities call_node
+                 JOIN graph_edges ge
+                   ON ge.from_id = call_node.id AND ge.edge_type = 'CALLS'
+                 JOIN graph_entities callee_sym
+                   ON ge.to_id = callee_sym.id
+                 WHERE call_node.kind = 'Call'
+                   AND json_extract(call_node.data, '$.caller') IS NOT NULL
+                   AND call_node.file_path IS NOT NULL
+                   AND callee_sym.file_path IS NOT NULL",
+            )
+            .map_err(|e| SpliceError::Other(format!("Failed to prepare call-edge query: {}", e)))?;
+
+        let edges: Vec<(String, String, String, String)> = stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                ))
+            })
+            .map_err(|e| SpliceError::Other(format!("Failed to execute call-edge query: {}", e)))?
+            .flatten()
+            .collect();
+
+        Ok(edges)
     }
 
     /// Geometric backend implementation of detect_cycles.
@@ -1914,6 +1932,10 @@ impl MagellanIntegration {
     }
 
     /// Convert an SCC to CycleInfo.
+    ///
+    /// Falls back to a synthetic SymbolInfo derived from the call-edge key when
+    /// the symbol is not indexed in the graph (e.g. in unit tests with minimal
+    /// DB setup, or when the indexer hasn't run yet).
     fn scc_to_cycle_info(
         &mut self,
         scc: &[(String, String)],
@@ -1923,9 +1945,10 @@ impl MagellanIntegration {
         let mut members = Vec::new();
 
         for (file_path, symbol_name) in scc {
-            if let Ok(symbol_facts) = self.inner_mut().symbol_extents(file_path, symbol_name) {
-                if let Some((entity_id, fact)) = symbol_facts.first() {
-                    members.push(SymbolInfo {
+            let info = match self.inner_mut().symbol_extents(file_path, symbol_name) {
+                Ok(facts) if !facts.is_empty() => {
+                    let (entity_id, fact) = &facts[0];
+                    SymbolInfo {
                         entity_id: *entity_id,
                         name: fact.name.clone().unwrap_or_else(|| symbol_name.clone()),
                         file_path: fact.file_path.to_string_lossy().to_string(),
@@ -1934,12 +1957,22 @@ impl MagellanIntegration {
                         byte_end: fact.byte_end,
                         start_line: None,
                         end_line: None,
-                    });
+                    }
                 }
-            }
+                _ => SymbolInfo {
+                    entity_id: 0,
+                    name: symbol_name.clone(),
+                    file_path: file_path.clone(),
+                    kind: String::new(),
+                    byte_start: 0,
+                    byte_end: 0,
+                    start_line: None,
+                    end_line: None,
+                },
+            };
+            members.push(info);
         }
 
-        // Sort for representative selection
         members.sort_by(|a, b| a.name.cmp(&b.name));
 
         let representative = members
@@ -1947,10 +1980,8 @@ impl MagellanIntegration {
             .ok_or_else(|| SpliceError::Other("Empty cycle".to_string()))?
             .clone();
 
-        let id = format!("cycle-{}", index);
-
         Ok(CycleInfo {
-            id,
+            id: format!("cycle-{}", index),
             size: scc.len(),
             members,
             representative,
@@ -3539,5 +3570,112 @@ mod tests {
 
         // Should fail because content is not valid UTF-8
         assert!(MagellanIntegration::validate_utf8_span(content, 0, 1, file_path).is_err());
+    }
+
+    /// Set up a minimal test DB with the sqlitegraph schema and return the path.
+    /// Inserts Symbol + Call entities and CALLS edges for a cross-file cycle:
+    ///   func_a (/src/a.rs) → func_b (/src/b.rs) → func_a
+    #[cfg(feature = "sqlite")]
+    fn setup_cross_file_cycle_db(db_path: &std::path::Path) {
+        use rusqlite::{params, Connection};
+        // Open via MagellanIntegration to initialize the sqlitegraph schema.
+        let _integration = MagellanIntegration::open(db_path).unwrap();
+
+        let conn = Connection::open(db_path).unwrap();
+
+        // Symbol entities
+        conn.execute(
+            "INSERT INTO graph_entities(kind, name, file_path, data) VALUES ('Symbol', 'func_a', '/src/a.rs', '{}')",
+            [],
+        ).unwrap();
+        let sym_a = conn.last_insert_rowid();
+
+        conn.execute(
+            "INSERT INTO graph_entities(kind, name, file_path, data) VALUES ('Symbol', 'func_b', '/src/b.rs', '{}')",
+            [],
+        ).unwrap();
+        let sym_b = conn.last_insert_rowid();
+
+        // Call entities: func_a (a.rs) calls func_b, func_b (b.rs) calls func_a
+        conn.execute(
+            "INSERT INTO graph_entities(kind, name, file_path, data) VALUES ('Call', 'func_a calls func_b', '/src/a.rs', '{\"caller\":\"func_a\",\"callee\":\"func_b\"}')",
+            [],
+        ).unwrap();
+        let call_a_b = conn.last_insert_rowid();
+
+        conn.execute(
+            "INSERT INTO graph_entities(kind, name, file_path, data) VALUES ('Call', 'func_b calls func_a', '/src/b.rs', '{\"caller\":\"func_b\",\"callee\":\"func_a\"}')",
+            [],
+        ).unwrap();
+        let call_b_a = conn.last_insert_rowid();
+
+        // CALLS edges: Call → callee Symbol
+        conn.execute(
+            "INSERT INTO graph_edges(from_id, to_id, edge_type, data) VALUES (?1, ?2, 'CALLS', '{}')",
+            params![call_a_b, sym_b],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO graph_edges(from_id, to_id, edge_type, data) VALUES (?1, ?2, 'CALLS', '{}')",
+            params![call_b_a, sym_a],
+        ).unwrap();
+    }
+
+    #[cfg(feature = "sqlite")]
+    #[test]
+    fn test_all_call_edges_sqlite_cross_file() {
+        let temp = TempDir::new().unwrap();
+        let db_path = temp.path().join("test.db");
+        setup_cross_file_cycle_db(&db_path);
+
+        let integration = MagellanIntegration::open(&db_path).unwrap();
+        let edges = integration.all_call_edges_sqlite().unwrap();
+
+        assert_eq!(edges.len(), 2, "expected 2 call edges, got {}", edges.len());
+
+        let a_to_b = edges
+            .iter()
+            .find(|(cf, cn, _, _)| cf == "/src/a.rs" && cn == "func_a");
+        assert!(a_to_b.is_some(), "missing func_a → func_b edge");
+        let a_to_b = a_to_b.unwrap();
+        assert_eq!(a_to_b.2, "/src/b.rs", "callee file should be /src/b.rs");
+        assert_eq!(a_to_b.3, "func_b", "callee name should be func_b");
+
+        let b_to_a = edges
+            .iter()
+            .find(|(cf, cn, _, _)| cf == "/src/b.rs" && cn == "func_b");
+        assert!(b_to_a.is_some(), "missing func_b → func_a edge");
+        let b_to_a = b_to_a.unwrap();
+        assert_eq!(b_to_a.2, "/src/a.rs", "callee file should be /src/a.rs");
+        assert_eq!(b_to_a.3, "func_a", "callee name should be func_a");
+    }
+
+    #[cfg(feature = "sqlite")]
+    #[test]
+    fn test_detect_cycles_cross_file() {
+        let temp = TempDir::new().unwrap();
+        let db_path = temp.path().join("test.db");
+        setup_cross_file_cycle_db(&db_path);
+
+        let mut integration = MagellanIntegration::open(&db_path).unwrap();
+        let cycles = integration.detect_cycles(10).unwrap();
+
+        assert_eq!(
+            cycles.len(),
+            1,
+            "expected 1 cross-file cycle, got {}",
+            cycles.len()
+        );
+        assert_eq!(cycles[0].size, 2, "cycle should have 2 members");
+        assert!(!cycles[0].is_self_loop);
+
+        let names: Vec<&str> = cycles[0].members.iter().map(|m| m.name.as_str()).collect();
+        assert!(
+            names.contains(&"func_a"),
+            "func_a missing from cycle members"
+        );
+        assert!(
+            names.contains(&"func_b"),
+            "func_b missing from cycle members"
+        );
     }
 }
