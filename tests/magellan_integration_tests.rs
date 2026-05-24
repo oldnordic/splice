@@ -1374,3 +1374,147 @@ fn test_list_indexed_files_multilang() {
     let indexed = db.list_indexed_files(false).unwrap();
     assert_eq!(indexed.len(), 7, "Should have 7 indexed files");
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// SPL-E091 regression: old-schema DBs must open (auto-migrate), not error
+///////////////////////////////////////////////////////////////////////////////
+
+/// Build a minimal sqlitegraph schema-3 DB.
+///
+/// Schema 3 corresponds to the state after migrations 1→2 (adds
+/// `graph_meta_history`) and 2→3 (adds HNSW tables) have run, but before
+/// migrations 3→4 (kind/name indexes) and 4→5 (graph_labels unique constraint).
+///
+/// splice used to reject these with "DB_COMPAT: sqlitegraph schema mismatch
+/// (found=3, expected=4)" — now sqlitegraph auto-migrates on open.
+fn create_schema3_db(path: &std::path::Path) {
+    let conn = rusqlite::Connection::open(path).expect("create schema-3 db");
+    conn.execute_batch(
+        "PRAGMA foreign_keys = ON;
+         -- Base schema (version 1)
+         CREATE TABLE IF NOT EXISTS graph_entities (
+             id        INTEGER PRIMARY KEY AUTOINCREMENT,
+             kind      TEXT NOT NULL,
+             name      TEXT NOT NULL,
+             file_path TEXT,
+             data      TEXT NOT NULL
+         );
+         CREATE TABLE IF NOT EXISTS graph_edges (
+             id        INTEGER PRIMARY KEY AUTOINCREMENT,
+             from_id   INTEGER NOT NULL,
+             to_id     INTEGER NOT NULL,
+             edge_type TEXT NOT NULL,
+             data      TEXT NOT NULL
+         );
+         CREATE TABLE IF NOT EXISTS graph_labels (
+             entity_id INTEGER NOT NULL,
+             label     TEXT NOT NULL
+         );
+         CREATE TABLE IF NOT EXISTS graph_properties (
+             entity_id INTEGER NOT NULL,
+             key       TEXT NOT NULL,
+             value     TEXT NOT NULL
+         );
+         CREATE INDEX IF NOT EXISTS idx_edges_from ON graph_edges(from_id);
+         CREATE INDEX IF NOT EXISTS idx_edges_to ON graph_edges(to_id);
+         CREATE INDEX IF NOT EXISTS idx_edges_type ON graph_edges(edge_type);
+         CREATE INDEX IF NOT EXISTS idx_entities_kind_id ON graph_entities(kind, id);
+         CREATE TABLE IF NOT EXISTS graph_meta (
+             id INTEGER PRIMARY KEY CHECK (id = 1),
+             schema_version INTEGER NOT NULL
+         );
+         -- Migration step 1→2: graph_meta_history
+         CREATE TABLE IF NOT EXISTS graph_meta_history (
+             version    INTEGER NOT NULL,
+             applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+         );
+         INSERT INTO graph_meta_history(version) VALUES(2);
+         -- Migration step 2→3: HNSW tables
+         CREATE TABLE IF NOT EXISTS hnsw_indexes (
+             id               INTEGER PRIMARY KEY AUTOINCREMENT,
+             name             TEXT NOT NULL UNIQUE,
+             dimension        INTEGER NOT NULL,
+             m                INTEGER NOT NULL,
+             ef_construction  INTEGER NOT NULL,
+             distance_metric  TEXT NOT NULL,
+             vector_count     INTEGER NOT NULL DEFAULT 0,
+             created_at       INTEGER NOT NULL,
+             updated_at       INTEGER NOT NULL
+         );
+         CREATE TABLE IF NOT EXISTS hnsw_vectors (
+             id         INTEGER PRIMARY KEY AUTOINCREMENT,
+             index_id   INTEGER NOT NULL,
+             vector_data BLOB NOT NULL,
+             metadata   TEXT,
+             created_at INTEGER NOT NULL,
+             updated_at INTEGER NOT NULL,
+             FOREIGN KEY (index_id) REFERENCES hnsw_indexes(id) ON DELETE CASCADE
+         );
+         CREATE TABLE IF NOT EXISTS hnsw_layers (
+             id          INTEGER PRIMARY KEY AUTOINCREMENT,
+             index_id    INTEGER NOT NULL,
+             layer_level INTEGER NOT NULL,
+             node_id     INTEGER NOT NULL,
+             connections BLOB NOT NULL,
+             FOREIGN KEY (index_id) REFERENCES hnsw_indexes(id) ON DELETE CASCADE,
+             UNIQUE(index_id, layer_level, node_id)
+         );
+         CREATE TABLE IF NOT EXISTS hnsw_entry_points (
+             index_id INTEGER NOT NULL,
+             node_id  INTEGER NOT NULL,
+             PRIMARY KEY (index_id, node_id),
+             FOREIGN KEY (index_id) REFERENCES hnsw_indexes(id) ON DELETE CASCADE
+         );
+         INSERT INTO graph_meta_history(version) VALUES(3);
+         INSERT INTO graph_meta(id, schema_version) VALUES(1, 3);",
+    )
+    .expect("schema-3 DDL");
+}
+
+/// Regression test for SPL-E091: a database with sqlitegraph schema version 3
+/// must be openable by splice (auto-migrated by sqlitegraph), not rejected.
+#[test]
+fn test_schema3_db_opens_without_spl_e091() {
+    let temp = TempDir::new().unwrap();
+    let db_path = temp.path().join("schema3.db");
+    create_schema3_db(&db_path);
+
+    // Verify the fixture really is schema version 3.
+    {
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        let v: i64 = conn
+            .query_row("SELECT schema_version FROM graph_meta", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(v, 3, "fixture should be schema version 3");
+    }
+
+    // Must succeed — sqlitegraph auto-migrates 3 → current on open.
+    let result = MagellanIntegration::open(&db_path);
+    assert!(
+        result.is_ok(),
+        "SPL-E091 regression: schema-3 DB should open cleanly, got: {:?}",
+        result.err()
+    );
+}
+
+/// After opening a schema-3 DB, cycle detection must return without error
+/// (even on an empty graph).
+#[test]
+fn test_schema3_db_cycle_detection_works() {
+    let temp = TempDir::new().unwrap();
+    let db_path = temp.path().join("schema3.db");
+    create_schema3_db(&db_path);
+
+    let mut integration = MagellanIntegration::open(&db_path).unwrap();
+    let cycles = integration.detect_cycles(10);
+    assert!(
+        cycles.is_ok(),
+        "cycle detection on auto-migrated schema-3 DB should succeed: {:?}",
+        cycles.err()
+    );
+    assert_eq!(
+        cycles.unwrap().len(),
+        0,
+        "empty schema-3 DB should report 0 cycles"
+    );
+}

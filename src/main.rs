@@ -2738,18 +2738,12 @@ fn execute_apply_files(
         }
 
         let mut response_data = serde_json::Map::new();
-        response_data.insert(
-            "dry_run".to_string(),
-            serde_json::Value::Bool(true),
-        );
+        response_data.insert("dry_run".to_string(), serde_json::Value::Bool(true));
         response_data.insert(
             "files_would_patch".to_string(),
             json!(files_to_patch.iter().collect::<Vec<_>>()),
         );
-        response_data.insert(
-            "matches_count".to_string(),
-            json!(matches.len()),
-        );
+        response_data.insert("matches_count".to_string(), json!(matches.len()));
 
         let message = format!(
             "[dry-run] Would replace {} occurrence(s) of {:?} across {} file(s). No changes written.",
