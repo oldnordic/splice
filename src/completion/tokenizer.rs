@@ -12,14 +12,18 @@ pub fn extract_current_token(file_path: &PathBuf, line: usize, column: usize) ->
     let lines: Vec<&str> = content.lines().collect();
     let line_content = lines.get(line.saturating_sub(1))?;
 
-    // Get column position (1-based to 0-based)
-    let col_index = column.saturating_sub(1);
+    // Get column position (1-based to 0-based), clamp to line length
+    let col_index = (column.saturating_sub(1)).min(line_content.len());
 
-    // Find the start of the token being typed
-    let token_start = line_content[..col_index]
-        .rfind(|c: char| !c.is_alphanumeric() && c != '_')
-        .map(|i| i + 1)
-        .unwrap_or(0);
+    // Find the start of the token being typed (guard if col_index == 0)
+    let token_start = if col_index == 0 {
+        0
+    } else {
+        line_content[..col_index]
+            .rfind(|c: char| !c.is_alphanumeric() && c != '_')
+            .map(|i| i + 1)
+            .unwrap_or(0)
+    };
 
     // Extract token
     let token = &line_content[token_start..col_index];
