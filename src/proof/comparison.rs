@@ -189,8 +189,14 @@ fn diff_symbols(
 
     // Check for modifications in common symbols
     for id in &common_ids {
-        let before_sym = before.symbols.get(id).expect("invariant: id from common_ids intersection");
-        let after_sym = after.symbols.get(id).expect("invariant: id from common_ids intersection");
+        let before_sym = before
+            .symbols
+            .get(id)
+            .expect("invariant: id from common_ids intersection");
+        let after_sym = after
+            .symbols
+            .get(id)
+            .expect("invariant: id from common_ids intersection");
 
         // A symbol is modified if any of these changed:
         // - name, file_path, kind, byte_span, fan_in, or fan_out

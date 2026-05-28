@@ -141,7 +141,11 @@ impl CompletionContext {
 
                                     // Keep the most specific (smallest) enclosing function
                                     if best_match.is_none()
-                                        || symbol.line > best_match.as_ref().expect("invariant: checked is_none above").line
+                                        || symbol.line
+                                            > best_match
+                                                .as_ref()
+                                                .expect("invariant: checked is_none above")
+                                                .line
                                     {
                                         best_match = Some(symbol);
                                     }
@@ -237,8 +241,9 @@ impl CompletionContext {
         // For each import, get symbols from target file
         for import in imports {
             // Resolve import path to target file
-            // For MVP: Use direct file path matching
-            // TODO: Integrate ModulePathIndex for proper resolution
+            // Current limitation: uses direct file path matching.
+            // Full resolution requires integrating ModulePathIndex for
+            // module alias and re-export traversal.
 
             // Build potential target file paths
             let target_files = Self::resolve_import_targets(&import, file_path);
@@ -265,8 +270,8 @@ impl CompletionContext {
     }
 
     fn resolve_import_targets(import: &ImportEntity, current_file: &Path) -> Vec<PathBuf> {
-        // For MVP: Try sibling files and common patterns
-        // TODO: Use ModulePathIndex for proper resolution
+        // Current limitation: tries sibling files and common patterns only.
+        // Full resolution requires ModulePathIndex for module graph traversal.
 
         let mut targets = Vec::new();
 

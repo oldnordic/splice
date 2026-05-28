@@ -44,7 +44,13 @@ impl CompletionEngine {
         let start = Instant::now();
 
         let cache_key = (request.file_path.clone(), request.line, request.column);
-        let cached_context = { self.context_cache.lock().expect("invariant: mutex not poisoned").get(&cache_key).cloned() };
+        let cached_context = {
+            self.context_cache
+                .lock()
+                .expect("invariant: mutex not poisoned")
+                .get(&cache_key)
+                .cloned()
+        };
         let context = if let Some(context) = cached_context {
             context
         } else {

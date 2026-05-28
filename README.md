@@ -3,7 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/splice)](https://crates.io/crates/splice)
 [![Documentation](https://docs.rs/splice/badge.svg)](https://docs.rs/splice)
 
-**Version:** 2.6.9
+**Version:** 2.8.0
 
 Span-safe refactoring kernel for 7 languages. Byte-accurate code editing with graph algorithm analysis.
 
@@ -30,6 +30,7 @@ Span-safe refactoring kernel for 7 languages. Byte-accurate code editing with gr
   - Token filtering and enhanced ranking for imported symbols
   - Performance: low-millisecond internal query time on indexed project databases
 - **7 languages** — Rust, Python, C, C++, Java, JavaScript, TypeScript
+- **Library API** — Use as a Rust crate for programmatic refactoring (forge, agents)
 
 ## Quick Start
 
@@ -53,6 +54,47 @@ splice rename --symbol old_name --to new_name --path src/lib.rs --db .magellan/s
 splice complete --file src/lib.rs --line 27 --column 8 --db .magellan/splice.db --max-results 10
 ```
 
+## Library Usage
+
+Splice exposes a library API for programmatic use. Add to `Cargo.toml`:
+
+```toml
+[dependencies]
+splice = { version = "2.8", default-features = false, features = ["sqlite"] }
+```
+
+### High-Level API (forge integration)
+
+```rust
+use splice::forge;
+
+// Patch a symbol with new content (resolves via SymbolNavigator)
+let result = forge::patch_symbol_in_file(
+    Path::new("src/lib.rs"),
+    "my_function",
+    "pub fn my_function() -> i32 { 42 }",
+    Path::new(".magellan/myproject.db"),
+)?;
+
+// Rename across all files
+let result = forge::rename_symbol_across_files("old_name", "new_name", db_path)?;
+
+// Preview without writing
+let preview = forge::preview_patch_symbol(file, symbol, content, db)?;
+
+// Resolve symbol to byte span
+let span = forge::resolve_symbol_span(file, symbol, db)?;
+```
+
+### Low-Level API
+
+```rust
+use splice::patch::{replace_span, apply_patch_with_validation, SpanReplacement};
+use splice::graph::rename::{apply_replacements_in_file, group_references_by_file};
+use splice::workspace::{find_workspace_root, detect_project_language};
+use splice::verify::{pre_verify_patch, post_verify_patch};
+```
+
 ## Installation
 
 ```bash
@@ -64,25 +106,26 @@ cargo install splice
 | Feature | Description | File | Best For |
 |---------|-------------|------|----------|
 | (default) | SQLite backend | `.db` | Compatibility |
-| `geometric` | Geometric analysis backend | `.geo` | Spatial/CFG analysis experiments |
+| `geometric` | Geometric analysis backend (no-op) | `.geo` | Reserved for future use |
 
 ## Requirements
 
-- **[Magellan](https://github.com/oldnordic/magellan)** 3.1.7+ — Required for code graph
-- **[sqlitegraph](https://crates.io/crates/sqlitegraph)** 2.0.3+ — Included automatically
+- **[Magellan](https://github.com/oldnordic/magellan)** 4.2+ — Required for code graph
+- **[sqlitegraph](https://crates.io/crates/sqlitegraph)** 3.0.3+ — Included automatically
 
 ## Documentation
 
 - **[MANUAL.md](MANUAL.md)** — Complete command reference and examples
 - **[CHANGELOG.md](CHANGELOG.md)** — Version history
+- **[docs/API.md](docs/API.md)** — Library API reference
 - **[docs/completion.md](docs/completion.md)** — Code completion feature documentation
 
 ## What splice Does NOT Do
 
-- ❌ Index code (use [Magellan](https://github.com/oldnordic/magellan))
-- ❌ Search code (use [llmgrep](https://github.com/oldnordic/llmgrep))
-- ❌ CFG analysis (use [Mirage](https://github.com/oldnordic/mirage))
-- ❌ Type checking (use Compiler/LSP)
+- Index code (use [Magellan](https://github.com/oldnordic/magellan))
+- Search code (use [llmgrep](https://github.com/oldnordic/llmgrep))
+- CFG analysis (use [Mirage](https://github.com/oldnordic/mirage))
+- Type checking (use Compiler/LSP)
 
 ## License
 

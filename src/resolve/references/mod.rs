@@ -12,7 +12,9 @@
 //! - **Shadowing**: Local definitions that shadow imported symbols
 //! - **Visibility**: Private symbols only have same-file references
 
+pub(crate) mod cross_file;
 pub mod rust;
+pub(crate) mod scope;
 
 use crate::error::Result;
 use crate::ingest::rust::RustSymbolKind;

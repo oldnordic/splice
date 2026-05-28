@@ -1935,7 +1935,7 @@ dependencies = [
 
 [[package]]
 name = "splice"
-version = "2.7.1"
+version = "2.8.0"
 dependencies = [
  "anyhow",
  "blake3",

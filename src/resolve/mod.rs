@@ -227,7 +227,10 @@ pub fn resolve_symbol(
     }
 
     // Exactly one match → safe to return
-    let (node_id, file_path) = all_matches.into_iter().next().expect("invariant: non-empty after empty check");
+    let (node_id, file_path) = all_matches
+        .into_iter()
+        .next()
+        .expect("invariant: non-empty after empty check");
     let file_path_str =
         file_path.ok_or_else(|| SpliceError::Other("Symbol node missing file_path".to_string()))?;
 

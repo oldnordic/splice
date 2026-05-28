@@ -374,7 +374,10 @@ impl BatchExecutor {
         }
 
         // Use the first match
-        let symbol_info = matches.into_iter().next().expect("invariant: non-empty after is_empty check");
+        let symbol_info = matches
+            .into_iter()
+            .next()
+            .expect("invariant: non-empty after is_empty check");
 
         // Get references using entity_id
         let references = magellan.get_all_references(symbol_info.entity_id)?;

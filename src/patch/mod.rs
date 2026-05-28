@@ -12,26 +12,30 @@ mod backup;
 mod batch_loader;
 pub mod pattern;
 
-use crate::error::{Diagnostic, DiagnosticLevel, Result, SpliceError};
+pub(crate) mod gates;
+pub(crate) mod preview;
+
+use crate::error::{Result, SpliceError};
 use crate::io_ext;
 use crate::symbol::Language as SymbolLanguage;
-use crate::validate::{self, AnalyzerMode};
+use crate::validate::AnalyzerMode;
 use crate::verify;
 use ropey::Rope;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
-use std::ffi::OsStr;
-use std::fs::{self, File};
+use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use tempfile::TempDir;
 
 pub use backup::{restore_from_manifest, BackupManifest, BackupWriter};
 pub use batch_loader::load_batches_from_file;
+pub(crate) use gates::run_validation_gates;
 pub use pattern::{
     apply_pattern_replace, find_pattern_in_files, PatternReplaceConfig, PatternReplaceResult,
 };
+#[cfg(test)]
+use preview::should_skip_entry;
 
 /// Replacement to apply within a specific file.
 #[derive(Debug, Clone, Serialize)]
@@ -278,7 +282,7 @@ pub fn apply_patch_with_validation(
     write_atomic(file_path, &patched_bytes, "patch")?;
 
     // Step 7: Run validation gates
-    match run_validation_gates(file_path, workspace_dir, language, analyzer_mode.clone()) {
+    match gates::run_validation_gates(file_path, workspace_dir, language, analyzer_mode.clone()) {
         Ok(_) => {}
         Err(e) => {
             log::warn!("Validation failed, rolling back patch: {:?}", e);
@@ -429,7 +433,7 @@ pub fn preview_patch(
     language: SymbolLanguage,
     analyzer_mode: AnalyzerMode,
 ) -> Result<(FilePatchSummary, PreviewReport)> {
-    let preview_workspace = clone_workspace_for_preview(workspace_root)?;
+    let preview_workspace = preview::clone_workspace_for_preview(workspace_root)?;
     let relative = file_path
         .strip_prefix(workspace_root)
         .map_err(|_| SpliceError::Other("File not under workspace root".to_string()))?;
@@ -514,7 +518,7 @@ pub fn preview_patch_with_content(
         source: e,
     })?;
 
-    let preview_workspace = clone_workspace_for_preview(&workspace_root)?;
+    let preview_workspace = preview::clone_workspace_for_preview(&workspace_root)?;
     let relative = file_path.strip_prefix(&workspace_root).map_err(|_| {
         SpliceError::Other(format!(
             "File {} not under workspace root {}",
@@ -554,297 +558,6 @@ pub fn preview_patch_with_content(
         before_content,
         after_content,
     ))
-}
-
-/// Run all validation gates in sequence.
-///
-/// Gates are executed in order:
-/// 1. Tree-sitter reparse (syntax validation, language-specific)
-/// 2. Compiler validation (language-specific)
-/// 3. rust-analyzer (optional, Rust only)
-///
-/// If any gate fails, returns error immediately.
-fn run_validation_gates(
-    file_path: &Path,
-    workspace_dir: &Path,
-    language: SymbolLanguage,
-    analyzer_mode: AnalyzerMode,
-) -> Result<()> {
-    // Gate 1: Tree-sitter reparse (language-specific)
-    gate_tree_sitter_reparse(file_path, language)?;
-
-    // Gate 2: Compiler validation (language-specific)
-    gate_compiler_validation(file_path, workspace_dir, language)?;
-
-    // Gate 3: rust-analyzer (Rust only, optional)
-    if language == SymbolLanguage::Rust {
-        use crate::validate::gate_rust_analyzer;
-        gate_rust_analyzer(workspace_dir, analyzer_mode)?;
-    }
-
-    Ok(())
-}
-
-/// Tree-sitter reparse gate (language-specific).
-///
-/// Validates that the patched file can be parsed as valid syntax
-/// for the given programming language.
-fn gate_tree_sitter_reparse(file_path: &Path, language: SymbolLanguage) -> Result<()> {
-    let source = io_ext::read(file_path)?;
-
-    let mut parser = tree_sitter::Parser::new();
-    let tree_sitter_lang = get_tree_sitter_language(language);
-
-    parser
-        .set_language(&tree_sitter_lang)
-        .map_err(|e| SpliceError::Parse {
-            file: file_path.to_path_buf(),
-            message: format!("Failed to set language: {:?}", e),
-        })?;
-
-    let tree = parser
-        .parse(&source, None)
-        .ok_or_else(|| SpliceError::ParseValidationFailed {
-            file: file_path.to_path_buf(),
-            message: "Parse failed - no tree returned".to_string(),
-        })?;
-
-    // Check for parse errors
-    if tree.root_node().has_error() {
-        return Err(SpliceError::ParseValidationFailed {
-            file: file_path.to_path_buf(),
-            message: format!(
-                "Tree-sitter detected syntax errors in patched {} file",
-                language.as_str()
-            ),
-        });
-    }
-
-    Ok(())
-}
-
-/// Get the appropriate tree-sitter language for the given SymbolLanguage.
-fn get_tree_sitter_language(language: SymbolLanguage) -> tree_sitter::Language {
-    match language {
-        SymbolLanguage::Rust => tree_sitter_rust::LANGUAGE.into(),
-        SymbolLanguage::Python => tree_sitter_python::LANGUAGE.into(),
-        SymbolLanguage::C => tree_sitter_c::LANGUAGE.into(),
-        SymbolLanguage::Cpp => tree_sitter_cpp::LANGUAGE.into(),
-        SymbolLanguage::Java => tree_sitter_java::LANGUAGE.into(),
-        SymbolLanguage::JavaScript => tree_sitter_javascript::LANGUAGE.into(),
-        SymbolLanguage::TypeScript => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
-    }
-}
-
-/// Compiler validation gate (language-specific).
-///
-/// Validates that the patched file compiles using the appropriate
-/// compiler for each language (via validate::gates::validate_file).
-fn gate_compiler_validation(
-    file_path: &Path,
-    workspace_dir: &Path,
-    language: SymbolLanguage,
-) -> Result<()> {
-    match language {
-        SymbolLanguage::Rust => {
-            // Rust: Use cargo check from workspace directory
-            gate_cargo_check(workspace_dir)?;
-        }
-        _ => {
-            // Other languages: Use validate_file which auto-detects language
-            use crate::validate::gates::validate_file;
-
-            let outcome = validate_file(file_path)?;
-            let tool_metadata = tool_invocation_for_language(language)
-                .map(|inv| validate::collect_tool_metadata(inv.binary, inv.version_args));
-
-            if !outcome.is_valid {
-                if !outcome.tool_available {
-                    // Tool not available is a soft failure - we can't validate
-                    // For now, we treat this as success but log a warning
-                    log::warn!(
-                        "Compiler validation tool not available for {}, skipping validation",
-                        language.as_str()
-                    );
-                    return Ok(());
-                }
-
-                // Tool is available but validation failed
-                let mut diagnostics = Vec::new();
-                let tool_name = format!("{}-compiler", language.as_str());
-
-                for err in outcome.errors {
-                    let remediation = err
-                        .code
-                        .as_deref()
-                        .and_then(validate::remediation_link_for_code);
-                    diagnostics.push(
-                        Diagnostic::new(&tool_name, DiagnosticLevel::Error, err.message)
-                            .with_file(file_for_diagnostic(&err.file, file_path))
-                            .with_position(nonzero(err.line), nonzero(err.column))
-                            .with_code(err.code.clone())
-                            .with_note(err.note.clone())
-                            .with_tool_metadata(tool_metadata.as_ref())
-                            .with_remediation(remediation),
-                    );
-                }
-
-                for warn in outcome.warnings {
-                    let remediation = warn
-                        .code
-                        .as_deref()
-                        .and_then(validate::remediation_link_for_code);
-                    diagnostics.push(
-                        Diagnostic::new(&tool_name, DiagnosticLevel::Warning, warn.message)
-                            .with_file(file_for_diagnostic(&warn.file, file_path))
-                            .with_position(nonzero(warn.line), nonzero(warn.column))
-                            .with_code(warn.code.clone())
-                            .with_note(warn.note.clone())
-                            .with_tool_metadata(tool_metadata.as_ref())
-                            .with_remediation(remediation),
-                    );
-                }
-
-                return Err(SpliceError::CompilerValidationFailed {
-                    file: file_path.to_path_buf(),
-                    language: language.as_str().to_string(),
-                    diagnostics,
-                });
-            }
-        }
-    }
-
-    Ok(())
-}
-
-fn file_for_diagnostic(reported: &str, fallback: &Path) -> PathBuf {
-    if reported.is_empty() {
-        fallback.to_path_buf()
-    } else {
-        PathBuf::from(reported)
-    }
-}
-
-fn nonzero(value: usize) -> Option<usize> {
-    if value == 0 {
-        None
-    } else {
-        Some(value)
-    }
-}
-
-struct ToolInvocation {
-    binary: &'static str,
-    version_args: &'static [&'static str],
-}
-
-fn tool_invocation_for_language(language: SymbolLanguage) -> Option<ToolInvocation> {
-    match language {
-        SymbolLanguage::Python => Some(ToolInvocation {
-            binary: "python",
-            version_args: &["--version"],
-        }),
-        SymbolLanguage::C => Some(ToolInvocation {
-            binary: "gcc",
-            version_args: &["--version"],
-        }),
-        SymbolLanguage::Cpp => Some(ToolInvocation {
-            binary: "g++",
-            version_args: &["--version"],
-        }),
-        SymbolLanguage::Java => Some(ToolInvocation {
-            binary: "javac",
-            version_args: &["-version"],
-        }),
-        SymbolLanguage::JavaScript => Some(ToolInvocation {
-            binary: "node",
-            version_args: &["--version"],
-        }),
-        SymbolLanguage::TypeScript => Some(ToolInvocation {
-            binary: "tsc",
-            version_args: &["--version"],
-        }),
-        _ => None,
-    }
-}
-
-/// Cargo check gate (Rust-specific).
-///
-/// Validates that the workspace compiles after the patch.
-/// Uses a 60-second timeout to prevent hanging on large projects.
-fn gate_cargo_check(workspace_dir: &Path) -> Result<()> {
-    use std::process::Command;
-    use std::thread;
-    use std::time::Duration;
-
-    // Spawn cargo check in a separate thread to allow timeout
-    let workspace_path = workspace_dir.to_path_buf();
-    let thread_workspace = workspace_path.clone();
-    let (tx, rx) = std::sync::mpsc::channel();
-
-    thread::spawn(move || {
-        let output = Command::new("cargo")
-            .args(["check", "--color=never"])
-            .current_dir(&thread_workspace)
-            .output();
-        let _ = tx.send(output);
-    });
-
-    // Wait for completion with 120-second timeout (cargo check can take 50+ seconds on large projects)
-    let output = match rx.recv_timeout(Duration::from_secs(120)) {
-        Ok(result) => result.map_err(|source| SpliceError::Io {
-            path: workspace_path.clone(),
-            source,
-        })?,
-        Err(_) => {
-            return Err(SpliceError::Other(
-                "cargo check timed out after 120 seconds".to_string(),
-            ));
-        }
-    };
-
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let stdout = String::from_utf8_lossy(&output.stdout);
-
-    let combined = format!("{}{}", stderr, stdout);
-
-    if output.status.success() {
-        return Ok(());
-    }
-
-    let compiler_errors = validate::parse_cargo_output(&stderr);
-    let mut diagnostics = Vec::new();
-    let cargo_meta = validate::collect_tool_metadata("cargo", &["--version"]);
-
-    if compiler_errors.is_empty() {
-        diagnostics.push(
-            Diagnostic::new("cargo-check", DiagnosticLevel::Error, combined.clone())
-                .with_file(workspace_dir.to_path_buf())
-                .with_tool_metadata(Some(&cargo_meta)),
-        );
-    } else {
-        for err in compiler_errors {
-            let remediation = err
-                .code
-                .as_deref()
-                .and_then(validate::remediation_link_for_code);
-            diagnostics.push(
-                Diagnostic::new("cargo-check", DiagnosticLevel::from(err.level), err.message)
-                    .with_file(PathBuf::from(err.file))
-                    .with_position(nonzero(err.line), nonzero(err.column))
-                    .with_code(err.code.clone())
-                    .with_note(err.note.clone())
-                    .with_tool_metadata(Some(&cargo_meta))
-                    .with_remediation(remediation),
-            );
-        }
-    }
-
-    Err(SpliceError::CargoCheckFailed {
-        workspace: workspace_dir.to_path_buf(),
-        output: combined,
-        diagnostics,
-    })
 }
 
 /// Compute SHA-256 hash of file contents.
@@ -906,16 +619,16 @@ fn run_batch_validations(
 
     let mut requires_rust_validation = false;
     for file in files {
-        gate_tree_sitter_reparse(&file.file, language)?;
+        gates::gate_tree_sitter_reparse(&file.file, language)?;
         if language == SymbolLanguage::Rust {
             requires_rust_validation = true;
         } else {
-            gate_compiler_validation(&file.file, workspace_dir, language)?;
+            gates::gate_compiler_validation(&file.file, workspace_dir, language)?;
         }
     }
 
     if requires_rust_validation {
-        gate_cargo_check(workspace_dir)?;
+        gates::gate_cargo_check(workspace_dir)?;
         if language == SymbolLanguage::Rust && analyzer_mode != AnalyzerMode::Off {
             use crate::validate::gate_rust_analyzer;
             gate_rust_analyzer(workspace_dir, analyzer_mode)?;
@@ -1041,279 +754,6 @@ struct AppliedFile {
     after_hash: String,
 }
 
-/// Clone workspace to a temporary directory for preview operations.
-///
-/// Creates a temporary directory and recursively copies the workspace.
-/// Also copies any local path dependencies (sibling directories referenced
-/// in Cargo.toml) to ensure cargo check works in the preview environment.
-///
-/// If copying fails, the temp directory is automatically cleaned up by Drop.
-///
-/// # Returns
-///
-/// Returns `Ok(TempDir)` which will be cleaned up when dropped.
-fn clone_workspace_for_preview(workspace_root: &Path) -> Result<TempDir> {
-    let preview_dir = TempDir::new().map_err(|source| SpliceError::Io {
-        path: std::env::temp_dir(),
-        source,
-    })?;
-    let preview_path = preview_dir.path();
-
-    // First, copy the workspace itself
-    // Note: If copy_dir_recursive fails, preview_dir is dropped here
-    // and automatically cleans up the temp directory
-    copy_dir_recursive(workspace_root, preview_path)?;
-
-    // Handle local path dependencies from Cargo.toml
-    // Projects with dependencies like `llmgrep = { path = "../llmgrep" }`
-    // need those sibling directories copied to the preview workspace parent
-    if let Ok(local_deps) = extract_local_path_dependencies(workspace_root) {
-        let preview_parent = preview_path.parent().unwrap_or(preview_path);
-
-        for dep_path in local_deps {
-            // For nested paths like ../sqlitegraph/sqlitegraph, we need to copy
-            // the parent directory (sqlitegraph) so the relative path resolves.
-            let (source_path, target_name) = if let Some(dep_parent) = dep_path.parent() {
-                // Check if this is a nested path (grandparent is workspace's parent)
-                if let Some(grandparent) = dep_parent.parent() {
-                    if let Some(workspace_parent) = workspace_root.parent() {
-                        if grandparent == workspace_parent {
-                            // Nested path: use parent directory as source
-                            let parent_name = dep_parent
-                                .file_name()
-                                .and_then(|n| n.to_str())
-                                .ok_or_else(|| {
-                                    SpliceError::Other(format!(
-                                        "Invalid dependency parent path: {:?}",
-                                        dep_parent
-                                    ))
-                                })?;
-                            (dep_parent.to_path_buf(), parent_name.to_string())
-                        } else {
-                            // Normal path: use dep_path as-is
-                            let dep_name = dep_path
-                                .file_name()
-                                .and_then(|n| n.to_str())
-                                .ok_or_else(|| {
-                                    SpliceError::Other(format!(
-                                        "Invalid dependency path: {:?}",
-                                        dep_path
-                                    ))
-                                })?;
-                            (dep_path.clone(), dep_name.to_string())
-                        }
-                    } else {
-                        // Can't determine workspace parent, use dep_path as-is
-                        let dep_name =
-                            dep_path
-                                .file_name()
-                                .and_then(|n| n.to_str())
-                                .ok_or_else(|| {
-                                    SpliceError::Other(format!(
-                                        "Invalid dependency path: {:?}",
-                                        dep_path
-                                    ))
-                                })?;
-                        (dep_path.clone(), dep_name.to_string())
-                    }
-                } else {
-                    // No grandparent, use dep_path as-is
-                    let dep_name =
-                        dep_path
-                            .file_name()
-                            .and_then(|n| n.to_str())
-                            .ok_or_else(|| {
-                                SpliceError::Other(format!(
-                                    "Invalid dependency path: {:?}",
-                                    dep_path
-                                ))
-                            })?;
-                    (dep_path.clone(), dep_name.to_string())
-                }
-            } else {
-                // No parent, use dep_path as-is
-                let dep_name = dep_path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .ok_or_else(|| {
-                        SpliceError::Other(format!("Invalid dependency path: {:?}", dep_path))
-                    })?;
-                (dep_path.clone(), dep_name.to_string())
-            };
-
-            let dep_dest = preview_parent.join(&target_name);
-
-            // Skip if already exists or is the same as workspace
-            if dep_dest.exists() || source_path == workspace_root {
-                continue;
-            }
-
-            // Copy the dependency directory
-            if let Err(e) = copy_dir_recursive(&source_path, &dep_dest) {
-                log::warn!(
-                    "Failed to copy local dependency {:?} to {:?}: {}",
-                    source_path,
-                    dep_dest,
-                    e
-                );
-                // Non-fatal: preview may still work if dependency isn't used
-            }
-        }
-    }
-
-    Ok(preview_dir)
-}
-
-/// Extract local path dependencies from Cargo.toml.
-///
-/// Returns paths to sibling directories that are local dependencies,
-/// e.g., `../llmgrep` from `llmgrep = { path = "../llmgrep" }`.
-fn extract_local_path_dependencies(workspace_root: &Path) -> Result<Vec<PathBuf>> {
-    let cargo_toml_path = workspace_root.join("Cargo.toml");
-    let cargo_content = io_ext::read_to_string(&cargo_toml_path)?;
-
-    let mut local_deps = Vec::new();
-    let mut seen_deps = std::collections::HashSet::new();
-
-    // Simple string-based parsing for path dependencies
-    // Match patterns like: `dep_name = { path = "../something" }`
-    for line in cargo_content.lines() {
-        let line = line.trim();
-        // Look for inline table dependencies with path
-        if line.contains("{") && line.contains("path") {
-            // Extract the path value
-            if let Some(start) = line.find("path = \"") {
-                let start_idx = start + 8; // "path = \"".len()
-                if let Some(end) = line[start_idx..].find('"') {
-                    let rel_path = &line[start_idx..start_idx + end];
-                    if rel_path.starts_with("..") {
-                        let dep_path = workspace_root.join(rel_path);
-                        if dep_path.exists() {
-                            // Get the canonical path and track what we've seen
-                            if let Ok(canonical) = dep_path.canonicalize() {
-                                if !seen_deps.contains(&canonical) {
-                                    seen_deps.insert(canonical.clone());
-                                    local_deps.push(canonical);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Also check for workspace members and their dependencies
-    if let Some(parent) = workspace_root.parent() {
-        // Check for a workspace Cargo.toml in parent directory
-        let workspace_cargo = parent.join("Cargo.toml");
-        if workspace_cargo.exists() {
-            if let Ok(ws_content) = fs::read_to_string(&workspace_cargo) {
-                // Find workspace members
-                if let Some(start) = ws_content.find("members = [") {
-                    let members_start = start + 11;
-                    if let Some(end) = ws_content[members_start..].find(']') {
-                        let members_str = &ws_content[members_start..members_start + end];
-                        for member in members_str.split(',') {
-                            let member = member.trim().trim_matches('"').trim_matches('\'');
-                            let member_path = parent.join(member);
-                            if member_path.exists() && member_path != workspace_root {
-                                if let Ok(canonical) = member_path.canonicalize() {
-                                    if !seen_deps.contains(&canonical) {
-                                        seen_deps.insert(canonical.clone());
-                                        local_deps.push(canonical);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(local_deps)
-}
-
-fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
-    fs::create_dir_all(dst).map_err(|source| SpliceError::Io {
-        path: dst.to_path_buf(),
-        source,
-    })?;
-
-    let read_dir = fs::read_dir(src).map_err(|source| SpliceError::Io {
-        path: src.to_path_buf(),
-        source,
-    })?;
-    for entry in read_dir {
-        let entry = entry.map_err(|source| SpliceError::Io {
-            path: src.to_path_buf(),
-            source,
-        })?;
-        if should_skip_entry(&entry.file_name()) {
-            continue;
-        }
-
-        let entry_path = entry.path();
-        let dest = dst.join(entry.file_name());
-        let file_type = entry.file_type().map_err(|source| SpliceError::Io {
-            path: entry_path.clone(),
-            source,
-        })?;
-
-        if file_type.is_dir() {
-            copy_dir_recursive(&entry_path, &dest)?;
-        } else if file_type.is_file() {
-            if let Some(parent) = dest.parent() {
-                fs::create_dir_all(parent).map_err(|source| SpliceError::Io {
-                    path: parent.to_path_buf(),
-                    source,
-                })?;
-            }
-            fs::copy(&entry_path, &dest).map_err(|source| SpliceError::Io {
-                path: entry_path.clone(),
-                source,
-            })?;
-        }
-    }
-
-    Ok(())
-}
-
-fn should_skip_entry(name: &OsStr) -> bool {
-    matches!(
-        name.to_string_lossy().as_ref(),
-        ".git"
-            | ".splice-backup"
-            | "target"
-            | "node_modules"
-            | "dist"
-            | "build"
-            | "__pycache__"
-            | ".venv"
-            | "venv"
-            | ".pytest_cache"
-            | ".mypy_cache"
-            | ".tox"
-            | ".next"
-            | ".nuxt"
-            | ".cache"
-            | ".gradle"
-            | ".idea"
-            | ".vscode"
-            | ".splice_graph.db"
-            | ".splice_graph.db-shm"
-            | ".splice_graph.db-wal"
-            | "codegraph.db"
-            | "magellan.db"
-            | "operations.db"
-            | "splice_map.db"
-            | "syncore_code_graph.db"
-            | "syncore_code_graph.db-shm"
-            | "syncore_code_graph.db-wal"
-    )
-}
-
 /// Calculate line counts for a patch operation.
 ///
 /// This is a public function so it can be reused in different contexts
@@ -1424,181 +864,5 @@ fn extract_function_name_from_patch(patch_content: &str) -> Option<String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::io::Write;
-    use tempfile::NamedTempFile;
-
-    #[test]
-    fn test_compute_preview_report_line_counts() {
-        // Create a test file with known content
-        let mut temp_file = NamedTempFile::new().unwrap();
-        writeln!(temp_file, "line 1").unwrap();
-        writeln!(temp_file, "line 2").unwrap();
-        writeln!(temp_file, "line 3").unwrap();
-        writeln!(temp_file, "line 4").unwrap();
-        temp_file.flush().unwrap();
-
-        // Test replacing 2 lines with 1 line
-        let source = std::fs::read_to_string(temp_file.path()).unwrap();
-        let start = source.find("line 2\n").unwrap();
-        let end = source.find("line 4").unwrap();
-        let new_content = "NEW LINE\n";
-
-        let report = compute_preview_report(temp_file.path(), start, end, new_content).unwrap();
-
-        // We removed "line 2\nline 3\n" (2 lines) and added "NEW LINE\n" (1 line)
-        assert_eq!(report.lines_removed, 2, "Should count 2 lines removed");
-        assert_eq!(report.lines_added, 1, "Should count 1 line added");
-    }
-
-    #[test]
-    fn test_compute_preview_report_empty_replacement() {
-        // Test replacing content with empty string (deletion)
-        let mut temp_file = NamedTempFile::new().unwrap();
-        writeln!(temp_file, "line 1").unwrap();
-        writeln!(temp_file, "line 2").unwrap();
-        temp_file.flush().unwrap();
-
-        let source = std::fs::read_to_string(temp_file.path()).unwrap();
-        let start = source.find("line 1").unwrap();
-        let end = source.len();
-
-        let report = compute_preview_report(temp_file.path(), start, end, "").unwrap();
-
-        assert_eq!(report.lines_removed, 2, "Should count 2 lines removed");
-        assert_eq!(report.lines_added, 0, "Empty content = 0 lines added");
-    }
-
-    #[test]
-    fn test_compute_preview_report_add_only() {
-        // Test inserting at position (no removal)
-        let mut temp_file = NamedTempFile::new().unwrap();
-        writeln!(temp_file, "line 1").unwrap();
-        temp_file.flush().unwrap();
-
-        let source = std::fs::read_to_string(temp_file.path()).unwrap();
-        let start = source.len(); // Insert at end
-        let end = start;
-
-        let report =
-            compute_preview_report(temp_file.path(), start, end, "NEW LINE 1\nNEW LINE 2\n")
-                .unwrap();
-
-        assert_eq!(report.lines_removed, 0, "No lines removed when start==end");
-        assert_eq!(report.lines_added, 2, "Should count 2 new lines");
-    }
-
-    // TDD test for strict/skip flags being passed through
-    #[test]
-    fn test_apply_patch_accepts_strict_and_skip_flags() {
-        use std::io::Write;
-        use tempfile::TempDir;
-
-        // Create a temporary workspace
-        let workspace = TempDir::new().unwrap();
-        let file_path = workspace.path().join("lib.rs");
-
-        // Create a simple valid Rust file
-        {
-            let mut file = std::fs::File::create(&file_path).unwrap();
-            writeln!(file, "pub fn old() {{ }}").unwrap();
-        }
-
-        // Create a minimal Cargo.toml to make it a valid package
-        {
-            let cargo_toml = workspace.path().join("Cargo.toml");
-            let mut file = std::fs::File::create(&cargo_toml).unwrap();
-            writeln!(
-                file,
-                r#"[package]
-name = "test"
-version = "0.1.0"
-edition = "2021"
-
-[lib]
-path = "lib.rs"
-"#
-            )
-            .unwrap();
-        }
-
-        // Test that apply_patch_with_validation can accept strict and skip parameters
-        // This test verifies the function signature includes these parameters
-        let content = std::fs::read_to_string(&file_path).unwrap();
-        let start = content.find("old()").unwrap();
-        let end = start + "old()".len();
-
-        // Mock call - we're testing the function exists and has the right parameters
-        // For now, this just verifies the compiles with the correct parameters
-        // The actual integration test would verify behavior
-
-        // Note: This test documents the intended behavior
-        // strict=true should treat warnings as errors
-        // skip=true should bypass pre-verification
-        let _ = (start, end);
-    }
-
-    #[test]
-    fn test_should_skip_entry_python_caches() {
-        // Bug B2: preview should not copy Python cache directories into the
-        // workspace clone — they're build artifacts and can be large or
-        // contain unusual paths that interfere with `cargo check`.
-        assert!(should_skip_entry(OsStr::new("__pycache__")));
-        assert!(should_skip_entry(OsStr::new(".venv")));
-        assert!(should_skip_entry(OsStr::new("venv")));
-        assert!(should_skip_entry(OsStr::new(".pytest_cache")));
-        assert!(should_skip_entry(OsStr::new(".mypy_cache")));
-        assert!(should_skip_entry(OsStr::new(".tox")));
-    }
-
-    #[test]
-    fn test_should_skip_entry_js_build_artifacts() {
-        // Bug B2: preview should not copy JS/TS build outputs and framework caches.
-        assert!(should_skip_entry(OsStr::new("dist")));
-        assert!(should_skip_entry(OsStr::new("build")));
-        assert!(should_skip_entry(OsStr::new(".next")));
-        assert!(should_skip_entry(OsStr::new(".nuxt")));
-        assert!(should_skip_entry(OsStr::new(".cache")));
-    }
-
-    #[test]
-    fn test_should_skip_entry_java_and_ide() {
-        // Bug B2: preview should not copy Java/Gradle caches or IDE config.
-        assert!(should_skip_entry(OsStr::new(".gradle")));
-        assert!(should_skip_entry(OsStr::new(".idea")));
-        assert!(should_skip_entry(OsStr::new(".vscode")));
-    }
-
-    #[test]
-    fn test_should_skip_entry_preserves_source_dirs() {
-        // Regression: legitimate source directories must NOT be skipped.
-        assert!(!should_skip_entry(OsStr::new("src")));
-        assert!(!should_skip_entry(OsStr::new("tests")));
-        assert!(!should_skip_entry(OsStr::new("examples")));
-        assert!(!should_skip_entry(OsStr::new("benches")));
-        assert!(!should_skip_entry(OsStr::new("Cargo.toml")));
-        assert!(!should_skip_entry(OsStr::new("lib.rs")));
-    }
-
-    /// Bug B5: `validate_utf8_span` previously hard-coded the literal
-    /// `<unknown>` for the file path in `SpliceError::InvalidSpan`. The
-    /// error must surface the real file path passed by the caller.
-    #[test]
-    fn validate_utf8_span_invalid_bounds_reports_real_path() {
-        let path = Path::new("/some/real/file/path.rs");
-        let err = validate_utf8_span(path, "abc", 0, 100)
-            .expect_err("out-of-bounds span should be an error");
-        let msg = err.to_string();
-        assert!(
-            !msg.contains("<unknown>"),
-            "error must not contain <unknown> placeholder; got: {}",
-            msg
-        );
-        assert!(
-            msg.contains("/some/real/file/path.rs"),
-            "error must mention the real file path; got: {}",
-            msg
-        );
-    }
-}
+#[path = "patch_tests.rs"]
+mod tests;

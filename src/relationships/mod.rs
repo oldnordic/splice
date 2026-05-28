@@ -590,11 +590,11 @@ pub fn get_imports(
 ///
 /// # Implementation Notes
 ///
-/// This is a placeholder implementation. The full implementation requires:
+/// This is a limited implementation. The full implementation requires:
 /// 1. A public API in CodeGraph to find file nodes
 /// 2. A public API to query all symbols in a file
 ///
-/// TODO: Implement once CodeGraph exposes file/symbol query APIs.
+/// Returns an empty list until CodeGraph exposes file/symbol query APIs.
 pub fn get_exports(
     _graph: &CodeGraph,
     _file_path: &Path,
@@ -606,8 +606,8 @@ pub fn get_exports(
         return Ok(cached.clone());
     }
 
-    // TODO: Query File->Symbol DEFINES edges and filter for public symbols
-    // Current limitation: No public API to iterate all symbols in a file
+    // Current limitation: no public API to iterate all symbols in a file.
+    // Returns empty until CodeGraph exposes File->Symbol DEFINES edges.
     let exports = Vec::new();
 
     // Cache before returning

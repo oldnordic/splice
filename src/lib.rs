@@ -1,7 +1,8 @@
-//! Splice: Span-safe refactoring kernel for Rust.
+//! Splice: Span-safe refactoring kernel for 7 languages.
 //!
 //! This library provides byte-accurate, AST-validated refactoring operations
-//! for Rust code using SQLiteGraph as the ground-truth code graph.
+//! using SQLiteGraph as the ground-truth code graph. For high-level convenience
+//! functions, see the [`forge`] module.
 
 #![warn(missing_docs)]
 // env_logger is used by src/main.rs (binary), not this library
@@ -21,6 +22,7 @@ pub mod error;
 pub mod error_codes;
 pub mod execution;
 pub mod expand;
+pub mod forge;
 pub mod format;
 pub mod graph;
 pub mod hints;
@@ -140,6 +142,32 @@ pub use proof::{
     RefactoringProof, RestoreResult, SnapshotMetadata, SnapshotStorage,
     SymbolInfo as ProofSymbolInfo, ViolationSeverity,
 };
+
+// ============================================================================
+// Forge Integration Types (Phase 32)
+// ============================================================================
+
+/// Re-export forge integration types for convenience.
+pub use forge::{
+    delete_symbol_from_file, patch_symbol_in_file, rename_symbol_across_files, resolve_symbol_span,
+    PatchResult, RenameResult, SymbolSpan,
+};
+
+/// Re-export workspace detection for convenience.
+pub use workspace::{detect_include_paths, detect_project_language, find_workspace_root};
+
+/// Re-export patch primitives for convenience.
+pub use patch::{
+    apply_batch_with_validation, apply_patch_with_validation, compute_preview_report,
+    preview_patch, replace_span, validate_utf8_span, FilePatchSummary, PreviewReport, SpanBatch,
+    SpanReplacement,
+};
+
+/// Re-export verification hooks for convenience.
+pub use verify::{pre_verify_patch, verify_after_patch};
+
+/// Re-export MagellanIntegration for direct graph access.
+pub use graph::MagellanIntegration;
 
 /// Splice version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

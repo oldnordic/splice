@@ -3,6 +3,43 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2026-05-29
+
+### Added
+
+- **Library API for programmatic use** — `splice::forge` module with high-level functions for external consumers (forge, agents, tool integrations):
+  - `patch_symbol_in_file(file, symbol, content, db)` — resolve a symbol via `SymbolNavigator` and apply a span-safe replacement with validation.
+  - `rename_symbol_across_files(old_name, new_name, db)` — find all references via magellan and apply span-safe replacements across files.
+  - `preview_patch_symbol(file, symbol, content, db)` — dry-run preview of a symbol patch without writing.
+  - `resolve_symbol_span(file, symbol, db)` — resolve a symbol to its byte span using `SymbolNavigator`.
+- **Re-exports** in `lib.rs` for forge integration:
+  - `splice::patch::{replace_span, apply_patch_with_validation, preview_patch, SpanReplacement, SpanBatch, PreviewReport, FilePatchSummary}`
+  - `splice::verify::{pre_verify_patch, post_verify_patch}`
+  - `splice::workspace::{find_workspace_root, detect_project_language, detect_include_paths}`
+  - `splice::graph::MagellanIntegration`
+  - `splice::graph::rename::{simulate_replacements, generate_colored_preview}`
+
+### Changed
+
+- **File split refactoring** — All source files over 1K LOC have been modularized into concern-separated submodules (11 files split, zero files remain over 1K LOC):
+  - `main.rs` (7067 → 589) → `src/cmds/` (18 files)
+  - `graph/magellan_integration.rs` (3712 → removed) → `graph/magellan_integration/` (8 files)
+  - `output.rs` (1646 → removed) → `output/` (5 files)
+  - `patch/pattern.rs` (1660 → removed) → `patch/pattern/` (4 files)
+  - `error_codes.rs` (1591 → removed) → `error_codes/` (3 files)
+  - `cli/mod.rs` (1378 → ~260) → extracted `commands.rs` + `types.rs`
+  - `verify.rs` (1120 → removed) → `verify/` (3 files)
+  - `resolve/references/rust.rs` (1448 → reduced) → extracted `scope.rs` + `cross_file.rs`
+  - `patch/mod.rs` (1604 → 868) → extracted `gates.rs` + `preview.rs` + `patch_tests.rs`
+  - `expand/tree_walker.rs` (1288 → 393) → extracted `tree_walker_tests.rs`
+  - `graph/rename/mod.rs` (1151 → reduced) → extracted `preview.rs` + `transaction.rs` + `apply.rs`
+
+### Fixed
+
+- **Code hygiene** — 2 production `.unwrap()` calls replaced with `let Some(...) else { panic!("invariant: ...") }` pattern in test code.
+- **Placeholder audit** — All 4 `// TODO:` comments converted to descriptive limitation notes (zero TODO/FIXME/HACK remaining in codebase).
+- **`unreachable!()` audit** — 1 legitimate use in exhaustive match (`AnalyzerMode::Off`) confirmed safe.
+
 ## [2.7.1] - 2026-05-28
 
 ### Added

@@ -138,9 +138,11 @@ pub fn validate_rust_snippet(
         cmd.current_dir(ws);
     }
 
-    cmd.arg("--emit=metadata")
-        .arg("--crate-type=lib")
-        .arg(temp_file.to_str().expect("invariant: temp file path is valid UTF-8"));
+    cmd.arg("--emit=metadata").arg("--crate-type=lib").arg(
+        temp_file
+            .to_str()
+            .expect("invariant: temp file path is valid UTF-8"),
+    );
 
     let output = match cmd.output() {
         Ok(output) => output,
