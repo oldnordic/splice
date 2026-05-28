@@ -3,7 +3,7 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.7.0] - 2026-05-28
+## [2.7.1] - 2026-05-28
 
 ### Added
 
@@ -18,6 +18,11 @@ Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`find_workspace_root`** moved from `main.rs` to `splice::workspace` module. Now uses magellan manifest parsers (CargoManifest, PyprojectManifest, GoModuleManifest, etc.) instead of hardcoded marker file names. Added `tsconfig.json` and `CMakeLists.txt` support.
 - **magellan dependency** updated from `3.3.9` to `4.2.0`. Major API update picking up `SymbolNavigator`, manifest detection, and service daemon improvements.
 - **Geometric backend feature** is now a no-op (`geometric = []`). The `geometric-backend` was removed from magellan 4.x. Existing `#[cfg(feature = "geometric")]` code gates are preserved but inert.
+
+## [2.7.0] - 2026-05-28
+
+### Changed
+- Version placeholder for crates.io publish.
 
 ## [2.6.13] - 2026-05-21
 
