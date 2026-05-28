@@ -525,21 +525,45 @@ impl MagellanIntegration {
     }
 
     /// SQLite implementation of find_symbol_by_name.
+    ///
+    /// Uses magellan's `SymbolNavigator` for O(1) resolution, falling back to
+    /// O(N) file scan if the navigator cannot resolve the name.
     fn find_symbol_by_name_sqlite(
         &mut self,
         name: &str,
         ambiguous: bool,
     ) -> Result<Vec<SymbolInfo>> {
-        let mut results = Vec::new();
+        let nav = self.inner.navigator();
+        if let Ok(resolved) = nav.resolve(name) {
+            if !resolved.is_empty() {
+                let results: Vec<SymbolInfo> = resolved
+                    .into_iter()
+                    .map(|si| SymbolInfo {
+                        entity_id: si.id,
+                        name: si.name,
+                        file_path: si.file_path.unwrap_or_default(),
+                        kind: si.kind_normalized.unwrap_or(si.kind),
+                        byte_start: si.byte_start,
+                        byte_end: si.byte_start,
+                        start_line: Some(si.start_line),
+                        end_line: Some(si.end_line),
+                    })
+                    .collect();
+                if ambiguous {
+                    return Ok(results);
+                } else {
+                    return Ok(vec![results[0].clone()]);
+                }
+            }
+        }
 
-        // Get all indexed files
+        let mut results = Vec::new();
         let file_nodes = self
             .inner
             .all_file_nodes()
             .map_err(|e| SpliceError::Other(format!("Failed to get file nodes: {}", e)))?;
 
         for file_path in file_nodes.keys() {
-            // Search for symbol in this file
             if let Ok(matches) = self.inner.symbol_extents(file_path, name) {
                 for (entity_id, fact) in matches {
                     let symbol = SymbolInfo {
@@ -554,7 +578,6 @@ impl MagellanIntegration {
                     };
                     results.push(symbol);
 
-                    // Early exit if not looking for all matches
                     if !ambiguous && !results.is_empty() {
                         return Ok(results);
                     }

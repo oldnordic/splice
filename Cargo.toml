@@ -1,6 +1,6 @@
 [package]
 name = "splice"
-version = "2.6.13"
+version = "2.7.0"
 edition = "2021"
 description = "Span-safe refactoring kernel for 7 languages with Magellan code graph integration"
 license = "GPL-3.0-only"
@@ -29,10 +29,9 @@ windows = []
 
 # Backend selection - SQLite is default
 sqlite = ["magellan/sqlite-backend", "sqlitegraph/sqlite-backend"]
-# Geometric backend for spatial indexing and CFG analysis
-geometric = ["magellan/geometric-backend"]
 
-# Migration testing feature for SQLite-only migration checks
+geometric = []
+
 migration = ["magellan/sqlite-backend", "sqlitegraph/sqlite-backend"]
 
 [dependencies]
@@ -40,7 +39,7 @@ migration = ["magellan/sqlite-backend", "sqlitegraph/sqlite-backend"]
 libc = { version = "0.2", optional = true }
 
 # Magellan for code indexing and label queries
-magellan = { version = "3.3.9", default-features = false, optional = true }
+magellan = { version = "4.2.0", default-features = false, optional = true }
 # SQLiteGraph re-exported from Magellan, also keep for direct access
 sqlitegraph = { version = "3.0.3", default-features = false }
 

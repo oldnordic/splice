@@ -3,7 +3,16 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.7.0] - 2026-05-28
+
+### Added
+
+- **`SymbolNavigator` integration** — `MagellanIntegration::find_symbol_by_name_sqlite()` now uses magellan's `SymbolNavigator` for O(1) symbol resolution, falling back to O(N) file scan when unavailable.
+
+### Changed
+
+- **magellan dependency** updated from `3.3.9` to `4.2.0`. Major API update picking up `SymbolNavigator`, manifest detection, and service daemon improvements.
+- **Geometric backend feature** is now a no-op (`geometric = []`). The `geometric-backend` was removed from magellan 4.x. Existing `#[cfg(feature = "geometric")]` code gates are preserved but inert.
 
 ## [2.6.13] - 2026-05-21
 
