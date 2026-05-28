@@ -7,10 +7,15 @@ Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`workspace` module** — Library-level workspace detection using magellan's manifest parsers. Three public functions:
+  - `find_workspace_root(path)` — walks parents to find project root via manifest files (Cargo.toml, pyproject.toml, go.mod, package.json, tsconfig.json, pom.xml, CMakeLists.txt), with boundary logic (stops at /, /tmp, $TMPDIR, conditional $HOME).
+  - `detect_project_language(root)` — returns the primary language ("rust", "python", "go", "javascript", "java", "c") from manifest detection.
+  - `detect_include_paths(root)` — delegates to `magellan::manifest::detect_include_paths_from_root` for source directory auto-detection.
 - **`SymbolNavigator` integration** — `MagellanIntegration::find_symbol_by_name_sqlite()` now uses magellan's `SymbolNavigator` for O(1) symbol resolution, falling back to O(N) file scan when unavailable.
 
 ### Changed
 
+- **`find_workspace_root`** moved from `main.rs` to `splice::workspace` module. Now uses magellan manifest parsers (CargoManifest, PyprojectManifest, GoModuleManifest, etc.) instead of hardcoded marker file names. Added `tsconfig.json` and `CMakeLists.txt` support.
 - **magellan dependency** updated from `3.3.9` to `4.2.0`. Major API update picking up `SymbolNavigator`, manifest detection, and service daemon improvements.
 - **Geometric backend feature** is now a no-op (`geometric = []`). The `geometric-backend` was removed from magellan 4.x. Existing `#[cfg(feature = "geometric")]` code gates are preserved but inert.
 

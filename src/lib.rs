@@ -40,6 +40,7 @@ pub mod symbol_id;
 pub mod syntax_validator;
 pub mod validate;
 pub mod verify;
+pub mod workspace;
 pub mod write;
 
 /// Re-export common error types for convenience.

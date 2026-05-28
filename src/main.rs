@@ -962,7 +962,7 @@ fn execute_delete(
     let backup_manifest_path = if create_backup {
         use splice::patch::BackupWriter;
 
-        let workspace_root = find_workspace_root(file_path)?;
+        let workspace_root = splice::workspace::find_workspace_root(file_path)?;
         let mut backup_writer = BackupWriter::new(&workspace_root, operation_id.clone())?;
 
         // Backup the file containing the definition
@@ -1684,7 +1684,7 @@ fn execute_patch(
     let workspace_dir = file_path.parent().ok_or_else(|| {
         splice::SpliceError::Other("Cannot determine workspace directory".to_string())
     })?;
-    let workspace_root = find_workspace_root(file_path)?;
+    let workspace_root = splice::workspace::find_workspace_root(file_path)?;
 
     // Step 9: Convert CLI analyzer mode to validate analyzer mode (default to Off)
     let analyzer_mode = match analyzer {
@@ -2307,7 +2307,7 @@ fn execute_patch_batch(
     let backup_manifest_path = if create_backup {
         use splice::patch::BackupWriter;
 
-        let workspace_root = find_workspace_root(&absolute_batch)?;
+        let workspace_root = splice::workspace::find_workspace_root(&absolute_batch)?;
 
         // Collect all files that will be patched
         let mut files_to_backup: std::collections::HashSet<PathBuf> =
@@ -6905,69 +6905,6 @@ fn _build_success_payload(
     splice::cli::CliSuccessPayload::with_data(message, Value::Object(data))
 }
 
-/// Walk parent directories looking for a project marker (Cargo.toml,
-/// pyproject.toml, package.json, etc.). Stop walking before entering
-/// boundary directories like `/tmp`, `$TMPDIR`, or `$HOME` (only when the
-/// file is outside `$HOME`). Without a stop boundary, a stray ancestor
-/// Cargo.toml above the working directory (e.g. left over in `/tmp`)
-/// would be falsely picked as the workspace root.
-fn find_workspace_root(path: &Path) -> Result<PathBuf, splice::SpliceError> {
-    let absolute_path = std::fs::canonicalize(path).map_err(|e| splice::SpliceError::Io {
-        path: path.to_path_buf(),
-        source: e,
-    })?;
-
-    const MARKERS: &[&str] = &[
-        "Cargo.toml",
-        "pyproject.toml",
-        "package.json",
-        "go.mod",
-        "pom.xml",
-        "build.gradle",
-        "setup.py",
-    ];
-
-    let boundaries = build_boundary_set(&absolute_path);
-
-    let mut current = absolute_path.parent();
-    while let Some(dir) = current {
-        // A boundary directory (e.g. /tmp) is never considered as the workspace root.
-        if boundaries.contains(dir) {
-            break;
-        }
-        for marker in MARKERS {
-            if dir.join(marker).exists() {
-                return Ok(dir.to_path_buf());
-            }
-        }
-        current = dir.parent();
-    }
-
-    Err(splice::SpliceError::Other(format!(
-        "No project marker (Cargo.toml, pyproject.toml, package.json, go.mod, pom.xml, build.gradle, setup.py) found in any ancestor of {} within $HOME or before /tmp",
-        path.display()
-    )))
-}
-
-/// Build the set of directories that bound the upward search for a project
-/// marker. We never look INTO these directories as workspace candidates.
-fn build_boundary_set(file_path: &Path) -> std::collections::HashSet<PathBuf> {
-    let mut set = std::collections::HashSet::new();
-    set.insert(PathBuf::from("/"));
-    set.insert(PathBuf::from("/tmp"));
-    if let Some(tmpdir) = std::env::var_os("TMPDIR") {
-        set.insert(PathBuf::from(tmpdir));
-    }
-    if let Some(home) = std::env::var_os("HOME") {
-        let home_path = PathBuf::from(&home);
-        // Only treat $HOME as a boundary if the file is NOT under $HOME.
-        // Otherwise legitimate $HOME-rooted projects would fail.
-        if !file_path.starts_with(&home_path) {
-            set.insert(home_path);
-        }
-    }
-    set
-}
 /// Extract symbols with explicit language (helper function).
 fn extract_symbols_with_language(
     path: &Path,
