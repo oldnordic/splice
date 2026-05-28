@@ -141,7 +141,7 @@ impl CompletionContext {
 
                                     // Keep the most specific (smallest) enclosing function
                                     if best_match.is_none()
-                                        || symbol.line > best_match.as_ref().unwrap().line
+                                        || symbol.line > best_match.as_ref().expect("invariant: checked is_none above").line
                                     {
                                         best_match = Some(symbol);
                                     }

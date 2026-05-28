@@ -1454,7 +1454,7 @@ fn execute_delete(
         }
 
         // Output structured JSON directly
-        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+        println!("{}", serde_json::to_string_pretty(&result).expect("invariant: serde_json serialization never fails on serializable types"));
 
         // Return a dummy payload marked as already emitted
         return Ok(
@@ -2157,7 +2157,7 @@ fn execute_patch(
         }
 
         // Output structured JSON directly
-        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+        println!("{}", serde_json::to_string_pretty(&result).expect("invariant: serde_json serialization never fails on serializable types"));
 
         // Return a dummy payload marked as already emitted
         return Ok(
@@ -2410,7 +2410,7 @@ fn execute_patch_batch(
         }
 
         // Output structured JSON directly
-        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+        println!("{}", serde_json::to_string_pretty(&result).expect("invariant: serde_json serialization never fails on serializable types"));
 
         // Return a dummy payload marked as already emitted
         return Ok(
@@ -2568,7 +2568,7 @@ fn execute_plan(
             .with_result(OperationData::Plan(plan_result));
 
         // Output structured JSON directly
-        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+        println!("{}", serde_json::to_string_pretty(&result).expect("invariant: serde_json serialization never fails on serializable types"));
 
         // Record execution for JSON output
         let duration_ms = start.elapsed().as_millis() as i64;
@@ -3232,7 +3232,7 @@ fn execute_query(
             .with_result(OperationData::Query(query_result));
 
         // Output structured JSON directly
-        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+        println!("{}", serde_json::to_string_pretty(&result).expect("invariant: serde_json serialization never fails on serializable types"));
 
         // Record execution
         let duration_ms = start.elapsed().as_millis() as i64;
@@ -3662,7 +3662,7 @@ fn execute_get(
                     }));
 
                 // Output structured JSON directly
-                println!("{}", serde_json::to_string_pretty(&result).unwrap());
+                println!("{}", serde_json::to_string_pretty(&result).expect("invariant: serde_json serialization never fails on serializable types"));
 
                 return Ok(
                     splice::cli::CliSuccessPayload::message_only("OK".to_string())
@@ -4817,7 +4817,7 @@ fn execute_rename(
         (None, Some(_), None) => {
             return Err(splice::SpliceError::RenameFailed {
                 reason: "--file is required when using --name".to_string(),
-                symbol: name.unwrap().to_string(),
+                symbol: name.expect("invariant: matched Some(_) above").to_string(),
             });
         }
         _ => {
@@ -4856,8 +4856,8 @@ fn execute_rename(
             })?
     } else {
         // Lookup by name+path
-        let name_str = lookup_name.unwrap();
-        let file_path = lookup_file.unwrap();
+        let name_str = lookup_name.expect("invariant: lookup_id is None, so name is Some");
+        let file_path = lookup_file.expect("invariant: lookup_id is None, so file is Some");
 
         // First, find ALL matches (ambiguous=true) to provide complete error context
         let mut all_matches = magellan.find_symbol_by_name(name_str, true).map_err(|e| {
@@ -6255,7 +6255,7 @@ fn execute_complete(
         file.to_path_buf()
     } else {
         std::env::current_dir()
-            .unwrap()
+            .expect("invariant: current directory always available")
             .join(file)
             .canonicalize()
             .map_err(|e| {
@@ -6288,7 +6288,7 @@ fn execute_complete(
 
     // Output results
     if json_output {
-        println!("{}", serde_json::to_string_pretty(&response).unwrap());
+        println!("{}", serde_json::to_string_pretty(&response).expect("invariant: serde_json serialization never fails on serializable types"));
     } else {
         println!(
             "Grounded Completions ({} suggestions):",
@@ -6459,7 +6459,7 @@ fn execute_snapshots_delete(
         )));
     }
 
-    let (path, meta) = snapshot_info.unwrap();
+    let (path, meta) = snapshot_info.expect("invariant: None case returned Err above");
 
     // Confirm deletion unless --force is set
     if !force

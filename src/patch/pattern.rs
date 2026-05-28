@@ -240,7 +240,7 @@ pub fn apply_pattern_replace(
                     .iter()
                     .find(|(path, _)| path == file_path)
                     .map(|(_, content)| content.clone())
-                    .unwrap();
+                    .expect("invariant: file_path present in backups from file_matches");
 
                 // Apply replacements in reverse byte order
                 let mut content = replaced.clone();

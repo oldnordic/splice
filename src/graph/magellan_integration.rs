@@ -1908,11 +1908,11 @@ impl MagellanIntegration {
                         neighbor, graph, index, indices, lowlink, on_stack, stack, sccs,
                     )?;
                     let neighbor_low = *lowlink.get(neighbor).unwrap_or(&0);
-                    let current_low = lowlink.get_mut(node).unwrap();
+                    let current_low = lowlink.get_mut(node).expect("invariant: node index inserted at DFS entry");
                     *current_low = (*current_low).min(neighbor_low);
                 } else if on_stack.contains(neighbor) {
                     let neighbor_idx = *indices.get(neighbor).unwrap_or(&0);
-                    let current_low = lowlink.get_mut(node).unwrap();
+                    let current_low = lowlink.get_mut(node).expect("invariant: node index inserted at DFS entry");
                     *current_low = (*current_low).min(neighbor_idx);
                 }
             }
@@ -1924,7 +1924,7 @@ impl MagellanIntegration {
         if node_low == node_idx {
             let mut scc = Vec::new();
             loop {
-                let w = stack.pop().unwrap();
+                let w = stack.pop().expect("invariant: SCC root pops at least itself");
                 on_stack.remove(&w);
                 if &w == node {
                     scc.push(w);
@@ -2586,7 +2586,7 @@ impl MagellanIntegration {
             for scc_id in queue {
                 if let Some(neighbors) = out_neighbors.get(&scc_id) {
                     for &neighbor in neighbors {
-                        let deg = in_degree.get_mut(&neighbor).unwrap();
+                        let deg = in_degree.get_mut(&neighbor).expect("invariant: neighbor in_degree initialized from out_neighbors");
                         *deg -= 1;
                         if *deg == 0 {
                             next_queue.push(neighbor);

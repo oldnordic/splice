@@ -132,7 +132,7 @@ fn add_module_declaration(file_path: &Path, workspace_dir: &Path) -> Result<()> 
         if let Some(dir_name) = parent_dir.file_name().and_then(|n| n.to_str()) {
             parent_dir
                 .parent()
-                .unwrap()
+                .expect("invariant: parent_dir always has a parent when file_name is Some")
                 .join(format!("{}.rs", dir_name))
         } else {
             // Fallback to lib.rs (if in src/)

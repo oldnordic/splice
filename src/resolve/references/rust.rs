@@ -88,8 +88,7 @@ struct Scope {
     /// Symbols defined in this scope, with their declaration positions.
     symbols: Vec<ScopedSymbol>,
     /// Parent scope index in the scope map (for nested scopes).
-    #[allow(dead_code)]
-    parent: Option<usize>,
+    _parent: Option<usize>,
 }
 
 /// A map of all scopes in a file, used to detect shadowing.
@@ -112,7 +111,7 @@ impl ScopeMap {
             start,
             end,
             symbols: Vec::new(),
-            parent,
+            _parent: parent,
         });
         idx
     }
@@ -436,14 +435,11 @@ struct Reexport {
     /// The module path that re-exports the symbol (e.g., "crate::mod_a")
     reexporting_module: String,
     /// The name the symbol is re-exported as (might differ with `as`)
-    #[allow(dead_code)]
-    reexported_name: String,
+    _reexported_name: String,
     /// The original module path being re-exported (e.g., "crate::utils")
-    #[allow(dead_code)]
-    replaced_module: String,
+    _replaced_module: String,
     /// The original symbol name being re-exported
-    #[allow(dead_code)]
-    replaced_name: String,
+    _replaced_name: String,
 }
 
 /// Build a map of all re-exports in the workspace.
@@ -494,9 +490,9 @@ fn build_reexport_map(
                 // This creates a re-export from `module_path` of the symbol `<imported_module>::<name>`
                 let reexport = Reexport {
                     reexporting_module: module_path.clone(),
-                    reexported_name: name.clone(),
-                    replaced_module: imported_module.clone(),
-                    replaced_name: name.clone(),
+                    _reexported_name: name.clone(),
+                    _replaced_module: imported_module.clone(),
+                    _replaced_name: name.clone(),
                 };
 
                 let key = (imported_module.clone(), name.clone());

@@ -1,10 +1,12 @@
 //! CLI tests for create command
 
-use super::*;
-use std::path::PathBuf;
+#[cfg(test)]
+mod cli_tests {
+    use crate::cli::*;
+    use std::path::PathBuf;
 
-#[test]
-fn test_create_command_exists() {
+    #[test]
+    fn test_create_command_exists() {
     // Should parse create command without error
     let args = Cli::try_parse_from(["splice", "create", "--file", "test.rs"]);
     assert!(args.is_ok());
@@ -152,4 +154,5 @@ fn test_complete_command_accepts_db_path() {
         }
         other => panic!("expected Complete command, got {other:?}"),
     }
+}
 }

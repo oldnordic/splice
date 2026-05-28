@@ -28,7 +28,7 @@ pub fn validate_syntax(file_path: &Path, source: &[u8]) -> Result<bool> {
         return Ok(true);
     }
 
-    let language = language.unwrap();
+    let language = language.expect("invariant: None case returned above");
 
     // Create parser
     let mut parser = Parser::new();
