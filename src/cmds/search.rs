@@ -212,6 +212,7 @@ pub(crate) fn execute_find(
     db_path: &Path,
     name: Option<String>,
     symbol_id: Option<String>,
+    semantic_query: Option<&str>,
     ambiguous: bool,
     _output: splice::cli::OutputFormat,
     json_output: bool,
@@ -230,11 +231,24 @@ pub(crate) fn execute_find(
                 ))
             }
         }
+    } else if let Some(query) = semantic_query {
+        let top_k = if ambiguous { 20 } else { 5 };
+        match splice::query::semantic::resolve_semantic_to_symbols(db_path, query, top_k)
+            .map_err(|e| splice::SpliceError::Other(format!("Semantic search failed: {e}")))?
+        {
+            Some(symbols) => symbols,
+            None => {
+                return Err(splice::SpliceError::Other(
+                    "No semantic matches found (ensure HNSW index exists and embeddings are generated)"
+                        .to_string(),
+                ));
+            }
+        }
     } else if let Some(ref n) = name {
         integration.find_symbol_by_name(n, ambiguous)?
     } else {
         return Err(splice::SpliceError::Other(
-            "--name or --symbol-id required".to_string(),
+            "--name, --symbol-id, or --semantic-query required".to_string(),
         ));
     };
 

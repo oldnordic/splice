@@ -107,6 +107,7 @@ Show all symbols reachable from a target symbol (impact analysis).
 
 ```bash
 splice reachable --symbol <name> --path <file> [OPTIONS]
+splice reachable --semantic-query "function that handles HTTP requests" [OPTIONS]
 ```
 
 **Required Arguments:**
@@ -114,6 +115,7 @@ splice reachable --symbol <name> --path <file> [OPTIONS]
 - `--path <file>`: File path for disambiguation
 
 **Optional Arguments:**
+- `--semantic-query <text>`: Natural-language query resolved via HNSW embeddings (requires Magellan-generated index)
 - `--db <path>`: Path to codegraph.db (default: `.magellan/splice.db`)
 - `--direction <forward|backward>`: Traversal direction (default: forward)
 - `--max-depth <n>`: Maximum traversal depth (default: 10)
@@ -126,11 +128,15 @@ Find unused symbols from entry points.
 
 ```bash
 splice dead-code --entry <symbol> --path <file> [OPTIONS]
+splice dead-code --semantic-query "main application entry point" [OPTIONS]
 ```
 
 **Required Arguments:**
 - `--entry <symbol>`: Entry point symbol name
 - `--path <file>`: File path for disambiguation
+
+**Optional Arguments:**
+- `--semantic-query <text>`: Natural-language query resolved via HNSW embeddings (requires Magellan-generated index)
 
 **Optional Arguments:**
 - `--db <path>`: Path to codegraph.db
@@ -235,6 +241,7 @@ Perform forward or backward program slicing.
 
 ```bash
 splice slice --target <id> --direction <forward|backward> [OPTIONS]
+splice slice --semantic-query "error handling logic" --direction forward [OPTIONS]
 ```
 
 **Required Arguments:**
@@ -242,6 +249,7 @@ splice slice --target <id> --direction <forward|backward> [OPTIONS]
 - `--direction <forward|backward>`: Slice direction
 
 **Optional Arguments:**
+- `--semantic-query <text>`: Natural-language query resolved via HNSW embeddings (requires Magellan-generated index)
 - `--db <path>`: Path to codegraph.db
 - `--max-distance <n>`: Maximum slice distance (default: 10)
 - `--output <format>`: Output format (human, json, pretty)
@@ -513,11 +521,15 @@ splice status --db .magellan/splice.db --detect-backend
 
 ### splice find
 
-Find symbols by name or symbol_id.
+Find symbols by name, symbol ID, or natural-language semantic query.
 
 ```bash
-splice find --db <FILE> (--name <NAME> | --symbol-id <ID>)
+splice find --db <FILE> (--name <NAME> | --symbol-id <ID> | --semantic-query <TEXT>)
 ```
+
+**Optional Arguments:**
+- `--semantic-query <text>`: Natural-language query resolved via HNSW embeddings (requires Magellan-generated index)
+- `--ambiguous`: Return all matches (default: first match only)
 
 ### splice refs
 

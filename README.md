@@ -3,7 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/splice)](https://crates.io/crates/splice)
 [![Documentation](https://docs.rs/splice/badge.svg)](https://docs.rs/splice)
 
-**Version:** 2.8.0
+**Version:** 2.9.0
 
 Span-safe refactoring kernel for 7 languages. Byte-accurate code editing with graph algorithm analysis.
 

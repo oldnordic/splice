@@ -367,9 +367,10 @@ fn main() -> ExitCode {
             db,
             name,
             symbol_id,
+            semantic_query,
             ambiguous,
             output,
-        } => cmds::search::execute_find(&db, name, symbol_id, ambiguous, output, json_output),
+        } => cmds::search::execute_find(&db, name, symbol_id, semantic_query.as_deref(), ambiguous, output, json_output),
 
         splice::cli::Commands::Refs {
             db,
@@ -436,6 +437,7 @@ fn main() -> ExitCode {
 
         splice::cli::Commands::Reachable {
             symbol,
+            semantic_query,
             path,
             db,
             direction,
@@ -444,6 +446,7 @@ fn main() -> ExitCode {
             impact_graph,
         } => cmds::graph::execute_reachable(
             &symbol,
+            semantic_query.as_deref(),
             &path,
             &db,
             &direction,
@@ -455,6 +458,7 @@ fn main() -> ExitCode {
 
         splice::cli::Commands::DeadCode {
             entry,
+            semantic_query,
             path,
             db,
             exclude_public,
@@ -462,6 +466,7 @@ fn main() -> ExitCode {
             output,
         } => cmds::dead_code::execute_dead_code(
             &entry,
+            semantic_query.as_deref(),
             &path,
             &db,
             exclude_public,
@@ -496,6 +501,7 @@ fn main() -> ExitCode {
 
         splice::cli::Commands::Slice {
             target,
+            semantic_query,
             path,
             db,
             direction,
@@ -503,6 +509,7 @@ fn main() -> ExitCode {
             output,
         } => cmds::graph::execute_slice(
             &target,
+            semantic_query.as_deref(),
             &path,
             &db,
             &direction,

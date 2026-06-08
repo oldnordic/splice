@@ -10,6 +10,7 @@ use super::impact::execute_impact_graph;
 )]
 pub(crate) fn execute_reachable(
     symbol: &str,
+    semantic_query: Option<&str>,
     path: &Path,
     db_path: &Path,
     direction: &splice::cli::ReachabilityDirection,
@@ -20,6 +21,27 @@ pub(crate) fn execute_reachable(
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::MagellanIntegration;
     use splice::output::{AffectedFile, ReachabilityChain, ReachabilityResult, SymbolInfo};
+
+    // Resolve semantic query upfront if provided
+    let (symbol, path) = if let Some(query) = semantic_query {
+        let resolved = splice::query::semantic::resolve_semantic_to_symbol(db_path, query)
+            .map_err(|e| splice::SpliceError::Other(format!("Semantic search failed: {e}")))?;
+        match resolved {
+            Some(info) => {
+                let sym = info.name;
+                let p = PathBuf::from(info.file_path);
+                (sym, p)
+            }
+            None => {
+                return Err(splice::SpliceError::Other(
+                    "No semantic matches found (ensure HNSW index exists and embeddings are generated)"
+                        .to_string(),
+                ));
+            }
+        }
+    } else {
+        (symbol.to_string(), path.to_path_buf())
+    };
 
     // Get path string early
     let path_str = path
@@ -40,7 +62,7 @@ pub(crate) fn execute_reachable(
     let mut integration = MagellanIntegration::open(db_path)?;
 
     // Get root symbol info using backend-neutral method
-    let root_symbol_info = match integration.find_symbol_by_path_and_name(path, symbol)? {
+    let root_symbol_info = match integration.find_symbol_by_path_and_name(&path, &symbol)? {
         Some(info) => info,
         None => {
             return Err(splice::SpliceError::SymbolNotFound {
@@ -55,16 +77,16 @@ pub(crate) fn execute_reachable(
     // Collect reachability based on direction
     let (forward_symbols, reverse_symbols) = match direction {
         splice::cli::ReachabilityDirection::Forward => {
-            let symbols = integration.reachable_symbols(path, symbol, max_depth)?;
+            let symbols = integration.reachable_symbols(&path, &symbol, max_depth)?;
             (symbols, Vec::new())
         }
         splice::cli::ReachabilityDirection::Reverse => {
-            let symbols = integration.reverse_reachable_symbols(path, symbol, max_depth)?;
+            let symbols = integration.reverse_reachable_symbols(&path, &symbol, max_depth)?;
             (Vec::new(), symbols)
         }
         splice::cli::ReachabilityDirection::Both => {
-            let forward = integration.reachable_symbols(path, symbol, max_depth)?;
-            let reverse = integration.reverse_reachable_symbols(path, symbol, max_depth)?;
+            let forward = integration.reachable_symbols(&path, &symbol, max_depth)?;
+            let reverse = integration.reverse_reachable_symbols(&path, &symbol, max_depth)?;
             (forward, reverse)
         }
     };
@@ -499,6 +521,7 @@ pub(crate) fn execute_condense(
 /// Performs forward or backward program slicing for impact analysis.
 pub(crate) fn execute_slice(
     target: &str,
+    semantic_query: Option<&str>,
     path: &Path,
     db_path: &Path,
     direction: &splice::cli::SliceDirection,
@@ -510,20 +533,41 @@ pub(crate) fn execute_slice(
     use splice::output::{AffectedFile, SliceResult, SliceStats, SlicedSymbol, SymbolInfo};
     use std::collections::HashMap;
 
+    // Resolve semantic query upfront if provided
+    let (target, path) = if let Some(query) = semantic_query {
+        let resolved = splice::query::semantic::resolve_semantic_to_symbol(db_path, query)
+            .map_err(|e| splice::SpliceError::Other(format!("Semantic search failed: {e}")))?;
+        match resolved {
+            Some(info) => {
+                let sym = info.name;
+                let p = PathBuf::from(info.file_path);
+                (sym, p)
+            }
+            None => {
+                return Err(splice::SpliceError::Other(
+                    "No semantic matches found (ensure HNSW index exists and embeddings are generated)"
+                        .to_string(),
+                ));
+            }
+        }
+    } else {
+        (target.to_string(), path.to_path_buf())
+    };
+
     let mut integration = MagellanIntegration::open(db_path)?;
 
     // Perform slice
     let sliced_symbols = match direction {
         splice::cli::SliceDirection::Forward => {
-            integration.forward_slice(path, target, max_depth)?
+            integration.forward_slice(&path, &target, max_depth)?
         }
         splice::cli::SliceDirection::Backward => {
-            integration.backward_slice(path, target, max_depth)?
+            integration.backward_slice(&path, &target, max_depth)?
         }
     };
 
     // Get target symbol info using backend-neutral method
-    let target_symbol_info = match integration.find_symbol_by_path_and_name(path, target)? {
+    let target_symbol_info = match integration.find_symbol_by_path_and_name(&path, &target)? {
         Some(info) => info,
         None => {
             return Err(splice::SpliceError::Other(

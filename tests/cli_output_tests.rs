@@ -231,6 +231,7 @@ fn test_find_command_requires_name_or_symbol_id() {
         db: PathBuf::from("/tmp/test.db"),
         name: Some("test".to_string()),
         symbol_id: None,
+        semantic_query: None,
         ambiguous: false,
         output: splice::cli::OutputFormat::Human,
     };
@@ -240,6 +241,7 @@ fn test_find_command_requires_name_or_symbol_id() {
         db: PathBuf::from("/tmp/test.db"),
         name: None,
         symbol_id: Some("abc123".to_string()),
+        semantic_query: None,
         ambiguous: false,
         output: splice::cli::OutputFormat::Human,
     };

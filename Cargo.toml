@@ -1,6 +1,6 @@
 [package]
 name = "splice"
-version = "2.8.0"
+version = "2.9.0"
 edition = "2021"
 description = "Span-safe refactoring kernel for 7 languages with Magellan code graph integration"
 license = "GPL-3.0-only"
@@ -87,6 +87,10 @@ regex = "1.10"
 # UUID generation and time handling
 uuid = { version = "1.10", features = ["v4"] }
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+
+# Semantic search
+ureq = "3"
+toml = "0.8"
 
 # Direct SQLite access for execution log (same version as Magellan)
 rusqlite = { version = "0.31", features = ["bundled"] }

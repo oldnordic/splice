@@ -445,7 +445,7 @@ pub enum Commands {
         detect_backend: bool,
     },
 
-    /// Find symbols by name or 16-character symbol ID
+    /// Find symbols by name, ID, or natural-language semantic query
     #[command(display_order = 101)]
     Find {
         /// Path to the Magellan database
@@ -459,6 +459,10 @@ pub enum Commands {
         /// 16-character hex symbol ID
         #[arg(long, conflicts_with = "name")]
         symbol_id: Option<String>,
+
+        /// Natural-language query resolved via semantic search (HNSW embeddings)
+        #[arg(long)]
+        semantic_query: Option<String>,
 
         /// Return all matches (default: first match only)
         #[arg(short, long)]
@@ -600,8 +604,12 @@ pub enum Commands {
     #[command(display_order = 111)]
     Reachable {
         /// Symbol name to analyze
-        #[arg(short, long)]
+        #[arg(short, long, default_value = "")]
         symbol: String,
+
+        /// Natural-language query resolved via semantic search (HNSW embeddings)
+        #[arg(long)]
+        semantic_query: Option<String>,
 
         /// File path containing the symbol
         #[arg(short, long)]
@@ -632,8 +640,12 @@ pub enum Commands {
     #[command(display_order = 112)]
     DeadCode {
         /// Entry point symbol name (e.g., "main", "MyApp::run")
-        #[arg(short, long)]
+        #[arg(short, long, default_value = "")]
         entry: String,
+
+        /// Natural-language query resolved via semantic search (HNSW embeddings)
+        #[arg(long)]
+        semantic_query: Option<String>,
 
         /// File path containing the entry point symbol
         #[arg(short, long)]
@@ -708,8 +720,12 @@ pub enum Commands {
     #[command(display_order = 115)]
     Slice {
         /// Target symbol to slice from
-        #[arg(short, long)]
+        #[arg(short, long, default_value = "")]
         target: String,
+
+        /// Natural-language query resolved via semantic search (HNSW embeddings)
+        #[arg(long)]
+        semantic_query: Option<String>,
 
         /// File path containing the target symbol
         #[arg(short, long)]

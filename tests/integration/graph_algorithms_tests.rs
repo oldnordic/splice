@@ -26,6 +26,7 @@ fn test_reachable_command_basic() {
         Ok(cli) => match cli.command {
             Commands::Reachable {
                 symbol,
+                semantic_query: None,
                 path,
                 db,
                 direction,
@@ -114,6 +115,7 @@ fn test_dead_code_command_basic() {
         Ok(cli) => match cli.command {
             Commands::DeadCode {
                 entry,
+                semantic_query: None,
                 path,
                 db,
                 exclude_public,
@@ -313,6 +315,7 @@ fn test_slice_command_forward() {
         Ok(cli) => match cli.command {
             Commands::Slice {
                 target,
+                semantic_query: None,
                 path,
                 db,
                 direction,

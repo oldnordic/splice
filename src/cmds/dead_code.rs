@@ -5,6 +5,7 @@ use std::path::Path;
 
 pub(crate) fn execute_dead_code(
     entry: &str,
+    semantic_query: Option<&str>,
     path: &Path,
     db_path: &Path,
     exclude_public: bool,
@@ -15,13 +16,34 @@ pub(crate) fn execute_dead_code(
     use splice::graph::MagellanIntegration;
     use splice::output::{DeadCodeByFile, DeadCodeResult, SymbolInfo};
 
+    // Resolve semantic query upfront if provided
+    let (entry, path) = if let Some(query) = semantic_query {
+        let resolved = splice::query::semantic::resolve_semantic_to_symbol(db_path, query)
+            .map_err(|e| splice::SpliceError::Other(format!("Semantic search failed: {e}")))?;
+        match resolved {
+            Some(info) => {
+                let sym = info.name;
+                let p = std::path::PathBuf::from(info.file_path);
+                (sym, p)
+            }
+            None => {
+                return Err(splice::SpliceError::Other(
+                    "No semantic matches found (ensure HNSW index exists and embeddings are generated)"
+                        .to_string(),
+                ));
+            }
+        }
+    } else {
+        (entry.to_string(), path.to_path_buf())
+    };
+
     let path_str = path
         .to_str()
         .ok_or_else(|| splice::SpliceError::Other("Invalid UTF-8 in path".to_string()))?;
 
     let mut integration = MagellanIntegration::open(db_path)?;
 
-    let entry_symbol_info = match integration.find_symbol_by_path_and_name(path, entry)? {
+    let entry_symbol_info = match integration.find_symbol_by_path_and_name(&path, &entry)? {
         Some(info) => info,
         None => {
             return Err(splice::SpliceError::SymbolNotFound {
@@ -35,7 +57,7 @@ pub(crate) fn execute_dead_code(
 
     let total_symbols = integration.get_statistics()?.symbols;
 
-    let dead_symbols = integration.dead_symbols(path, entry, exclude_public)?;
+    let dead_symbols = integration.dead_symbols(&path, &entry, exclude_public)?;
 
     let reachable_count = total_symbols.saturating_sub(dead_symbols.len());
     let dead_count = dead_symbols.len();

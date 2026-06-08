@@ -34,6 +34,7 @@ pub mod plan;
 /// Platform detection and feature flags.
 pub mod platform;
 pub mod proof;
+pub mod query;
 pub mod relationships;
 pub mod resolve;
 pub mod suggestions;

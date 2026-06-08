@@ -29,6 +29,7 @@ fn test_reachable_command_has_impact_graph_flag() {
     // Verify Reachable command struct has impact_graph field
     let reachable_cmd = Commands::Reachable {
         symbol: "test".to_string(),
+        semantic_query: None,
         path: PathBuf::from("/tmp/test.rs"),
         db: PathBuf::from("/tmp/test.db"),
         direction: ReachabilityDirection::Forward,
