@@ -3,6 +3,10 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "CLI handler aggregates clap-parsed flags"
+)]
 pub(crate) fn execute_dead_code(
     entry: &str,
     semantic_query: Option<&str>,

@@ -519,6 +519,10 @@ pub(crate) fn execute_condense(
 /// Execute the slice command.
 ///
 /// Performs forward or backward program slicing for impact analysis.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "CLI handler aggregates clap-parsed flags"
+)]
 pub(crate) fn execute_slice(
     target: &str,
     semantic_query: Option<&str>,
