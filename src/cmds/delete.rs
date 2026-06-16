@@ -105,13 +105,11 @@ pub(crate) fn execute_delete(
     // Step 5: Convert CLI kind to string for resolution
     // Note: This will be used in Phase 4 for multi-language reference finding
     let _kind_str = kind.map(|k| match k {
-        splice::cli::SymbolKind::Function => "function",
+        splice::cli::SymbolKind::Function => "fn",
         splice::cli::SymbolKind::Method => "method",
-        splice::cli::SymbolKind::Class => "class",
         splice::cli::SymbolKind::Struct => "struct",
-        splice::cli::SymbolKind::Interface => "interface",
-        splice::cli::SymbolKind::Enum => "enum",
         splice::cli::SymbolKind::Trait => "trait",
+        splice::cli::SymbolKind::Enum => "enum",
         splice::cli::SymbolKind::Impl => "impl",
         splice::cli::SymbolKind::Module => "module",
         splice::cli::SymbolKind::Variable => "variable",
@@ -296,13 +294,9 @@ pub(crate) fn execute_delete(
             log_execution_error("delete (dry-run)", &e);
         }
 
-        // Mark as having pending changes if lines would be removed (git diff exit code convention)
-        let has_changes = lines_removed > 0;
-        let mut payload = splice::cli::CliSuccessPayload::message_only(message).already_emitted();
-        if has_changes {
-            payload = payload.with_pending_changes();
-        }
-        return Ok(payload);
+        // Dry-run is a successful preview: always exit 0 even when the diff
+        // shows deletions. The diff itself is the signal that work would be done.
+        return Ok(splice::cli::CliSuccessPayload::message_only(message).already_emitted());
     }
 
     // Step 11: Create backup if requested

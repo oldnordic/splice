@@ -186,29 +186,34 @@ impl MagellanIntegration {
         name: &str,
         ambiguous: bool,
     ) -> Result<Vec<SymbolInfo>> {
+        use std::collections::HashSet;
+
         // Fast path: navigator gives candidate (file, name) pairs. We then resolve
         // full extents via symbol_extents to obtain correct byte_end and the
         // canonical kind_normalized, avoiding the zero-width navigator records.
         let nav = self.inner.navigator();
         let mut results = Vec::new();
+        let mut seen = HashSet::new();
         if let Ok(resolved) = nav.resolve(name) {
             for si in resolved {
                 let path = si.file_path.unwrap_or_default();
                 if let Ok(matches) = self.inner.symbol_extents(&path, &si.name) {
                     for (entity_id, fact) in matches {
-                        results.push(SymbolInfo {
-                            entity_id,
-                            name: fact.name.clone().unwrap_or_else(|| si.name.clone()),
-                            file_path: fact.file_path.to_string_lossy().to_string(),
-                            kind: fact.kind_normalized.clone(),
-                            byte_start: fact.byte_start,
-                            byte_end: fact.byte_end,
-                            start_line: Some(fact.start_line),
-                            end_line: Some(fact.end_line),
-                        });
+                        if seen.insert(entity_id) {
+                            results.push(SymbolInfo {
+                                entity_id,
+                                name: fact.name.clone().unwrap_or_else(|| si.name.clone()),
+                                file_path: fact.file_path.to_string_lossy().to_string(),
+                                kind: fact.kind_normalized.clone(),
+                                byte_start: fact.byte_start,
+                                byte_end: fact.byte_end,
+                                start_line: Some(fact.start_line),
+                                end_line: Some(fact.end_line),
+                            });
 
-                        if !ambiguous {
-                            return Ok(results);
+                            if !ambiguous {
+                                return Ok(results);
+                            }
                         }
                     }
                 }
@@ -229,20 +234,22 @@ impl MagellanIntegration {
         for file_path in file_nodes.keys() {
             if let Ok(matches) = self.inner.symbol_extents(file_path, name) {
                 for (entity_id, fact) in matches {
-                    let symbol = SymbolInfo {
-                        entity_id,
-                        name: fact.name.clone().unwrap_or_default(),
-                        file_path: fact.file_path.to_string_lossy().to_string(),
-                        kind: fact.kind_normalized.clone(),
-                        byte_start: fact.byte_start,
-                        byte_end: fact.byte_end,
-                        start_line: Some(fact.start_line),
-                        end_line: Some(fact.end_line),
-                    };
-                    results.push(symbol);
+                    if seen.insert(entity_id) {
+                        let symbol = SymbolInfo {
+                            entity_id,
+                            name: fact.name.clone().unwrap_or_default(),
+                            file_path: fact.file_path.to_string_lossy().to_string(),
+                            kind: fact.kind_normalized.clone(),
+                            byte_start: fact.byte_start,
+                            byte_end: fact.byte_end,
+                            start_line: Some(fact.start_line),
+                            end_line: Some(fact.end_line),
+                        };
+                        results.push(symbol);
 
-                    if !ambiguous && !results.is_empty() {
-                        return Ok(results);
+                        if !ambiguous && !results.is_empty() {
+                            return Ok(results);
+                        }
                     }
                 }
             }

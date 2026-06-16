@@ -263,12 +263,13 @@ pub fn main() {
 
         let stderr = String::from_utf8_lossy(&output.stderr);
 
-        // Exit code should be 1 (changes pending - symbol would be deleted) unless there's a workspace error
+        // Dry-run is a successful preview; exit code 0 is expected even when
+        // the diff shows deletions. The diff itself is the signal.
         if !stderr.contains("Cannot find Cargo.toml") {
             assert_eq!(
                 output.status.code(),
-                Some(1),
-                "Expected exit code 1 when symbol found, got {:?}. stdout: {}, stderr: {}",
+                Some(0),
+                "Expected exit code 0 for successful dry-run preview, got {:?}. stdout: {}, stderr: {}",
                 output.status.code(),
                 String::from_utf8_lossy(&output.stdout),
                 stderr

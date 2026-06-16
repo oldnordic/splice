@@ -8,28 +8,33 @@
 #[derive(clap::ValueEnum, Debug, Clone, Copy)]
 pub enum SymbolKind {
     /// Function symbol.
+    #[value(aliases = ["fn"])]
     Function,
     /// Method symbol (function inside a class/struct).
+    #[value(alias = "method")]
     Method,
     /// Class/Struct symbol.
-    Class,
-    /// Struct symbol (Rust, C++).
+    #[value(alias = "class")]
     Struct,
-    /// Interface symbol (Java, TypeScript).
-    Interface,
+    /// Interface/Trait symbol.
+    #[value(aliases = ["interface", "trait"])]
+    Trait,
     /// Enum symbol.
     Enum,
-    /// Trait symbol (Rust).
-    Trait,
     /// Impl block (Rust).
+    #[value(alias = "impl")]
     Impl,
     /// Module/Namespace symbol.
+    #[value(alias = "module")]
     Module,
     /// Variable/Field symbol.
+    #[value(alias = "variable")]
     Variable,
     /// Constructor symbol (Java, C++).
+    #[value(alias = "constructor")]
     Constructor,
     /// Type alias (TypeScript, Rust, Python).
+    #[value(alias = "type-alias")]
     TypeAlias,
 }
 
@@ -128,11 +133,9 @@ impl SymbolKind {
         match self {
             SymbolKind::Function => "fn",
             SymbolKind::Method => "method",
-            SymbolKind::Class => "struct",
             SymbolKind::Struct => "struct",
-            SymbolKind::Interface => "trait",
-            SymbolKind::Enum => "enum",
             SymbolKind::Trait => "trait",
+            SymbolKind::Enum => "enum",
             SymbolKind::Impl => "impl",
             SymbolKind::Module => "module",
             SymbolKind::Variable => "variable",

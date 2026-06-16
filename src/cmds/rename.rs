@@ -292,7 +292,7 @@ pub(crate) fn execute_rename(
             total_references,
             diffs.join("\n")
         );
-        return Ok(splice::cli::CliSuccessPayload::message_only(summary).with_pending_changes());
+        return Ok(splice::cli::CliSuccessPayload::message_only(summary));
     }
 
     // DETERMINE WORKSPACE ROOT

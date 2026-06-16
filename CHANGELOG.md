@@ -3,6 +3,27 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.3] - 2026-06-16
+
+### Fixed
+
+- **CLI kind alias `fn` is accepted again.** `splice rename --kind fn ...` now
+  parses correctly and matches magellan's normalized `fn` kind.
+- **Duplicate symbol records no longer produce false `AmbiguousSymbol` errors.**
+  `find_symbol_by_name` deduplicates by magellan entity ID before returning
+  matches, so symbols indexed by both the magellan indexer and tree-sitter
+  resolve cleanly.
+- **`rename --dry-run` and `delete --dry-run` exit 0 on a successful preview.**
+  The diff/preview output is the signal that work would be done; the process
+  exit code no longer claims failure.
+
+### Known limitations
+
+- Cross-file rename still only updates the definition site in the tested
+  configuration. Call sites in other files are not rewritten unless the
+  magellan DB contains the cross-file reference edges for the target symbol.
+  Use `--dry-run` first to confirm the reference set.
+
 ## [2.9.2] - 2026-06-16
 
 ### Fixed

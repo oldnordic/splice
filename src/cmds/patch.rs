@@ -188,13 +188,11 @@ pub(crate) fn execute_patch(
 
     // Step 5: Convert CLI kind to string for resolution
     let kind_str = kind.map(|k| match k {
-        splice::cli::SymbolKind::Function => "function",
+        splice::cli::SymbolKind::Function => "fn",
         splice::cli::SymbolKind::Method => "method",
-        splice::cli::SymbolKind::Class => "class",
         splice::cli::SymbolKind::Struct => "struct",
-        splice::cli::SymbolKind::Interface => "interface",
-        splice::cli::SymbolKind::Enum => "enum",
         splice::cli::SymbolKind::Trait => "trait",
+        splice::cli::SymbolKind::Enum => "enum",
         splice::cli::SymbolKind::Impl => "impl",
         splice::cli::SymbolKind::Module => "module",
         splice::cli::SymbolKind::Variable => "variable",
