@@ -370,7 +370,15 @@ fn main() -> ExitCode {
             semantic_query,
             ambiguous,
             output,
-        } => cmds::search::execute_find(&db, name, symbol_id, semantic_query.as_deref(), ambiguous, output, json_output),
+        } => cmds::search::execute_find(
+            &db,
+            name,
+            symbol_id,
+            semantic_query.as_deref(),
+            ambiguous,
+            output,
+            json_output,
+        ),
 
         splice::cli::Commands::Refs {
             db,

@@ -71,9 +71,8 @@ pub fn read_magellan_config() -> anyhow::Result<(String, String, String)> {
         .join(".config")
         .join("magellan")
         .join("config.toml");
-    let contents = std::fs::read_to_string(&config_path).map_err(|e| {
-        anyhow::anyhow!("Failed to read config at {:?}: {}", config_path, e)
-    })?;
+    let contents = std::fs::read_to_string(&config_path)
+        .map_err(|e| anyhow::anyhow!("Failed to read config at {:?}: {}", config_path, e))?;
     let config: MagellanConfig =
         toml::from_str(&contents).map_err(|e| anyhow::anyhow!("Failed to parse config: {e}"))?;
     let api_key = config.embeddings.api_key.unwrap_or_default();
@@ -91,8 +90,7 @@ pub fn resolve_semantic_query(
     query: &str,
     top_k: usize,
 ) -> anyhow::Result<Option<Vec<(i64, f32)>>> {
-    let conn =
-        Connection::open(db_path).map_err(|e| anyhow::anyhow!("Failed to open DB: {e}"))?;
+    let conn = Connection::open(db_path).map_err(|e| anyhow::anyhow!("Failed to open DB: {e}"))?;
 
     // Fast-fail if no HNSW index exists
     let hnsw_exists: bool = conn
@@ -197,8 +195,7 @@ pub fn resolve_symbol_by_entity_id(
 ) -> anyhow::Result<Option<crate::graph::magellan_integration::SymbolInfo>> {
     use crate::graph::magellan_integration::SymbolInfo;
 
-    let conn =
-        Connection::open(db_path).map_err(|e| anyhow::anyhow!("Failed to open DB: {e}"))?;
+    let conn = Connection::open(db_path).map_err(|e| anyhow::anyhow!("Failed to open DB: {e}"))?;
 
     let row: Option<(String, String, String)> = conn
         .query_row(
@@ -223,21 +220,21 @@ pub fn resolve_symbol_by_entity_id(
     let data: serde_json::Value = serde_json::from_str(&data_json)
         .map_err(|e| anyhow::anyhow!("Failed to parse symbol data JSON: {e}"))?;
 
-    let byte_start = data
-        .get("byte_start")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0) as usize;
-    let byte_end = data
-        .get("byte_end")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0) as usize;
+    let byte_start = data.get("byte_start").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+    let byte_end = data.get("byte_end").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
     let kind = data
         .get("kind")
         .and_then(|v| v.as_str())
         .unwrap_or("Unknown")
         .to_string();
-    let start_line = data.get("start_line").and_then(|v| v.as_u64()).map(|l| l as usize);
-    let end_line = data.get("end_line").and_then(|v| v.as_u64()).map(|l| l as usize);
+    let start_line = data
+        .get("start_line")
+        .and_then(|v| v.as_u64())
+        .map(|l| l as usize);
+    let end_line = data
+        .get("end_line")
+        .and_then(|v| v.as_u64())
+        .map(|l| l as usize);
 
     Ok(Some(SymbolInfo {
         entity_id,

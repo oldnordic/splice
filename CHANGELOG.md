@@ -3,6 +3,35 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.1] - 2026-06-16
+
+### Fixed
+
+- **sqlitegraph schema compatibility** — rebuilt dependency graph against
+  `magellan 4.7.3` / `sqlitegraph 3.2.5` (schema v6). The published `2.9.0`
+  binary was compiled against `sqlitegraph 3.0.3` (schema v5), which made every
+  DB command fail with `DB_COMPAT: sqlitegraph schema mismatch (found=6,
+  expected=5) [SPL-E091]` when used with current Magellan builds. This release
+  ships a v6-compatible binary.
+
+### Known limitations (not regressions from 2.9.0)
+
+- `splice rename` remains non-functional against magellan 4.7.3:
+  - `--name --file` errors with `SPL-E002 AmbiguousSymbol` because the DB holds
+    duplicate records per symbol (magellan `fn` kind + splice tree-sitter
+    `function` kind) and rename has no `--kind` disambiguator.
+  - `--symbol <id>` errors with `SPL-E040 not found` because the magellan
+    `symbol_id` space differs from the ID splice expects, and `splice find`
+    exposes no symbol ID.
+  - Do not use splice for cross-file rename until a future release addresses
+    the id-space / duplicate-record issue.
+- `splice delete` still has no `--db` flag and hardcodes the default
+  `.magellan/magellan.db` path.
+- `splice dead-code` does not follow cross-file calls; treat its output as
+  intra-file reachability only.
+- `splice patch --dry-run` exits with code 1 even on a successful preview; read
+  the printed diff rather than checking `$?`.
+
 ## [2.9.0] - 2026-06-07
 
 ### Added
