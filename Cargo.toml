@@ -1,6 +1,6 @@
 [package]
 name = "splice"
-version = "2.9.1"
+version = "2.9.2"
 edition = "2021"
 description = "Span-safe refactoring kernel for 7 languages with Magellan code graph integration"
 license = "GPL-3.0-only"

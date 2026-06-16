@@ -57,6 +57,26 @@ fn parse_symbol_kind(kind: &str) -> SymbolKind {
     }
 }
 
+/// Normalize a kind string to a canonical form for filtering.
+///
+/// This collapses equivalent terms (e.g., "function" and "fn") so that CLI
+/// `--kind function` matches magellan's normalized "fn" kind and vice versa.
+pub fn normalize_kind(kind: &str) -> String {
+    let lower = kind.to_ascii_lowercase();
+    match lower.as_str() {
+        "function" | "fn" | "method" => "fn",
+        "struct" | "class" => "struct",
+        "enum" => "enum",
+        "trait" | "interface" => "trait",
+        "impl" => "impl",
+        "module" | "namespace" => "module",
+        "variable" | "field" | "const" | "constant" => "variable",
+        "type" | "typedef" | "type_alias" => "type_alias",
+        _ => &lower,
+    }
+    .to_string()
+}
+
 #[allow(missing_docs)]
 pub struct MagellanIntegration {
     pub(crate) inner: MagellanGraph,

@@ -186,31 +186,41 @@ impl MagellanIntegration {
         name: &str,
         ambiguous: bool,
     ) -> Result<Vec<SymbolInfo>> {
+        // Fast path: navigator gives candidate (file, name) pairs. We then resolve
+        // full extents via symbol_extents to obtain correct byte_end and the
+        // canonical kind_normalized, avoiding the zero-width navigator records.
         let nav = self.inner.navigator();
+        let mut results = Vec::new();
         if let Ok(resolved) = nav.resolve(name) {
-            if !resolved.is_empty() {
-                let results: Vec<SymbolInfo> = resolved
-                    .into_iter()
-                    .map(|si| SymbolInfo {
-                        entity_id: si.id,
-                        name: si.name,
-                        file_path: si.file_path.unwrap_or_default(),
-                        kind: si.kind_normalized.unwrap_or(si.kind),
-                        byte_start: si.byte_start,
-                        byte_end: si.byte_start,
-                        start_line: Some(si.start_line),
-                        end_line: Some(si.end_line),
-                    })
-                    .collect();
-                if ambiguous {
-                    return Ok(results);
-                } else {
-                    return Ok(vec![results[0].clone()]);
+            for si in resolved {
+                let path = si.file_path.unwrap_or_default();
+                if let Ok(matches) = self.inner.symbol_extents(&path, &si.name) {
+                    for (entity_id, fact) in matches {
+                        results.push(SymbolInfo {
+                            entity_id,
+                            name: fact.name.clone().unwrap_or_else(|| si.name.clone()),
+                            file_path: fact.file_path.to_string_lossy().to_string(),
+                            kind: fact.kind_normalized.clone(),
+                            byte_start: fact.byte_start,
+                            byte_end: fact.byte_end,
+                            start_line: Some(fact.start_line),
+                            end_line: Some(fact.end_line),
+                        });
+
+                        if !ambiguous {
+                            return Ok(results);
+                        }
+                    }
                 }
             }
         }
 
-        let mut results = Vec::new();
+        // Navigator found results: skip the expensive O(N) file scan.
+        if !results.is_empty() {
+            return Ok(results);
+        }
+
+        // Fallback: scan every file for the name.
         let file_nodes = self
             .inner
             .all_file_nodes()
@@ -223,7 +233,7 @@ impl MagellanIntegration {
                         entity_id,
                         name: fact.name.clone().unwrap_or_default(),
                         file_path: fact.file_path.to_string_lossy().to_string(),
-                        kind: fact.kind_normalized,
+                        kind: fact.kind_normalized.clone(),
                         byte_start: fact.byte_start,
                         byte_end: fact.byte_end,
                         start_line: Some(fact.start_line),
@@ -349,25 +359,18 @@ impl MagellanIntegration {
         }
     }
 
-    /// Find symbol by 16-char SHA-256 or 32-char BLAKE3 symbol ID.
+    /// Find symbol by ID.
+    ///
+    /// Accepts:
+    /// - magellan's raw entity ID (integer / 16-char hex)
+    /// - splice V2 BLAKE3 symbol ID (32-char hex)
+    /// - splice V1 SHA-256 symbol ID (16-char hex)
     ///
     /// # Arguments
-    /// * `symbol_id` - 16-char (V1 SHA-256) or 32-char (V2 BLAKE3) lowercase hex symbol ID
+    /// * `symbol_id` - symbol identifier
     ///
     /// # Returns
     /// Some(SymbolInfo) if found, None if not found.
-    ///
-    /// # Performance
-    /// This requires O(N) entity iteration where N = total symbols.
-    /// Magellan does not store symbol_id or provide reverse lookup.
-    /// Consider building a symbol_id index in future if performance is inadequate.
-    ///
-    /// # Note
-    /// Symbol IDs are generated as:
-    /// - V1: SHA-256(name:path:byte_start)[0..8] -> 16 hex chars
-    /// - V2: BLAKE3(name:path:byte_start)[0..16] -> 32 hex chars
-    ///
-    /// We regenerate IDs during iteration to find matches, trying V2 first.
     pub fn find_symbol_by_id(&mut self, symbol_id: &str) -> Result<Option<SymbolInfo>> {
         match self.backend {
             IntegrationBackend::Sqlite => self.find_symbol_by_id_sqlite(symbol_id),
@@ -377,10 +380,58 @@ impl MagellanIntegration {
     }
 
     /// Find symbol by ID (SQLite implementation).
+    ///
+    /// Accepts:
+    /// - magellan's stable `symbol_id` (16-char hex stored in symbol data)
+    /// - fully-qualified symbol name (FQN / display_fqn / canonical_fqn)
+    /// - raw SQLite entity ID (integer)
+    /// - splice V2 BLAKE3 symbol ID (32-char hex)
+    /// - splice V1 SHA-256 symbol ID (16-char hex)
     fn find_symbol_by_id_sqlite(&mut self, symbol_id: &str) -> Result<Option<SymbolInfo>> {
         use crate::symbol_id::{generate_v1, generate_v2};
         use rusqlite::Connection;
 
+        // Try 1: magellan's resolver (symbol_id, FQN, entity ID)
+        match self.inner.resolve_symbol_entity(symbol_id) {
+            Ok(entity_id) => {
+                let conn = Connection::open(&self.db_path).map_err(|e| {
+                    SpliceError::Other(format!(
+                        "Failed to open database for symbol ID lookup: {}",
+                        e
+                    ))
+                })?;
+
+                let mut stmt = conn
+                    .prepare(
+                        "SELECT id, name, file_path, data FROM graph_entities WHERE id = ? AND kind = 'Symbol'",
+                    )
+                    .map_err(|e| SpliceError::Other(format!("Failed to prepare query: {}", e)))?;
+
+                let mut rows = stmt
+                    .query_map([entity_id], |row| {
+                        Ok((
+                            row.get::<_, i64>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, String>(2)?,
+                            row.get::<_, String>(3)?,
+                        ))
+                    })
+                    .map_err(|e| SpliceError::Other(format!("Failed to query symbols: {}", e)))?;
+
+                if let Some(row_result) = rows.next() {
+                    let (entity_id, name, file_path, data_json) = row_result
+                        .map_err(|e| SpliceError::Other(format!("Failed to read row: {}", e)))?;
+                    return Ok(Some(Self::build_symbol_info_from_data(
+                        entity_id, &name, &file_path, &data_json,
+                    )?));
+                }
+            }
+            Err(_) => {
+                // Not found via magellan resolver; fall through to legacy IDs.
+            }
+        }
+
+        // Try 2: generated splice V2 / V1 IDs (backward compatibility)
         let conn = Connection::open(&self.db_path).map_err(|e| {
             SpliceError::Other(format!(
                 "Failed to open database for symbol ID lookup: {}",
@@ -407,7 +458,6 @@ impl MagellanIntegration {
             let (entity_id, name, file_path, data_json) =
                 row_result.map_err(|e| SpliceError::Other(format!("Failed to read row: {}", e)))?;
 
-            // Parse the JSON data to get byte_start
             let data: serde_json::Value = serde_json::from_str(&data_json).map_err(|e| {
                 SpliceError::Other(format!("Failed to parse symbol data JSON: {}", e))
             })?;
@@ -415,89 +465,71 @@ impl MagellanIntegration {
             let byte_start = data
                 .get("byte_start")
                 .and_then(|v| v.as_u64())
-                .ok_or_else(|| SpliceError::Other("Symbol data missing byte_start".to_string()))?;
-            let byte_start = byte_start as usize;
+                .ok_or_else(|| SpliceError::Other("Symbol data missing byte_start".to_string()))?
+                as usize;
 
-            // Try V2 (32-char BLAKE3) first, then V1 (16-char SHA-256) for backward compatibility
             let generated_v2 = generate_v2(&name, &file_path, byte_start);
             if generated_v2.as_str() == symbol_id {
-                // Found V2 match - extract remaining fields
-                let byte_end = data
-                    .get("byte_end")
-                    .and_then(|v| v.as_u64())
-                    .ok_or_else(|| {
-                        SpliceError::Other("Symbol data missing byte_end".to_string())
-                    })?;
-                let byte_end = byte_end as usize;
-
-                let kind = data
-                    .get("kind")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("Unknown")
-                    .to_string();
-
-                let start_line = data
-                    .get("start_line")
-                    .and_then(|v| v.as_u64())
-                    .map(|l| l as usize);
-                let end_line = data
-                    .get("end_line")
-                    .and_then(|v| v.as_u64())
-                    .map(|l| l as usize);
-
-                return Ok(Some(SymbolInfo {
-                    entity_id,
-                    name,
-                    file_path,
-                    kind,
-                    byte_start,
-                    byte_end,
-                    start_line,
-                    end_line,
-                }));
+                return Ok(Some(Self::build_symbol_info_from_data(
+                    entity_id, &name, &file_path, &data_json,
+                )?));
             }
 
-            // Try V1 (16-char SHA-256) for backward compatibility
             let generated_v1 = generate_v1(&name, &file_path, byte_start);
             if generated_v1.as_str() == symbol_id {
-                // Found V1 match - extract remaining fields
-                let byte_end = data
-                    .get("byte_end")
-                    .and_then(|v| v.as_u64())
-                    .ok_or_else(|| {
-                        SpliceError::Other("Symbol data missing byte_end".to_string())
-                    })?;
-                let byte_end = byte_end as usize;
-
-                let kind = data
-                    .get("kind")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("Unknown")
-                    .to_string();
-
-                let start_line = data
-                    .get("start_line")
-                    .and_then(|v| v.as_u64())
-                    .map(|l| l as usize);
-                let end_line = data
-                    .get("end_line")
-                    .and_then(|v| v.as_u64())
-                    .map(|l| l as usize);
-
-                return Ok(Some(SymbolInfo {
-                    entity_id,
-                    name,
-                    file_path,
-                    kind,
-                    byte_start,
-                    byte_end,
-                    start_line,
-                    end_line,
-                }));
+                return Ok(Some(Self::build_symbol_info_from_data(
+                    entity_id, &name, &file_path, &data_json,
+                )?));
             }
         }
 
         Ok(None)
+    }
+
+    /// Build SymbolInfo from the JSON data blob stored in graph_entities.
+    fn build_symbol_info_from_data(
+        entity_id: i64,
+        name: &str,
+        file_path: &str,
+        data_json: &str,
+    ) -> Result<SymbolInfo> {
+        let data: serde_json::Value = serde_json::from_str(data_json)
+            .map_err(|e| SpliceError::Other(format!("Failed to parse symbol data JSON: {}", e)))?;
+
+        let byte_start = data
+            .get("byte_start")
+            .and_then(|v| v.as_u64())
+            .ok_or_else(|| SpliceError::Other("Symbol data missing byte_start".to_string()))?
+            as usize;
+        let byte_end = data
+            .get("byte_end")
+            .and_then(|v| v.as_u64())
+            .ok_or_else(|| SpliceError::Other("Symbol data missing byte_end".to_string()))?
+            as usize;
+        let kind = data
+            .get("kind")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Unknown")
+            .to_string();
+        let start_line = data
+            .get("start_line")
+            .and_then(|v| v.as_u64())
+            .map(|l| l as usize);
+        let end_line = data
+            .get("end_line")
+            .and_then(|v| v.as_u64())
+            .map(|l| l as usize);
+
+        Ok(SymbolInfo {
+            entity_id,
+            name: name.to_string(),
+            file_path: file_path.to_string(),
+            kind,
+            byte_start,
+            byte_end,
+            start_line,
+            end_line,
+        })
     }
 
     /// Find symbol by ID (Geometric implementation).

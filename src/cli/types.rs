@@ -122,6 +122,27 @@ impl OutputFormat {
     }
 }
 
+impl SymbolKind {
+    /// Convert to a normalized symbol kind string used for filtering.
+    pub fn to_symbol_kind_string(self) -> String {
+        match self {
+            SymbolKind::Function => "fn",
+            SymbolKind::Method => "method",
+            SymbolKind::Class => "struct",
+            SymbolKind::Struct => "struct",
+            SymbolKind::Interface => "trait",
+            SymbolKind::Enum => "enum",
+            SymbolKind::Trait => "trait",
+            SymbolKind::Impl => "impl",
+            SymbolKind::Module => "module",
+            SymbolKind::Variable => "variable",
+            SymbolKind::Constructor => "constructor",
+            SymbolKind::TypeAlias => "type_alias",
+        }
+        .to_string()
+    }
+}
+
 impl Language {
     /// Convert to string identifier.
     pub fn as_str(&self) -> &'static str {

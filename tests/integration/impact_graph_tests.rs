@@ -53,6 +53,7 @@ fn test_rename_command_has_impact_graph_flag() {
         symbol: Some("abc123".to_string()),
         name: None,
         file: None,
+        kind: None,
         to: "new_name".to_string(),
         db: PathBuf::from("/tmp/test.db"),
         preview: true,

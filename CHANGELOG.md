@@ -3,6 +3,49 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.2] - 2026-06-16
+
+### Fixed
+
+- **`splice rename` works again with magellan-backed projects**
+  - Fixed `find_symbol_by_name_sqlite` so navigator-derived symbols use full,
+    correct byte spans from `symbol_extents` instead of zero-width `byte_end`.
+  - Added `--kind` disambiguator to `rename` so duplicate `fn`/`function`
+    records no longer produce `SPL-E002 AmbiguousSymbol`.
+  - `rename --symbol <id>` now accepts magellan's stable `symbol_id` (the
+    16-char hex shown by `magellan find --output json`) via
+    `resolve_symbol_entity`.
+
+- **`splice delete` gains `--db` and cross-file reference awareness**
+  - Added `--db <path>` flag (matching other commands).
+  - When `--db` is provided, symbol lookup and cross-file references are
+    resolved through `MagellanIntegration`, so calls from other files are
+    included in deletion targets.
+
+- **`splice dead-code` is now whole-program**
+  - Replaced the string-key BFS with an entity-ID BFS over the call graph.
+  - Uses stable `callee_symbol_id` edges for accurate cross-file reachability,
+    falling back to name/path lookup only when needed.
+  - Entry-point resolution now uses `symbol_id_by_name` and returns a clear
+    `SymbolNotFound` error if the entry is absent.
+
+- **`splice patch --dry-run` / `--preview` exit 0 on success**
+  - Previously returned 1 whenever the diff contained changes. It now returns 0
+    and emits the diff; the diff itself signals pending changes.
+
+- **`splice create` accepts initial content without stdin**
+  - Added `--content <string>` and `--with <file>` flags.
+  - Priority: `--with` > `--content` > stdin.
+
+### Changed
+
+- Re-exported `normalize_kind` from `splice::graph` for CLI kind filtering.
+
+### Known limitations
+
+- `splice delete` still falls back to local `CodeGraph` when `--db` is not
+  provided; cross-file deletion requires `--db`.
+
 ## [2.9.1] - 2026-06-16
 
 ### Fixed
@@ -16,21 +59,8 @@ Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Known limitations (not regressions from 2.9.0)
 
-- `splice rename` remains non-functional against magellan 4.7.3:
-  - `--name --file` errors with `SPL-E002 AmbiguousSymbol` because the DB holds
-    duplicate records per symbol (magellan `fn` kind + splice tree-sitter
-    `function` kind) and rename has no `--kind` disambiguator.
-  - `--symbol <id>` errors with `SPL-E040 not found` because the magellan
-    `symbol_id` space differs from the ID splice expects, and `splice find`
-    exposes no symbol ID.
-  - Do not use splice for cross-file rename until a future release addresses
-    the id-space / duplicate-record issue.
-- `splice delete` still has no `--db` flag and hardcodes the default
-  `.magellan/magellan.db` path.
-- `splice dead-code` does not follow cross-file calls; treat its output as
-  intra-file reachability only.
-- `splice patch --dry-run` exits with code 1 even on a successful preview; read
-  the printed diff rather than checking `$?`.
+- `splice delete` still falls back to local `CodeGraph` when `--db` is not
+  provided; cross-file deletion requires `--db`.
 
 ## [2.9.0] - 2026-06-07
 

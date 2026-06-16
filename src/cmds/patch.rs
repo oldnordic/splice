@@ -397,13 +397,9 @@ pub(crate) fn execute_patch(
             log_execution_error("patch (dry-run)", &e);
         }
 
-        // Mark as having pending changes if lines were added or removed (git diff exit code convention)
-        let has_changes = report.lines_added > 0 || report.lines_removed > 0;
-        let mut payload = splice::cli::CliSuccessPayload::message_only(message).already_emitted();
-        if has_changes {
-            payload = payload.with_pending_changes();
-        }
-        return Ok(payload);
+        // Dry-run is a successful preview: always exit 0 even when the diff
+        // shows changes. The printed diff is the signal that work would be done.
+        return Ok(splice::cli::CliSuccessPayload::message_only(message).already_emitted());
     }
 
     let (before_hash, after_hash) = apply_patch_with_validation(

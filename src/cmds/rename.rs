@@ -22,6 +22,7 @@ pub(crate) fn execute_rename(
     snapshot_before: bool,
     impact_graph: bool,
     _json_output: bool,
+    kind_filter: Option<String>,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use splice::graph::MagellanIntegration;
     use splice::proof::generation::generate_snapshot;
@@ -94,6 +95,8 @@ pub(crate) fn execute_rename(
         // Lookup by name+path
         let name_str = lookup_name.expect("invariant: lookup_id is None, so name is Some");
         let file_path = lookup_file.expect("invariant: lookup_id is None, so file is Some");
+        let file_path = splice::resolve::normalize_lookup_path(file_path);
+        let file_path_str = file_path.to_string_lossy().to_string();
 
         // First, find ALL matches (ambiguous=true) to provide complete error context
         let mut all_matches = magellan.find_symbol_by_name(name_str, true).map_err(|e| {
@@ -102,6 +105,14 @@ pub(crate) fn execute_rename(
                 symbol: name_str.to_string(),
             }
         })?;
+
+        // Apply kind filter if provided (e.g., "fn" vs "function" normalized to magellan's kind)
+        if let Some(ref kind) = kind_filter {
+            let normalized = splice::graph::magellan_integration::normalize_kind(kind);
+            all_matches.retain(|s| {
+                splice::graph::magellan_integration::normalize_kind(&s.kind) == normalized
+            });
+        }
 
         if all_matches.is_empty() {
             return Err(splice::SpliceError::RenameFailed {
@@ -117,7 +128,6 @@ pub(crate) fn execute_rename(
         // Check if symbol name is ambiguous across multiple files
         if all_matches.len() > 1 {
             // Filter to just the specified file
-            let file_path_str = file_path.to_string_lossy().to_string();
             all_matches.retain(|s| s.file_path == file_path_str);
 
             if all_matches.is_empty() {
@@ -223,9 +233,19 @@ pub(crate) fn execute_rename(
             symbol: symbol_info.name,
         });
     }
-
     // Sort references for safe in-order replacement
     // Descending by byte_start within each file prevents offset shifts
+
+    // Deduplicate references: magellan may already include the definition site,
+    // and we also add it below. Overlapping duplicates produce double renames.
+    {
+        let mut seen = std::collections::HashSet::new();
+        references.retain(|r| {
+            let key = (r.file_path.clone(), r.byte_start, r.byte_end);
+            seen.insert(key)
+        });
+    }
+
     splice::graph::MagellanIntegration::sort_references_for_replacement(&mut references);
 
     // Group references by file

@@ -71,6 +71,10 @@ pub enum Commands {
         /// Capture graph snapshot before deleting.
         #[arg(long)]
         snapshot_before: bool,
+
+        /// Database path for grounded symbol resolution (default: .magellan/magellan.db).
+        #[arg(short = 'd', long)]
+        db: Option<std::path::PathBuf>,
     },
 
     /// Apply a patch to a symbol's span.
@@ -552,7 +556,7 @@ pub enum Commands {
     /// Rename a symbol across all files using byte-accurate references
     #[command(display_order = 110)]
     Rename {
-        /// Symbol ID (32-char BLAKE3 or 16-char SHA-256)
+        /// Symbol ID (magellan entity ID, 32-char BLAKE3, or 16-char SHA-256)
         #[arg(short, long, conflicts_with = "name")]
         symbol: Option<String>,
 
@@ -563,6 +567,10 @@ pub enum Commands {
         /// File path for symbol name resolution (required with --name)
         #[arg(short, long)]
         file: Option<std::path::PathBuf>,
+
+        /// Optional symbol kind filter (e.g., fn, function, struct). Use when multiple symbols share the same name in one file.
+        #[arg(short, long)]
+        kind: Option<SymbolKind>,
 
         /// New name for the symbol
         #[arg(short, long)]
@@ -818,6 +826,14 @@ pub enum Commands {
         /// Path to the file to create
         #[arg(short, long)]
         file: std::path::PathBuf,
+
+        /// Initial file content (overrides stdin)
+        #[arg(short, long)]
+        content: Option<String>,
+
+        /// Read initial content from a file (overrides stdin and --content)
+        #[arg(long)]
+        with: Option<std::path::PathBuf>,
 
         /// Validate only (don't write file)
         #[arg(short = 'V', long)]

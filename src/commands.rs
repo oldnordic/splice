@@ -20,6 +20,8 @@ use std::path::{Path, PathBuf};
 /// * `Err(SpliceError)` - Command failed
 pub fn cmd_create(
     file_path: &Path,
+    content: Option<&str>,
+    with: Option<&Path>,
     validate_only: bool,
     with_mod: bool,
     workspace_dir: &Path,
@@ -31,14 +33,24 @@ pub fn cmd_create(
     } else {
         OutputFormat::Human
     };
-    // Step 1: Read code from stdin
+
+    // Step 1: Read code from --with, --content, or stdin (in that order)
     let mut code = String::new();
-    std::io::stdin()
-        .read_to_string(&mut code)
-        .map_err(|source| SpliceError::Io {
-            path: PathBuf::from("<stdin>"),
+    if let Some(path) = with {
+        code = std::fs::read_to_string(path).map_err(|source| SpliceError::Io {
+            path: path.to_path_buf(),
             source,
         })?;
+    } else if let Some(text) = content {
+        code = text.to_string();
+    } else {
+        std::io::stdin()
+            .read_to_string(&mut code)
+            .map_err(|source| SpliceError::Io {
+                path: PathBuf::from("<stdin>"),
+                source,
+            })?;
+    }
 
     // Step 2: Call create module
     let result = if with_mod {

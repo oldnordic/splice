@@ -44,14 +44,19 @@ impl MagellanIntegration {
         entry_symbol: &str,
         exclude_public: bool,
     ) -> Result<Vec<DeadSymbol>> {
-        use std::collections::{HashMap, HashSet};
+        use std::collections::{HashMap, HashSet, VecDeque};
 
         let entry_path_str = entry_file.to_str().ok_or_else(|| {
             SpliceError::Other(format!("Invalid UTF-8 in path: {:?}", entry_file))
         })?;
 
-        // Step 1: Get all symbols in the database
-        let mut all_symbols = HashMap::new();
+        // Step 1: Enumerate all symbols by entity ID so the BFS is unambiguous
+        // across files (the previous string-key BFS missed cross-file calls
+        // because callee names can collide or omit module prefixes).
+        let mut entity_to_fact: HashMap<i64, magellan::ingest::SymbolFact> = HashMap::new();
+        let mut symbol_id_to_entity: HashMap<String, i64> = HashMap::new();
+        let mut path_name_to_entity: HashMap<(String, String), i64> = HashMap::new();
+
         let file_nodes = self
             .inner
             .all_file_nodes()
@@ -63,45 +68,95 @@ impl MagellanIntegration {
             })?;
 
             for fact in symbols {
-                if let Some(ref name) = fact.name {
-                    let key = (fact.file_path.to_string_lossy().to_string(), name.clone());
-                    all_symbols.insert(key, (fact, false)); // false = not yet visited
+                let name = match fact.name.as_deref() {
+                    Some(n) => n,
+                    None => continue,
+                };
+
+                let entity_id = match self.inner.symbol_id_by_name(file_path, name) {
+                    Ok(Some(id)) => id,
+                    _ => continue,
+                };
+
+                entity_to_fact.insert(entity_id, fact.clone());
+                path_name_to_entity.insert((file_path.to_string(), name.to_string()), entity_id);
+
+                if let Ok(info) = self.inner.symbol_by_entity_id(entity_id) {
+                    if let Some(symbol_id) = info.symbol_id {
+                        symbol_id_to_entity.insert(symbol_id, entity_id);
+                    }
                 }
             }
         }
 
-        // Step 2: BFS from entry point to mark reachable symbols
+        // Step 2: Locate the entry point entity ID
+        let entry_entity = self
+            .inner
+            .symbol_id_by_name(entry_path_str, entry_symbol)
+            .map_err(|e| SpliceError::Other(format!("Failed to resolve entry symbol: {}", e)))?
+            .ok_or_else(|| SpliceError::SymbolNotFound {
+                message: format!(
+                    "Entry point '{}' not found in '{}'",
+                    entry_symbol, entry_path_str
+                ),
+                symbol: entry_symbol.to_string(),
+                file: Some(entry_file.to_path_buf()),
+                hint: "Ensure the entry point symbol exists in the specified file".to_string(),
+            })?;
+
+        // Step 3: BFS over entity IDs using the call graph
         let mut visited = HashSet::new();
-        let mut queue = std::collections::VecDeque::new();
+        let mut queue = VecDeque::new();
+        visited.insert(entry_entity);
+        queue.push_back(entry_entity);
 
-        // Start with entry point
-        let entry_key = (entry_path_str.to_string(), entry_symbol.to_string());
-        queue.push_back(entry_key.clone());
-        visited.insert(entry_key);
+        while let Some(entity_id) = queue.pop_front() {
+            let fact = match entity_to_fact.get(&entity_id) {
+                Some(f) => f,
+                None => continue,
+            };
 
-        while let Some((file_path, symbol_name)) = queue.pop_front() {
-            // Get all callees of this symbol
-            let callees = self
+            let path = fact.file_path.to_string_lossy().to_string();
+            let name = fact.name.as_deref().unwrap_or("");
+
+            let calls = self
                 .inner
-                .calls_from_symbol(&file_path, &symbol_name)
+                .calls_from_symbol(&path, name)
                 .unwrap_or_default();
 
-            for call in callees {
-                let callee_key = (
-                    call.file_path.to_string_lossy().to_string(),
-                    call.callee.clone(),
-                );
-                if visited.insert(callee_key.clone()) {
-                    queue.push_back(callee_key);
+            for call in calls {
+                let mut next_entity = None;
+
+                // Prefer the stable callee symbol ID, which is accurate for
+                // cross-file calls.
+                if let Some(ref callee_symbol_id) = call.callee_symbol_id {
+                    if let Some(&eid) = symbol_id_to_entity.get(callee_symbol_id) {
+                        next_entity = Some(eid);
+                    }
+                }
+
+                // Fall back to name-based lookup in the callee's file.
+                if next_entity.is_none() {
+                    let callee_path = call.file_path.to_string_lossy().to_string();
+                    if let Some(&eid) = path_name_to_entity.get(&(callee_path, call.callee.clone()))
+                    {
+                        next_entity = Some(eid);
+                    }
+                }
+
+                if let Some(eid) = next_entity {
+                    if visited.insert(eid) {
+                        queue.push_back(eid);
+                    }
                 }
             }
         }
 
-        // Step 3: Collect unvisited symbols as dead code
+        // Step 4: Collect unvisited symbols as dead code
         let mut dead_symbols = Vec::new();
 
-        for ((file_path, symbol_name), (fact, _)) in all_symbols {
-            if !visited.contains(&(file_path.clone(), symbol_name.clone())) {
+        for (entity_id, fact) in entity_to_fact {
+            if !visited.contains(&entity_id) {
                 // Skip if excluding public symbols
                 if exclude_public && is_public_symbol(&fact) {
                     continue;
@@ -109,8 +164,8 @@ impl MagellanIntegration {
 
                 let dead = DeadSymbol {
                     symbol: SymbolInfo {
-                        entity_id: 0, // entity_id not available from SymbolFact
-                        name: symbol_name.clone(),
+                        entity_id,
+                        name: fact.name.unwrap_or_default(),
                         file_path: fact.file_path.to_string_lossy().to_string(),
                         kind: fact.kind_normalized,
                         byte_start: fact.byte_start,

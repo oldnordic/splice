@@ -113,6 +113,7 @@ fn main() -> ExitCode {
             operation_id,
             metadata,
             snapshot_before,
+            db,
         } => cmds::delete::execute_delete(
             &file,
             &symbol,
@@ -133,6 +134,7 @@ fn main() -> ExitCode {
             json_output,
             cli.strict,
             true,
+            db.as_deref(),
         ),
 
         splice::cli::Commands::Patch {
@@ -195,12 +197,16 @@ fn main() -> ExitCode {
 
         splice::cli::Commands::Create {
             file,
+            content,
+            with,
             validate_only,
             with_mod,
             workspace,
         } => {
             match splice::commands::cmd_create(
                 &file,
+                content.as_deref(),
+                with.as_deref(),
                 validate_only,
                 with_mod,
                 &workspace,
@@ -428,6 +434,7 @@ fn main() -> ExitCode {
             create_backup: _,
             snapshot_before,
             impact_graph,
+            kind,
         } => cmds::rename::execute_rename(
             symbol.as_deref(),
             name.as_deref(),
@@ -441,6 +448,7 @@ fn main() -> ExitCode {
             snapshot_before,
             impact_graph,
             json_output,
+            kind.map(|k| k.to_symbol_kind_string()),
         ),
 
         splice::cli::Commands::Reachable {

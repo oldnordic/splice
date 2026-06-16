@@ -31,15 +31,16 @@ pub(crate) fn execute_delete(
     json_output: bool,
     strict: bool,
     skip_pre_verify: bool,
+    db: Option<&Path>,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
     use ropey::Rope;
     use splice::execution::log;
     use splice::format_colored_diff;
     use splice::format_diff_summary;
     use splice::format_unified_diff;
-    use splice::graph::CodeGraph;
+    use splice::graph::{CodeGraph, MagellanIntegration};
     use splice::patch::apply_patch_with_validation;
-    use splice::resolve::references::find_references;
+    use splice::resolve::references::{find_references, Reference, ReferenceContext};
     use splice::should_use_color;
     use splice::symbol::{Language as SymbolLanguage, Symbol};
     use splice::validate::AnalyzerMode as ValidateAnalyzerMode;
@@ -118,9 +119,75 @@ pub(crate) fn execute_delete(
         splice::cli::SymbolKind::TypeAlias => "type_alias",
     });
 
-    // Step 6: Find all references to the symbol
-    // Note: Reference finding is still Rust-only (Phase 4 will add multi-language)
-    let ref_set = find_references(&code_graph, file_path, symbol_name, None)?;
+    // Step 6: Find all references to the symbol.
+    // Start with local tree-sitter results, then merge grounded cross-file
+    // references from the provided magellan DB when available.
+    let mut ref_set = find_references(&code_graph, file_path, symbol_name, None)?;
+
+    if let Some(db_path) = db {
+        let mut magellan = MagellanIntegration::open(db_path)?;
+        let kind_filter = kind.as_ref().map(|k| k.to_symbol_kind_string());
+
+        let mut matches = magellan.find_symbol_by_name(symbol_name, true)?;
+
+        let requested_file = {
+            let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+            let joined = cwd.join(file_path);
+            joined.to_string_lossy().to_string()
+        };
+
+        matches.retain(|m| {
+            let symbol_file = Path::new(&m.file_path);
+            symbol_file.to_string_lossy() == requested_file
+        });
+
+        if let Some(ref k) = kind_filter {
+            let normalized = splice::graph::normalize_kind(k);
+            matches.retain(|m| splice::graph::normalize_kind(&m.kind) == normalized);
+        }
+
+        if matches.len() > 1 {
+            return Err(splice::SpliceError::AmbiguousSymbol {
+                name: symbol_name.to_string(),
+                files: matches.into_iter().map(|m| m.file_path).collect(),
+            });
+        }
+
+        if let Some(symbol_info) = matches.into_iter().next() {
+            let magellan_refs = magellan.get_all_references(symbol_info.entity_id)?;
+            let mut seen: std::collections::HashSet<(String, usize, usize)> = ref_set
+                .references
+                .iter()
+                .map(|r| (r.file_path.clone(), r.byte_start, r.byte_end))
+                .collect();
+
+            for r in magellan_refs {
+                let key = (
+                    r.file_path.to_string_lossy().to_string(),
+                    r.byte_start,
+                    r.byte_end,
+                );
+                if seen.insert(key) {
+                    ref_set.references.push(Reference {
+                        file_path: r.file_path.to_string_lossy().to_string(),
+                        byte_start: r.byte_start,
+                        byte_end: r.byte_end,
+                        line: r.start_line,
+                        column: 0,
+                        context: ReferenceContext::Identifier,
+                        match_id: None,
+                    });
+                }
+            }
+
+            // Update the definition span to the grounded magellan span if it
+            // refers to the same file; this gives a more accurate delete range.
+            if symbol_info.file_path == requested_file {
+                ref_set.definition.byte_start = symbol_info.byte_start;
+                ref_set.definition.byte_end = symbol_info.byte_end;
+            }
+        }
+    }
 
     // Step 7: Determine workspace directory (parent of source file)
     let workspace_dir = file_path.parent().ok_or_else(|| {

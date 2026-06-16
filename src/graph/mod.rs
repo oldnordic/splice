@@ -32,7 +32,7 @@ pub use sqlite_impl::CodeGraphSqlite;
 pub use geo_impl::CodeGraphGeo;
 
 // Re-export MagellanIntegration for existing code that needs it
-pub use magellan_integration::MagellanIntegration;
+pub use magellan_integration::{normalize_kind, MagellanIntegration};
 
 // Legacy: Deprecated Backend enum - use BackendType instead
 /// Legacy backend type identifier.
