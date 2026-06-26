@@ -398,7 +398,7 @@ mod tests {
         );
 
         // Clean up - restore directory first, remove test db, then env var
-        env::set_current_dir(&original_dir).unwrap();
+        env::set_current_dir(&original_dir).ok(); // Use ok() to avoid panic if already restored
         if let Ok(val) = original_env {
             env::set_var("SPLICE_DB", val);
         } else {
