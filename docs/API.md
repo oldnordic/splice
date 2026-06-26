@@ -1,5 +1,115 @@
 # Splice API Reference
 
+## Version 3.0 Agent Surface
+
+Splice v3.0 introduces agent-focused commands for AI/LLM workflows. These commands provide validated editing and intent-based scaffolding without requiring cursor positions or file state.
+
+### Agent Commands API
+
+#### `splice edit` — Text-Replace with Validation
+
+**Purpose:** Agent-friendly alternative to `Write` tool for validated edits
+
+**CLI Signature:**
+```bash
+splice edit --file <path> --replace-old <old> --replace-new <new> [--preview]
+```
+
+**Programmatic API:**
+```rust
+use splice::cmds::edit;
+use splice::patch::text_replace;
+
+// Find replacement span
+let (start, end) = text_replace::find_replacement_span(
+    Path::new("src/lib.rs"),
+    "fn old_function() -> i32 { 0 }"
+)?;
+
+// Apply with validation
+let (before_hash, after_hash) = edit::apply_edit_with_validation(
+    Path::new("src/lib.rs"),
+    start,
+    end,
+    "fn new_function() -> i32 { 42 }",
+    &workspace_root,
+)?;
+```
+
+**Error Codes:**
+- `SPL-E071` — Text not found in file (with context preview)
+- `SPL-E072` — Ambiguous match (multiple occurrences)
+- `SPL-E042` — Syntax validation failed (auto-rollback)
+- `SPL-E043` — Compiler validation failed (auto-rollback)
+
+#### `splice suggest` — Intent-Based Scaffolding
+
+**Purpose:** Cursor-free scaffold generation with grounded type inference
+
+**CLI Signature:**
+```bash
+splice suggest --fn-name <name> --desc <description> [--output json]
+```
+
+**Programmatic API:**
+```rust
+use splice::cmds::suggest;
+
+// Generate scaffold
+let scaffold = suggest::generate_scaffold(
+    "process_data",
+    "Parse JSON and validate schema",
+    &db_path,
+)?;
+
+// Text scaffold
+println!("{}", scaffold.to_text());
+
+// JSON scaffold
+let json = scaffold.to_json();
+```
+
+**Scaffold Structure:**
+```rust
+pub struct Scaffold {
+    pub function_name: String,
+    pub suggested_signature: String,
+    pub inferred_from: Vec<String>,
+    pub imports: Vec<String>,
+    pub keywords: Vec<String>,
+}
+```
+
+#### DB Auto-Discovery
+
+**Purpose:** Resolve DB path without explicit `--db` flag
+
+**API:**
+```rust
+use splice::graph::db_discovery;
+
+// Auto-discover DB path
+let resolution = db_discovery::discover_db_path(None)?;
+
+match resolution.source {
+    ResolutionSource::ExplicitFlag => println!("Using --db flag"),
+    ResolutionSource::EnvVar => println!("Using SPLICE_DB env var"),
+    ResolutionSource::GitRoot => println!("Inferred from git root"),
+    ResolutionSource::LegacyPath => println!("Using legacy path"),
+}
+
+println!("DB path: {:?}", resolution.path);
+```
+
+**Resolution Chain:**
+1. Explicit `--db` flag (highest priority)
+2. `SPLICE_DB` environment variable
+3. Git root inference: `~/.magellan/<project>/<project>.db`
+4. Legacy local path: `.magellan/<project>.db`
+5. Error with helpful message listing all attempted paths
+
+---
+
 ## Official Documentation
 
 The complete API documentation is available at **[docs.rs/sqlitegraph](https://docs.rs/sqlitegraph)** for the SQLiteGraph dependency.

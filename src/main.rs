@@ -572,6 +572,37 @@ fn main() -> ExitCode {
             db,
         } => cmds::batch::execute_complete(&file, line, column, max_results, &db, json_output),
 
+        splice::cli::Commands::Edit {
+            file,
+            replace_old,
+            replace_new,
+            language,
+            preview,
+            create_backup,
+            operation_id,
+            metadata,
+            db,
+            unified,
+        } => cmds::edit::execute_edit(
+            file,
+            replace_old,
+            replace_new,
+            language,
+            preview,
+            create_backup,
+            operation_id,
+            metadata,
+            db,
+            unified,
+        ),
+
+        splice::cli::Commands::Suggest {
+            fn_name,
+            desc,
+            db,
+            output,
+        } => cmds::suggest::execute_suggest(&fn_name, &desc, db.as_deref(), output, json_output),
+
         splice::cli::Commands::Snapshots(subcommand) => {
             cmds::snapshots::execute_snapshots(subcommand, json_output)
         }

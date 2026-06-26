@@ -3,6 +3,79 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Phase 1: DB Auto-Discovery** - Database path resolution with fallback chain:
+  - `--db` flag is now optional across all commands (highest priority when provided)
+  - `SPLICE_DB` environment variable override
+  - Git root inference: `~/.magellan/<project>/<project>.db`
+  - Legacy local path: `.magellan/<project>.db` (backward compatibility)
+  - Comprehensive error messages listing all attempted paths
+  - New module: `src/graph/db_discovery.rs` with unit tests
+  - Support for git worktrees and bare repositories
+
+- **Phase 3: Agent Bridge (splice edit)** - Text-replace command with validation:
+  - New `splice edit` subcommand for text-replace with validation
+  - `--file <path> --replace-old <old> --replace-new <new>` signature
+  - `--preview` flag shows diff without applying changes
+  - Error on ambiguous matches (multiple occurrences of same text)
+  - Error on not found with helpful context messages
+  - New modules: `src/cmds/edit.rs`, `src/patch/text_replace.rs`
+  - Tests for exact match, ambiguous match, preview mode
+
+- **Phase 4: Intent Intelligence (splice suggest)** - Intent-based scaffold generation:
+  - New `splice suggest` subcommand for grounded code scaffolds
+  - `--fn-name <name> --desc <description>` signature for intent-based queries
+  - Queries Magellan database for existing symbols and types
+  - Returns function scaffold with import suggestions
+  - `--output json` returns structured scaffold data
+  - New module: `src/cmds/suggest.rs`
+  - Tests for keyword extraction and scaffold generation
+
+### Changed
+
+- **Breaking Change:** `complete` command deprecated for agent use in favor of `suggest`
+- DB auto-discovery enabled by default for all commands
+- Short option `-d` now used for `--desc` in suggest command (removed from `--db`)
+- Fixed CLI option conflicts between edit/suggest commands
+
+### Fixed
+
+- DB discovery fallback chain now properly cleans up test state
+- Text replace validation errors now provide clear messages
+- Option conflicts in CLI resolved
+
+### Changed
+
+- All splice commands can now operate without explicit `--db` flag in git repositories
+- Better error messages when database is not found (shows all attempted paths)
+- **Phase 2: Code Quality Improvements** - Reduced pedantic warnings by ~10% (from 2627 to 2539)
+  - Fixed unnecessary raw string hashes in 9 files
+  - Improved code formatting consistency
+
+### Breaking Changes
+
+- **Version 3.0.0** - Major release with agent-focused surface improvements:
+  - New `splice edit` command provides agent-friendly alternative to `Write` tool
+  - New `splice suggest` command provides cursor-free scaffold generation
+  - `--db` flag now optional across all commands (auto-discovery from git root)
+  - IDE/LSP `complete` command remains functional (no breaking changes for editor integrations)
+
+## [2.9.4] - 2026-06-20
+
+### Fixed
+
+- **Dynamic schema version checks in `splice migrate-db`**:
+  - Replaced the hardcoded target version `6` in CLI outputs and logic with dynamic checks using `magellan::MAGELLAN_SCHEMA_VERSION` (currently `17`).
+  - Replaced the hardcoded assumption in `check_schema_version` with live SQLite queries to `magellan_meta` to accurately fetch the database's `magellan_schema_version`.
+  - Updated the backup utility to copy the database to a timestamped backup with the actual schema version format (`.db.backup.v<version>`).
+
+### Changed
+
+- **Upgrade `sqlitegraph` dependency** to `3.3.1` to align with the new unified `sqlitegraph` SCC schema and version.
+
 ## [2.9.3] - 2026-06-16
 
 ### Fixed

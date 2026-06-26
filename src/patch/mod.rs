@@ -11,6 +11,7 @@
 mod backup;
 mod batch_loader;
 pub mod pattern;
+pub mod text_replace;
 
 pub(crate) mod gates;
 pub(crate) mod preview;
@@ -34,8 +35,11 @@ pub(crate) use gates::run_validation_gates;
 pub use pattern::{
     apply_pattern_replace, find_pattern_in_files, PatternReplaceConfig, PatternReplaceResult,
 };
+
 #[cfg(test)]
 use preview::should_skip_entry;
+
+pub use text_replace::edit_file;
 
 /// Replacement to apply within a specific file.
 #[derive(Debug, Clone, Serialize)]

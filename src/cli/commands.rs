@@ -875,6 +875,70 @@ pub enum Commands {
     /// Manage code graph snapshots
     #[command(display_order = 120, subcommand)]
     Snapshots(SnapshotsCommands),
+
+    /// Edit code with text-replace and tree-sitter validation
+    #[command(display_order = 202)]
+    Edit {
+        /// Path to the source file
+        #[arg(short, long)]
+        file: std::path::PathBuf,
+
+        /// Old text to replace
+        #[arg(long)]
+        replace_old: String,
+
+        /// New text to replace with
+        #[arg(long)]
+        replace_new: String,
+
+        /// Optional language (auto-detect from extension by default)
+        #[arg(long, value_name = "LANG")]
+        language: Option<Language>,
+
+        /// Preview changes without applying
+        #[arg(short = 'n', long = "dry-run", visible_alias = "preview")]
+        preview: bool,
+
+        /// Create a backup before editing
+        #[arg(long)]
+        create_backup: bool,
+
+        /// Optional operation ID for auditing (auto-generated UUID if not provided)
+        #[arg(long)]
+        operation_id: Option<String>,
+
+        /// Optional JSON metadata to attach to this operation
+        #[arg(long)]
+        metadata: Option<String>,
+
+        /// Database path (optional, auto-discovered if not provided)
+        #[arg(long)]
+        db: Option<std::path::PathBuf>,
+
+        /// Number of context lines in unified diff (default: 3)
+        #[arg(short = 'U', long, value_name = "N", default_value = "3")]
+        unified: usize,
+    },
+
+    /// Generate grounded code scaffold from intent description
+    #[command(display_order = 203)]
+    Suggest {
+        /// Function name for scaffold
+        #[arg(short, long)]
+        fn_name: String,
+
+        /// Intent description
+        #[arg(short, long)]
+        desc: String,
+
+        /// Database path (optional, auto-discovered if not provided)
+        #[arg(long)]
+        db: Option<std::path::PathBuf>,
+
+        /// Output format (human, json, pretty)
+        #[arg(short, long, value_enum, default_value_t = OutputFormat::Human)]
+        output: OutputFormat,
+    },
 }
 
 /// Snapshot management subcommands.

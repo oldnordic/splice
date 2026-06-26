@@ -1,6 +1,6 @@
 [package]
 name = "splice"
-version = "2.9.3"
+version = "3.0.0"
 edition = "2021"
 description = "Span-safe refactoring kernel for 7 languages with Magellan code graph integration"
 license = "GPL-3.0-only"
@@ -41,7 +41,7 @@ libc = { version = "0.2", optional = true }
 # Magellan for code indexing and label queries
 magellan = { version = "4.2.0", default-features = false, optional = true }
 # SQLiteGraph re-exported from Magellan, also keep for direct access
-sqlitegraph = { version = "3.0.3", default-features = false }
+sqlitegraph = { version = "3.3.1", default-features = false }
 
 # AST parsing (kept for patch validation)
 tree-sitter = "0.25"
@@ -109,6 +109,8 @@ strsim = "0.11"
 [dev-dependencies]
 # Criterion benchmarking harness
 criterion = "0.5"
+# Tempfile for unit tests
+tempfile = "3.10"
 
 [[bench]]
 name = "graph_benchmarks"

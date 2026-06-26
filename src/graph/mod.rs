@@ -13,6 +13,7 @@
 
 // Backend implementations
 pub mod backend;
+pub mod db_discovery;
 pub mod geo_impl;
 pub mod router;
 pub mod sqlite_impl;
@@ -25,6 +26,7 @@ pub mod schema;
 
 // Re-export the public API
 pub use backend::SymbolInfo;
+pub use db_discovery::{discover_db_path, DbResolution, ResolutionSource};
 pub use router::{BackendType, CodeGraph};
 pub use sqlite_impl::CodeGraphSqlite;
 
