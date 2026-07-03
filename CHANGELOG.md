@@ -3,6 +3,18 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-07-03
+
+### Changed
+
+- **Dependency: magellan 4.2.0 → 4.13** (`Cargo.toml`): aligns splice with
+  the current magellan release (4.13.0 — content search FTS5, MIR-based Rust
+  CFG extraction, schema v20). Splice reads magellan DBs via `CodeGraph::open()`
+  which auto-migrates the schema; no code changes needed for v20 compatibility.
+- **cargo-deny: ignore RUSTSEC-2026-0190** (`deny.toml`): thiserror v1.0.69
+  `downcast_mut()` unsoundness. Pulled transitively via magellan; we use
+  thiserror v2 and never call `downcast_mut()`.
+
 ## [Unreleased]
 
 ### Added
