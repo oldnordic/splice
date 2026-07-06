@@ -216,16 +216,17 @@ pub(crate) fn execute_migrate_db(
     dry_run: bool,
     _json_output: bool,
 ) -> Result<splice::cli::CliSuccessPayload, splice::SpliceError> {
+    use magellan::MAGELLAN_SCHEMA_VERSION;
     use splice::graph::migrate::{check_schema_version, migrate_database};
 
     if dry_run {
         match check_schema_version(db_path) {
             Ok(version) => {
-                let needs_migration = version < 6;
+                let needs_migration = version < MAGELLAN_SCHEMA_VERSION;
 
                 if needs_migration {
                     println!("Current schema: v{}", version);
-                    println!("Target schema: v6");
+                    println!("Target schema: v{}", MAGELLAN_SCHEMA_VERSION);
                     println!("Migration required: yes");
                     println!(
                         "\nTo migrate, run: splice migrate-db --db-path {}",
@@ -233,8 +234,11 @@ pub(crate) fn execute_migrate_db(
                     );
                 } else {
                     println!("Current schema: v{}", version);
-                    println!("Target schema: v6");
-                    println!("Migration required: no (already on v6 or later)");
+                    println!("Target schema: v{}", MAGELLAN_SCHEMA_VERSION);
+                    println!(
+                        "Migration required: no (already on v{} or later)",
+                        MAGELLAN_SCHEMA_VERSION
+                    );
                 }
 
                 return Ok(splice::cli::CliSuccessPayload::message_only(format!(
@@ -260,7 +264,10 @@ pub(crate) fn execute_migrate_db(
                 "Database migrated: v{} -> v{}",
                 result.previous_version, result.new_version
             );
-            println!("You can now use Magellan 2.0.0 features");
+            println!(
+                "Database is now aligned with Magellan schema v{}",
+                result.new_version
+            );
 
             Ok(splice::cli::CliSuccessPayload::with_data(
                 format!(

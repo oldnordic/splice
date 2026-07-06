@@ -3,18 +3,6 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.1.0] - 2026-07-03
-
-### Changed
-
-- **Dependency: magellan 4.2.0 → 4.13** (`Cargo.toml`): aligns splice with
-  the current magellan release (4.13.0 — content search FTS5, MIR-based Rust
-  CFG extraction, schema v20). Splice reads magellan DBs via `CodeGraph::open()`
-  which auto-migrates the schema; no code changes needed for v20 compatibility.
-- **cargo-deny: ignore RUSTSEC-2026-0190** (`deny.toml`): thiserror v1.0.69
-  `downcast_mut()` unsoundness. Pulled transitively via magellan; we use
-  thiserror v2 and never call `downcast_mut()`.
-
 ## [Unreleased]
 
 ### Added
@@ -52,20 +40,17 @@ Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - DB auto-discovery enabled by default for all commands
 - Short option `-d` now used for `--desc` in suggest command (removed from `--db`)
 - Fixed CLI option conflicts between edit/suggest commands
+- All splice commands can now operate without explicit `--db` flag in git repositories
+- Better error messages when database is not found (shows all attempted paths)
+- **Phase 2: Code Quality Improvements** - Reduced pedantic warnings by ~10% (from 2627 to 2539)
+  - Fixed unnecessary raw string hashes in 9 files
+  - Improved code formatting consistency
 
 ### Fixed
 
 - DB discovery fallback chain now properly cleans up test state
 - Text replace validation errors now provide clear messages
 - Option conflicts in CLI resolved
-
-### Changed
-
-- All splice commands can now operate without explicit `--db` flag in git repositories
-- Better error messages when database is not found (shows all attempted paths)
-- **Phase 2: Code Quality Improvements** - Reduced pedantic warnings by ~10% (from 2627 to 2539)
-  - Fixed unnecessary raw string hashes in 9 files
-  - Improved code formatting consistency
 
 ### Breaking Changes
 
@@ -74,6 +59,29 @@ Project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - New `splice suggest` command provides cursor-free scaffold generation
   - `--db` flag now optional across all commands (auto-discovery from git root)
   - IDE/LSP `complete` command remains functional (no breaking changes for editor integrations)
+
+## [3.1.1] - 2026-07-06
+
+### Fixed
+
+- **`splice migrate-db` now reports live Magellan schema versions again**
+  (`src/cmds/log.rs`, `src/graph/migrate.rs`): `check_schema_version()` now
+  reads `magellan_meta.magellan_schema_version` directly instead of returning
+  stale `v6` assumptions. Dry-run and migration output use
+  `magellan::MAGELLAN_SCHEMA_VERSION` for the target version, and backup files
+  now include the actual source schema version in the filename.
+
+## [3.1.0] - 2026-07-03
+
+### Changed
+
+- **Dependency: magellan 4.2.0 → 4.13** (`Cargo.toml`): aligns splice with
+  the current magellan release (4.13.0 — content search FTS5, MIR-based Rust
+  CFG extraction, schema v20). Splice reads magellan DBs via `CodeGraph::open()`
+  which auto-migrates the schema; no code changes needed for v20 compatibility.
+- **cargo-deny: ignore RUSTSEC-2026-0190** (`deny.toml`): thiserror v1.0.69
+  `downcast_mut()` unsoundness. Pulled transitively via magellan; we use
+  thiserror v2 and never call `downcast_mut()`.
 
 ## [2.9.4] - 2026-06-20
 
